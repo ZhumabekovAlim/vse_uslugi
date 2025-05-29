@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SqlDialectMappings">
+    <file url="file://$PROJECT_DIR$/db/migrations/000001_user.down.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000001_user.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000002_ad.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000003_category.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000004_city.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000005_region.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000006_responses.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000007_reviews.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000008_service.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000009_service_responses.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000010_service_favorites.up.sql" dialect="MariaDB" />
+  </component>
+</project>

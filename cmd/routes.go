@@ -1,0 +1,65 @@
+package main
+
+import (
+	"net/http"
+
+	"github.com/bmizerany/pat"
+	"github.com/justinas/alice"
+	// httpSwagger "github.com/swaggo/http-swagger"
+	// _ "naimuBack/docs"
+)
+
+func (app *application) JWTMiddlewareWithRole(requiredRole string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return app.JWTMiddleware(next, requiredRole)
+	}
+}
+
+func (app *application) routes() http.Handler {
+	standardMiddleware := alice.New(app.recoverPanic, app.logRequest, secureHeaders, makeResponseJSON)
+	authMiddleware := standardMiddleware.Append(app.JWTMiddlewareWithRole("user"))
+	adminAuthMiddleware := standardMiddleware.Append(app.JWTMiddlewareWithRole("admin"))
+
+	mux := pat.New()
+
+	// mux.Get("/swagger/", httpSwagger.WrapHandler)
+
+	// Users
+	mux.Post("/user", adminAuthMiddleware.ThenFunc(app.userHandler.CreateUser))    //
+	mux.Get("/user", authMiddleware.ThenFunc(app.userHandler.GetUsers))            //РАБОТАЕТ
+	mux.Get("/user/:id", authMiddleware.ThenFunc(app.userHandler.GetUserByID))     //РАБОТАЕТ
+	mux.Put("/user/:id", authMiddleware.ThenFunc(app.userHandler.UpdateUser))      //РАБОТАЕТ
+	mux.Del("/user/:id", authMiddleware.ThenFunc(app.userHandler.DeleteUser))      //ИСПРАВИТЬ
+	mux.Post("/user/sign_up", standardMiddleware.ThenFunc(app.userHandler.SignUp)) //РАБОТАЕТ
+	mux.Post("/user/sign_in", standardMiddleware.ThenFunc(app.userHandler.SignIn)) //РАБОТАЕТ
+
+	// Service
+	mux.Post("/service", authMiddleware.ThenFunc(app.serviceHandler.CreateService))                             //РАБОТАЕТ
+	mux.Get("/service", authMiddleware.ThenFunc(app.serviceHandler.GetServices))                                //РАБОТАЕТ
+	mux.Get("/service/:id", authMiddleware.ThenFunc(app.serviceHandler.GetServiceByID))                         //РАБОТАЕТ
+	mux.Put("/service/:id", authMiddleware.ThenFunc(app.serviceHandler.UpdateService))                          //РАБОТАЕТ
+	mux.Del("/service/:id", authMiddleware.ThenFunc(app.serviceHandler.DeleteService))                          //РАБОТАЕТ
+	mux.Get("/service/sort/:type/user/:user_id", authMiddleware.ThenFunc(app.serviceHandler.GetServicesSorted)) //user_id - id пользователя который авторизован
+	mux.Get("/service/user/:user_id", authMiddleware.ThenFunc(app.serviceHandler.GetServiceByUserID))           //РАБОТАЕТ
+
+	// Categories
+	mux.Post("/category", authMiddleware.ThenFunc(app.categoryHandler.CreateCategory)) //РАБОТАЕТ
+	mux.Get("/category", authMiddleware.ThenFunc(app.categoryHandler.GetAllCategories))
+	mux.Get("/category/:id", authMiddleware.ThenFunc(app.categoryHandler.GetCategoryByID))
+	mux.Put("/category/:id", authMiddleware.ThenFunc(app.categoryHandler.UpdateCategory))
+	mux.Del("/category/:id", authMiddleware.ThenFunc(app.categoryHandler.DeleteCategory))
+
+	// Reviews
+	mux.Post("/review", authMiddleware.ThenFunc(app.reviewsHandler.CreateReview))                     //РАБОТАЕТ
+	mux.Get("/review/:service_id", authMiddleware.ThenFunc(app.reviewsHandler.GetReviewsByServiceID)) //РАБОТАЕТ
+	mux.Put("/review/:id", authMiddleware.ThenFunc(app.reviewsHandler.UpdateReview))                  //РАБОТАЕТ
+	mux.Del("/review/:id", authMiddleware.ThenFunc(app.reviewsHandler.DeleteReview))                  //РАБОТАЕТ
+
+	// Service Favorites
+	mux.Post("/favorites", authMiddleware.ThenFunc(app.serviceFavorite.AddToFavorites)) //РАБОТАЕТ
+	mux.Del("/favorites/user/:user_id/service/:service_is", authMiddleware.ThenFunc(app.serviceFavorite.RemoveFromFavorites))
+	mux.Get("/favorites/check/user/:user_id/service/:service_id", authMiddleware.ThenFunc(app.serviceFavorite.IsFavorite)) //РАБОТАЕТ
+	mux.Get("/favorites/:user_id", authMiddleware.ThenFunc(app.serviceFavorite.GetFavoritesByUser))                        //РАБОТАЕТ
+
+	return standardMiddleware.Then(mux)
+}

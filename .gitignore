@@ -1,0 +1,4 @@
+database.yml
+config/config.yaml
+.env
+ngrok.yml

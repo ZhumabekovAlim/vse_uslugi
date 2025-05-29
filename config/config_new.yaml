@@ -1,0 +1,6 @@
+server:
+  address: ":4000"
+
+database:
+  driver: "mysql"
+  url: "admin:admin@tcp(localhost:3306)/naimudb?parseTime=true"
