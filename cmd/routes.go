@@ -41,6 +41,7 @@ func (app *application) routes() http.Handler {
 	mux.Del("/service/:id", authMiddleware.ThenFunc(app.serviceHandler.DeleteService))                          //РАБОТАЕТ
 	mux.Get("/service/sort/:type/user/:user_id", authMiddleware.ThenFunc(app.serviceHandler.GetServicesSorted)) //user_id - id пользователя который авторизован
 	mux.Get("/service/user/:user_id", authMiddleware.ThenFunc(app.serviceHandler.GetServiceByUserID))           //РАБОТАЕТ
+	mux.Post("/service/filter", authMiddleware.ThenFunc(app.serviceHandler.FilterServices))
 
 	// Categories
 	mux.Post("/category", authMiddleware.ThenFunc(app.categoryHandler.CreateCategory)) //РАБОТАЕТ
@@ -60,6 +61,17 @@ func (app *application) routes() http.Handler {
 	mux.Del("/favorites/user/:user_id/service/:service_is", authMiddleware.ThenFunc(app.serviceFavorite.RemoveFromFavorites))
 	mux.Get("/favorites/check/user/:user_id/service/:service_id", authMiddleware.ThenFunc(app.serviceFavorite.IsFavorite)) //РАБОТАЕТ
 	mux.Get("/favorites/:user_id", authMiddleware.ThenFunc(app.serviceFavorite.GetFavoritesByUser))                        //РАБОТАЕТ
+
+	// Subcategories
+	mux.Post("/subcategory", authMiddleware.ThenFunc(app.subcategoryHandler.CreateSubcategory))
+	mux.Get("/subcategory", authMiddleware.ThenFunc(app.subcategoryHandler.GetAllSubcategories))
+	mux.Get("/subcategory/cat/:category_id", authMiddleware.ThenFunc(app.subcategoryHandler.GetByCategory))
+
+	mux.Post("/city", authMiddleware.ThenFunc(app.cityHandler.CreateCity))
+	mux.Get("/city", authMiddleware.ThenFunc(app.cityHandler.GetCities))
+	mux.Get("/city/:id", authMiddleware.ThenFunc(app.cityHandler.GetCityByID))
+	mux.Put("/city/:id", authMiddleware.ThenFunc(app.cityHandler.UpdateCity))
+	mux.Del("/city/:id", authMiddleware.ThenFunc(app.cityHandler.DeleteCity))
 
 	return standardMiddleware.Then(mux)
 }

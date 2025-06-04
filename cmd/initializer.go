@@ -26,6 +26,10 @@ type application struct {
 	reviewsRepo         *repositories.ReviewRepository
 	serviceFavorite     *handlers.ServiceFavoriteHandler
 	serviceFavoriteRepo *repositories.ServiceFavoriteRepository
+	subcategoryHandler  handlers.SubcategoryHandler
+	subcategoryRepo     repositories.SubcategoryRepository
+	cityHandler         handlers.CityHandler
+	cityRepo            repositories.CityRepository
 
 	// authService *services/*/.AuthService
 }
@@ -37,12 +41,16 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	categoryRepo := repositories.CategoryRepository{DB: db}
 	reviewsRepo := repositories.ReviewRepository{DB: db}
 	serviceFavoriteRepo := repositories.ServiceFavoriteRepository{DB: db}
+	subcategoryRepo := repositories.SubcategoryRepository{DB: db}
+	cityRepo := repositories.CityRepository{DB: db}
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
 	categoryService := &services.CategoryService{CategoryRepo: &categoryRepo}
 	reviewsService := &services.ReviewService{ReviewsRepo: &reviewsRepo}
 	serviceFavoritesService := &services.ServiceFavoriteService{ServiceFavoriteRepo: &serviceFavoriteRepo}
+	subcategoryService := services.SubcategoryService{SubcategoryRepo: &subcategoryRepo}
+	cityService := services.CityService{CityRepo: &cityRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -51,15 +59,19 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	categoryHandler := &handlers.CategoryHandler{Service: categoryService}
 	reviewHandler := &handlers.ReviewHandler{Service: reviewsService}
 	serviceFavoriteHandler := &handlers.ServiceFavoriteHandler{Service: serviceFavoritesService}
+	subcategoryHandler := handlers.SubcategoryHandler{Service: &subcategoryService}
+	cityHandler := handlers.CityHandler{Service: &cityService}
 
 	return &application{
-		errorLog:        errorLog,
-		infoLog:         infoLog,
-		userHandler:     userHandler,
-		serviceHandler:  serviceHandler,
-		categoryHandler: categoryHandler,
-		reviewsHandler:  reviewHandler,
-		serviceFavorite: serviceFavoriteHandler,
+		errorLog:           errorLog,
+		infoLog:            infoLog,
+		userHandler:        userHandler,
+		serviceHandler:     serviceHandler,
+		categoryHandler:    categoryHandler,
+		reviewsHandler:     reviewHandler,
+		serviceFavorite:    serviceFavoriteHandler,
+		subcategoryHandler: subcategoryHandler,
+		cityHandler:        cityHandler,
 		//authService:    authService,
 	}
 }

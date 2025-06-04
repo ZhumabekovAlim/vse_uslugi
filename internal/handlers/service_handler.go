@@ -356,3 +356,24 @@ func (h *ServiceHandler) GetServiceByUserID(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(services)
 }
+
+func (h *ServiceHandler) FilterServices(w http.ResponseWriter, r *http.Request) {
+	var req models.FilteredServiceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	services, err := h.Service.FilterServices(r.Context(), req)
+	if err != nil {
+		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
+		return
+	}
+
+	resp := map[string]interface{}{
+		"services": services,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}

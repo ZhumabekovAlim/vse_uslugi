@@ -61,3 +61,28 @@ type ServiceListResponse struct {
 	MinPrice float64   `json:"min_price"`
 	MaxPrice float64   `json:"max_price"`
 }
+
+type FilteredServiceRequest struct {
+	Categories []struct {
+		ID            int `json:"id"`
+		Name          string
+		Subcategories []struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"subcategories"`
+	} `json:"categories"`
+	PriceFrom float64 `json:"price_from"`
+	PriceTo   float64 `json:"price_to"`
+	Ratings   []int   `json:"ratings"` // 1,2,3,4,5
+	Sorting   int     `json:"sorting"` // 1,2,3
+}
+
+type FilteredServiceResponse struct {
+	ClientID           int     `json:"client_id"`
+	ClientName         string  `json:"client_name"`
+	ClientRating       float64 `json:"client_rating"`
+	ServiceID          int     `json:"service_id"`
+	ServiceName        string  `json:"service_name"`
+	ServicePrice       float64 `json:"service_price"`
+	ServiceDescription string  `json:"service_description"`
+}

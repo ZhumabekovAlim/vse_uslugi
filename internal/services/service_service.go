@@ -65,3 +65,7 @@ func (s *ServiceService) GetFilteredServices(ctx context.Context, filter models.
 func (s *ServiceService) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
 	return s.ServiceRepo.GetServicesByUserID(ctx, userID)
 }
+
+func (s *ServiceService) FilterServices(ctx context.Context, req models.FilteredServiceRequest) ([]models.FilteredServiceResponse, error) {
+	return s.ServiceRepo.FilterServices(ctx, req)
+}

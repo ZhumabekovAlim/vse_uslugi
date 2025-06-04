@@ -379,3 +379,94 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 
 	return services, nil
 }
+
+func (r *ServiceRepository) FilterServices(ctx context.Context, req models.FilteredServiceRequest) ([]models.FilteredServiceResponse, error) {
+	var (
+		services []models.FilteredServiceResponse
+		params   []interface{}
+		conds    []string
+	)
+
+	baseQuery := `
+	SELECT 
+		s.id as service_id, s.name as service_name, s.price, s.description,
+		u.id as client_id, u.name as client_name, u.review_rating
+	FROM service s
+	INNER JOIN users u ON u.id = s.user_id
+	INNER JOIN categories c ON c.id = s.category_id
+	`
+
+	// Categories
+	var categoryIDs []int
+	var subcats []string
+	for _, cat := range req.Categories {
+		categoryIDs = append(categoryIDs, cat.ID)
+		for _, sub := range cat.Subcategories {
+			subcats = append(subcats, sub.Name)
+		}
+	}
+
+	if len(categoryIDs) > 0 {
+		q := strings.TrimSuffix(strings.Repeat("?,", len(categoryIDs)), ",")
+		conds = append(conds, fmt.Sprintf("s.category_id IN (%s)", q))
+		for _, id := range categoryIDs {
+			params = append(params, id)
+		}
+	}
+
+	// Subcategories
+	if len(subcats) > 0 {
+		for _, sub := range subcats {
+			conds = append(conds, "c.subcategories LIKE ?")
+			params = append(params, "%"+sub+"%")
+		}
+	}
+
+	if req.PriceFrom > 0 {
+		conds = append(conds, "s.price >= ?")
+		params = append(params, req.PriceFrom)
+	}
+	if req.PriceTo > 0 {
+		conds = append(conds, "s.price <= ?")
+		params = append(params, req.PriceTo)
+	}
+
+	if len(req.Ratings) > 0 {
+		q := strings.TrimSuffix(strings.Repeat("?,", len(req.Ratings)), ",")
+		conds = append(conds, fmt.Sprintf("s.avg_rating IN (%s)", q))
+		for _, r := range req.Ratings {
+			params = append(params, float64(r))
+		}
+	}
+
+	if len(conds) > 0 {
+		baseQuery += " WHERE " + strings.Join(conds, " AND ")
+	}
+
+	// Sorting
+	switch req.Sorting {
+	case 1:
+		baseQuery += " ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC"
+	case 2:
+		baseQuery += " ORDER BY s.price ASC"
+	case 3:
+		baseQuery += " ORDER BY s.price DESC"
+	default:
+		baseQuery += " ORDER BY s.created_at DESC"
+	}
+
+	rows, err := r.DB.QueryContext(ctx, baseQuery, params...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var s models.FilteredServiceResponse
+		if err := rows.Scan(&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.ClientID, &s.ClientName, &s.ClientRating); err != nil {
+			return nil, err
+		}
+		services = append(services, s)
+	}
+	return services, nil
+}

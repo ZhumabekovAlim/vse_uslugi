@@ -24,14 +24,13 @@ type Session struct {
 
 func (r *UserRepository) CreateUser(ctx context.Context, user models.User) (models.User, error) {
 	query := `
-        INSERT INTO users (id, name, phone, email, password, city, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (name, surname, middlename, phone, email, password, review_rating, role, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = &user.CreatedAt
 	result, err := r.DB.ExecContext(ctx, query,
-		user.ID, user.Name, user.Phone, user.Email, user.Password, user.City, user.YearsOfExp,
-		user.DocOfProof, user.ReviewRating, user.Role, user.Latitude, user.Longitude,
+		user.Name, user.Surname, user.Middlename, user.Phone, user.Email, user.Password, user.ReviewRating, user.Role,
 		user.CreatedAt, user.UpdatedAt,
 	)
 	if err != nil {
@@ -49,12 +48,12 @@ func (r *UserRepository) CreateUser(ctx context.Context, user models.User) (mode
 func (r *UserRepository) GetUserByID(ctx context.Context, id int) (models.User, error) {
 	var user models.User
 	query := `
-        SELECT id, name, phone, email, password, city, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+        SELECT id, name, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
         FROM users
         WHERE id = ?
     `
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&user.ID, &user.Name, &user.Phone, &user.Email, &user.Password, &user.City,
+		&user.ID, &user.Name, &user.Phone, &user.Email, &user.Password, &user.CityID,
 		&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
 		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 	)
@@ -70,14 +69,14 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id int) (models.User, 
 func (r *UserRepository) UpdateUser(ctx context.Context, user models.User) (models.User, error) {
 	query := `
         UPDATE users
-        SET name = ?, phone = ?, email = ?, password = ?, city = ?, years_of_exp = ?,
+        SET name = ?, phone = ?, email = ?, password = ?, city_id = ?, years_of_exp = ?,
             doc_of_proof = ?, review_rating = ?, role = ?, latitude = ?, longitude = ?, updated_at = ?
         WHERE id = ?
     `
 	updatedAt := time.Now()
 	user.UpdatedAt = &updatedAt
 	result, err := r.DB.ExecContext(ctx, query,
-		user.Name, user.Phone, user.Email, user.Password, user.City, user.YearsOfExp,
+		user.Name, user.Phone, user.Email, user.Password, user.CityID, user.YearsOfExp,
 		user.DocOfProof, user.ReviewRating, user.Role, user.Latitude, user.Longitude,
 		user.UpdatedAt, user.ID,
 	)
@@ -116,12 +115,12 @@ func (r *UserRepository) DeleteUser(ctx context.Context, id int) error {
 func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (models.User, error) {
 	var user models.User
 	query := `
-        SELECT id, name, phone, email, password, city, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+        SELECT id, name, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
         FROM users
         WHERE phone = ?
     `
 	err := r.DB.QueryRowContext(ctx, query, phone).Scan(
-		&user.ID, &user.Name, &user.Phone, &user.Email, &user.Password, &user.City,
+		&user.ID, &user.Name, &user.Phone, &user.Email, &user.Password, &user.CityID,
 		&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
 		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 	)
@@ -136,7 +135,7 @@ func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (mode
 
 func (r *UserRepository) GetUsersByRole(ctx context.Context, role string) ([]models.User, error) {
 	query := `
-        SELECT id, name, phone, email, password, city, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+        SELECT id, name, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
         FROM users
         WHERE role = ?
     `
@@ -150,7 +149,7 @@ func (r *UserRepository) GetUsersByRole(ctx context.Context, role string) ([]mod
 	for rows.Next() {
 		var user models.User
 		err := rows.Scan(
-			&user.ID, &user.Name, &user.Phone, &user.Email, &user.Password, &user.City,
+			&user.ID, &user.Name, &user.Phone, &user.Email, &user.Password, &user.CityID,
 			&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
 			&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 		)
@@ -170,7 +169,7 @@ func (r *UserRepository) GetUsersByRole(ctx context.Context, role string) ([]mod
 
 func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	query := `
-        SELECT id, name, phone, email, password, city, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+        SELECT id, name, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
         FROM users
     `
 	rows, err := r.DB.QueryContext(ctx, query)
@@ -183,7 +182,7 @@ func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error)
 	for rows.Next() {
 		var user models.User
 		err := rows.Scan(
-			&user.ID, &user.Name, &user.Phone, &user.Email, &user.Password, &user.City,
+			&user.ID, &user.Name, &user.Phone, &user.Email, &user.Password, &user.CityID,
 			&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
 			&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 		)
@@ -262,12 +261,12 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, userID int, newPass
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (models.User, error) {
 	var user models.User
 	query := `
-        SELECT id, name, phone, email, password, city, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+        SELECT id, name, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
         FROM users
         WHERE email = ?
     `
 	err := r.DB.QueryRowContext(ctx, query, email).Scan(
-		&user.ID, &user.Name, &user.Phone, &user.Email, &user.Password, &user.City,
+		&user.ID, &user.Name, &user.Phone, &user.Email, &user.Password, &user.CityID,
 		&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
 		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 	)

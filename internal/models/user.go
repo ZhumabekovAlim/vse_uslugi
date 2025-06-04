@@ -9,16 +9,18 @@ import (
 type User struct {
 	ID           int        `json:"id"`
 	Name         string     `json:"name"`
-	Phone        string     `json:"phone,omitempty"`
-	Email        string     `json:"email,omitempty"`
-	Password     string     `json:"password,omitempty"`
-	City         string     `json:"city"`
-	YearsOfExp   int        `json:"years_of_exp"`
-	DocOfProof   string     `json:"doc_of_proof"`
+	Surname      string     `json:"surname"`
+	Middlename   string     `json:"middlename,omitempty"`
+	Phone        string     `json:"phone"`
+	Email        string     `json:"email"`
+	Password     string     `json:"password"`
+	CityID       *int       `json:"city_id,omitempty"`
+	YearsOfExp   *int       `json:"years_of_exp,omitempty"`
+	DocOfProof   *string    `json:"doc_of_proof,omitempty"`
 	ReviewRating float64    `json:"review_rating"`
 	Role         string     `json:"role"`
-	Latitude     string     `json:"latitude"`
-	Longitude    string     `json:"longitude"`
+	Latitude     *string    `json:"latitude,omitempty"`
+	Longitude    *string    `json:"longitude,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
 }

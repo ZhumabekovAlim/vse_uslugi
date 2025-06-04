@@ -8,4 +8,4 @@ CREATE TABLE categories
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-use naimudb;
+use naimudb;    
