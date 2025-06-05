@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -184,21 +183,21 @@ func (h *UserHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdUser, err := h.Service.SignUp(r.Context(), user)
+	resp, err := h.Service.SignUp(r.Context(), user)
 	if err != nil {
 		if errors.Is(err, models.ErrDuplicateEmail) || errors.Is(err, models.ErrDuplicatePhone) {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
 
-		log.Printf("SignUp error: %v", err) // Add this line
+		log.Printf("SignUp error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(createdUser)
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (h *UserHandler) SignIn(w http.ResponseWriter, r *http.Request) {
@@ -209,22 +208,16 @@ func (h *UserHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем объект models.Tokens
-	tokens, err := h.Service.SignIn(r.Context(), req.Name, req.Phone, req.Email, req.Password)
+	resp, err := h.Service.SignIn(r.Context(), req.Name, req.Phone, req.Email, req.Password)
 	if err != nil {
 		log.Printf("error: %v", err)
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		fmt.Print(err)
 		return
 	}
 
-	// Возвращаем AccessToken и RefreshToken в формате JSON
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"access_token":  tokens.AccessToken,
-		"refresh_token": tokens.RefreshToken,
-	})
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (h *UserHandler) UserLogOut(w http.ResponseWriter, r *http.Request) {

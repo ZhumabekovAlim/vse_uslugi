@@ -2,16 +2,21 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	_ "github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"io/ioutil"
 	"log"
+	"math/rand"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 	"naimuBack/utils"
+	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -32,37 +37,123 @@ const (
 	signingKey = "asdadsadadaadsasd"
 )
 
-func (s *UserService) SignUp(ctx context.Context, user models.User) (models.User, error) {
+func generateVerificationCode() string {
+	rand.Seed(time.Now().UnixNano())
+	return fmt.Sprintf("%04d", rand.Intn(10000))
+}
+
+func SendSMS(apiKey, phone, message string) error {
+	endpoint := "https://api.mobizon.kz/service/message/sendsmsmessage"
+
+	data := url.Values{}
+	data.Set("apiKey", apiKey)
+	data.Set("recipient", phone)
+	data.Set("text", message)
+
+	resp, err := http.PostForm(endpoint, data)
+	if err != nil {
+		return fmt.Errorf("ошибка при отправке запроса: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("не удалось прочитать ответ: %v", err)
+	}
+
+	var result struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		return fmt.Errorf("не удалось распарсить ответ: %v", err)
+	}
+
+	if result.Code != 0 {
+		return fmt.Errorf("ошибка Mobizon: %s (код %d)", result.Message, result.Code)
+	}
+
+	return nil
+}
+
+func (s *UserService) sendSMS(apiKey, phone, message string) error {
+	endpoint := "https://api.mobizon.kz/service/message/sendsmsmessage"
+
+	data := url.Values{}
+	data.Set("apiKey", apiKey)
+	data.Set("recipient", phone)
+	data.Set("text", message)
+
+	resp, err := http.PostForm(endpoint, data)
+	if err != nil {
+		return fmt.Errorf("ошибка при отправке запроса: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("не удалось прочитать ответ Mobizon: %v", err)
+	}
+
+	var result struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		return fmt.Errorf("не удалось распарсить ответ Mobizon: %v", err)
+	}
+
+	if result.Code != 0 {
+		return fmt.Errorf("ошибка Mobizon: %s (код %d)", result.Message, result.Code)
+	}
+
+	return nil
+}
+
+func (s *UserService) SignUp(ctx context.Context, user models.User) (models.SignUpResponse, error) {
 	existingUser1, err := s.UserRepo.GetUserByEmail(ctx, user.Email)
 	if err != nil {
-		return models.User{}, err
+		return models.SignUpResponse{}, err
 	}
 	if existingUser1.Email != "" {
-		return models.User{}, errors.New("user with this email already exists")
+		return models.SignUpResponse{}, models.ErrDuplicateEmail
 	}
 
 	existingUser2, err := s.UserRepo.GetUserByPhone1(ctx, user.Phone)
 	if err != nil {
-		return models.User{}, err
+		return models.SignUpResponse{}, err
 	}
 	if existingUser2.Phone != "" {
-		return models.User{}, errors.New("user with this phone already exists")
+		return models.SignUpResponse{}, models.ErrDuplicatePhone
 	}
 
-	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return models.User{}, err
+		return models.SignUpResponse{}, err
 	}
 	user.Password = string(hashedPassword)
 
 	userID, err := s.UserRepo.CreateUser(ctx, user)
 	if err != nil {
-		return models.User{}, err
+		return models.SignUpResponse{}, err
+	}
+	user.ID = userID.ID
+
+	// ✅ Генерация и отправка SMS
+	code := generateVerificationCode()
+	message := fmt.Sprintf("Ваш код подтверждения: %s", code)
+	apiKey := "kzfaad0a91a4b498db593b78414dfdaa2c213b8b8996afa325a223543481efeb11dd11" // Вынеси в конфиг позже
+
+	if err := s.sendSMS(apiKey, user.Phone, message); err != nil {
+		return models.SignUpResponse{}, fmt.Errorf("ошибка при отправке SMS: %v", err)
 	}
 
-	user.ID = userID.ID
-	return user, nil
+	return models.SignUpResponse{
+		User:             user,
+		VerificationCode: code,
+	}, nil
 }
 
 func (s *UserService) SignIn(ctx context.Context, name, phone, email, password string) (models.Tokens, error) {

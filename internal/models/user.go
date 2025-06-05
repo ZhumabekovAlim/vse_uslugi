@@ -53,3 +53,8 @@ type UpdatePasswordRequest struct {
 	OldPassword string `json:"old_password"`
 	NewPassword string `json:"new_password"`
 }
+
+type SignUpResponse struct {
+	User             User   `json:"user"`
+	VerificationCode string `json:"verification_code"`
+}
