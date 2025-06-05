@@ -41,6 +41,14 @@ func (s *UserService) SignUp(ctx context.Context, user models.User) (models.User
 		return models.User{}, errors.New("user with this email already exists")
 	}
 
+	existingUser, err = s.UserRepo.GetUserByPhone(ctx, user.Phone)
+	if err != nil {
+		return models.User{}, err
+	}
+	if existingUser.Phone != "" {
+		return models.User{}, errors.New("user with this phone already exists")
+	}
+
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {

@@ -190,6 +190,7 @@ func (h *UserHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
+
 		log.Printf("SignUp error: %v", err) // Add this line
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
