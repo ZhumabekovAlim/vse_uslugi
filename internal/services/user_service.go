@@ -141,9 +141,8 @@ func (s *UserService) SignUp(ctx context.Context, user models.User) (models.Sign
 	}
 	user.ID = userID.ID
 
-	// ✅ Генерация и отправка SMS
 	code := generateVerificationCode()
-	message := fmt.Sprintf("Ваш код подтверждения: %s", code)
+	message := fmt.Sprintf("Ваш код подтверждения: %s. Код отправлен компанией https://nusacorp.com/", code)
 	apiKey := "kzfaad0a91a4b498db593b78414dfdaa2c213b8b8996afa325a223543481efeb11dd11" // Вынеси в конфиг позже
 
 	if err := s.sendSMS(apiKey, user.Phone, message); err != nil {
