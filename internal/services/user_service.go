@@ -1,7 +1,6 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -312,65 +311,6 @@ func (s *UserService) ChangeNumber(ctx context.Context, number string) (models.S
 	return models.SignUpResponse{
 		User: models.User{
 			Phone: number,
-		},
-		VerificationCode: code,
-	}, nil
-}
-
-func (s *UserService) sendEmailMailgun(toEmail, subject, body string) error {
-	domain := "sandbox39947366db6c4b779ceafebd31d1e53e.mailgun.org" // пример: sandbox123.mailgun.org
-	from := "postmaster@" + domain
-
-	apiURL := fmt.Sprintf("https://api.mailgun.net/v3/%s/messages", domain)
-
-	data := url.Values{}
-	data.Set("from", from)
-	data.Set("to", toEmail)
-	data.Set("subject", subject)
-	data.Set("text", body)
-
-	req, err := http.NewRequest("POST", apiURL, bytes.NewBufferString(data.Encode()))
-	if err != nil {
-		return fmt.Errorf("ошибка создания запроса: %v", err)
-	}
-	req.SetBasicAuth("api", apiKey)
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("ошибка отправки письма: %v", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("ошибка Mailgun: %s", respBody)
-	}
-
-	return nil
-}
-
-func (s *UserService) ChangeEmail(ctx context.Context, email string) (models.SignUpResponse, error) {
-	existingUser, err := s.UserRepo.GetUserByEmail(ctx, email)
-	if err != nil {
-		return models.SignUpResponse{}, err
-	}
-	if existingUser.Email != "" {
-		return models.SignUpResponse{}, models.ErrDuplicateEmail
-	}
-
-	code := generateVerificationCode()
-	subject := "Код подтверждения почты"
-	body := fmt.Sprintf("Ваш код подтверждения: %s\n\nОт компании https://nusacorp.com/", code)
-
-	if err := s.sendEmailMailgun(email, subject, body); err != nil {
-		return models.SignUpResponse{}, fmt.Errorf("ошибка при отправке email: %v", err)
-	}
-
-	return models.SignUpResponse{
-		User: models.User{
-			Email: email,
 		},
 		VerificationCode: code,
 	}, nil
