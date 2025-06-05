@@ -70,7 +70,7 @@ func (h *CityHandler) DeleteCity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CityHandler) CreateCity(w http.ResponseWriter, r *http.Request) {
-	var s models.Subcategory
+	var s models.City
 	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
