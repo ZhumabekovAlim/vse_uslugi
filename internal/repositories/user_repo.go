@@ -6,6 +6,7 @@ import (
 	"errors"
 	_ "fmt"
 	"naimuBack/internal/models"
+	"strings"
 	"time"
 )
 
@@ -67,19 +68,79 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id int) (models.User, 
 }
 
 func (r *UserRepository) UpdateUser(ctx context.Context, user models.User) (models.User, error) {
-	query := `
-        UPDATE users
-        SET name = ?, surname = ?, middlename = ?, phone = ?, email = ?, password = ?, city_id = ?, years_of_exp = ?,
-            doc_of_proof = ?, review_rating = ?, role = ?, latitude = ?, longitude = ?, updated_at = ?
-        WHERE id = ?
-    `
+	query := `UPDATE users SET `
+	args := []interface{}{}
+	setParts := []string{}
+
 	updatedAt := time.Now()
 	user.UpdatedAt = &updatedAt
-	result, err := r.DB.ExecContext(ctx, query,
-		user.Name, user.Surname, user.Middlename, user.Phone, user.Email, user.Password, user.CityID, user.YearsOfExp,
-		user.DocOfProof, user.ReviewRating, user.Role, user.Latitude, user.Longitude,
-		user.UpdatedAt, user.ID,
-	)
+	setParts = append(setParts, "updated_at = ?")
+	args = append(args, updatedAt)
+
+	if user.Name != "" {
+		setParts = append(setParts, "name = ?")
+		args = append(args, user.Name)
+	}
+	if user.Surname != "" {
+		setParts = append(setParts, "surname = ?")
+		args = append(args, user.Surname)
+	}
+	if user.Middlename != "" {
+		setParts = append(setParts, "middlename = ?")
+		args = append(args, user.Middlename)
+	}
+	if user.Phone != "" {
+		setParts = append(setParts, "phone = ?")
+		args = append(args, user.Phone)
+	}
+	if user.Email != "" {
+		setParts = append(setParts, "email = ?")
+		args = append(args, user.Email)
+	}
+	if user.Password != "" {
+		setParts = append(setParts, "password = ?")
+		args = append(args, user.Password)
+	}
+	if user.CityID != nil {
+		setParts = append(setParts, "city_id = ?")
+		args = append(args, user.CityID)
+	}
+	if user.YearsOfExp != nil {
+		setParts = append(setParts, "years_of_exp = ?")
+		args = append(args, user.YearsOfExp)
+	}
+	if user.DocOfProof != nil {
+		setParts = append(setParts, "doc_of_proof = ?")
+		args = append(args, user.DocOfProof)
+	}
+	if user.ReviewRating != 0 {
+		setParts = append(setParts, "review_rating = ?")
+		args = append(args, user.ReviewRating)
+	}
+	if user.Role != "" {
+		setParts = append(setParts, "role = ?")
+		args = append(args, user.Role)
+	}
+	if user.Latitude != nil {
+		setParts = append(setParts, "latitude = ?")
+		args = append(args, user.Latitude)
+	}
+	if user.Longitude != nil {
+		setParts = append(setParts, "longitude = ?")
+		args = append(args, user.Longitude)
+	}
+
+	// Если ничего не обновляется кроме updated_at
+	if len(setParts) == 1 {
+		return models.User{}, errors.New("no fields to update")
+	}
+
+	// Добавляем WHERE
+	query += strings.Join(setParts, ", ") + " WHERE id = ?"
+	args = append(args, user.ID)
+
+	// Выполняем
+	result, err := r.DB.ExecContext(ctx, query, args...)
 	if err != nil {
 		return models.User{}, err
 	}
@@ -92,7 +153,6 @@ func (r *UserRepository) UpdateUser(ctx context.Context, user models.User) (mode
 		return models.User{}, ErrUserNotFound
 	}
 
-	// Fetch the updated user
 	return r.GetUserByID(ctx, user.ID)
 }
 

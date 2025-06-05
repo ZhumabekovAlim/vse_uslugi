@@ -58,3 +58,7 @@ type SignUpResponse struct {
 	User             User   `json:"user"`
 	VerificationCode string `json:"verification_code"`
 }
+type SignUpResponse1 struct {
+	User             User   `json:"user"`
+	VerificationCode string `json:"verification_code"`
+}

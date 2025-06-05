@@ -310,9 +310,7 @@ func (s *UserService) ChangeNumber(ctx context.Context, number string) (models.S
 	}
 
 	return models.SignUpResponse{
-		User: models.User{
-			Phone: number,
-		},
+		Phone:            number,
 		VerificationCode: code,
 	}, nil
 }
