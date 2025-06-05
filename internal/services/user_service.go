@@ -41,7 +41,7 @@ func (s *UserService) SignUp(ctx context.Context, user models.User) (models.User
 		return models.User{}, errors.New("user with this email already exists")
 	}
 
-	existingUser2, err := s.UserRepo.GetUserByPhone(ctx, user.Phone)
+	existingUser2, err := s.UserRepo.GetUserByPhone1(ctx, user.Phone)
 	if err != nil {
 		return models.User{}, err
 	}

@@ -278,3 +278,24 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (mode
 	}
 	return user, nil
 }
+
+func (r *UserRepository) GetUserByPhone1(ctx context.Context, phone string) (models.User, error) {
+	var user models.User
+	query := `
+        SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+        FROM users
+        WHERE phone = ?
+    `
+	err := r.DB.QueryRowContext(ctx, query, phone).Scan(
+		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
+		&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
+		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return models.User{}, nil
+		}
+		return models.User{}, err
+	}
+	return user, nil
+}
