@@ -318,7 +318,7 @@ func (s *UserService) ChangeNumber(ctx context.Context, number string) (models.S
 }
 
 func (s *UserService) sendEmailMailgun(toEmail, subject, body string) error {
-	apiKey := "7ea49ea8037af655eb1176633982ad3c-08c79601-d1d1b3ec"  // пример: key-3ax6xnjp29jd6fds4gc373sgvjxteol0
+	apiKey := ""                                                    // пример: key-3ax6xnjp29jd6fds4gc373sgvjxteol0
 	domain := "sandbox39947366db6c4b779ceafebd31d1e53e.mailgun.org" // пример: sandbox123.mailgun.org
 	from := "postmaster@" + domain
 
