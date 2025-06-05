@@ -144,6 +144,21 @@ func (s *UserService) GetUserByID(ctx context.Context, id int) (models.User, err
 }
 
 func (s *UserService) UpdateUser(ctx context.Context, user models.User) (models.User, error) {
+	existingUser1, err := s.UserRepo.GetUserByEmail(ctx, user.Email)
+	if err != nil {
+		return models.User{}, err
+	}
+	if existingUser1.Email != "" {
+		return models.User{}, errors.New("user with this email already exists")
+	}
+
+	existingUser2, err := s.UserRepo.GetUserByPhone1(ctx, user.Phone)
+	if err != nil {
+		return models.User{}, err
+	}
+	if existingUser2.Phone != "" {
+		return models.User{}, errors.New("user with this phone already exists")
+	}
 	return s.UserRepo.UpdateUser(ctx, user)
 }
 
