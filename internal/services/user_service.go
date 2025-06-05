@@ -318,7 +318,6 @@ func (s *UserService) ChangeNumber(ctx context.Context, number string) (models.S
 }
 
 func (s *UserService) sendEmailMailgun(toEmail, subject, body string) error {
-
 	domain := "sandbox39947366db6c4b779ceafebd31d1e53e.mailgun.org" // пример: sandbox123.mailgun.org
 	from := "postmaster@" + domain
 
