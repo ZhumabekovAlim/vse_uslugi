@@ -33,19 +33,19 @@ const (
 )
 
 func (s *UserService) SignUp(ctx context.Context, user models.User) (models.User, error) {
-	existingUser, err := s.UserRepo.GetUserByEmail(ctx, user.Email)
+	existingUser1, err := s.UserRepo.GetUserByEmail(ctx, user.Email)
 	if err != nil {
 		return models.User{}, err
 	}
-	if existingUser.Email != "" {
+	if existingUser1.Email != "" {
 		return models.User{}, errors.New("user with this email already exists")
 	}
 
-	existingUser, err = s.UserRepo.GetUserByPhone(ctx, user.Phone)
+	existingUser2, err := s.UserRepo.GetUserByPhone(ctx, user.Phone)
 	if err != nil {
 		return models.User{}, err
 	}
-	if existingUser.Phone != "" {
+	if existingUser2.Phone != "" {
 		return models.User{}, errors.New("user with this phone already exists")
 	}
 
