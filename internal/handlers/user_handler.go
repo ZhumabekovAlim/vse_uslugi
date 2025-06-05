@@ -272,3 +272,59 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	// Возвращаем успешный статус
 	w.WriteHeader(http.StatusOK)
 }
+
+func (h *UserHandler) ChangeNumber(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Phone string `json:"phone"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil || req.Phone == "" {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.Service.ChangeNumber(r.Context(), req.Phone)
+	if err != nil {
+		if errors.Is(err, models.ErrDuplicatePhone) {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+
+		log.Printf("ChangeNumber error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *UserHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email string `json:"email"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil || req.Email == "" {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.Service.ChangeEmail(r.Context(), req.Email)
+	if err != nil {
+		if errors.Is(err, models.ErrDuplicateEmail) {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+
+		log.Printf("ChangeEmail error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}

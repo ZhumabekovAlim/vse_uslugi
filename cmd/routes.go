@@ -25,13 +25,15 @@ func (app *application) routes() http.Handler {
 	// mux.Get("/swagger/", httpSwagger.WrapHandler)
 
 	// Users
-	mux.Post("/user", adminAuthMiddleware.ThenFunc(app.userHandler.CreateUser))    //
-	mux.Get("/user", authMiddleware.ThenFunc(app.userHandler.GetUsers))            //РАБОТАЕТ
-	mux.Get("/user/:id", authMiddleware.ThenFunc(app.userHandler.GetUserByID))     //РАБОТАЕТ
-	mux.Put("/user/:id", authMiddleware.ThenFunc(app.userHandler.UpdateUser))      //РАБОТАЕТ
-	mux.Del("/user/:id", authMiddleware.ThenFunc(app.userHandler.DeleteUser))      //ИСПРАВИТЬ
-	mux.Post("/user/sign_up", standardMiddleware.ThenFunc(app.userHandler.SignUp)) //РАБОТАЕТ
-	mux.Post("/user/sign_in", standardMiddleware.ThenFunc(app.userHandler.SignIn)) //РАБОТАЕТ
+	mux.Post("/user", adminAuthMiddleware.ThenFunc(app.userHandler.CreateUser))                //
+	mux.Get("/user", authMiddleware.ThenFunc(app.userHandler.GetUsers))                        //РАБОТАЕТ
+	mux.Get("/user/:id", authMiddleware.ThenFunc(app.userHandler.GetUserByID))                 //РАБОТАЕТ
+	mux.Put("/user/:id", authMiddleware.ThenFunc(app.userHandler.UpdateUser))                  //РАБОТАЕТ
+	mux.Del("/user/:id", authMiddleware.ThenFunc(app.userHandler.DeleteUser))                  //ИСПРАВИТЬ
+	mux.Post("/user/sign_up", standardMiddleware.ThenFunc(app.userHandler.SignUp))             //РАБОТАЕТ
+	mux.Post("/user/sign_in", standardMiddleware.ThenFunc(app.userHandler.SignIn))             //РАБОТАЕТ
+	mux.Post("/user/change_number", standardMiddleware.ThenFunc(app.userHandler.ChangeNumber)) //РАБОТАЕТ
+	mux.Post("/user/change_email", standardMiddleware.ThenFunc(app.userHandler.ChangeEmail))   //РАБОТАЕТ
 
 	// Service
 	mux.Post("/service", authMiddleware.ThenFunc(app.serviceHandler.CreateService))                             //РАБОТАЕТ
