@@ -211,6 +211,7 @@ func (h *UserHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 	// Получаем объект models.Tokens
 	tokens, err := h.Service.SignIn(r.Context(), req.Name, req.Phone, req.Email, req.Password)
 	if err != nil {
+		log.Printf("error: %v", err)
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		fmt.Print(err)
 		return

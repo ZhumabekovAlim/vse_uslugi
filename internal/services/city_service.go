@@ -10,7 +10,7 @@ type CityService struct {
 	CityRepo *repositories.CityRepository
 }
 
-func (s *CityService) CreateCity(ctx context.Context, city models.City) (models.City, error) {
+func (s *CityService) CreateCity(ctx context.Context, city models.Subcategory) (models.City, error) {
 	return s.CityRepo.CreateCity(ctx, city)
 }
 

@@ -106,137 +106,6 @@ func (r *ServiceRepository) DeleteService(ctx context.Context, id int) error {
 	}
 	return nil
 }
-
-//type ServiceResponse struct {
-//	ClientID           int     `json:"client_id"`
-//	ClientName         string  `json:"client_name"`
-//	ClientRating       float64 `json:"client_rating"`
-//	ServiceID          int     `json:"service_id"`
-//	ServiceName        string  `json:"service_name"`
-//	ServicePrice       float64 `json:"service_price"`
-//	ServiceDescription string  `json:"service_description"`
-//}
-//
-//type GetServicesRequest struct {
-//	Categories    []int     `json:"categories"`
-//	Subcategories []string  `json:"subcategories"`
-//	PriceFrom     float64   `json:"price_from"`
-//	PriceTo       float64   `json:"price_to"`
-//	Ratings       []float64 `json:"ratings"`
-//	Sorting       string    `json:"sorting"`
-//	Page          int       `json:"page"`
-//	PageSize      int       `json:"page_size"`
-//}
-
-//func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, filters models.GetServicesRequest) ([]models.ServiceResponse, float64, float64, int, error) {
-//	whereClause, args := buildWhereClause(filters)
-//
-//	aggQuery := fmt.Sprintf(`
-//        SELECT MIN(s.price), MAX(s.price), COUNT(*)
-//        FROM services s
-//        JOIN categories c ON s.category_id = c.id
-//        WHERE %s
-//    `, whereClause)
-//
-//	var minPrice, maxPrice float64
-//	var total int
-//	row := r.DB.QueryRowContext(ctx, aggQuery, args...)
-//	err := row.Scan(&minPrice, &maxPrice, &total)
-//	if err != nil {
-//		return nil, 0, 0, 0, err
-//	}
-//
-//	query := fmt.Sprintf(`
-//        SELECT s.id as service_id, s.name as service_name, s.price as service_price, s.description as service_description,
-//               u.id as client_id, u.name as client_name, u.review_rating as client_rating
-//        FROM services s
-//        JOIN users u ON s.user_id = u.id
-//        JOIN categories c ON s.category_id = c.id
-//        WHERE %s
-//        ORDER BY %s
-//        LIMIT ? OFFSET ?
-//    `, whereClause, getOrderBy(filters.Sorting))
-//
-//	offset := (filters.Page - 1) * filters.PageSize
-//	args = append(args, filters.PageSize, offset)
-//
-//	rows, err := r.DB.QueryContext(ctx, query, args...)
-//	if err != nil {
-//		return nil, 0, 0, 0, err
-//	}
-//	defer rows.Close()
-//
-//	var services []models.ServiceResponse
-//	for rows.Next() {
-//		var srv models.ServiceResponse
-//		err := rows.Scan(
-//			&srv.ServiceID, &srv.ServiceName, &srv.ServicePrice, &srv.ServiceDescription,
-//			&srv.ClientID, &srv.ClientName, &srv.ClientRating,
-//		)
-//		if err != nil {
-//			return nil, 0, 0, 0, err
-//		}
-//		services = append(services, srv)
-//	}
-//	return services, minPrice, maxPrice, total, nil
-//}
-
-//func buildWhereClause(filters models.GetServicesRequest) (string, []interface{}) {
-//	var conditions []string
-//	var args []interface{}
-//
-//	if len(filters.Categories) > 0 {
-//		placeholders := strings.Repeat("?,", len(filters.Categories)-1) + "?"
-//		conditions = append(conditions, fmt.Sprintf("s.category_id IN (%s)", placeholders))
-//		for _, cat := range filters.Categories {
-//			args = append(args, cat)
-//		}
-//	}
-//
-//	if len(filters.Subcategories) > 0 {
-//		for _, subcat := range filters.Subcategories {
-//			conditions = append(conditions, "find_in_set(?, c.subcategories) > 0")
-//			args = append(args, subcat)
-//		}
-//	}
-//
-//	if filters.PriceFrom > 0 {
-//		conditions = append(conditions, "s.price >= ?")
-//		args = append(args, filters.PriceFrom)
-//	}
-//
-//	if filters.PriceTo > 0 {
-//		conditions = append(conditions, "s.price <= ?")
-//		args = append(args, filters.PriceTo)
-//	}
-//
-//	if len(filters.Ratings) > 0 {
-//		placeholders := strings.Repeat("?,", len(filters.Ratings)-1) + "?"
-//		conditions = append(conditions, fmt.Sprintf("s.avg_rating IN (%s)", placeholders))
-//		for _, rating := range filters.Ratings {
-//			args = append(args, rating)
-//		}
-//	}
-//
-//	if len(conditions) == 0 {
-//		return "1=1", args
-//	}
-//	return strings.Join(conditions, " AND "), args
-//}
-//
-//func getOrderBy(sorting string) string {
-//	switch sorting {
-//	case "price_asc":
-//		return "s.price ASC"
-//	case "price_desc":
-//		return "s.price DESC"
-//	case "popularity":
-//		return "s.avg_rating DESC"
-//	default:
-//		return "s.created_at DESC"
-//	}
-//}
-
 func (r *ServiceRepository) GetServicesWithFilters(
 	ctx context.Context,
 	userID int,
@@ -468,5 +337,94 @@ func (r *ServiceRepository) FilterServices(ctx context.Context, req models.Filte
 		}
 		services = append(services, s)
 	}
+	return services, nil
+}
+
+func (r *ServiceRepository) GetServicesPost(ctx context.Context, req models.GetServicesPostRequest) ([]models.GetServicesPostResponse, error) {
+	var (
+		services   []models.GetServicesPostResponse
+		conditions []string
+		params     []interface{}
+	)
+
+	query := `
+	SELECT 
+		u.id as client_id, u.name as client_name, u.review_rating as client_rating,
+		s.id as service_id, s.name as service_name, s.price as service_price, s.description
+	FROM service s
+	INNER JOIN users u ON s.user_id = u.id
+	INNER JOIN categories c ON s.category_id = c.id
+	`
+
+	// Category filter
+	if len(req.Categories) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(req.Categories)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.category_id IN (%s)", placeholders))
+		for _, catID := range req.Categories {
+			params = append(params, catID)
+		}
+	}
+
+	// Subcategory filter
+	if len(req.Subcategories) > 0 {
+		for _, sub := range req.Subcategories {
+			conditions = append(conditions, "c.subcategories LIKE ?")
+			params = append(params, "%"+sub+"%")
+		}
+	}
+
+	// Price filter
+	if req.PriceFrom > 0 {
+		conditions = append(conditions, "s.price >= ?")
+		params = append(params, req.PriceFrom)
+	}
+	if req.PriceTo > 0 {
+		conditions = append(conditions, "s.price <= ?")
+		params = append(params, req.PriceTo)
+	}
+
+	// Rating filter
+	if len(req.Ratings) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(req.Ratings)), ",")
+		conditions = append(conditions, fmt.Sprintf("u.review_rating IN (%s)", placeholders))
+		for _, rate := range req.Ratings {
+			params = append(params, rate)
+		}
+	}
+
+	// Final WHERE clause
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	// Sorting
+	switch req.Sorting {
+	case 1:
+		query += ` ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC `
+	case 2:
+		query += ` ORDER BY s.price ASC `
+	case 3:
+		query += ` ORDER BY s.price DESC `
+	default:
+		query += ` ORDER BY s.created_at DESC `
+	}
+
+	rows, err := r.DB.QueryContext(ctx, query, params...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var s models.GetServicesPostResponse
+		if err := rows.Scan(
+			&s.ClientID, &s.ClientName, &s.ClientReviewRating,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
+		); err != nil {
+			return nil, err
+		}
+		services = append(services, s)
+	}
+
 	return services, nil
 }

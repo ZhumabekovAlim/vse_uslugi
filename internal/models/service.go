@@ -86,3 +86,22 @@ type FilteredServiceResponse struct {
 	ServicePrice       float64 `json:"service_price"`
 	ServiceDescription string  `json:"service_description"`
 }
+
+type GetServicesPostRequest struct {
+	Categories    []int    `json:"categories"`
+	Subcategories []string `json:"subcategories"`
+	PriceFrom     float64  `json:"price_from"`
+	PriceTo       float64  `json:"price_to"`
+	Ratings       []int    `json:"ratings"` // Пример: [3, 4, 5]
+	Sorting       int      `json:"sorting"` // 1 - по отзывам, 2 - цена ↑, 3 - цена ↓
+}
+
+type GetServicesPostResponse struct {
+	ClientID           int     `json:"client_id"`
+	ClientName         string  `json:"client_name"`
+	ClientReviewRating float64 `json:"client_rating"`
+	ServiceID          int     `json:"service_id"`
+	ServiceName        string  `json:"service_name"`
+	ServicePrice       float64 `json:"service_price"`
+	ServiceDescription string  `json:"service_description"`
+}

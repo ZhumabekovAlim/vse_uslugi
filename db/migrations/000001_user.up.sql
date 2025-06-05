@@ -16,6 +16,8 @@ CREATE TABLE users
     longitude     VARCHAR(255),
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    refresh_token VARCHAR(255),
+    expires_at DATETIME,
     FOREIGN KEY (city_id) REFERENCES cities(id) ON DELETE CASCADE
 );
 USE naimudb;

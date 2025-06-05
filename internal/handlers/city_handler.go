@@ -13,19 +13,19 @@ type CityHandler struct {
 	Service *services.CityService
 }
 
-func (h *CityHandler) CreateCity(w http.ResponseWriter, r *http.Request) {
-	var city models.City
-	if err := json.NewDecoder(r.Body).Decode(&city); err != nil {
-		http.Error(w, "Invalid body", http.StatusBadRequest)
-		return
-	}
-	newCity, err := h.Service.CreateCity(r.Context(), city)
-	if err != nil {
-		http.Error(w, "Failed to create", http.StatusInternalServerError)
-		return
-	}
-	json.NewEncoder(w).Encode(newCity)
-}
+//func (h *CityHandler) CreateCity(w http.ResponseWriter, r *http.Request) {
+//	var city models.City
+//	if err := json.NewDecoder(r.Body).Decode(&city); err != nil {
+//		http.Error(w, "Invalid body", http.StatusBadRequest)
+//		return
+//	}
+//	newCity, err := h.Service.CreateCity(r.Context(), city)
+//	if err != nil {
+//		http.Error(w, "Failed to create", http.StatusInternalServerError)
+//		return
+//	}
+//	json.NewEncoder(w).Encode(newCity)
+//}
 
 func (h *CityHandler) GetCities(w http.ResponseWriter, r *http.Request) {
 	cities, err := h.Service.GetCities(r.Context())
@@ -67,4 +67,18 @@ func (h *CityHandler) DeleteCity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *CityHandler) CreateCity(w http.ResponseWriter, r *http.Request) {
+	var s models.Subcategory
+	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
+		http.Error(w, "Invalid body", http.StatusBadRequest)
+		return
+	}
+	sub, err := h.Service.CreateCity(r.Context(), s)
+	if err != nil {
+		http.Error(w, "Failed to create", http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(sub)
 }
