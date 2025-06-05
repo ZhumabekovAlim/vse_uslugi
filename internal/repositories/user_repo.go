@@ -69,7 +69,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id int) (models.User, 
 func (r *UserRepository) UpdateUser(ctx context.Context, user models.User) (models.User, error) {
 	query := `
         UPDATE users
-        SET name = ?, phone = ?, surname = ?, middlename = ?, email = ?, password = ?, city_id = ?, years_of_exp = ?,
+        SET name = ?, surname = ?, middlename = ?, phone = ?, email = ?, password = ?, city_id = ?, years_of_exp = ?,
             doc_of_proof = ?, review_rating = ?, role = ?, latitude = ?, longitude = ?, updated_at = ?
         WHERE id = ?
     `
