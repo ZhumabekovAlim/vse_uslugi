@@ -55,6 +55,7 @@ type UpdatePasswordRequest struct {
 }
 
 type SignUpResponse struct {
+	Phone            string `json:"phone"`
 	User             User   `json:"user"`
 	VerificationCode string `json:"verification_code"`
 }
