@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"naimuBack/internal/models"
+	"sort"
 	"strings"
 	"time"
 )
@@ -249,182 +250,60 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 	return services, nil
 }
 
-func (r *ServiceRepository) FilterServices(ctx context.Context, req models.FilteredServiceRequest) ([]models.FilteredServiceResponse, error) {
-	var (
-		services []models.FilteredServiceResponse
-		params   []interface{}
-		conds    []string
-	)
-
-	baseQuery := `
-	SELECT 
-		s.id as service_id, s.name as service_name, s.price, s.description,
-		u.id as client_id, u.name as client_name, u.review_rating
-	FROM service s
-	INNER JOIN users u ON u.id = s.user_id
-	INNER JOIN categories c ON c.id = s.category_id
-	`
-
-	// Categories
-	var categoryIDs []int
-	var subcats []string
-	for _, cat := range req.Categories {
-		categoryIDs = append(categoryIDs, cat.ID)
-		for _, sub := range cat.Subcategories {
-			subcats = append(subcats, sub.Name)
-		}
-	}
-
-	if len(categoryIDs) > 0 {
-		q := strings.TrimSuffix(strings.Repeat("?,", len(categoryIDs)), ",")
-		conds = append(conds, fmt.Sprintf("s.category_id IN (%s)", q))
-		for _, id := range categoryIDs {
-			params = append(params, id)
-		}
-	}
-
-	// Subcategories
-	if len(subcats) > 0 {
-		for _, sub := range subcats {
-			conds = append(conds, "c.subcategories LIKE ?")
-			params = append(params, "%"+sub+"%")
-		}
-	}
-
-	if req.PriceFrom > 0 {
-		conds = append(conds, "s.price >= ?")
-		params = append(params, req.PriceFrom)
-	}
-	if req.PriceTo > 0 {
-		conds = append(conds, "s.price <= ?")
-		params = append(params, req.PriceTo)
-	}
-
-	if len(req.Ratings) > 0 {
-		q := strings.TrimSuffix(strings.Repeat("?,", len(req.Ratings)), ",")
-		conds = append(conds, fmt.Sprintf("s.avg_rating IN (%s)", q))
-		for _, r := range req.Ratings {
-			params = append(params, float64(r))
-		}
-	}
-
-	if len(conds) > 0 {
-		baseQuery += " WHERE " + strings.Join(conds, " AND ")
-	}
-
-	// Sorting
-	switch req.Sorting {
-	case 1:
-		baseQuery += " ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC"
-	case 2:
-		baseQuery += " ORDER BY s.price ASC"
-	case 3:
-		baseQuery += " ORDER BY s.price DESC"
-	default:
-		baseQuery += " ORDER BY s.created_at DESC"
-	}
-
-	rows, err := r.DB.QueryContext(ctx, baseQuery, params...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var s models.FilteredServiceResponse
-		if err := rows.Scan(&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.ClientID, &s.ClientName, &s.ClientRating); err != nil {
-			return nil, err
-		}
-		services = append(services, s)
-	}
-	return services, nil
-}
-
-func (r *ServiceRepository) GetServicesPost(ctx context.Context, req models.GetServicesPostRequest) ([]models.GetServicesPostResponse, error) {
-	var (
-		services   []models.GetServicesPostResponse
-		conditions []string
-		params     []interface{}
-	)
-
+func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
 	query := `
-	SELECT 
-		u.id as client_id, u.name as client_name, u.review_rating as client_rating,
-		s.id as service_id, s.name as service_name, s.price as service_price, s.description
-	FROM service s
-	INNER JOIN users u ON s.user_id = u.id
-	INNER JOIN categories c ON s.category_id = c.id
+		SELECT 
+			u.id, u.name, u.review_rating,
+			s.id, s.name, s.price, s.description
+		FROM service s
+		JOIN users u ON s.user_id = u.id
+		WHERE s.price BETWEEN ? AND ?
 	`
 
-	// Category filter
-	if len(req.Categories) > 0 {
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(req.Categories)), ",")
-		conditions = append(conditions, fmt.Sprintf("s.category_id IN (%s)", placeholders))
-		for _, catID := range req.Categories {
-			params = append(params, catID)
+	args := []interface{}{req.PriceFrom, req.PriceTo}
+
+	if len(req.CategoryIDs) > 0 {
+		query += " AND s.category_id IN (?" + strings.Repeat(",?", len(req.CategoryIDs)-1) + ")"
+		for _, id := range req.CategoryIDs {
+			args = append(args, id)
 		}
 	}
 
-	// Subcategory filter
-	if len(req.Subcategories) > 0 {
-		for _, sub := range req.Subcategories {
-			conditions = append(conditions, "c.subcategories LIKE ?")
-			params = append(params, "%"+sub+"%")
+	if len(req.SubcategoryIDs) > 0 {
+		query += " AND s.subcategory_id IN (?" + strings.Repeat(",?", len(req.SubcategoryIDs)-1) + ")"
+		for _, id := range req.SubcategoryIDs {
+			args = append(args, id)
 		}
 	}
 
-	// Price filter
-	if req.PriceFrom > 0 {
-		conditions = append(conditions, "s.price >= ?")
-		params = append(params, req.PriceFrom)
-	}
-	if req.PriceTo > 0 {
-		conditions = append(conditions, "s.price <= ?")
-		params = append(params, req.PriceTo)
+	if len(req.AvgRatings) > 0 {
+		query += " AND s.avg_rating >= ?"
+		sort.Ints(req.AvgRatings)
+		args = append(args, req.AvgRatings[0])
 	}
 
-	// Rating filter
-	if len(req.Ratings) > 0 {
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(req.Ratings)), ",")
-		conditions = append(conditions, fmt.Sprintf("u.review_rating IN (%s)", placeholders))
-		for _, rate := range req.Ratings {
-			params = append(params, rate)
-		}
-	}
-
-	// Final WHERE clause
-	if len(conditions) > 0 {
-		query += " WHERE " + strings.Join(conditions, " AND ")
-	}
-
-	// Sorting
 	switch req.Sorting {
 	case 1:
-		query += ` ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC `
+		query += " ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC"
 	case 2:
-		query += ` ORDER BY s.price ASC `
+		query += " ORDER BY s.price DESC"
 	case 3:
-		query += ` ORDER BY s.price DESC `
-	default:
-		query += ` ORDER BY s.created_at DESC `
+		query += " ORDER BY s.price ASC"
 	}
 
-	rows, err := r.DB.QueryContext(ctx, query, params...)
+	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	var services []models.FilteredService
 	for rows.Next() {
-		var s models.GetServicesPostResponse
-		if err := rows.Scan(
-			&s.ClientID, &s.ClientName, &s.ClientReviewRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
-		); err != nil {
+		var s models.FilteredService
+		if err := rows.Scan(&s.UserID, &s.UserName, &s.UserRating, &s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription); err != nil {
 			return nil, err
 		}
 		services = append(services, s)
 	}
-
 	return services, nil
 }
