@@ -123,7 +123,7 @@ func (r *ServiceRepository) GetServicesWithFilters(
 	)
 
 	baseQuery := `
-		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, CASE WHEN sf.service_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked,  s.created_at, s.updated_at
+		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.service_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked,  s.created_at, s.updated_at
 		FROM service s
 		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
 		JOIN users u ON s.user_id = u.id
