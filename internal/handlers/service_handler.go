@@ -83,6 +83,7 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 
 	created, err := h.Service.CreateService(r.Context(), service)
 	if err != nil {
+		log.Printf("Failed to create service error: %v", err)
 		http.Error(w, "Failed to create service", http.StatusInternalServerError)
 		return
 	}
