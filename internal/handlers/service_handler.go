@@ -12,6 +12,7 @@ import (
 	"naimuBack/internal/services"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	_ "strings"
@@ -23,7 +24,8 @@ type ServiceHandler struct {
 }
 
 func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
+	err := r.ParseMultipartForm(32 << 20) // 32 MB
+	if err != nil {
 		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
 		return
 	}
@@ -39,44 +41,55 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	service.CreatedAt = time.Now()
 
 	files := r.MultipartForm.File["images"]
-	var paths []string
+	var imagePaths []string
+
+	uploadDir := "./uploads"
+	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+		err = os.MkdirAll(uploadDir, os.ModePerm)
+		if err != nil {
+			http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
+			return
+		}
+	}
 
 	for _, fileHeader := range files {
 		file, err := fileHeader.Open()
 		if err != nil {
-			http.Error(w, "Failed to open file", http.StatusInternalServerError)
+			http.Error(w, "Failed to open uploaded file", http.StatusInternalServerError)
 			return
 		}
 		defer file.Close()
 
+		// Генерируем уникальное имя файла
 		filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
-		filePath := "./uploads/" + filename
+		filePath := filepath.Join(uploadDir, filename)
 
-		out, err := os.Create(filePath)
+		dst, err := os.Create(filePath)
 		if err != nil {
 			http.Error(w, "Cannot save file", http.StatusInternalServerError)
 			return
 		}
-		defer out.Close()
+		defer dst.Close()
 
-		if _, err := io.Copy(out, file); err != nil {
-			http.Error(w, "File save error", http.StatusInternalServerError)
+		if _, err := io.Copy(dst, file); err != nil {
+			http.Error(w, "Failed to save uploaded file", http.StatusInternalServerError)
 			return
 		}
 
-		paths = append(paths, "/uploads/"+filename)
+		imagePaths = append(imagePaths, "/uploads/"+filename) // путь для фронта
 	}
-	service.Images = paths
 
-	createdService, err := h.Service.CreateService(r.Context(), service)
+	service.Images = imagePaths
+
+	created, err := h.Service.CreateService(r.Context(), service)
 	if err != nil {
-		http.Error(w, "Error creating service", http.StatusInternalServerError)
+		http.Error(w, "Failed to create service", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(createdService)
+	json.NewEncoder(w).Encode(created)
 }
 
 //func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
