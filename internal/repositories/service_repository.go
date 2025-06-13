@@ -220,8 +220,9 @@ func (r *ServiceRepository) GetServicesWithFilters(
 
 func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
 	query := `
-		SELECT id, name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, created_at, updated_at
-		FROM service
+		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.created_at, s.updated_at
+		FROM service s
+		JOIN users u ON s.user_id = u.id
 		WHERE user_id = ?
 	`
 
@@ -235,7 +236,7 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 	for rows.Next() {
 		var s models.Service
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.Images,
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.Images,
 			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err

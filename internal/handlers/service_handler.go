@@ -4,12 +4,16 @@ import (
 	_ "context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"naimuBack/internal/repositories"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	_ "strings"
+	"time"
 
 	"naimuBack/internal/models"
 	"naimuBack/internal/services"
@@ -20,21 +24,59 @@ type ServiceHandler struct {
 }
 
 func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
-	var service models.Service
-	err := json.NewDecoder(r.Body).Decode(&service)
+	err := r.ParseMultipartForm(10 << 20) // 10MB
 	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
 		return
 	}
 
-	if service.Name == "" || service.Price <= 0 || service.UserID == 0 {
-		http.Error(w, "Missing required fields", http.StatusBadRequest)
-		return
+	name := r.FormValue("name")
+	address := r.FormValue("address")
+	price, _ := strconv.ParseFloat(r.FormValue("price"), 64)
+	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
+	subcategoryID, _ := strconv.Atoi(r.FormValue("subcategory_id"))
+	description := r.FormValue("description")
+	userID, _ := strconv.Atoi(r.FormValue("user_id"))
+
+	// Получение файлов
+	files := r.MultipartForm.File["images"]
+	var uploadedPaths []string
+
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			http.Error(w, "Error opening image file", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+
+		// сохраняем куда-то (например, в ./uploads/)
+		filename := fmt.Sprintf("uploads/%d_%s", time.Now().UnixNano(), fileHeader.Filename)
+		dst, err := os.Create(filename)
+		if err != nil {
+			http.Error(w, "Error saving image", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+		io.Copy(dst, file)
+
+		uploadedPaths = append(uploadedPaths, filename)
+	}
+
+	service := models.Service{
+		Name:          name,
+		Address:       address,
+		Price:         price,
+		UserID:        userID,
+		CategoryID:    categoryID,
+		SubcategoryID: subcategoryID,
+		Description:   description,
+		Images:        strings.Join(uploadedPaths, ","), // или храни как []string если поле будет изменено
+		CreatedAt:     time.Now(),
 	}
 
 	createdService, err := h.Service.CreateService(r.Context(), service)
 	if err != nil {
-		log.Printf("CreateService error: %v", err)
 		http.Error(w, "Failed to create service", http.StatusInternalServerError)
 		return
 	}
@@ -43,33 +85,6 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(createdService)
 }
-
-//func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) {
-//	idStr := r.URL.Query().Get(":id")
-//	if idStr == "" {
-//		http.Error(w, "Missing service ID", http.StatusBadRequest)
-//		return
-//	}
-//
-//	id, err := strconv.Atoi(idStr)
-//	if err != nil {
-//		http.Error(w, "Invalid service ID", http.StatusBadRequest)
-//		return
-//	}
-//
-//	service, err := h.Service.GetServiceByID(r.Context(), id)
-//	if err != nil {
-//		if errors.Is(err, repositories.ErrServiceNotFound) {
-//			http.Error(w, err.Error(), http.StatusNotFound)
-//			return
-//		}
-//		http.Error(w, err.Error(), http.StatusInternalServerError)
-//		return
-//	}
-//
-//	w.Header().Set("Content-Type", "application/json")
-//	json.NewEncoder(w).Encode(service)
-//}
 
 func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
@@ -154,79 +169,6 @@ func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
-
-//func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
-//	categoriesStr := r.URL.Query()["categories"]
-//	subcategoriesStr := r.URL.Query()["subcategories"]
-//	priceFromStr := r.URL.Query().Get("price_from")
-//	priceToStr := r.URL.Query().Get("price_to")
-//	ratingsStr := r.URL.Query()["ratings"]
-//	sorting := r.URL.Query().Get("sorting")
-//	pageStr := r.URL.Query().Get("page")
-//	pageSizeStr := r.URL.Query().Get("page_size")
-//
-//	var categories []int
-//	for _, catStr := range categoriesStr {
-//		cat, err := strconv.Atoi(catStr)
-//		if err == nil {
-//			categories = append(categories, cat)
-//		}
-//	}
-//
-//	var subcategories []string = subcategoriesStr
-//
-//	priceFrom, _ := strconv.ParseFloat(priceFromStr, 64)
-//	priceTo, _ := strconv.ParseFloat(priceToStr, 64)
-//
-//	var ratings []float64
-//	for _, ratStr := range ratingsStr {
-//		rat, err := strconv.ParseFloat(ratStr, 64)
-//		if err == nil {
-//			ratings = append(ratings, rat)
-//		}
-//	}
-//
-//	page, _ := strconv.Atoi(pageStr)
-//	if page < 1 {
-//		page = 1
-//	}
-//	pageSize, _ := strconv.Atoi(pageSizeStr)
-//	if pageSize < 1 {
-//		pageSize = 10
-//	}
-//
-//	filters := models.GetServicesRequest{
-//		Categories:    categories,
-//		Subcategories: subcategories,
-//		PriceFrom:     priceFrom,
-//		PriceTo:       priceTo,
-//		Ratings:       ratings,
-//		Sorting:       sorting,
-//		Page:          page,
-//		PageSize:      pageSize,
-//	}
-//
-//	services, minPrice, maxPrice, total, err := h.Service.GetServicesWithFilters(r.Context(), filters)
-//	if err != nil {
-//		http.Error(w, err.Error(), http.StatusInternalServerError)
-//		return
-//	}
-//
-//	response := struct {
-//		Services []models.ServiceResponse `json:"services"`
-//		MinPrice float64                  `json:"min_price"`
-//		MaxPrice float64                  `json:"max_price"`
-//		Total    int                      `json:"total"`
-//	}{
-//		Services: services,
-//		MinPrice: minPrice,
-//		MaxPrice: maxPrice,
-//		Total:    total,
-//	}
-//
-//	w.Header().Set("Content-Type", "application/json")
-//	json.NewEncoder(w).Encode(response)
-//}
 
 func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
 	// Чтение query-параметров

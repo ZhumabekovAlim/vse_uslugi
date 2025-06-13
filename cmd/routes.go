@@ -70,6 +70,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/subcategory", authMiddleware.ThenFunc(app.subcategoryHandler.GetAllSubcategories))
 	mux.Get("/subcategory/cat/:category_id", authMiddleware.ThenFunc(app.subcategoryHandler.GetByCategory))
 
+	// City
 	mux.Post("/city", authMiddleware.ThenFunc(app.cityHandler.CreateCity))
 	mux.Get("/city", authMiddleware.ThenFunc(app.cityHandler.GetCities))
 	mux.Get("/city/:id", authMiddleware.ThenFunc(app.cityHandler.GetCityByID))
