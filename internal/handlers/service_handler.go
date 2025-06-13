@@ -54,6 +54,7 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 		filename := fmt.Sprintf("uploads/%d_%s", time.Now().UnixNano(), fileHeader.Filename)
 		dst, err := os.Create(filename)
 		if err != nil {
+			log.Printf("Image Error error: %v", err)
 			http.Error(w, "Error saving image", http.StatusInternalServerError)
 			return
 		}
