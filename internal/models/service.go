@@ -15,7 +15,7 @@ type Service struct {
 		Name         string  `json:"name"`
 		ReviewRating float64 `json:"review_rating"`
 	} `json:"user"`
-	Images        string     `json:"images"`
+	Images        []Image    `json:"images"`
 	CategoryID    int        `json:"category_id, omitempty"`
 	SubcategoryID int        `json:"subcategory_id, omitempty"`
 	Description   string     `json:"description"`
@@ -24,6 +24,12 @@ type Service struct {
 	Liked         bool       `json:"liked, omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     *time.Time `json:"updated_at,omitempty"`
+}
+
+type Image struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+	Type string `json:"type"`
 }
 
 type ServiceResponse struct {

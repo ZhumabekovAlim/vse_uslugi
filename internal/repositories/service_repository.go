@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"naimuBack/internal/models"
@@ -19,26 +20,39 @@ type ServiceRepository struct {
 	DB *sql.DB
 }
 
-func (r *ServiceRepository) CreateService(ctx context.Context, s models.Service) (models.Service, error) {
+func (r *UserRepository) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
-		INSERT INTO service 
-			(name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-	`
+        INSERT INTO service (name, address, price, user_id, images, category_id, subcategory_id, description, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `
+
+	// Сохраняем images как JSON
+	imagesJSON, err := json.Marshal(service.Images)
+	if err != nil {
+		return models.Service{}, err
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
-		s.Name, s.Address, s.Price, s.UserID,
-		s.Images, s.CategoryID, s.SubcategoryID, s.Description, s.AvgRating, s.Top, s.Liked,
+		service.Name,
+		service.Address,
+		service.Price,
+		service.UserID,
+		string(imagesJSON),
+		service.CategoryID,
+		service.SubcategoryID,
+		service.Description,
+		service.CreatedAt,
 	)
 	if err != nil {
 		return models.Service{}, err
 	}
 
-	id, err := result.LastInsertId()
+	lastID, err := result.LastInsertId()
 	if err != nil {
 		return models.Service{}, err
 	}
-	s.ID = int(id)
-	return s, nil
+	service.ID = int(lastID)
+	return service, nil
 }
 
 func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int) (models.Service, error) {

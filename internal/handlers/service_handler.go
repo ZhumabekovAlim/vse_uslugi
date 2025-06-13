@@ -24,7 +24,7 @@ type ServiceHandler struct {
 }
 
 func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseMultipartForm(32 << 20) // 32 MB
+	err := r.ParseMultipartForm(32 << 20) // 32MB
 	if err != nil {
 		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
 		return
@@ -40,27 +40,25 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
 	service.CreatedAt = time.Now()
 
-	files := r.MultipartForm.File["images"]
-	var imagePaths []string
-
 	uploadDir := "./uploads"
 	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
-		err = os.MkdirAll(uploadDir, os.ModePerm)
-		if err != nil {
+		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
 			http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
 			return
 		}
 	}
 
+	files := r.MultipartForm.File["images"]
+	var imageInfos []models.Image
+
 	for _, fileHeader := range files {
 		file, err := fileHeader.Open()
 		if err != nil {
-			http.Error(w, "Failed to open uploaded file", http.StatusInternalServerError)
+			http.Error(w, "Failed to open file", http.StatusInternalServerError)
 			return
 		}
 		defer file.Close()
 
-		// Генерируем уникальное имя файла
 		filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
 		filePath := filepath.Join(uploadDir, filename)
 
@@ -72,89 +70,97 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 		defer dst.Close()
 
 		if _, err := io.Copy(dst, file); err != nil {
-			http.Error(w, "Failed to save uploaded file", http.StatusInternalServerError)
+			http.Error(w, "Failed to save file", http.StatusInternalServerError)
 			return
 		}
 
-		imagePaths = append(imagePaths, "/uploads/"+filename) // путь для фронта
+		imageInfos = append(imageInfos, models.Image{
+			Name: fileHeader.Filename,
+			Path: "/uploads/" + filename,
+			Type: fileHeader.Header.Get("Content-Type"),
+		})
 	}
 
-	service.Images = imagePaths
+	service.Images = imageInfos
 
-	created, err := h.Service.CreateService(r.Context(), service)
+	createdService, err := h.Service.CreateService(r.Context(), service)
 	if err != nil {
-		log.Printf("Failed to create service error: %v", err)
 		http.Error(w, "Failed to create service", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(created)
+	json.NewEncoder(w).Encode(createdService)
 }
 
 //func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
-//	err := r.ParseMultipartForm(10 << 20) // 10MB
+//	err := r.ParseMultipartForm(32 << 20) // 32 MB
 //	if err != nil {
-//		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+//		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
 //		return
 //	}
 //
-//	name := r.FormValue("name")
-//	address := r.FormValue("address")
-//	price, _ := strconv.ParseFloat(r.FormValue("price"), 64)
-//	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
-//	subcategoryID, _ := strconv.Atoi(r.FormValue("subcategory_id"))
-//	description := r.FormValue("description")
-//	userID, _ := strconv.Atoi(r.FormValue("user_id"))
+//	var service models.Service
+//	service.Name = r.FormValue("name")
+//	service.Address = r.FormValue("address")
+//	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+//	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
+//	service.Description = r.FormValue("description")
+//	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
+//	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
+//	service.CreatedAt = time.Now()
 //
-//	// Получение файлов
 //	files := r.MultipartForm.File["images"]
-//	var uploadedPaths []string
+//	var imagePaths []string
+//
+//	uploadDir := "./uploads"
+//	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+//		err = os.MkdirAll(uploadDir, os.ModePerm)
+//		if err != nil {
+//			http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
+//			return
+//		}
+//	}
 //
 //	for _, fileHeader := range files {
 //		file, err := fileHeader.Open()
 //		if err != nil {
-//			http.Error(w, "Error opening image file", http.StatusInternalServerError)
+//			http.Error(w, "Failed to open uploaded file", http.StatusInternalServerError)
 //			return
 //		}
 //		defer file.Close()
 //
-//		// сохраняем куда-то (например, в ./uploads/)
-//		filename := fmt.Sprintf("uploads/%d_%s", time.Now().UnixNano(), fileHeader.Filename)
-//		dst, err := os.Create(filename)
+//		// Генерируем уникальное имя файла
+//		filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
+//		filePath := filepath.Join(uploadDir, filename)
+//
+//		dst, err := os.Create(filePath)
 //		if err != nil {
-//			log.Printf("Image Error error: %v", err)
-//			http.Error(w, "Error saving image", http.StatusInternalServerError)
+//			http.Error(w, "Cannot save file", http.StatusInternalServerError)
 //			return
 //		}
 //		defer dst.Close()
-//		io.Copy(dst, file)
 //
-//		uploadedPaths = append(uploadedPaths, filename)
+//		if _, err := io.Copy(dst, file); err != nil {
+//			http.Error(w, "Failed to save uploaded file", http.StatusInternalServerError)
+//			return
+//		}
+//
+//		imagePaths = append(imagePaths, "/uploads/"+filename) // путь для фронта
 //	}
 //
-//	service := models.Service{
-//		Name:          name,
-//		Address:       address,
-//		Price:         price,
-//		UserID:        userID,
-//		CategoryID:    categoryID,
-//		SubcategoryID: subcategoryID,
-//		Description:   description,
-//		Images:        strings.Join(uploadedPaths, ","), // или храни как []string если поле будет изменено
-//		CreatedAt:     time.Now(),
-//	}
+//	service.Images = imagePaths
 //
-//	createdService, err := h.Service.CreateService(r.Context(), service)
+//	created, err := h.Service.CreateService(r.Context(), service)
 //	if err != nil {
+//		log.Printf("Failed to create service error: %v", err)
 //		http.Error(w, "Failed to create service", http.StatusInternalServerError)
 //		return
 //	}
 //
 //	w.Header().Set("Content-Type", "application/json")
 //	w.WriteHeader(http.StatusCreated)
-//	json.NewEncoder(w).Encode(createdService)
+//	json.NewEncoder(w).Encode(created)
 //}
 
 func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) {
