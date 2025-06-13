@@ -362,10 +362,12 @@ func (r *UserRepository) GetUserByPhone1(ctx context.Context, phone string) (mod
 
 func (r *UserRepository) ChangeCityForUser(ctx context.Context, userID int, cityID int) error {
 	query := `UPDATE users SET city_id = ?, updated_at = NOW() WHERE id = ?`
+
 	result, err := r.DB.ExecContext(ctx, query, cityID, userID)
 	if err != nil {
 		return err
 	}
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
