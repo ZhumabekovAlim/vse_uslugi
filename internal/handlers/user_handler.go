@@ -331,17 +331,30 @@ func (h *UserHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		UserID int `json:"user_id"`
-		CityID int `json:"city_id"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.UserID == 0 || req.CityID == 0 {
-		http.Error(w, "Invalid input data", http.StatusBadRequest)
+	// Получаем ID пользователя из query-параметров
+	idStr := r.URL.Query().Get(":id")
+	if idStr == "" {
+		http.Error(w, "Missing user ID", http.StatusBadRequest)
 		return
 	}
 
-	err := h.Service.ChangeCityForUser(r.Context(), req.UserID, req.CityID)
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	// Парсим тело запроса
+	var payload struct {
+		CityID int `json:"city_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Вызываем сервис
+	updatedUser, err := h.Service.ChangeCityForUser(r.Context(), id, payload.CityID)
 	if err != nil {
 		if errors.Is(err, repositories.ErrUserNotFound) {
 			http.Error(w, "User not found", http.StatusNotFound)
@@ -351,6 +364,8 @@ func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Успешный ответ
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "City updated successfully"}`))
+	json.NewEncoder(w).Encode(updatedUser)
 }

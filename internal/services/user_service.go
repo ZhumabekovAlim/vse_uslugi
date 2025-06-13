@@ -375,6 +375,6 @@ func (s *UserService) ChangeEmail(ctx context.Context, email string) (models.Sig
 	}, nil
 }
 
-func (s *UserService) ChangeCityForUser(ctx context.Context, userID int, cityID int) error {
-	return s.UserRepo.ChangeCityForUser(ctx, userID, cityID)
+func (s *UserService) ChangeCityForUser(ctx context.Context, userID int, cityID int) (error, error) {
+	return s.UserRepo.ChangeCityForUser(ctx, userID, cityID), nil
 }
