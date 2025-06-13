@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"naimuBack/internal/repositories"
 	"net/http"
 	"strconv"
 
@@ -331,24 +330,37 @@ func (h *UserHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		UserID int `json:"user_id"`
-		CityID int `json:"city_id"`
+	// Extract user ID from URL (e.g. /users/5/city)
+	idStr := r.URL.Query().Get(":id")
+	if idStr == "" {
+		http.Error(w, "Missing user ID in URL", http.StatusBadRequest)
+		return
 	}
 
+	userID, err := strconv.Atoi(idStr)
+	if err != nil || userID <= 0 {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		CityID int `json:"city_id"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if req.UserID == 0 || req.CityID == 0 {
-		http.Error(w, "user_id and city_id are required", http.StatusBadRequest)
+	if req.CityID == 0 {
+		http.Error(w, "city_id is required", http.StatusBadRequest)
 		return
 	}
 
-	err := h.Service.ChangeCityForUser(r.Context(), req.UserID, req.CityID)
+	// Call service
+	err = h.Service.ChangeCityForUser(r.Context(), userID, req.CityID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrUserNotFound) {
+		if errors.Is(err, ErrUserNotFound) {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
@@ -357,5 +369,5 @@ func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "City updated successfully"}`))
+	json.NewEncoder(w).Encode(map[string]string{"message": "City updated successfully"})
 }
