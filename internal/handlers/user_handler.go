@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"naimuBack/internal/repositories"
 	"net/http"
 	"strconv"
 
@@ -331,10 +330,10 @@ func (h *UserHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) {
-	// Получаем ID пользователя из query-параметров
+
 	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
-		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		http.Error(w, "Missing user ID in path", http.StatusBadRequest)
 		return
 	}
 
@@ -344,7 +343,6 @@ func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Парсим тело запроса
 	var payload struct {
 		CityID int `json:"city_id"`
 	}
@@ -353,18 +351,12 @@ func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Вызываем сервис
 	updatedUser, err := h.Service.ChangeCityForUser(r.Context(), id, payload.CityID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrUserNotFound) {
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "Failed to update city", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Успешный ответ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(updatedUser)
