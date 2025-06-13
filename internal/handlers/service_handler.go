@@ -7,16 +7,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
+	"naimuBack/internal/services"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	_ "strings"
 	"time"
-
-	"naimuBack/internal/models"
-	"naimuBack/internal/services"
 )
 
 type ServiceHandler struct {
@@ -24,61 +23,54 @@ type ServiceHandler struct {
 }
 
 func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseMultipartForm(10 << 20) // 10MB
-	if err != nil {
-		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
 		return
 	}
 
-	name := r.FormValue("name")
-	address := r.FormValue("address")
-	price, _ := strconv.ParseFloat(r.FormValue("price"), 64)
-	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
-	subcategoryID, _ := strconv.Atoi(r.FormValue("subcategory_id"))
-	description := r.FormValue("description")
-	userID, _ := strconv.Atoi(r.FormValue("user_id"))
+	var service models.Service
+	service.Name = r.FormValue("name")
+	service.Address = r.FormValue("address")
+	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
+	service.Description = r.FormValue("description")
+	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
+	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
+	service.CreatedAt = time.Now()
 
-	// Получение файлов
 	files := r.MultipartForm.File["images"]
-	var uploadedPaths []string
+	var paths []string
 
 	for _, fileHeader := range files {
 		file, err := fileHeader.Open()
 		if err != nil {
-			http.Error(w, "Error opening image file", http.StatusInternalServerError)
+			http.Error(w, "Failed to open file", http.StatusInternalServerError)
 			return
 		}
 		defer file.Close()
 
-		// сохраняем куда-то (например, в ./uploads/)
-		filename := fmt.Sprintf("uploads/%d_%s", time.Now().UnixNano(), fileHeader.Filename)
-		dst, err := os.Create(filename)
+		filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
+		filePath := "./uploads/" + filename
+
+		out, err := os.Create(filePath)
 		if err != nil {
-			log.Printf("Image Error error: %v", err)
-			http.Error(w, "Error saving image", http.StatusInternalServerError)
+			http.Error(w, "Cannot save file", http.StatusInternalServerError)
 			return
 		}
-		defer dst.Close()
-		io.Copy(dst, file)
+		defer out.Close()
 
-		uploadedPaths = append(uploadedPaths, filename)
-	}
+		if _, err := io.Copy(out, file); err != nil {
+			http.Error(w, "File save error", http.StatusInternalServerError)
+			return
+		}
 
-	service := models.Service{
-		Name:          name,
-		Address:       address,
-		Price:         price,
-		UserID:        userID,
-		CategoryID:    categoryID,
-		SubcategoryID: subcategoryID,
-		Description:   description,
-		Images:        strings.Join(uploadedPaths, ","), // или храни как []string если поле будет изменено
-		CreatedAt:     time.Now(),
+		paths = append(paths, "/uploads/"+filename)
 	}
+	service.Images = paths
 
 	createdService, err := h.Service.CreateService(r.Context(), service)
 	if err != nil {
-		http.Error(w, "Failed to create service", http.StatusInternalServerError)
+		http.Error(w, "Error creating service", http.StatusInternalServerError)
 		return
 	}
 
@@ -86,6 +78,70 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(createdService)
 }
+
+//func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
+//	err := r.ParseMultipartForm(10 << 20) // 10MB
+//	if err != nil {
+//		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+//		return
+//	}
+//
+//	name := r.FormValue("name")
+//	address := r.FormValue("address")
+//	price, _ := strconv.ParseFloat(r.FormValue("price"), 64)
+//	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
+//	subcategoryID, _ := strconv.Atoi(r.FormValue("subcategory_id"))
+//	description := r.FormValue("description")
+//	userID, _ := strconv.Atoi(r.FormValue("user_id"))
+//
+//	// Получение файлов
+//	files := r.MultipartForm.File["images"]
+//	var uploadedPaths []string
+//
+//	for _, fileHeader := range files {
+//		file, err := fileHeader.Open()
+//		if err != nil {
+//			http.Error(w, "Error opening image file", http.StatusInternalServerError)
+//			return
+//		}
+//		defer file.Close()
+//
+//		// сохраняем куда-то (например, в ./uploads/)
+//		filename := fmt.Sprintf("uploads/%d_%s", time.Now().UnixNano(), fileHeader.Filename)
+//		dst, err := os.Create(filename)
+//		if err != nil {
+//			log.Printf("Image Error error: %v", err)
+//			http.Error(w, "Error saving image", http.StatusInternalServerError)
+//			return
+//		}
+//		defer dst.Close()
+//		io.Copy(dst, file)
+//
+//		uploadedPaths = append(uploadedPaths, filename)
+//	}
+//
+//	service := models.Service{
+//		Name:          name,
+//		Address:       address,
+//		Price:         price,
+//		UserID:        userID,
+//		CategoryID:    categoryID,
+//		SubcategoryID: subcategoryID,
+//		Description:   description,
+//		Images:        strings.Join(uploadedPaths, ","), // или храни как []string если поле будет изменено
+//		CreatedAt:     time.Now(),
+//	}
+//
+//	createdService, err := h.Service.CreateService(r.Context(), service)
+//	if err != nil {
+//		http.Error(w, "Failed to create service", http.StatusInternalServerError)
+//		return
+//	}
+//
+//	w.Header().Set("Content-Type", "application/json")
+//	w.WriteHeader(http.StatusCreated)
+//	json.NewEncoder(w).Encode(createdService)
+//}
 
 func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")

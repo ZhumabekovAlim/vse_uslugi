@@ -15,7 +15,7 @@ type Service struct {
 		Name         string  `json:"name"`
 		ReviewRating float64 `json:"review_rating"`
 	} `json:"user"`
-	Images        string     `json:"images"`
+	Images        []string   `json:"images"`
 	CategoryID    int        `json:"category_id, omitempty"`
 	SubcategoryID int        `json:"subcategory_id, omitempty"`
 	Description   string     `json:"description"`
