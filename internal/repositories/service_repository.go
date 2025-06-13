@@ -20,7 +20,7 @@ type ServiceRepository struct {
 	DB *sql.DB
 }
 
-func (r *UserRepository) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
+func (r *ServiceRepository) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
         INSERT INTO service (name, address, price, user_id, images, category_id, subcategory_id, description, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
