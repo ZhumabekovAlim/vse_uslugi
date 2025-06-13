@@ -25,13 +25,13 @@ type Session struct {
 
 func (r *UserRepository) CreateUser(ctx context.Context, user models.User) (models.User, error) {
 	query := `
-        INSERT INTO users (name, surname, middlename, phone, email, password, review_rating, role, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (name, surname, middlename, phone, email, password, city_id, review_rating, role, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = &user.CreatedAt
 	result, err := r.DB.ExecContext(ctx, query,
-		user.Name, user.Surname, user.Middlename, user.Phone, user.Email, user.Password, user.ReviewRating, user.Role,
+		user.Name, user.Surname, user.Middlename, user.Phone, user.Email, user.Password, user.CityID, user.ReviewRating, user.Role,
 		user.CreatedAt, user.UpdatedAt,
 	)
 	if err != nil {
