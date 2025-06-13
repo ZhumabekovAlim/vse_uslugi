@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"naimuBack/internal/repositories"
 	"net/http"
 	"strconv"
 
@@ -327,4 +328,29 @@ func (h *UserHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID int `json:"user_id"`
+		CityID int `json:"city_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.UserID == 0 || req.CityID == 0 {
+		http.Error(w, "Invalid input data", http.StatusBadRequest)
+		return
+	}
+
+	err := h.Service.ChangeCityForUser(r.Context(), req.UserID, req.CityID)
+	if err != nil {
+		if errors.Is(err, repositories.ErrUserNotFound) {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to update city", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message": "City updated successfully"}`))
 }
