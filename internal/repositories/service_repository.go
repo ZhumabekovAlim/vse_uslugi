@@ -203,11 +203,25 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	for rows.Next() {
 		var s models.Service
 		var imagesJSON []byte
+		var avgRating sql.NullFloat64
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked,
 			&s.CreatedAt, &s.UpdatedAt,
 		)
+		if err != nil {
+			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
+		}
+
+		if avgRating.Valid {
+			s.AvgRating = avgRating.Float64
+		} else {
+			s.AvgRating = 0
+		}
+
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
+		}
 		if err != nil {
 			return nil, 0, 0, err
 		}
