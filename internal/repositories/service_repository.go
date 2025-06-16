@@ -67,9 +67,10 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int) (models.
 	`
 
 	var s models.Service
+	var imagesJSON []byte
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
-		&s.Images, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked,
+		&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 
