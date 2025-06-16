@@ -149,61 +149,55 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category models
 		return models.Category{}, err
 	}
 	defer func() {
-		if err != nil {
+		if p := recover(); p != nil {
 			tx.Rollback()
+			panic(p)
 		}
 	}()
 
-	// Обновление основной таблицы category
-	updateQuery := `
+	// Обновляем основную категорию
+	query := `
 		UPDATE categories
 		SET name = ?, image_path = ?, min_price = ?, updated_at = ?
 		WHERE id = ?
 	`
-	updatedAt := time.Now()
-	_, err = tx.ExecContext(ctx, updateQuery, category.Name, category.ImagePath, category.MinPrice, updatedAt, category.ID)
+	_, err = tx.ExecContext(ctx, query,
+		category.Name, category.ImagePath, category.MinPrice, time.Now(), category.ID,
+	)
 	if err != nil {
 		tx.Rollback()
 		return models.Category{}, err
 	}
 
-	// Удаляем старые связи
-	_, err = tx.ExecContext(ctx, "DELETE FROM category_subcategory WHERE category_id = ?", category.ID)
+	// Удаляем старые связи с подкатегориями
+	_, err = tx.ExecContext(ctx, `DELETE FROM category_subcategory WHERE category_id = ?`, category.ID)
 	if err != nil {
 		tx.Rollback()
 		return models.Category{}, err
 	}
 
 	// Вставляем новые связи
-	insertQuery := "INSERT INTO category_subcategory (category_id, subcategory_id) VALUES "
-	args := []interface{}{}
-	values := []string{}
 	for _, subID := range subcategoryIDs {
-		values = append(values, "(?, ?)")
-		args = append(args, category.ID, subID)
-	}
-	insertQuery += strings.Join(values, ",")
-	_, err = tx.ExecContext(ctx, insertQuery, args...)
-	if err != nil {
-		tx.Rollback()
-		return models.Category{}, err
+		_, err = tx.ExecContext(ctx, `INSERT INTO category_subcategory (category_id, subcategory_id) VALUES (?, ?)`, category.ID, subID)
+		if err != nil {
+			tx.Rollback()
+			return models.Category{}, err
+		}
 	}
 
-	// Получаем полные данные по подкатегориям
+	// Получаем данные подкатегорий
 	if len(subcategoryIDs) > 0 {
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(subcategoryIDs)), ",")
-		query := fmt.Sprintf(`
-			SELECT id, category_id, name, created_at, updated_at
-			FROM subcategories
-			WHERE id IN (%s)
-		`, placeholders)
-
 		args := make([]interface{}, len(subcategoryIDs))
 		for i, id := range subcategoryIDs {
 			args[i] = id
 		}
 
-		subRows, err := tx.QueryContext(ctx, query, args...)
+		subRows, err := tx.QueryContext(ctx, `
+			SELECT id, category_id, name, created_at, updated_at
+			FROM subcategories
+			WHERE id IN (`+placeholders+`)`, args...,
+		)
 		if err != nil {
 			tx.Rollback()
 			return models.Category{}, err
@@ -220,11 +214,10 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category models
 		}
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	if err := tx.Commit(); err != nil {
 		return models.Category{}, err
 	}
-	category.UpdatedAt = updatedAt
+
 	return category, nil
 }
 
