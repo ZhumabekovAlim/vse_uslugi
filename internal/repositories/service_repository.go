@@ -266,6 +266,13 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 		); err != nil {
 			return nil, err
 		}
+
+		if len(imagesJSON) > 0 {
+			if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+				return nil, fmt.Errorf("json decode error: %w", err)
+			}
+		}
+
 		services = append(services, s)
 	}
 
