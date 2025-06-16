@@ -287,6 +287,64 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 	return services, nil
 }
 
+//func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
+//	query := `
+//		SELECT
+//			u.id, u.name, u.review_rating,
+//			s.id, s.name, s.price, s.description
+//		FROM service s
+//		JOIN users u ON s.user_id = u.id
+//		WHERE s.price BETWEEN ? AND ?
+//	`
+//
+//	args := []interface{}{req.PriceFrom, req.PriceTo}
+//
+//	if len(req.CategoryIDs) > 0 {
+//		query += " AND s.category_id IN (?" + strings.Repeat(",?", len(req.CategoryIDs)-1) + ")"
+//		for _, id := range req.CategoryIDs {
+//			args = append(args, id)
+//		}
+//	}
+//
+//	if len(req.SubcategoryIDs) > 0 {
+//		query += " AND s.subcategory_id IN (?" + strings.Repeat(",?", len(req.SubcategoryIDs)-1) + ")"
+//		for _, id := range req.SubcategoryIDs {
+//			args = append(args, id)
+//		}
+//	}
+//
+//	if len(req.AvgRatings) > 0 {
+//		query += " AND s.avg_rating >= ?"
+//		sort.Ints(req.AvgRatings)
+//		args = append(args, req.AvgRatings[0])
+//	}
+//
+//	switch req.Sorting {
+//	case 1:
+//		query += " ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC"
+//	case 2:
+//		query += " ORDER BY s.price DESC"
+//	case 3:
+//		query += " ORDER BY s.price ASC"
+//	}
+//
+//	rows, err := r.DB.QueryContext(ctx, query, args...)
+//	if err != nil {
+//		return nil, err
+//	}
+//	defer rows.Close()
+//
+//	var services []models.FilteredService
+//	for rows.Next() {
+//		var s models.FilteredService
+//		if err := rows.Scan(&s.UserID, &s.UserName, &s.UserRating, &s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription); err != nil {
+//			return nil, err
+//		}
+//		services = append(services, s)
+//	}
+//	return services, nil
+//}
+
 func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
 	query := `
 		SELECT 
@@ -295,33 +353,37 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 		FROM service s
 		JOIN users u ON s.user_id = u.id
 		WHERE s.price BETWEEN ? AND ?
-		  AND s.category_id IN (?,?)
-  		  AND s.subcategory_id IN (?,?)
-		ORDER BY s.price ASC
 	`
-
 	args := []interface{}{req.PriceFrom, req.PriceTo}
 
+	// Category
 	if len(req.CategoryIDs) > 0 {
-		query += " AND s.category_id IN (?" + strings.Repeat(",?", len(req.CategoryIDs)-1) + ")"
+		placeholders := strings.Repeat("?,", len(req.CategoryIDs))
+		placeholders = placeholders[:len(placeholders)-1] // remove trailing comma
+		query += fmt.Sprintf(" AND s.category_id IN (%s)", placeholders)
 		for _, id := range req.CategoryIDs {
 			args = append(args, id)
 		}
 	}
 
+	// Subcategory
 	if len(req.SubcategoryIDs) > 0 {
-		query += " AND s.subcategory_id IN (?" + strings.Repeat(",?", len(req.SubcategoryIDs)-1) + ")"
+		placeholders := strings.Repeat("?,", len(req.SubcategoryIDs))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.subcategory_id IN (%s)", placeholders)
 		for _, id := range req.SubcategoryIDs {
 			args = append(args, id)
 		}
 	}
 
+	// Ratings
 	if len(req.AvgRatings) > 0 {
-		query += " AND s.avg_rating >= ?"
 		sort.Ints(req.AvgRatings)
-		args = append(args, req.AvgRatings[0])
+		query += " AND s.avg_rating >= ?"
+		args = append(args, float64(req.AvgRatings[0]))
 	}
 
+	// Sorting
 	switch req.Sorting {
 	case 1:
 		query += " ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC"
@@ -329,6 +391,8 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 		query += " ORDER BY s.price DESC"
 	case 3:
 		query += " ORDER BY s.price ASC"
+	default:
+		query += " ORDER BY s.created_at DESC"
 	}
 
 	rows, err := r.DB.QueryContext(ctx, query, args...)
@@ -340,10 +404,14 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 	var services []models.FilteredService
 	for rows.Next() {
 		var s models.FilteredService
-		if err := rows.Scan(&s.UserID, &s.UserName, &s.UserRating, &s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription); err != nil {
+		if err := rows.Scan(
+			&s.UserID, &s.UserName, &s.UserRating,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
+		); err != nil {
 			return nil, err
 		}
 		services = append(services, s)
 	}
+
 	return services, nil
 }
