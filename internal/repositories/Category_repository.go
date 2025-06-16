@@ -134,29 +134,36 @@ func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Cat
 			return nil, err
 		}
 
-		// Загружаем связанные подкатегории из таблицы category_subcategory
-		subRows, err := r.DB.QueryContext(ctx, `
-			SELECT subcategory_id FROM category_subcategory WHERE category_id = ?
-		`, c.ID)
+		// Загружаем подкатегории по связующей таблице category_subcategory
+		subQuery := `
+			SELECT s.id, s.category_id, s.name, s.created_at, s.updated_at
+			FROM subcategories s
+			JOIN category_subcategory cs ON cs.subcategory_id = s.id
+			WHERE cs.category_id = ?
+		`
+		subRows, err := r.DB.QueryContext(ctx, subQuery, c.ID)
 		if err != nil {
 			return nil, err
 		}
 
+		var subcats []models.Subcategory
 		for subRows.Next() {
-			var subID int
-			if err := subRows.Scan(&subID); err != nil {
+			var sub models.Subcategory
+			if err := subRows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
 				subRows.Close()
 				return nil, err
 			}
-			c.SubcategoryIDs = append(c.SubcategoryIDs, subID)
+			subcats = append(subcats, sub)
 		}
 		subRows.Close()
 
+		c.Subcategories = subcats
 		categories = append(categories, c)
 	}
 
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		return nil, err
 	}
+
 	return categories, nil
 }
