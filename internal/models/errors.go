@@ -27,4 +27,5 @@ var (
 	ErrAlreadyFriends         = errors.New("already friends")
 	ErrCardNotFound           = errors.New("card not found")
 	ErrReviewNotFound         = errors.New("review not found")
+	ErrSubcategoryNotFound    = errors.New("subcategory not found")
 )

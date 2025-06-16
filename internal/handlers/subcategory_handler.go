@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
+	"naimuBack/internal/repositories"
 	"net/http"
 	"strconv"
 
@@ -48,4 +50,87 @@ func (h *SubcategoryHandler) GetByCategory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	json.NewEncoder(w).Encode(subs)
+}
+
+func (h *SubcategoryHandler) GetSubcategoryByID(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get(":id")
+	if idStr == "" {
+		http.Error(w, "Missing subcategory ID", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid subcategory ID", http.StatusBadRequest)
+		return
+	}
+
+	subcategory, err := h.Service.GetSubcategoryByID(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, repositories.ErrSubcategoryNotFound) {
+			http.Error(w, "Subcategory not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to fetch subcategory", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(subcategory)
+}
+
+func (h *SubcategoryHandler) UpdateSubcategoryByID(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get(":id")
+	if idStr == "" {
+		http.Error(w, "Missing subcategory ID", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid subcategory ID", http.StatusBadRequest)
+		return
+	}
+
+	var sub models.Subcategory
+	if err := json.NewDecoder(r.Body).Decode(&sub); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	sub.ID = id
+
+	updatedSub, err := h.Service.UpdateSubcategoryByID(r.Context(), sub)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedSub)
+}
+
+func (h *SubcategoryHandler) DeleteSubcategoryByID(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get(":id")
+	if idStr == "" {
+		http.Error(w, "Missing subcategory ID", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid subcategory ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.Service.DeleteSubcategoryByID(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, models.ErrSubcategoryNotFound) {
+			http.Error(w, "Subcategory not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to delete subcategory", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
