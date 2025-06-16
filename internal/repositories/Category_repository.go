@@ -237,6 +237,56 @@ func (r *CategoryRepository) DeleteCategory(ctx context.Context, id int) error {
 	return nil
 }
 
+//func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Category, error) {
+//	query := `
+//        SELECT id, name, image_path, min_price, created_at, updated_at
+//        FROM categories
+//    `
+//	rows, err := r.DB.QueryContext(ctx, query)
+//	if err != nil {
+//		return nil, err
+//	}
+//	defer rows.Close()
+//
+//	var categories []models.Category
+//	for rows.Next() {
+//		var c models.Category
+//		if err := rows.Scan(&c.ID, &c.Name, &c.ImagePath, &c.MinPrice, &c.CreatedAt, &c.UpdatedAt); err != nil {
+//			return nil, err
+//		}
+//
+//		// --- Загрузка подкатегорий для данной категории ---
+//		subRows, err := r.DB.QueryContext(ctx, `
+//			SELECT id, category_id, name, created_at, updated_at
+//			FROM subcategories
+//			WHERE category_id = ?
+//		`, c.ID)
+//		if err != nil {
+//			return nil, err
+//		}
+//
+//		var subcategories []models.Subcategory
+//		for subRows.Next() {
+//			var s models.Subcategory
+//			if err := subRows.Scan(&s.ID, &s.CategoryID, &s.Name, &s.CreatedAt, &s.UpdatedAt); err != nil {
+//				subRows.Close() // безопасно закрываем перед возвратом ошибки
+//				return nil, err
+//			}
+//			subcategories = append(subcategories, s)
+//		}
+//		subRows.Close()
+//
+//		c.Subcategories = subcategories
+//		categories = append(categories, c)
+//	}
+//
+//	if err := rows.Err(); err != nil {
+//		return nil, err
+//	}
+//
+//	return categories, nil
+//}
+
 func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Category, error) {
 	query := `
         SELECT id, name, image_path, min_price, created_at, updated_at
@@ -251,32 +301,36 @@ func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Cat
 	var categories []models.Category
 	for rows.Next() {
 		var c models.Category
-		if err := rows.Scan(&c.ID, &c.Name, &c.ImagePath, &c.MinPrice, &c.CreatedAt, &c.UpdatedAt); err != nil {
-			return nil, err
-		}
-
-		// --- Загрузка подкатегорий для данной категории ---
-		subRows, err := r.DB.QueryContext(ctx, `
-			SELECT id, category_id, name, created_at, updated_at
-			FROM subcategories
-			WHERE category_id = ?
-		`, c.ID)
+		err := rows.Scan(
+			&c.ID, &c.Name, &c.ImagePath,
+			&c.MinPrice, &c.CreatedAt, &c.UpdatedAt,
+		)
 		if err != nil {
 			return nil, err
 		}
 
-		var subcategories []models.Subcategory
+		// Загружаем субкатегории через связующую таблицу
+		subQuery := `
+			SELECT s.id, s.category_id, s.name, s.created_at, s.updated_at
+			FROM subcategories s
+			JOIN category_subcategory cs ON cs.subcategory_id = s.id
+			WHERE cs.category_id = ?
+		`
+		subRows, err := r.DB.QueryContext(ctx, subQuery, c.ID)
+		if err != nil {
+			return nil, err
+		}
+
 		for subRows.Next() {
-			var s models.Subcategory
-			if err := subRows.Scan(&s.ID, &s.CategoryID, &s.Name, &s.CreatedAt, &s.UpdatedAt); err != nil {
-				subRows.Close() // безопасно закрываем перед возвратом ошибки
+			var sub models.Subcategory
+			if err := subRows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
+				subRows.Close()
 				return nil, err
 			}
-			subcategories = append(subcategories, s)
+			c.Subcategories = append(c.Subcategories, sub)
 		}
 		subRows.Close()
 
-		c.Subcategories = subcategories
 		categories = append(categories, c)
 	}
 
