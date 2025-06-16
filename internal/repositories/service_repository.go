@@ -209,13 +209,6 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 			&s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
-			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
-		}
-
-		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
-			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
-		}
-		if err != nil {
 			return nil, 0, 0, err
 		}
 		services = append(services, s)
