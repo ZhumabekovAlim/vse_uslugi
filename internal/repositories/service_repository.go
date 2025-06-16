@@ -121,7 +121,7 @@ func (r *ServiceRepository) DeleteService(ctx context.Context, id int) error {
 	}
 	return nil
 }
-func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Service, error, float64, error) {
+func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Service, float64, float64, error) {
 	var (
 		services   []models.Service
 		params     []interface{}
@@ -209,11 +209,11 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 			&s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("scan error: %w", err), 0, nil
+			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
 		}
 
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
-			return nil, fmt.Errorf("json decode error: %w", err), 0, nil
+			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
 		}
 		if err != nil {
 			return nil, 0, 0, err
