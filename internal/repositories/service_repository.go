@@ -96,10 +96,14 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
             description = ?, avg_rating = ?, top = ?, liked = ?, updated_at = ?
         WHERE id = ?
     `
+	imagesJSON, err := json.Marshal(service.Images)
+	if err != nil {
+		return models.Service{}, fmt.Errorf("failed to marshal images: %w", err)
+	}
 	updatedAt := time.Now()
 	service.UpdatedAt = &updatedAt
 	result, err := r.DB.ExecContext(ctx, query,
-		service.Name, service.Address, service.Price, service.UserID, service.Images,
+		service.Name, service.Address, service.Price, service.UserID, imagesJSON,
 		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.UpdatedAt, service.ID,
 	)
 	if err != nil {

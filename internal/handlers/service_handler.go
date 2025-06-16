@@ -194,34 +194,120 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
 	}
-
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		http.Error(w, "Invalid service ID", http.StatusBadRequest)
 		return
 	}
 
-	var service models.Service
-	if err := json.NewDecoder(r.Body).Decode(&service); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	err = r.ParseMultipartForm(32 << 20) // 32 MB
+	if err != nil {
+		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
 		return
 	}
-	service.ID = id
 
-	updatedService, err := h.Service.UpdateService(r.Context(), service)
-	if err != nil {
-		if errors.Is(err, repositories.ErrServiceNotFound) {
-			http.Error(w, err.Error(), http.StatusNotFound)
+	var service models.Service
+	service.ID = id
+	service.Name = r.FormValue("name")
+	service.Address = r.FormValue("address")
+	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
+	service.Description = r.FormValue("description")
+	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
+	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
+	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
+	service.Top = r.FormValue("top")
+	service.Liked = r.FormValue("liked") == "true"
+	service.UpdatedAt = &time.Time{}
+	*service.UpdatedAt = time.Now()
+
+	// Обработка изображений
+	uploadDir := "./uploads"
+	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+			http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	files := r.MultipartForm.File["images"]
+	var imageInfos []models.Image
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			http.Error(w, "Failed to open image", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+
+		filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
+		filePath := filepath.Join(uploadDir, filename)
+
+		dst, err := os.Create(filePath)
+		if err != nil {
+			http.Error(w, "Failed to save image", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, file); err != nil {
+			http.Error(w, "Error copying image", http.StatusInternalServerError)
+			return
+		}
+
+		imageInfos = append(imageInfos, models.Image{
+			Name: fileHeader.Filename,
+			Path: "/uploads/" + filename,
+			Type: fileHeader.Header.Get("Content-Type"),
+		})
+	}
+	service.Images = imageInfos
+
+	// Вызов сервиса
+	updatedService, err := h.Service.UpdateService(r.Context(), service)
+	if err != nil {
+		http.Error(w, "Failed to update service: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(updatedService)
 }
+
+//func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
+//	idStr := r.URL.Query().Get(":id")
+//	if idStr == "" {
+//		http.Error(w, "Missing service ID", http.StatusBadRequest)
+//		return
+//	}
+//
+//	id, err := strconv.Atoi(idStr)
+//	if err != nil {
+//		http.Error(w, "Invalid service ID", http.StatusBadRequest)
+//		return
+//	}
+//
+//	var service models.Service
+//	if err := json.NewDecoder(r.Body).Decode(&service); err != nil {
+//		http.Error(w, "Invalid request body", http.StatusBadRequest)
+//		return
+//	}
+//	service.ID = id
+//
+//	updatedService, err := h.Service.UpdateService(r.Context(), service)
+//	if err != nil {
+//		if errors.Is(err, repositories.ErrServiceNotFound) {
+//			http.Error(w, err.Error(), http.StatusNotFound)
+//			return
+//		}
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		return
+//	}
+//
+//	w.Header().Set("Content-Type", "application/json")
+//	w.WriteHeader(http.StatusOK)
+//	json.NewEncoder(w).Encode(updatedService)
+//}
 
 func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
