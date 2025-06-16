@@ -295,6 +295,9 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 		FROM service s
 		JOIN users u ON s.user_id = u.id
 		WHERE s.price BETWEEN ? AND ?
+		  AND s.category_id IN (?,?)
+  		  AND s.subcategory_id IN (?,?)
+		ORDER BY s.price ASC
 	`
 
 	args := []interface{}{req.PriceFrom, req.PriceTo}
