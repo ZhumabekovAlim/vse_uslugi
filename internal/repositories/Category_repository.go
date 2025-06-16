@@ -37,7 +37,7 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category models
 	insertLink := `
 		INSERT INTO category_subcategory (category_id, subcategory_id) VALUES (?, ?)
 	`
-	for _, subID := range category.SubcategoryIDs {
+	for _, subID := range category.Subcategories {
 		if _, err := tx.ExecContext(ctx, insertLink, category.ID, subID); err != nil {
 			tx.Rollback()
 			return models.Category{}, err
