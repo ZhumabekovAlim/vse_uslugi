@@ -11,7 +11,7 @@ type CategoryService struct {
 }
 
 func (s *CategoryService) CreateCategory(ctx context.Context, category models.Category) (models.Category, error) {
-	return s.CategoryRepo.CreateCategory(ctx, category)
+	return s.CategoryRepo.CreateCategory(ctx, category, category.SubcategoryIDs)
 }
 
 func (s *CategoryService) GetCategoryByID(ctx context.Context, id int) (models.Category, error) {
