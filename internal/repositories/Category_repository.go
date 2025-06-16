@@ -133,22 +133,29 @@ func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Cat
 		if err != nil {
 			return nil, err
 		}
-		categories = append(categories, c)
-		subRows, err := r.DB.QueryContext(ctx, `SELECT id, category_id, name, created_at, updated_at FROM subcategories WHERE category_id = ?`, c.ID)
+
+		// Загружаем связанные подкатегории из таблицы category_subcategory
+		subRows, err := r.DB.QueryContext(ctx, `
+			SELECT subcategory_id FROM category_subcategory WHERE category_id = ?
+		`, c.ID)
 		if err != nil {
 			return nil, err
 		}
-		defer subRows.Close()
 
 		for subRows.Next() {
-			var s models.Subcategory
-			if err := subRows.Scan(&s.ID, &s.CategoryID, &s.Name, &s.CreatedAt, &s.UpdatedAt); err != nil {
+			var subID int
+			if err := subRows.Scan(&subID); err != nil {
+				subRows.Close()
 				return nil, err
 			}
-			c.SubcategoryIDs = append(c.SubcategoryIDs)
+			c.SubcategoryIDs = append(c.SubcategoryIDs, subID)
 		}
+		subRows.Close()
+
+		categories = append(categories, c)
 	}
-	if err = rows.Err(); err != nil {
+
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return categories, nil
