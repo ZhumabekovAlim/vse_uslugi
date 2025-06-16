@@ -71,12 +71,12 @@ type ServiceListResponse struct {
 }
 
 type FilterServicesRequest struct {
-	CategoryIDs    []int     `json:"category_id"`
-	SubcategoryIDs []int     `json:"subcategory_id"`
-	PriceFrom      float64   `json:"price_from"`
-	PriceTo        float64   `json:"price_to"`
-	AvgRatings     []float64 `json:"avg_rating"`
-	Sorting        int       `json:"sorting"` // 1 - by reviews, 2 - price desc, 3 - price asc
+	CategoryIDs    []int   `json:"category_id"`
+	SubcategoryIDs []int   `json:"subcategory_id"`
+	PriceFrom      float64 `json:"price_from"`
+	PriceTo        float64 `json:"price_to"`
+	AvgRatings     []int   `json:"avg_rating"`
+	Sorting        int     `json:"sorting"` // 1 - by reviews, 2 - price desc, 3 - price asc
 }
 
 type FilteredService struct {
