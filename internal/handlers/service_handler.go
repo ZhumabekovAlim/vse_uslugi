@@ -396,34 +396,3 @@ func (h *ServiceHandler) GetFilteredServicesPost(w http.ResponseWriter, r *http.
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
-
-//func (h *ServiceHandler) GetServicesPost(w http.ResponseWriter, r *http.Request) {
-//	var req models.ServiceFilterRequest
-//	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-//		http.Error(w, "Invalid request body", http.StatusBadRequest)
-//		return
-//	}
-//
-//	if req.Page == 0 {
-//		req.Page = 1
-//	}
-//	if req.Limit == 0 {
-//		req.Limit = 10
-//	}
-//
-//	result, err := h.Service.GetFilteredServices(r.Context(), req, 0)
-//	if err != nil {
-//		log.Printf("GetServicesPost error: %v", err)
-//		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
-//		return
-//	}
-//
-//	resp := map[string]interface{}{
-//		"services":  result.Services,
-//		"min_price": result.MinPrice,
-//		"max_price": result.MaxPrice,
-//	}
-//
-//	w.Header().Set("Content-Type", "application/json")
-//	json.NewEncoder(w).Encode(resp)
-//}

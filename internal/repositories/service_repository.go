@@ -22,8 +22,8 @@ type ServiceRepository struct {
 
 func (r *ServiceRepository) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
-        INSERT INTO service (name, address, price, user_id, images, category_id, subcategory_id, description, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO service (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 
 	// Сохраняем images как JSON
@@ -41,6 +41,8 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		service.CategoryID,
 		service.SubcategoryID,
 		service.Description,
+		service.AvgRating,
+		service.Top,
 		service.CreatedAt,
 	)
 	if err != nil {
