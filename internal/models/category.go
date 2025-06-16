@@ -11,5 +11,5 @@ type Category struct {
 	Subcategories []Subcategory `json:"subcategories, omitempty"`
 	MinPrice      float64       `json:"min_price"`
 	CreatedAt     time.Time     `json:"created_at"`
-	UpdatedAt     time.Time     `json:"updated_at,omitempty"`
+	UpdatedAt     *time.Time    `json:"updated_at,omitempty"`
 }

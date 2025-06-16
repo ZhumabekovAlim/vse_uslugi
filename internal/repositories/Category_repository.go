@@ -3,7 +3,9 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"naimuBack/internal/models"
+	"strings"
 	"time"
 )
 
@@ -15,30 +17,76 @@ type CategoryRepository struct {
 	DB *sql.DB
 }
 
-func (r *CategoryRepository) CreateCategory(ctx context.Context, category models.Category) (models.Category, error) {
+func (r *CategoryRepository) CreateCategory(ctx context.Context, category models.Category, subcategoryIDs []int) (models.Category, error) {
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return models.Category{}, err
 	}
 
-	insertCategory := `
+	now := time.Now()
+	category.CreatedAt = now
+	category.UpdatedAt = &now
+
+	// 1. Вставка категории
+	query := `
 		INSERT INTO categories (name, image_path, min_price, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?)
-		RETURNING id
 	`
-	err = tx.QueryRowContext(ctx, insertCategory,
-		category.Name, category.ImagePath, category.MinPrice, category.CreatedAt, category.UpdatedAt,
-	).Scan(&category.ID)
+	result, err := tx.ExecContext(ctx, query, category.Name, category.ImagePath, category.MinPrice, category.CreatedAt, category.UpdatedAt)
+	if err != nil {
+		tx.Rollback()
+		return models.Category{}, err
+	}
+	categoryID, err := result.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return models.Category{}, err
+	}
+	category.ID = int(categoryID)
+
+	// 2. Связка с subcategory_id в связующей таблице
+	linkQuery := `INSERT INTO category_subcategory (category_id, subcategory_id) VALUES `
+	vals := []interface{}{}
+	for _, sid := range subcategoryIDs {
+		linkQuery += `(?, ?),`
+		vals = append(vals, category.ID, sid)
+	}
+	linkQuery = strings.TrimSuffix(linkQuery, ",")
+	_, err = tx.ExecContext(ctx, linkQuery, vals...)
 	if err != nil {
 		tx.Rollback()
 		return models.Category{}, err
 	}
 
-	insertLink := `
-		INSERT INTO category_subcategory (category_id, subcategory_id) VALUES (?, ?)
-	`
-	for _, subID := range category.Subcategories {
-		if _, err := tx.ExecContext(ctx, insertLink, category.ID, subID); err != nil {
+	// 3. Получаем названия subcategory по их id
+	if len(subcategoryIDs) > 0 {
+		placeholders := strings.TrimRight(strings.Repeat("?,", len(subcategoryIDs)), ",")
+		args := make([]interface{}, len(subcategoryIDs))
+		for i, id := range subcategoryIDs {
+			args[i] = id
+		}
+		subQuery := fmt.Sprintf(`
+			SELECT id, category_id, name, created_at, updated_at 
+			FROM subcategories 
+			WHERE id IN (%s)
+		`, placeholders)
+
+		rows, err := tx.QueryContext(ctx, subQuery, args...)
+		if err != nil {
+			tx.Rollback()
+			return models.Category{}, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var sub models.Subcategory
+			if err := rows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
+				tx.Rollback()
+				return models.Category{}, err
+			}
+			category.Subcategories = append(category.Subcategories, sub)
+		}
+		if err := rows.Err(); err != nil {
 			tx.Rollback()
 			return models.Category{}, err
 		}
@@ -47,7 +95,6 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category models
 	if err := tx.Commit(); err != nil {
 		return models.Category{}, err
 	}
-
 	return category, nil
 }
 
@@ -78,7 +125,7 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category models
         WHERE id = ?
     `
 	updatedAt := time.Now()
-	category.UpdatedAt = updatedAt
+	category.UpdatedAt = &updatedAt
 	result, err := r.DB.ExecContext(ctx, query,
 		category.Name, category.ImagePath, category.MinPrice,
 		category.UpdatedAt, category.ID,
