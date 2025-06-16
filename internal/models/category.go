@@ -12,5 +12,5 @@ type Category struct {
 	MinPrice       float64       `json:"min_price"`
 	SubcategoryIDs []int         `json:"subcategory_id"` // для входящего запроса
 	CreatedAt      time.Time     `json:"created_at"`
-	UpdatedAt      *time.Time    `json:"updated_at,omitempty"`
+	UpdatedAt      time.Time     `json:"updated_at,omitempty"`
 }

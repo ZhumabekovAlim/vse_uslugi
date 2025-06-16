@@ -25,7 +25,7 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category models
 
 	now := time.Now()
 	category.CreatedAt = now
-	category.UpdatedAt = &now
+	category.UpdatedAt = now
 
 	// 1. Вставка категории
 	query := `
@@ -125,7 +125,7 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category models
         WHERE id = ?
     `
 	updatedAt := time.Now()
-	category.UpdatedAt = &updatedAt
+	category.UpdatedAt = updatedAt
 	result, err := r.DB.ExecContext(ctx, query,
 		category.Name, category.ImagePath, category.MinPrice,
 		category.UpdatedAt, category.ID,
