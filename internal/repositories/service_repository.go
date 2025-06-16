@@ -81,6 +81,11 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int) (models.
 		return models.Service{}, err
 	}
 
+	if len(imagesJSON) > 0 {
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return models.Service{}, fmt.Errorf("failed to decode images json: %w", err)
+		}
+	}
 	return s, nil
 }
 
