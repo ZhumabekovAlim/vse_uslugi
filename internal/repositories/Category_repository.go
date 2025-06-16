@@ -143,28 +143,50 @@ func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int) (model
 	return category, nil
 }
 
-func (r *CategoryRepository) UpdateCategory(ctx context.Context, category models.Category) (models.Category, error) {
+func (r *CategoryRepository) UpdateCategory(ctx context.Context, category models.Category, subcategoryIDs []int) (models.Category, error) {
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return models.Category{}, err
+	}
+
 	query := `
-        UPDATE categories
-        SET name = ?, image_path = ?, subcategories = ?, min_price = ?, updated_at = ?
-        WHERE id = ?
-    `
+		UPDATE categories
+		SET name = ?, image_path = ?, min_price = ?, updated_at = ?
+		WHERE id = ?
+	`
 	updatedAt := time.Now()
-	category.UpdatedAt = updatedAt
-	result, err := r.DB.ExecContext(ctx, query,
-		category.Name, category.ImagePath, category.MinPrice,
-		category.UpdatedAt, category.ID,
+	_, err = tx.ExecContext(ctx, query,
+		category.Name, category.ImagePath, category.MinPrice, updatedAt, category.ID,
 	)
 	if err != nil {
+		tx.Rollback()
 		return models.Category{}, err
 	}
-	rowsAffected, err := result.RowsAffected()
+
+	// Удалим старые связи с подкатегориями
+	_, err = tx.ExecContext(ctx, `DELETE FROM category_subcategory WHERE category_id = ?`, category.ID)
 	if err != nil {
+		tx.Rollback()
 		return models.Category{}, err
 	}
-	if rowsAffected == 0 {
-		return models.Category{}, ErrCategoryNotFound
+
+	// Добавим новые связи
+	for _, subID := range subcategoryIDs {
+		_, err := tx.ExecContext(ctx,
+			`INSERT INTO category_subcategory (category_id, subcategory_id) VALUES (?, ?)`,
+			category.ID, subID,
+		)
+		if err != nil {
+			tx.Rollback()
+			return models.Category{}, err
+		}
 	}
+
+	if err := tx.Commit(); err != nil {
+		return models.Category{}, err
+	}
+
+	// Вернуть обновлённую категорию с подкатегориями
 	return r.GetCategoryByID(ctx, category.ID)
 }
 
