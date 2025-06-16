@@ -259,8 +259,9 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 	var services []models.Service
 	for rows.Next() {
 		var s models.Service
+		var imagesJSON []byte
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.Images,
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &imagesJSON,
 			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
