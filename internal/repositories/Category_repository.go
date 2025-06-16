@@ -145,7 +145,7 @@ func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Cat
 			if err := subRows.Scan(&s.ID, &s.CategoryID, &s.Name, &s.CreatedAt, &s.UpdatedAt); err != nil {
 				return nil, err
 			}
-			c.SubcategoryIDs = append(c.SubcategoryIDs, s)
+			c.SubcategoryIDs = append(c.SubcategoryIDs)
 		}
 	}
 	if err = rows.Err(); err != nil {
