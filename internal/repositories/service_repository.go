@@ -148,9 +148,10 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	}
 
 	if len(subcategories) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(subcategories)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.subcategory_id IN (%s)", placeholders))
 		for _, sub := range subcategories {
-			conditions = append(conditions, "c.subcategories LIKE ?")
-			params = append(params, "%"+sub+"%")
+			params = append(params, sub)
 		}
 	}
 
@@ -203,7 +204,6 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	for rows.Next() {
 		var s models.Service
 		var imagesJSON []byte
-		var AvgRating sql.NullFloat64
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked,
@@ -211,12 +211,6 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 		)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
-		}
-
-		if AvgRating.Valid {
-			s.AvgRating = AvgRating.Float64
-		} else {
-			s.AvgRating = 0
 		}
 
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {

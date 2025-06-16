@@ -247,40 +247,40 @@ func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
-	// Чтение query-параметров
-	categories := parseIntArray(r.URL.Query().Get("categories"))
-	subcategories := parseStringArray(r.URL.Query().Get("subcategories"))
-	ratings := parseFloatArray(r.URL.Query().Get("ratings"))
-
-	priceFrom, _ := strconv.ParseFloat(r.URL.Query().Get("price_from"), 64)
-	priceTo, _ := strconv.ParseFloat(r.URL.Query().Get("price_to"), 64)
-	sortOption, _ := strconv.Atoi(r.URL.Query().Get("sort"))
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-
-	// Сборка запроса
-	filter := models.ServiceFilterRequest{
-		Categories:    categories,
-		Subcategories: subcategories,
-		PriceFrom:     priceFrom,
-		PriceTo:       priceTo,
-		Ratings:       ratings,
-		SortOption:    sortOption,
-		Page:          page,
-		Limit:         limit,
-	}
-
-	result, err := h.Service.GetFilteredServices(r.Context(), filter, 0)
-	if err != nil {
-		log.Printf("GetServices error: %v", err)
-		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
+//	func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
+//		// Чтение query-параметров
+//		categories := parseIntArray(r.URL.Query().Get("categories"))
+//		subcategories := parseStringArray(r.URL.Query().Get("subcategories"))
+//		ratings := parseFloatArray(r.URL.Query().Get("ratings"))
+//
+//		priceFrom, _ := strconv.ParseFloat(r.URL.Query().Get("price_from"), 64)
+//		priceTo, _ := strconv.ParseFloat(r.URL.Query().Get("price_to"), 64)
+//		sortOption, _ := strconv.Atoi(r.URL.Query().Get("sort"))
+//		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+//		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+//
+//		// Сборка запроса
+//		filter := models.ServiceFilterRequest{
+//			Categories:    categories,
+//			Subcategories: subcategories,
+//			PriceFrom:     priceFrom,
+//			PriceTo:       priceTo,
+//			Ratings:       ratings,
+//			SortOption:    sortOption,
+//			Page:          page,
+//			Limit:         limit,
+//		}
+//
+//		result, err := h.Service.GetFilteredServices(r.Context(), filter, 0)
+//		if err != nil {
+//			log.Printf("GetServices error: %v", err)
+//			http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
+//			return
+//		}
+//
+//		w.Header().Set("Content-Type", "application/json")
+//		json.NewEncoder(w).Encode(result)
+//	}
 func parseIntArray(input string) []int {
 	if input == "" {
 		return nil
@@ -391,6 +391,37 @@ func (h *ServiceHandler) GetFilteredServicesPost(w http.ResponseWriter, r *http.
 
 	resp := map[string]interface{}{
 		"services": services,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *ServiceHandler) GetServicesPost(w http.ResponseWriter, r *http.Request) {
+	var req models.ServiceFilterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Page == 0 {
+		req.Page = 1
+	}
+	if req.Limit == 0 {
+		req.Limit = 10
+	}
+
+	result, err := h.Service.GetFilteredServices(r.Context(), req, 0)
+	if err != nil {
+		log.Printf("GetServicesPost error: %v", err)
+		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
+		return
+	}
+
+	resp := map[string]interface{}{
+		"services":  result.Services,
+		"min_price": result.MinPrice,
+		"max_price": result.MaxPrice,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
