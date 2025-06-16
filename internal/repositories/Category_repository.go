@@ -148,46 +148,84 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category models
 	if err != nil {
 		return models.Category{}, err
 	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
 
-	query := `
+	// Обновление основной таблицы category
+	updateQuery := `
 		UPDATE categories
 		SET name = ?, image_path = ?, min_price = ?, updated_at = ?
 		WHERE id = ?
 	`
 	updatedAt := time.Now()
-	_, err = tx.ExecContext(ctx, query,
-		category.Name, category.ImagePath, category.MinPrice, updatedAt, category.ID,
-	)
+	_, err = tx.ExecContext(ctx, updateQuery, category.Name, category.ImagePath, category.MinPrice, updatedAt, category.ID)
 	if err != nil {
 		tx.Rollback()
 		return models.Category{}, err
 	}
 
-	// Удалим старые связи с подкатегориями
-	_, err = tx.ExecContext(ctx, `DELETE FROM category_subcategory WHERE category_id = ?`, category.ID)
+	// Удаляем старые связи
+	_, err = tx.ExecContext(ctx, "DELETE FROM category_subcategory WHERE category_id = ?", category.ID)
 	if err != nil {
 		tx.Rollback()
 		return models.Category{}, err
 	}
 
-	// Добавим новые связи
+	// Вставляем новые связи
+	insertQuery := "INSERT INTO category_subcategory (category_id, subcategory_id) VALUES "
+	args := []interface{}{}
+	values := []string{}
 	for _, subID := range subcategoryIDs {
-		_, err := tx.ExecContext(ctx,
-			`INSERT INTO category_subcategory (category_id, subcategory_id) VALUES (?, ?)`,
-			category.ID, subID,
-		)
+		values = append(values, "(?, ?)")
+		args = append(args, category.ID, subID)
+	}
+	insertQuery += strings.Join(values, ",")
+	_, err = tx.ExecContext(ctx, insertQuery, args...)
+	if err != nil {
+		tx.Rollback()
+		return models.Category{}, err
+	}
+
+	// Получаем полные данные по подкатегориям
+	if len(subcategoryIDs) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(subcategoryIDs)), ",")
+		query := fmt.Sprintf(`
+			SELECT id, category_id, name, created_at, updated_at
+			FROM subcategories
+			WHERE id IN (%s)
+		`, placeholders)
+
+		args := make([]interface{}, len(subcategoryIDs))
+		for i, id := range subcategoryIDs {
+			args[i] = id
+		}
+
+		subRows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			tx.Rollback()
 			return models.Category{}, err
 		}
+		defer subRows.Close()
+
+		for subRows.Next() {
+			var sub models.Subcategory
+			if err := subRows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
+				tx.Rollback()
+				return models.Category{}, err
+			}
+			category.Subcategories = append(category.Subcategories, sub)
+		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	err = tx.Commit()
+	if err != nil {
 		return models.Category{}, err
 	}
-
-	// Вернуть обновлённую категорию с подкатегориями
-	return r.GetCategoryByID(ctx, category.ID)
+	category.UpdatedAt = updatedAt
+	return category, nil
 }
 
 func (r *CategoryRepository) DeleteCategory(ctx context.Context, id int) error {
