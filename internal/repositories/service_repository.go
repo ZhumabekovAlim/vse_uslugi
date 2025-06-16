@@ -216,6 +216,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
 		}
+
 		if err != nil {
 			return nil, 0, 0, err
 		}
