@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"naimuBack/internal/models"
 	"naimuBack/internal/services"
@@ -21,14 +22,16 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	category.CreatedAt = time.Now()
+	category.UpdatedAt = time.Now()
+
 	createdCategory, err := h.Service.CreateCategory(r.Context(), category)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to create category", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(createdCategory)
 }
 

@@ -16,24 +16,38 @@ type CategoryRepository struct {
 }
 
 func (r *CategoryRepository) CreateCategory(ctx context.Context, category models.Category) (models.Category, error) {
-	query := `
-        INSERT INTO categories (name, image_path, subcategories, min_price, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-    `
-	category.CreatedAt = time.Now()
-	category.UpdatedAt = &category.CreatedAt
-	result, err := r.DB.ExecContext(ctx, query,
-		category.Name, category.ImagePath, category.Subcategories, category.MinPrice,
-		category.CreatedAt, category.UpdatedAt,
-	)
+	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return models.Category{}, err
 	}
-	id, err := result.LastInsertId()
+
+	insertCategory := `
+		INSERT INTO categories (name, image_path, min_price, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?)
+		RETURNING id
+	`
+	err = tx.QueryRowContext(ctx, insertCategory,
+		category.Name, category.ImagePath, category.MinPrice, category.CreatedAt, category.UpdatedAt,
+	).Scan(&category.ID)
 	if err != nil {
+		tx.Rollback()
 		return models.Category{}, err
 	}
-	category.ID = int(id)
+
+	insertLink := `
+		INSERT INTO category_subcategory (category_id, subcategory_id) VALUES (?, ?)
+	`
+	for _, subID := range category.SubcategoryIDs {
+		if _, err := tx.ExecContext(ctx, insertLink, category.ID, subID); err != nil {
+			tx.Rollback()
+			return models.Category{}, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.Category{}, err
+	}
+
 	return category, nil
 }
 
@@ -45,7 +59,7 @@ func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int) (model
         WHERE id = ?
     `
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&category.ID, &category.Name, &category.ImagePath, &category.Subcategories,
+		&category.ID, &category.Name, &category.ImagePath,
 		&category.MinPrice, &category.CreatedAt, &category.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -64,9 +78,9 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category models
         WHERE id = ?
     `
 	updatedAt := time.Now()
-	category.UpdatedAt = &updatedAt
+	category.UpdatedAt = updatedAt
 	result, err := r.DB.ExecContext(ctx, query,
-		category.Name, category.ImagePath, category.Subcategories, category.MinPrice,
+		category.Name, category.ImagePath, category.MinPrice,
 		category.UpdatedAt, category.ID,
 	)
 	if err != nil {
@@ -100,7 +114,7 @@ func (r *CategoryRepository) DeleteCategory(ctx context.Context, id int) error {
 
 func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Category, error) {
 	query := `
-        SELECT id, name, image_path, subcategories, min_price, created_at, updated_at
+        SELECT id, name, image_path, min_price, created_at, updated_at
         FROM categories
     `
 	rows, err := r.DB.QueryContext(ctx, query)
@@ -111,15 +125,28 @@ func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Cat
 
 	var categories []models.Category
 	for rows.Next() {
-		var category models.Category
+		var c models.Category
 		err := rows.Scan(
-			&category.ID, &category.Name, &category.ImagePath, &category.Subcategories,
-			&category.MinPrice, &category.CreatedAt, &category.UpdatedAt,
+			&c.ID, &c.Name, &c.ImagePath,
+			&c.MinPrice, &c.CreatedAt, &c.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
 		}
-		categories = append(categories, category)
+		categories = append(categories, c)
+		subRows, err := r.DB.QueryContext(ctx, `SELECT id, category_id, name, created_at, updated_at FROM subcategories WHERE category_id = ?`, c.ID)
+		if err != nil {
+			return nil, err
+		}
+		defer subRows.Close()
+
+		for subRows.Next() {
+			var s models.Subcategory
+			if err := subRows.Scan(&s.ID, &s.CategoryID, &s.Name, &s.CreatedAt, &s.UpdatedAt); err != nil {
+				return nil, err
+			}
+			c.SubcategoryIDs = append(c.SubcategoryIDs, s)
+		}
 	}
 	if err = rows.Err(); err != nil {
 		return nil, err
