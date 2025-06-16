@@ -473,6 +473,7 @@ func (h *ServiceHandler) GetFilteredServicesPost(w http.ResponseWriter, r *http.
 
 	services, err := h.Service.GetFilteredServicesPost(r.Context(), req)
 	if err != nil {
+		log.Printf("GetServicesPost error: %v", err)
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
 		return
 	}
