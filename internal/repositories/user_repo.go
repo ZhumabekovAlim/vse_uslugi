@@ -85,8 +85,12 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.Us
 		return models.User{}, err
 	}
 
-	// Теперь получаем список категорий
-	catQuery := `SELECT category_id FROM user_categories WHERE user_id = ?`
+	// 🆕 Получаем список категорий с названиями
+	catQuery := `
+		SELECT c.id, c.name
+		FROM user_categories uc
+		JOIN categories c ON uc.category_id = c.id
+		WHERE uc.user_id = ?`
 	rows, err := r.DB.QueryContext(ctx, catQuery, userID)
 	if err != nil {
 		return models.User{}, err
@@ -94,11 +98,11 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.Us
 	defer rows.Close()
 
 	for rows.Next() {
-		var catID int
-		if err := rows.Scan(&catID); err != nil {
+		var cat models.Category
+		if err := rows.Scan(&cat.ID, &cat.Name); err != nil {
 			return models.User{}, err
 		}
-		user.CategoryIDs = append(user.CategoryIDs, catID)
+		user.Categories = append(user.Categories, cat)
 	}
 
 	return user, nil
@@ -428,12 +432,13 @@ func (r *UserRepository) UpdateWorkerProfile(ctx context.Context, user models.Us
 
 	// Удалим старые связи
 	_, _ = r.DB.ExecContext(ctx, `DELETE FROM user_categories WHERE user_id = ?`, user.ID)
-	fmt.Println("CATEGORIES TO INSERT:", user.CategoryIDs)
-	// Запишем новые связи
-	for _, catID := range user.CategoryIDs {
-		if _, insertErr := r.DB.ExecContext(ctx,
+	fmt.Println("CATEGORIES TO INSERT:")
+	for _, category := range user.Categories {
+		fmt.Println(" -", category.ID)
+		_, insertErr := r.DB.ExecContext(ctx,
 			`INSERT INTO user_categories (user_id, category_id) VALUES (?, ?)`,
-			user.ID, catID); insertErr != nil {
+			user.ID, category.ID)
+		if insertErr != nil {
 			return models.User{}, insertErr
 		}
 	}

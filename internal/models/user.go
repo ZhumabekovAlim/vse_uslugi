@@ -22,7 +22,7 @@ type User struct {
 	Latitude     *string    `json:"latitude,omitempty"`
 	Longitude    *string    `json:"longitude,omitempty"`
 	Skills       string     `json:"skills, omitempty"`
-	CategoryIDs  []int      `json:"category_ids, omitempty"`
+	Categories   []Category `json:"categories,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
 }
