@@ -18,10 +18,10 @@ type User struct {
 	YearsOfExp   *int       `json:"years_of_exp,omitempty"`
 	DocOfProof   *string    `json:"doc_of_proof,omitempty"`
 	ReviewRating float64    `json:"review_rating"`
-	Role         string     `json:"role, omitempty"`
+	Role         string     `json:"role,omitempty"`
 	Latitude     *string    `json:"latitude,omitempty"`
 	Longitude    *string    `json:"longitude,omitempty"`
-	Skills       string     `json:"skills, omitempty"`
+	Skills       string     `json:"skills,omitempty"`
 	Categories   []Category `json:"categories,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
@@ -58,7 +58,7 @@ type UpdatePasswordRequest struct {
 
 type SignUpResponse struct {
 	User             User   `json:"user"`
-	VerificationCode string `json:"verification_code"`
+	VerificationCode string `json:"verification_code,omitempty"`
 }
 type SignUpResponse1 struct {
 	User             User   `json:"user"`
