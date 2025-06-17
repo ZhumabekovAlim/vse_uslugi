@@ -311,7 +311,6 @@ func (s *UserService) ChangeNumber(ctx context.Context, number string) (models.S
 	}
 
 	return models.SignUpResponse{
-		Phone:            number,
 		VerificationCode: code,
 	}, nil
 }
