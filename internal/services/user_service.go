@@ -379,6 +379,43 @@ func (s *UserService) ChangeCityForUser(ctx context.Context, userID int, cityID 
 	return s.UserRepo.ChangeCityForUser(ctx, userID, cityID)
 }
 
-func (s *UserService) UpdateToWorker(ctx context.Context, user models.User) (models.User, error) {
+//func (s *UserService) UpdateToWorker(ctx context.Context, user models.User) (models.User, error) {
+//	return s.UserRepo.UpdateWorkerProfile(ctx, user)
+//}
+
+//func (s *UserService) UpgradeUserToWorker(ctx context.Context, userID, yearsOfExp int, skills string, categoryIDs []int, docPath string) error {
+//	user, err := s.UserRepo.GetUserByID(ctx, userID)
+//	if err != nil {
+//		return err
+//	}
+//	user.Role = "worker"
+//	user.YearsOfExp = &yearsOfExp
+//	user.Skills = skills
+//	user.DocOfProof = &docPath
+//	user.CategoryIDs = categoryIDs
+//
+//	_, err = s.UserRepo.UpdateWorkerProfile(ctx, user)
+//	return err
+//}
+
+func (s *UserService) UpgradeUserToWorker(
+	ctx context.Context,
+	userID int,
+	yearsOfExp int,
+	skills string,
+	categoryIDs []int,
+	docPath string,
+) error {
+	user, err := s.UserRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	user.Role = "worker"
+	user.YearsOfExp = &yearsOfExp
+	user.Skills = skills
+	user.DocOfProof = &docPath
+	user.CategoryIDs = categoryIDs
+
 	return s.UserRepo.UpdateWorkerProfile(ctx, user)
 }

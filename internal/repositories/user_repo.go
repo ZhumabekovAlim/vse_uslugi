@@ -378,27 +378,65 @@ func (r *UserRepository) ChangeCityForUser(ctx context.Context, userID int, city
 	return nil
 }
 
-func (r *UserRepository) UpdateWorkerProfile(ctx context.Context, user models.User) (models.User, error) {
-	// Обновляем роль и профиль
+//func (r *UserRepository) UpdateWorkerProfile(ctx context.Context, user models.User) (models.User, error) {
+//	// Обновляем роль и профиль
+//	query := `
+//		UPDATE users
+//		SET role = ?, years_of_exp = ?, skills = ?, doc_of_proof = ?, updated_at = NOW()
+//		WHERE id = ?`
+//	_, err := r.DB.ExecContext(ctx, query, user.Role, user.YearsOfExp, user.Skills, user.DocOfProof, user.ID)
+//	if err != nil {
+//		return models.User{}, err
+//	}
+//
+//	// Удалим старые связи
+//	_, _ = r.DB.ExecContext(ctx, `DELETE FROM user_categories WHERE user_id = ?`, user.ID)
+//
+//	// Запишем новые связи
+//	for _, catID := range user.CategoryIDs {
+//		_, err := r.DB.ExecContext(ctx, `INSERT INTO user_categories (user_id, category_id) VALUES (?, ?)`, user.ID, catID)
+//		if err != nil {
+//			return models.User{}, err
+//		}
+//	}
+//
+//	return r.GetUserByID(ctx, user.ID)
+//}
+
+func (r *UserRepository) UpdateWorkerProfile(ctx context.Context, user models.User) error {
 	query := `
-		UPDATE users 
+		UPDATE users
 		SET role = ?, years_of_exp = ?, skills = ?, doc_of_proof = ?, updated_at = NOW()
-		WHERE id = ?`
-	_, err := r.DB.ExecContext(ctx, query, user.Role, user.YearsOfExp, user.Skills, user.DocOfProof, user.ID)
+		WHERE id = ?
+	`
+	_, err := r.DB.ExecContext(
+		ctx, query,
+		user.Role,
+		user.YearsOfExp,
+		user.Skills,
+		user.DocOfProof,
+		user.ID,
+	)
 	if err != nil {
-		return models.User{}, err
+		return err
 	}
 
-	// Удалим старые связи
-	_, _ = r.DB.ExecContext(ctx, `DELETE FROM user_categories WHERE user_id = ?`, user.ID)
+	// Удаляем старые связи
+	_, err = r.DB.ExecContext(ctx, `DELETE FROM user_categories WHERE user_id = ?`, user.ID)
+	if err != nil {
+		return err
+	}
 
-	// Запишем новые связи
+	// Вставляем новые категории
 	for _, catID := range user.CategoryIDs {
-		_, err := r.DB.ExecContext(ctx, `INSERT INTO user_categories (user_id, category_id) VALUES (?, ?)`, user.ID, catID)
+		_, err := r.DB.ExecContext(ctx,
+			`INSERT INTO user_categories (user_id, category_id) VALUES (?, ?)`,
+			user.ID, catID,
+		)
 		if err != nil {
-			return models.User{}, err
+			return err
 		}
 	}
 
-	return r.GetUserByID(ctx, user.ID)
+	return nil
 }
