@@ -135,6 +135,7 @@ func (s *UserService) SignUp(ctx context.Context, user models.User) (models.Sign
 		return models.SignUpResponse{}, err
 	}
 	user.Password = string(hashedPassword)
+	user.Role = "client"
 
 	userID, err := s.UserRepo.CreateUser(ctx, user)
 	if err != nil {

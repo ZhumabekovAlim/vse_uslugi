@@ -18,7 +18,7 @@ type User struct {
 	YearsOfExp   *int       `json:"years_of_exp,omitempty"`
 	DocOfProof   *string    `json:"doc_of_proof,omitempty"`
 	ReviewRating float64    `json:"review_rating"`
-	Role         string     `json:"role"`
+	Role         string     `json:"role, omitempty"`
 	Latitude     *string    `json:"latitude,omitempty"`
 	Longitude    *string    `json:"longitude,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
