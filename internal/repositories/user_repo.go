@@ -395,9 +395,10 @@ func (r *UserRepository) UpdateWorkerProfile(ctx context.Context, user models.Us
 	fmt.Println("CATEGORIES TO INSERT:", user.CategoryIDs)
 	// Запишем новые связи
 	for _, catID := range user.CategoryIDs {
-		_, err := r.DB.ExecContext(ctx, `INSERT INTO user_categories (user_id, category_id) VALUES (?, ?)`, user.ID, catID)
-		if err != nil {
-			return models.User{}, err
+		if _, insertErr := r.DB.ExecContext(ctx,
+			`INSERT INTO user_categories (user_id, category_id) VALUES (?, ?)`,
+			user.ID, catID); insertErr != nil {
+			return models.User{}, insertErr
 		}
 	}
 
