@@ -21,6 +21,8 @@ type User struct {
 	Role         string     `json:"role, omitempty"`
 	Latitude     *string    `json:"latitude,omitempty"`
 	Longitude    *string    `json:"longitude,omitempty"`
+	Skills       string     `json:"skills, omitempty"`
+	CategoryIDs  []int      `json:"category_ids, omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
 }

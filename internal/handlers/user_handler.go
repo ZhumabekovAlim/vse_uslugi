@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"naimuBack/internal/models"
@@ -370,4 +373,55 @@ func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) 
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "City updated successfully"})
+}
+
+func (h *UserHandler) UpdateToWorker(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get(":id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	// Чтение формы и файла
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	var user models.User
+	user.ID = id
+	user.Role = "worker"
+
+	if yearsStr := r.FormValue("years_of_exp"); yearsStr != "" {
+		y, _ := strconv.Atoi(yearsStr)
+		user.YearsOfExp = &y
+	}
+
+	user.Skills = r.FormValue("skills")
+
+	categoryIDs := r.MultipartForm.Value["category_ids"]
+	for _, c := range categoryIDs {
+		if id, err := strconv.Atoi(c); err == nil {
+			user.CategoryIDs = append(user.CategoryIDs, id)
+		}
+	}
+
+	file, handler, err := r.FormFile("doc_of_proof")
+	if err == nil {
+		defer file.Close()
+		path := fmt.Sprintf("uploads/docs/%d_%s", id, handler.Filename)
+		dst, _ := os.Create(path)
+		defer dst.Close()
+		io.Copy(dst, file)
+		user.DocOfProof = &path
+	}
+
+	updated, err := h.Service.UpdateToWorker(r.Context(), user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updated)
 }
