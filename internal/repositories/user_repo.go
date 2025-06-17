@@ -47,24 +47,60 @@ func (r *UserRepository) CreateUser(ctx context.Context, user models.User) (mode
 	return user, nil
 }
 
-func (r *UserRepository) GetUserByID(ctx context.Context, id int) (models.User, error) {
+//func (r *UserRepository) GetUserByID(ctx context.Context, id int) (models.User, error) {
+//	var user models.User
+//	query := `
+//        SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+//        FROM users
+//        WHERE id = ?
+//    `
+//	err := r.DB.QueryRowContext(ctx, query, id).Scan(
+//		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
+//		&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
+//		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
+//	)
+//	if err == sql.ErrNoRows {
+//		return models.User{}, ErrUserNotFound
+//	}
+//	if err != nil {
+//		return models.User{}, err
+//	}
+//	return user, nil
+//}
+
+func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.User, error) {
 	var user models.User
-	query := `
-        SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
-        FROM users
-        WHERE id = ?
-    `
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-		&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
-		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
+
+	// Получаем основную информацию о пользователе
+	query := `SELECT id, name, surname, phone, email, password, city_id, role,
+		years_of_exp, skills, doc_of_proof, created_at, updated_at
+		FROM users WHERE id = ?`
+
+	err := r.DB.QueryRowContext(ctx, query).Scan(
+		&user.ID, &user.Name, &user.Surname, &user.Phone, &user.Email, &user.Password,
+		&user.CityID, &user.Role, &user.YearsOfExp, &user.Skills, &user.DocOfProof,
+		&user.CreatedAt, &user.UpdatedAt,
 	)
-	if err == sql.ErrNoRows {
-		return models.User{}, ErrUserNotFound
-	}
 	if err != nil {
 		return models.User{}, err
 	}
+
+	// Теперь получаем список категорий
+	catQuery := `SELECT category_id FROM user_categories WHERE user_id = ?`
+	rows, err := r.DB.QueryContext(ctx, catQuery, userID)
+	if err != nil {
+		return models.User{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var catID int
+		if err := rows.Scan(&catID); err != nil {
+			return models.User{}, err
+		}
+		user.CategoryIDs = append(user.CategoryIDs, catID)
+	}
+
 	return user, nil
 }
 
