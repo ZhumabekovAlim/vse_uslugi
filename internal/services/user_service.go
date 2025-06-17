@@ -382,3 +382,28 @@ func (s *UserService) ChangeCityForUser(ctx context.Context, userID int, cityID 
 func (s *UserService) UpdateToWorker(ctx context.Context, user models.User) (models.User, error) {
 	return s.UserRepo.UpdateWorkerProfile(ctx, user)
 }
+
+func (s *UserService) CheckUserDuplicate(ctx context.Context, req models.User) error {
+	taken, err := s.UserRepo.IsPhoneOrEmailTaken(ctx, req.Phone, req.Email)
+	if err != nil {
+		return err
+	}
+	if taken {
+		return fmt.Errorf("номер телефона или email уже зарегистрирован")
+	}
+
+	// Генерация и отправка кода
+	code := generateVerificationCode() // например, "123456"
+	message := fmt.Sprintf("Ваш код подтверждения: %s. Компания https://nusacorp.com/", code)
+	apiKey := "kzfaad0a91a4b498db593b78414dfdaa2c213b8b8996afa325a223543481efeb11dd11"
+
+	if err := s.sendSMS(apiKey, req.Phone, message); err != nil {
+		return fmt.Errorf("не удалось отправить SMS: %v", err)
+	}
+
+	if err := s.UserRepo.SaveVerificationCode(ctx, req.Phone, code); err != nil {
+		return fmt.Errorf("не удалось сохранить код подтверждения: %v", err)
+	}
+
+	return nil
+}

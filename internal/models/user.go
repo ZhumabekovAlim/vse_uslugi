@@ -64,3 +64,15 @@ type SignUpResponse1 struct {
 	User             User   `json:"user"`
 	VerificationCode string `json:"verification_code"`
 }
+
+type DuplicateCheckRequest struct {
+	Phone string `json:"phone"`
+	Email string `json:"email"`
+}
+
+type VerificationCodeEntry struct {
+	ID        int       `json:"id"`
+	Phone     string    `json:"phone"`
+	Code      string    `json:"code"`
+	CreatedAt time.Time `json:"created_at"`
+}

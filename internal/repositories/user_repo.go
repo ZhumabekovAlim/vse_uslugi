@@ -445,3 +445,34 @@ func (r *UserRepository) UpdateWorkerProfile(ctx context.Context, user models.Us
 
 	return r.GetUserByID(ctx, user.ID)
 }
+
+func (r *UserRepository) IsPhoneOrEmailTaken(ctx context.Context, phone, email string) (bool, error) {
+	var count int
+
+	// Проверка email
+	err := r.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE email = ?`, email).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	if count > 0 {
+		return true, nil
+	}
+
+	// Проверка телефона
+	err = r.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE phone = ?`, phone).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	if count > 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (r *UserRepository) SaveVerificationCode(ctx context.Context, phone, code string) error {
+	_, err := r.DB.ExecContext(ctx,
+		`INSERT INTO verification_codes (phone, code, created_at) VALUES (?, ?, NOW())`,
+		phone, code,
+	)
+	return err
+}
