@@ -76,7 +76,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.Us
 		years_of_exp, skills, doc_of_proof, created_at, updated_at
 		FROM users WHERE id = ?`
 
-	err := r.DB.QueryRowContext(ctx, query).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID).Scan(
 		&user.ID, &user.Name, &user.Surname, &user.Phone, &user.Email, &user.Password,
 		&user.CityID, &user.Role, &user.YearsOfExp, &user.Skills, &user.DocOfProof,
 		&user.CreatedAt, &user.UpdatedAt,
