@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	_ "fmt"
 	"naimuBack/internal/models"
 	"strings"
@@ -391,7 +392,7 @@ func (r *UserRepository) UpdateWorkerProfile(ctx context.Context, user models.Us
 
 	// Удалим старые связи
 	_, _ = r.DB.ExecContext(ctx, `DELETE FROM user_categories WHERE user_id = ?`, user.ID)
-
+	fmt.Println("CATEGORIES TO INSERT:", user.CategoryIDs)
 	// Запишем новые связи
 	for _, catID := range user.CategoryIDs {
 		_, err := r.DB.ExecContext(ctx, `INSERT INTO user_categories (user_id, category_id) VALUES (?, ?)`, user.ID, catID)
