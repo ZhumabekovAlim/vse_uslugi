@@ -451,11 +451,10 @@ func (h *UserHandler) UpdateToWorker(w http.ResponseWriter, r *http.Request) {
 
 	user.Skills = r.FormValue("skills") // ✅ Просто текст
 
-	// ✅ Попробуем и FormValue, и MultipartForm на всякий случай
-	categoryIDs := r.Form["category_ids"] // Используем Form, а не MultipartForm.Value
+	categoryIDs := r.Form["category_ids"]
 	for _, c := range categoryIDs {
 		if cid, err := strconv.Atoi(c); err == nil {
-			user.CategoryIDs = append(user.CategoryIDs, cid)
+			user.Categories = append(user.Categories, models.Category{ID: cid})
 		}
 	}
 
