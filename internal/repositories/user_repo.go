@@ -47,27 +47,6 @@ func (r *UserRepository) CreateUser(ctx context.Context, user models.User) (mode
 	return user, nil
 }
 
-//func (r *UserRepository) GetUserByID(ctx context.Context, id int) (models.User, error) {
-//	var user models.User
-//	query := `
-//        SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
-//        FROM users
-//        WHERE id = ?
-//    `
-//	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-//		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-//		&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
-//		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
-//	)
-//	if err == sql.ErrNoRows {
-//		return models.User{}, ErrUserNotFound
-//	}
-//	if err != nil {
-//		return models.User{}, err
-//	}
-//	return user, nil
-//}
-
 func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.User, error) {
 	var user models.User
 
@@ -474,5 +453,22 @@ func (r *UserRepository) SaveVerificationCode(ctx context.Context, phone, code s
 		`INSERT INTO verification_codes (phone, code, created_at) VALUES (?, ?, NOW())`,
 		phone, code,
 	)
+	return err
+}
+
+func (r *UserRepository) GetVerificationCodeByPhone(ctx context.Context, phone string) (string, error) {
+	var code string
+	err := r.DB.QueryRowContext(ctx, `SELECT code FROM verification_codes WHERE phone = ?`, phone).Scan(&code)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", models.ErrInvalidVerificationCode
+		}
+		return "", err
+	}
+	return code, nil
+}
+
+func (r *UserRepository) ClearVerificationCode(ctx context.Context, phone string) error {
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM verification_codes WHERE phone = ?`, phone)
 	return err
 }

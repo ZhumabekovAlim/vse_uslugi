@@ -178,23 +178,51 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//func (h *UserHandler) SignUp(w http.ResponseWriter, r *http.Request) {
+//	var user models.User
+//	err := json.NewDecoder(r.Body).Decode(&user)
+//	if err != nil {
+//		http.Error(w, "Invalid request body", http.StatusBadRequest)
+//		return
+//	}
+//
+//	resp, err := h.Service.SignUp(r.Context(), user)
+//	if err != nil {
+//		if errors.Is(err, models.ErrDuplicateEmail) || errors.Is(err, models.ErrDuplicatePhone) {
+//			http.Error(w, err.Error(), http.StatusConflict)
+//			return
+//		}
+//
+//		log.Printf("SignUp error: %v", err)
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		return
+//	}
+//
+//	w.Header().Set("Content-Type", "application/json")
+//	w.WriteHeader(http.StatusCreated)
+//	json.NewEncoder(w).Encode(resp)
+//}
+
 func (h *UserHandler) SignUp(w http.ResponseWriter, r *http.Request) {
-	var user models.User
-	err := json.NewDecoder(r.Body).Decode(&user)
+	var req struct {
+		models.User
+		VerificationCode string `json:"verification_code"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	resp, err := h.Service.SignUp(r.Context(), user)
+	resp, err := h.Service.SignUp(r.Context(), req.User, req.VerificationCode)
 	if err != nil {
-		if errors.Is(err, models.ErrDuplicateEmail) || errors.Is(err, models.ErrDuplicatePhone) {
-			http.Error(w, err.Error(), http.StatusConflict)
+		if errors.Is(err, models.ErrInvalidVerificationCode) {
+			http.Error(w, "Неверный код подтверждения", http.StatusUnauthorized)
 			return
 		}
-
 		log.Printf("SignUp error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
 		return
 	}
 

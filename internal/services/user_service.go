@@ -113,23 +113,63 @@ func (s *UserService) sendSMS(apiKey, phone, message string) error {
 	return nil
 }
 
-func (s *UserService) SignUp(ctx context.Context, user models.User) (models.SignUpResponse, error) {
-	existingUser1, err := s.UserRepo.GetUserByEmail(ctx, user.Email)
+//func (s *UserService) SignUp(ctx context.Context, user models.User) (models.SignUpResponse, error) {
+//	existingUser1, err := s.UserRepo.GetUserByEmail(ctx, user.Email)
+//	if err != nil {
+//		return models.SignUpResponse{}, err
+//	}
+//	if existingUser1.Email != "" {
+//		return models.SignUpResponse{}, models.ErrDuplicateEmail
+//	}
+//
+//	existingUser2, err := s.UserRepo.GetUserByPhone1(ctx, user.Phone)
+//	if err != nil {
+//		return models.SignUpResponse{}, err
+//	}
+//	if existingUser2.Phone != "" {
+//		return models.SignUpResponse{}, models.ErrDuplicatePhone
+//	}
+//
+//	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+//	if err != nil {
+//		return models.SignUpResponse{}, err
+//	}
+//	user.Password = string(hashedPassword)
+//	user.Role = "client"
+//
+//	userID, err := s.UserRepo.CreateUser(ctx, user)
+//	if err != nil {
+//		return models.SignUpResponse{}, err
+//	}
+//	user.ID = userID.ID
+//
+//	code := generateVerificationCode()
+//	message := fmt.Sprintf("Ваш код подтверждения: %s. Код отправлен компанией https://nusacorp.com/", code)
+//	apiKey := "kzfaad0a91a4b498db593b78414dfdaa2c213b8b8996afa325a223543481efeb11dd11" // Вынеси в конфиг позже
+//
+//	if err := s.sendSMS(apiKey, user.Phone, message); err != nil {
+//		return models.SignUpResponse{}, fmt.Errorf("ошибка при отправке SMS: %v", err)
+//	}
+//
+//	return models.SignUpResponse{
+//		User:             user,
+//		VerificationCode: code,
+//	}, nil
+//}
+
+func (s *UserService) SignUp(ctx context.Context, user models.User, inputCode string) (models.SignUpResponse, error) {
+	// 1. Получаем ожидаемый код из базы
+	codeFromDB, err := s.UserRepo.GetVerificationCodeByPhone(ctx, user.Phone)
 	if err != nil {
 		return models.SignUpResponse{}, err
 	}
-	if existingUser1.Email != "" {
-		return models.SignUpResponse{}, models.ErrDuplicateEmail
+
+	// 2. Сравниваем коды
+	if inputCode != codeFromDB {
+		return models.SignUpResponse{}, models.ErrInvalidVerificationCode
 	}
 
-	existingUser2, err := s.UserRepo.GetUserByPhone1(ctx, user.Phone)
-	if err != nil {
-		return models.SignUpResponse{}, err
-	}
-	if existingUser2.Phone != "" {
-		return models.SignUpResponse{}, models.ErrDuplicatePhone
-	}
-
+	// 3. Хешируем пароль
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return models.SignUpResponse{}, err
@@ -137,24 +177,16 @@ func (s *UserService) SignUp(ctx context.Context, user models.User) (models.Sign
 	user.Password = string(hashedPassword)
 	user.Role = "client"
 
-	userID, err := s.UserRepo.CreateUser(ctx, user)
+	// 4. Сохраняем пользователя
+	newUser, err := s.UserRepo.CreateUser(ctx, user)
 	if err != nil {
 		return models.SignUpResponse{}, err
 	}
-	user.ID = userID.ID
 
-	code := generateVerificationCode()
-	message := fmt.Sprintf("Ваш код подтверждения: %s. Код отправлен компанией https://nusacorp.com/", code)
-	apiKey := "kzfaad0a91a4b498db593b78414dfdaa2c213b8b8996afa325a223543481efeb11dd11" // Вынеси в конфиг позже
+	// 5. Можно очистить использованный код, если хочешь
+	_ = s.UserRepo.ClearVerificationCode(ctx, user.Phone)
 
-	if err := s.sendSMS(apiKey, user.Phone, message); err != nil {
-		return models.SignUpResponse{}, fmt.Errorf("ошибка при отправке SMS: %v", err)
-	}
-
-	return models.SignUpResponse{
-		User:             user,
-		VerificationCode: code,
-	}, nil
+	return models.SignUpResponse{User: newUser}, nil
 }
 
 func (s *UserService) SignIn(ctx context.Context, name, phone, email, password string) (models.Tokens, error) {

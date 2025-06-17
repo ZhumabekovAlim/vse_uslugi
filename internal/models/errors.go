@@ -29,3 +29,5 @@ var (
 	ErrReviewNotFound         = errors.New("review not found")
 	ErrSubcategoryNotFound    = errors.New("subcategory not found")
 )
+
+var ErrInvalidVerificationCode = errors.New("invalid verification code")
