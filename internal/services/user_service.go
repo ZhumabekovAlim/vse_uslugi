@@ -423,8 +423,8 @@ func (s *UserService) ResetPassword(ctx context.Context, email, newPassword stri
 }
 
 func (s *UserService) sendMailgunEmail(to, subject, body string) error {
-	apiKey := os.Getenv("MAILGUN_API_KEY") //
-	domain := os.Getenv("MAILGUN_DOMAIN")  //
+	apiKey := os.Getenv("MAILGUN_API_KEY")
+	domain := os.Getenv("MAILGUN_DOMAIN")
 	apiUrl := fmt.Sprintf("https://api.mailgun.net/v3/%s/messages", domain)
 
 	data := url.Values{}
