@@ -487,3 +487,24 @@ func (h *ServiceHandler) GetFilteredServicesPost(w http.ResponseWriter, r *http.
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
+
+func (h *ServiceHandler) GetServicesByStatusAndUserID(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID int    `json:"user_id"`
+		Status string `json:"status"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	services, err := h.Service.GetServicesByStatusAndUserID(r.Context(), req.UserID, req.Status)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(services)
+}
