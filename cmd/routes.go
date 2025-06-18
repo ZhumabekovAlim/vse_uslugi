@@ -87,18 +87,18 @@ func (app *application) routes() http.Handler {
 	mux.Del("/city/:id", authMiddleware.ThenFunc(app.cityHandler.DeleteCity))
 
 	// Chat
-	mux.Get("/ws", standardMiddleware.ThenFunc(app.WebSocketHandler))
+	mux.Get("/ws", authMiddleware.ThenFunc(app.WebSocketHandler))
 
-	mux.Post("/api/chats", standardMiddleware.ThenFunc(app.chatHandler.CreateChat))
-	mux.Get("/api/chats/:id", standardMiddleware.ThenFunc(app.chatHandler.GetChatByID))
-	mux.Get("/api/chats", standardMiddleware.ThenFunc(app.chatHandler.GetAllChats))
-	mux.Del("/api/chats/:id", standardMiddleware.ThenFunc(app.chatHandler.DeleteChat))
+	mux.Post("/api/chats", authMiddleware.ThenFunc(app.chatHandler.CreateChat))
+	mux.Get("/api/chats/:id", authMiddleware.ThenFunc(app.chatHandler.GetChatByID))
+	mux.Get("/api/chats", authMiddleware.ThenFunc(app.chatHandler.GetAllChats))
+	mux.Del("/api/chats/:id", authMiddleware.ThenFunc(app.chatHandler.DeleteChat))
 
-	mux.Post("/api/messages", standardMiddleware.ThenFunc(app.messageHandler.CreateMessage))
-	mux.Get("/api/messages/:chatId", standardMiddleware.ThenFunc(app.messageHandler.GetMessagesForChat))
-	mux.Del("/api/messages/:messageId", standardMiddleware.ThenFunc(app.messageHandler.DeleteMessage))
+	mux.Post("/api/messages", authMiddleware.ThenFunc(app.messageHandler.CreateMessage))
+	mux.Get("/api/messages/:chatId", authMiddleware.ThenFunc(app.messageHandler.GetMessagesForChat))
+	mux.Del("/api/messages/:messageId", authMiddleware.ThenFunc(app.messageHandler.DeleteMessage))
 
-	mux.Get("/api/users/messages", standardMiddleware.ThenFunc(app.messageHandler.GetMessagesByUserIDs))
+	mux.Get("/api/users/messages", authMiddleware.ThenFunc(app.messageHandler.GetMessagesByUserIDs))
 
 	return standardMiddleware.Then(mux)
 }
