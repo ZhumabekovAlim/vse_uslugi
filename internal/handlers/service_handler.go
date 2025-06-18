@@ -40,6 +40,7 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.Top = r.FormValue("top")
+	service.Status = r.FormValue("status")
 	service.CreatedAt = time.Now()
 
 	uploadDir := "./uploads"
