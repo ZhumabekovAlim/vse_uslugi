@@ -472,3 +472,24 @@ func (r *UserRepository) ClearVerificationCode(ctx context.Context, phone string
 	_, err := r.DB.ExecContext(ctx, `DELETE FROM verification_codes WHERE phone = ?`, phone)
 	return err
 }
+
+func (r *UserRepository) SaveResetCode(ctx context.Context, email, code string) error {
+	query := `UPDATE users SET reset_code = ? WHERE email = ?`
+	_, err := r.DB.ExecContext(ctx, query, code, email)
+	return err
+}
+
+func (r *UserRepository) VerifyResetCode(ctx context.Context, email, code string) (bool, error) {
+	var storedCode string
+	err := r.DB.QueryRowContext(ctx, `SELECT reset_code FROM users WHERE email = ?`, email).Scan(&storedCode)
+	if err != nil {
+		return false, err
+	}
+	return storedCode == code, nil
+}
+
+func (r *UserRepository) UpdatePasswordEmail(ctx context.Context, email, hashedPassword string) error {
+	query := `UPDATE users SET password = ?, reset_code = NULL WHERE email = ?`
+	_, err := r.DB.ExecContext(ctx, query, hashedPassword, email)
+	return err
+}

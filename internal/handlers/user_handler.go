@@ -178,31 +178,6 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//func (h *UserHandler) SignUp(w http.ResponseWriter, r *http.Request) {
-//	var user models.User
-//	err := json.NewDecoder(r.Body).Decode(&user)
-//	if err != nil {
-//		http.Error(w, "Invalid request body", http.StatusBadRequest)
-//		return
-//	}
-//
-//	resp, err := h.Service.SignUp(r.Context(), user)
-//	if err != nil {
-//		if errors.Is(err, models.ErrDuplicateEmail) || errors.Is(err, models.ErrDuplicatePhone) {
-//			http.Error(w, err.Error(), http.StatusConflict)
-//			return
-//		}
-//
-//		log.Printf("SignUp error: %v", err)
-//		http.Error(w, err.Error(), http.StatusInternalServerError)
-//		return
-//	}
-//
-//	w.Header().Set("Content-Type", "application/json")
-//	w.WriteHeader(http.StatusCreated)
-//	json.NewEncoder(w).Encode(resp)
-//}
-
 func (h *UserHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		models.User
@@ -472,4 +447,50 @@ func (h *UserHandler) CheckUserDuplicate(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Код отправлен на номер",
 	})
+}
+
+func (h *UserHandler) RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
+	var req models.PasswordResetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Неверный формат запроса", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Service.SendResetCode(r.Context(), req.Email); err != nil {
+		http.Error(w, "Ошибка отправки кода: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message":"Код отправлен на email"}`))
+}
+
+func (h *UserHandler) VerifyResetCode(w http.ResponseWriter, r *http.Request) {
+	var req models.VerifyResetCodeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Неверный формат", http.StatusBadRequest)
+		return
+	}
+
+	valid, err := h.Service.VerifyResetCode(r.Context(), req.Email, req.Code)
+	if err != nil || !valid {
+		http.Error(w, "Неверный код", http.StatusUnauthorized)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message":"Код подтвержден"}`))
+}
+
+func (h *UserHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req models.NewPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Неверный формат", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Service.ResetPassword(r.Context(), req.Email, req.NewPassword); err != nil {
+		http.Error(w, "Ошибка смены пароля", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message":"Пароль успешно изменен"}`))
 }

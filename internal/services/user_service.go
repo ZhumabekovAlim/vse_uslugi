@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -19,6 +20,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -112,50 +114,6 @@ func (s *UserService) sendSMS(apiKey, phone, message string) error {
 
 	return nil
 }
-
-//func (s *UserService) SignUp(ctx context.Context, user models.User) (models.SignUpResponse, error) {
-//	existingUser1, err := s.UserRepo.GetUserByEmail(ctx, user.Email)
-//	if err != nil {
-//		return models.SignUpResponse{}, err
-//	}
-//	if existingUser1.Email != "" {
-//		return models.SignUpResponse{}, models.ErrDuplicateEmail
-//	}
-//
-//	existingUser2, err := s.UserRepo.GetUserByPhone1(ctx, user.Phone)
-//	if err != nil {
-//		return models.SignUpResponse{}, err
-//	}
-//	if existingUser2.Phone != "" {
-//		return models.SignUpResponse{}, models.ErrDuplicatePhone
-//	}
-//
-//	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-//	if err != nil {
-//		return models.SignUpResponse{}, err
-//	}
-//	user.Password = string(hashedPassword)
-//	user.Role = "client"
-//
-//	userID, err := s.UserRepo.CreateUser(ctx, user)
-//	if err != nil {
-//		return models.SignUpResponse{}, err
-//	}
-//	user.ID = userID.ID
-//
-//	code := generateVerificationCode()
-//	message := fmt.Sprintf("Ваш код подтверждения: %s. Код отправлен компанией https://nusacorp.com/", code)
-//	apiKey := "kzfaad0a91a4b498db593b78414dfdaa2c213b8b8996afa325a223543481efeb11dd11" // Вынеси в конфиг позже
-//
-//	if err := s.sendSMS(apiKey, user.Phone, message); err != nil {
-//		return models.SignUpResponse{}, fmt.Errorf("ошибка при отправке SMS: %v", err)
-//	}
-//
-//	return models.SignUpResponse{
-//		User:             user,
-//		VerificationCode: code,
-//	}, nil
-//}
 
 func (s *UserService) SignUp(ctx context.Context, user models.User, inputCode string) (models.SignUpResponse, error) {
 	// 1. Получаем ожидаемый код из базы
@@ -348,8 +306,8 @@ func (s *UserService) ChangeNumber(ctx context.Context, number string) (models.S
 }
 
 func (s *UserService) sendEmailMailgun(toEmail, subject, body string) error {
-	apiKey := "7ea49ea8037af655eb1176633982ad3c-08c79601-d1d1b3ec"  // пример: key-3ax6xnjp29jd6fds4gc373sgvjxteol0
-	domain := "sandbox39947366db6c4b779ceafebd31d1e53e.mailgun.org" // пример: sandbox123.mailgun.org
+	apiKey := "ddb5bbdafa553d32b1fde2ab3497e617-51afd2db-3dfba78a"  // пример: key-3ax6xnjp29jd6fds4gc373sgvjxteol0
+	domain := "sandbox639f88d0c39546e2b2ee40afdee9f44c.mailgun.org" // пример: sandbox123.mailgun.org
 	from := "postmaster@" + domain
 
 	apiURL := fmt.Sprintf("https://api.mailgun.net/v3/%s/messages", domain)
@@ -437,5 +395,60 @@ func (s *UserService) CheckUserDuplicate(ctx context.Context, req models.User) e
 		return fmt.Errorf("не удалось сохранить код подтверждения: %v", err)
 	}
 
+	return nil
+}
+
+func (s *UserService) SendResetCode(ctx context.Context, email string) error {
+	code := generateVerificationCode()
+	subject := "Восстановление пароля"
+	body := fmt.Sprintf("Ваш код подтверждения для сброса пароля: %s", code)
+	err := s.sendMailgunEmail(email, subject, body)
+	if err != nil {
+		return err
+	}
+	return s.UserRepo.SaveResetCode(ctx, email, code)
+}
+
+func (s *UserService) VerifyResetCode(ctx context.Context, email, code string) (bool, error) {
+	return s.UserRepo.VerifyResetCode(ctx, email, code)
+}
+
+func (s *UserService) ResetPassword(ctx context.Context, email, newPassword string) error {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	return s.UserRepo.UpdatePasswordEmail(ctx, email, string(hashed))
+}
+
+func (s *UserService) sendMailgunEmail(to, subject, body string) error {
+	apiKey := "ddb5bbdafa553d32b1fde2ab3497e617-51afd2db-3dfba78a"  // пример: key-3ax6xnjp29jd6fds4gc373sgvjxteol0
+	domain := "sandbox639f88d0c39546e2b2ee40afdee9f44c.mailgun.org" // пример: sandbox123.mailgun.org
+	apiUrl := fmt.Sprintf("https://api.mailgun.net/v3/%s/messages", domain)
+
+	data := url.Values{}
+	data.Set("from", "Nusa Corp <noreply@nusacorp.com>")
+	data.Set("to", to)
+	data.Set("subject", subject)
+	data.Set("text", body)
+
+	req, err := http.NewRequest("POST", apiUrl, strings.NewReader(data.Encode()))
+	if err != nil {
+		return err
+	}
+	req.SetBasicAuth("api", apiKey)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("mailgun error: %s", string(body))
+	}
 	return nil
 }
