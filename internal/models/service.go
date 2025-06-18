@@ -22,6 +22,7 @@ type Service struct {
 	AvgRating     float64    `json:"avg_rating"`
 	Top           string     `json:"top, omitempty"`
 	Liked         bool       `json:"liked, omitempty"`
+	Status        string     `json:"status, omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     *time.Time `json:"updated_at,omitempty"`
 }

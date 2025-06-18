@@ -22,8 +22,8 @@ type ServiceRepository struct {
 
 func (r *ServiceRepository) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
-        INSERT INTO service (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO service (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 
 	// Сохраняем images как JSON
@@ -44,6 +44,7 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		service.AvgRating,
 		service.Top,
 		service.Liked,
+		service.Status,
 		service.CreatedAt,
 	)
 	if err != nil {
@@ -60,7 +61,7 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 
 func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int) (models.Service, error) {
 	query := `
-		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id,s.description, s.avg_rating, s.top, s.liked,s.created_at, s.updated_at
+		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id,s.description, s.avg_rating, s.top, s.liked, s.status, s.created_at, s.updated_at
 		FROM service s
 		JOIN users u ON s.user_id = u.id
 		WHERE s.id = ?
@@ -70,7 +71,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int) (models.
 	var imagesJSON []byte
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
-		&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked,
+		&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 
@@ -93,7 +94,7 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
 	query := `
         UPDATE service
         SET name = ?, address = ?, price = ?, user_id = ?, images = ?, category_id = ?, subcategory_id = ?, 
-            description = ?, avg_rating = ?, top = ?, liked = ?, updated_at = ?
+            description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, updated_at = ?
         WHERE id = ?
     `
 	imagesJSON, err := json.Marshal(service.Images)
@@ -104,7 +105,7 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
 	service.UpdatedAt = &updatedAt
 	result, err := r.DB.ExecContext(ctx, query,
 		service.Name, service.Address, service.Price, service.UserID, imagesJSON,
-		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.UpdatedAt, service.ID,
+		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, service.UpdatedAt, service.ID,
 	)
 	if err != nil {
 		return models.Service{}, err
@@ -142,7 +143,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	)
 
 	baseQuery := `
-		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.service_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked,  s.created_at, s.updated_at
+		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.service_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked, s.status,  s.created_at, s.updated_at
 		FROM service s
 		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
 		JOIN users u ON s.user_id = u.id
@@ -219,7 +220,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 		var imagesJSON []byte
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked,
+			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
 			&s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
@@ -248,7 +249,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 
 func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
 	query := `
-		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.created_at, s.updated_at
+		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.created_at, s.updated_at
 		FROM service s
 		JOIN users u ON s.user_id = u.id
 		WHERE user_id = ?
@@ -266,7 +267,7 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 		var imagesJSON []byte
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &imagesJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.CreatedAt, &s.UpdatedAt,
+			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
