@@ -61,3 +61,10 @@ func main() {
 		errorLog.Fatal(err)
 	}
 }
+
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Ошибка при загрузке .env файла")
+	}
+}

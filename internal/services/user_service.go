@@ -19,6 +19,7 @@ import (
 	"naimuBack/utils"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -306,8 +307,8 @@ func (s *UserService) ChangeNumber(ctx context.Context, number string) (models.S
 }
 
 func (s *UserService) sendEmailMailgun(toEmail, subject, body string) error {
-	apiKey := "ddb5bbdafa553d32b1fde2ab3497e617-51afd2db-3dfba78a"  // пример: key-3ax6xnjp29jd6fds4gc373sgvjxteol0
-	domain := "sandbox639f88d0c39546e2b2ee40afdee9f44c.mailgun.org" // пример: sandbox123.mailgun.org
+	apiKey := os.Getenv("MAILGUN_API_KEY") // пример: key-3ax6xnjp29jd6fds4gc373sgvjxteol0
+	domain := os.Getenv("MAILGUN_DOMAIN")  // пример: sandbox123.mailgun.org
 	from := "postmaster@" + domain
 
 	apiURL := fmt.Sprintf("https://api.mailgun.net/v3/%s/messages", domain)
@@ -422,8 +423,8 @@ func (s *UserService) ResetPassword(ctx context.Context, email, newPassword stri
 }
 
 func (s *UserService) sendMailgunEmail(to, subject, body string) error {
-	apiKey := "ddb5bbdafa553d32b1fde2ab3497e617-51afd2db-3dfba78a"  // пример: key-3ax6xnjp29jd6fds4gc373sgvjxteol0
-	domain := "sandbox639f88d0c39546e2b2ee40afdee9f44c.mailgun.org" // пример: sandbox123.mailgun.org
+	apiKey := os.Getenv("MAILGUN_API_KEY") // пример: key-3ax6xnjp29jd6fds4gc373sgvjxteol0
+	domain := os.Getenv("MAILGUN_DOMAIN")  // пример: sandbox123.mailgun.org
 	apiUrl := fmt.Sprintf("https://api.mailgun.net/v3/%s/messages", domain)
 
 	data := url.Values{}
