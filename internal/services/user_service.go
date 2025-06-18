@@ -307,8 +307,8 @@ func (s *UserService) ChangeNumber(ctx context.Context, number string) (models.S
 }
 
 func (s *UserService) sendEmailMailgun(toEmail, subject, body string) error {
-	apiKey := os.Getenv("MAILGUN_API_KEY") // пример: key-3ax6xnjp29jd6fds4gc373sgvjxteol0
-	domain := os.Getenv("MAILGUN_DOMAIN")  // пример: sandbox123.mailgun.org
+	apiKey := os.Getenv("MAILGUN_API_KEY")
+	domain := os.Getenv("MAILGUN_DOMAIN")
 	from := "postmaster@" + domain
 
 	apiURL := fmt.Sprintf("https://api.mailgun.net/v3/%s/messages", domain)
@@ -423,8 +423,8 @@ func (s *UserService) ResetPassword(ctx context.Context, email, newPassword stri
 }
 
 func (s *UserService) sendMailgunEmail(to, subject, body string) error {
-	apiKey := os.Getenv("MAILGUN_API_KEY") // пример: key-3ax6xnjp29jd6fds4gc373sgvjxteol0
-	domain := os.Getenv("MAILGUN_DOMAIN")  // пример: sandbox123.mailgun.org
+	apiKey := os.Getenv("MAILGUN_API_KEY") //
+	domain := os.Getenv("MAILGUN_DOMAIN")  //
 	apiUrl := fmt.Sprintf("https://api.mailgun.net/v3/%s/messages", domain)
 
 	data := url.Values{}
