@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS chats
+(
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    user1_id   INT NOT NULL,
+    user2_id   INT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user1_id) REFERENCES users (id) ON DELETE CASCADE,
+    FOREIGN KEY (user2_id) REFERENCES users (id) ON DELETE CASCADE
+);
+use naimudb;

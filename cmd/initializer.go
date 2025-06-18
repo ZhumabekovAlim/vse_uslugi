@@ -1,14 +1,17 @@
 package main
 
 import (
+	_ "context"
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/google/uuid"
 	_ "github.com/joho/godotenv"
+	_ "google.golang.org/api/option"
 	"log"
 	"naimuBack/internal/handlers"
+	_ "naimuBack/internal/models"
 	"naimuBack/internal/repositories"
-	"naimuBack/internal/services"
+	services "naimuBack/internal/services"
 	_ "naimuBack/utils"
 	"net/http"
 )
@@ -30,6 +33,10 @@ type application struct {
 	subcategoryRepo     repositories.SubcategoryRepository
 	cityHandler         handlers.CityHandler
 	cityRepo            repositories.CityRepository
+	wsManager           *WebSocketManager
+	chatHandler         *handlers.ChatHandler
+	messageHandler      *handlers.MessageHandler
+	db                  *sql.DB
 
 	// authService *services/*/.AuthService
 }
@@ -62,6 +69,18 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	subcategoryHandler := handlers.SubcategoryHandler{Service: &subcategoryService}
 	cityHandler := handlers.CityHandler{Service: &cityService}
 
+	// Chat
+	wsManager := NewWebSocketManager()
+	// Создание репозитория, сервиса и обработчика для чатов
+	chatRepo := &repositories.ChatRepository{Db: db}
+	chatService := &services.ChatService{ChatRepo: chatRepo}
+	chatHandler := &handlers.ChatHandler{ChatService: chatService}
+
+	// Создание репозитория, сервиса и обработчика для сообщений
+	messageRepo := &repositories.MessageRepository{Db: db}
+	messageService := &services.MessageService{MessageRepo: messageRepo}
+	messageHandler := &handlers.MessageHandler{MessageService: messageService}
+
 	return &application{
 		errorLog:           errorLog,
 		infoLog:            infoLog,
@@ -72,6 +91,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		serviceFavorite:    serviceFavoriteHandler,
 		subcategoryHandler: subcategoryHandler,
 		cityHandler:        cityHandler,
+		chatHandler:        chatHandler,
+		messageHandler:     messageHandler,
+		wsManager:          wsManager,
+		db:                 db,
 		//authService:    authService,
 	}
 }
