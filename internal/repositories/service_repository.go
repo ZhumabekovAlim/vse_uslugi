@@ -360,11 +360,18 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 }
 
 func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID int, status string) ([]models.Service, error) {
-	query := `SELECT id, name, description, user_id, status, created_at, updated_at
-	          FROM service
-	          WHERE user_id = ? AND status = ?`
+	query := `
+	SELECT 
+		s.id, s.name, s.address, s.price, s.user_id,
+		u.id, u.name, u.review_rating,
+		s.images, s.category_id, s.subcategory_id, s.description,
+		s.avg_rating, s.top, s.liked, s.status,
+		s.created_at, s.updated_at
+	FROM service s
+	JOIN users u ON s.user_id = u.id
+	WHERE s.status = ? AND s.user_id = ?`
 
-	rows, err := r.DB.QueryContext(ctx, query, userID, status)
+	rows, err := r.DB.QueryContext(ctx, query, status, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -373,12 +380,21 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 	var services []models.Service
 	for rows.Next() {
 		var s models.Service
-		err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.UserID, &s.Status, &s.CreatedAt, &s.UpdatedAt)
+		var imagesJSON []byte
+		err := rows.Scan(
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+			&s.User.ID, &s.User.Name, &s.User.ReviewRating,
+			&imagesJSON, &s.CategoryID, &s.SubcategoryID,
+			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
+			&s.CreatedAt, &s.UpdatedAt,
+		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scan error: %w", err)
+		}
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return nil, fmt.Errorf("json decode error: %w", err)
 		}
 		services = append(services, s)
 	}
-
 	return services, nil
 }
