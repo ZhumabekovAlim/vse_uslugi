@@ -360,10 +360,9 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 }
 
 func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID int, status string) ([]models.Service, error) {
-	query := `SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id,s.description, s.avg_rating, s.top, s.liked, s.status, s.created_at, s.updated_at
-		FROM service s
-		JOIN users u ON s.user_id = u.id
-		WHERE s.id = ?`
+	query := `SELECT id, name, description, user_id, status, created_at, updated_at
+	          FROM service
+	          WHERE user_id = ? AND status = ?`
 
 	rows, err := r.DB.QueryContext(ctx, query, userID, status)
 	if err != nil {
@@ -372,16 +371,14 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 	defer rows.Close()
 
 	var services []models.Service
-	var imagesJSON []byte
 	for rows.Next() {
 		var s models.Service
-		err := rows.Scan(&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
-			&s.CreatedAt, &s.UpdatedAt)
+		err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.UserID, &s.Status, &s.CreatedAt, &s.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
 		services = append(services, s)
 	}
+
 	return services, nil
 }
