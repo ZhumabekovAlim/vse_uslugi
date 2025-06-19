@@ -55,7 +55,7 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category models
 func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int) (models.Category, error) {
 	var category models.Category
 
-	// 1. Получаем основную категорию
+	// Основной запрос категории
 	query := `
 		SELECT id, name, image_path, min_price, created_at, updated_at
 		FROM categories
@@ -71,35 +71,34 @@ func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int) (model
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return models.Category{}, nil // not found
+			return models.Category{}, nil
 		}
 		return models.Category{}, err
 	}
 
-	// 2. Получаем связанные подкатегории
+	// Подтягиваем subcategories через связующую таблицу
 	subQuery := `
 		SELECT s.id, s.category_id, s.name, s.created_at, s.updated_at
 		FROM subcategories s
-		INNER JOIN category_subcategory cs ON cs.subcategory_id = s.id
+		JOIN category_subcategory cs ON cs.subcategory_id = s.id
 		WHERE cs.category_id = ?
 	`
 
 	rows, err := r.DB.QueryContext(ctx, subQuery, id)
 	if err != nil {
-		return models.Category{}, err
+		return category, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var sub models.Subcategory
-		err := rows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt)
-		if err != nil {
-			return models.Category{}, err
+		if err := rows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
+			return category, err
 		}
 		category.Subcategories = append(category.Subcategories, sub)
 	}
-	if err = rows.Err(); err != nil {
-		return models.Category{}, err
+	if err := rows.Err(); err != nil {
+		return category, err
 	}
 
 	return category, nil
