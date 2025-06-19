@@ -55,41 +55,31 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category models
 func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int) (models.Category, error) {
 	var category models.Category
 
-	query := `
-		SELECT id, name, image_path, min_price, created_at, updated_at
-		FROM categories
-		WHERE id = ?
-	`
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&category.ID,
-		&category.Name,
-		&category.ImagePath,
-		&category.MinPrice,
-		&category.CreatedAt,
-		&category.UpdatedAt,
+	// 1. Получаем саму категорию
+	query := `SELECT id, name, image_path, min_price, created_at, updated_at FROM categories WHERE id = ?`
+	err := r.DB.QueryRowContext(ctx, query).Scan(
+		&category.ID, &category.Name, &category.ImagePath, &category.MinPrice, &category.CreatedAt, &category.UpdatedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return models.Category{}, ErrCategoryNotFound
-		}
-		return models.Category{}, err
+		return category, err
 	}
 
-	// Подгружаем связанные подкатегории
-	subRows, err := r.DB.QueryContext(ctx, `
+	// 2. Получаем связанные подкатегории
+	subQuery := `
 		SELECT id, category_id, name, created_at, updated_at
 		FROM subcategories
 		WHERE category_id = ?
-	`, category.ID)
+	`
+	rows, err := r.DB.QueryContext(ctx, subQuery, category.ID)
 	if err != nil {
-		return models.Category{}, err
+		return category, err
 	}
-	defer subRows.Close()
+	defer rows.Close()
 
-	for subRows.Next() {
+	for rows.Next() {
 		var sub models.Subcategory
-		if err := subRows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
-			return models.Category{}, err
+		if err := rows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
+			return category, err
 		}
 		category.Subcategories = append(category.Subcategories, sub)
 	}
@@ -192,35 +182,29 @@ func (r *CategoryRepository) DeleteCategory(ctx context.Context, id int) error {
 }
 
 func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Category, error) {
-	query := `
-        SELECT id, name, image_path, min_price, created_at, updated_at
-        FROM categories
-    `
+	var categories []models.Category
+
+	query := `SELECT id, name, image_path, min_price, created_at, updated_at FROM categories`
 	rows, err := r.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var categories []models.Category
 	for rows.Next() {
-		var c models.Category
-		err := rows.Scan(
-			&c.ID, &c.Name, &c.ImagePath,
-			&c.MinPrice, &c.CreatedAt, &c.UpdatedAt,
-		)
+		var category models.Category
+		err := rows.Scan(&category.ID, &category.Name, &category.ImagePath, &category.MinPrice, &category.CreatedAt, &category.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
 
-		// Загружаем субкатегории через связующую таблицу
+		// Получаем подкатегории для каждой категории
 		subQuery := `
-			SELECT s.id, s.category_id, s.name, s.created_at, s.updated_at
-			FROM subcategories s
-			JOIN category_subcategory cs ON cs.subcategory_id = s.id
-			WHERE cs.category_id = ?
+			SELECT id, category_id, name, created_at, updated_at
+			FROM subcategories
+			WHERE category_id = ?
 		`
-		subRows, err := r.DB.QueryContext(ctx, subQuery, c.ID)
+		subRows, err := r.DB.QueryContext(ctx, subQuery, category.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -228,18 +212,13 @@ func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Cat
 		for subRows.Next() {
 			var sub models.Subcategory
 			if err := subRows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
-				subRows.Close()
 				return nil, err
 			}
-			c.Subcategories = append(c.Subcategories, sub)
+			category.Subcategories = append(category.Subcategories, sub)
 		}
 		subRows.Close()
 
-		categories = append(categories, c)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
+		categories = append(categories, category)
 	}
 
 	return categories, nil
