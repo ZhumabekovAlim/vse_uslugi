@@ -219,6 +219,13 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	savePath := filepath.Join("cmd/uploads/categories", imageName)
 	publicURL := fmt.Sprintf("/static/categories/%s", imageName)
 
+	saveDir := "cmd/uploads/categories"
+	err = os.MkdirAll(saveDir, 0755)
+	if err != nil {
+		http.Error(w, "failed to create image directory", http.StatusInternalServerError)
+		return
+	}
+
 	// Сохраняем изображение
 	out, err := os.Create(savePath)
 	if err != nil {
