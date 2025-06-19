@@ -214,7 +214,7 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	if err == nil {
 		defer file.Close()
 
-		uploadDir := "uploads/categories"
+		uploadDir := "cmd/uploads/categories"
 		os.MkdirAll(uploadDir, 0755)
 
 		safeFileName := fmt.Sprintf("category_image_%d%s", time.Now().UnixNano(), filepath.Ext(header.Filename))
