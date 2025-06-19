@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
+	_ "log"
 	"naimuBack/internal/models"
 	"naimuBack/internal/services"
 	"net/http"
@@ -211,7 +213,6 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	defer file.Close()
-
 	// Генерация уникального имени
 	timestamp := time.Now().UnixNano()
 	ext := filepath.Ext(header.Filename)
@@ -254,4 +255,35 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(createdCategory)
+}
+
+func (h *CategoryHandler) ServeImage(w http.ResponseWriter, r *http.Request) {
+	filename := r.URL.Query().Get(":filename")
+	if filename == "" {
+		http.Error(w, "filename is required", http.StatusBadRequest)
+		return
+	}
+	imagePath := filepath.Join("cmd/uploads/categories", filename)
+	log.Println("Serving image from:", imagePath)
+	// Проверка существования файла
+	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+		http.Error(w, "image not found", http.StatusNotFound)
+		return
+	}
+
+	// Определение Content-Type
+	ext := filepath.Ext(imagePath)
+	switch ext {
+	case ".jpg", ".jpeg":
+		w.Header().Set("Content-Type", "image/jpeg")
+	case ".png":
+		w.Header().Set("Content-Type", "image/png")
+	case ".gif":
+		w.Header().Set("Content-Type", "image/gif")
+	default:
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+
+	// Отправка файла
+	http.ServeFile(w, r, imagePath)
 }
