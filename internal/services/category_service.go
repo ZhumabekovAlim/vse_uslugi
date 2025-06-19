@@ -19,7 +19,7 @@ func (s *CategoryService) GetCategoryByID(ctx context.Context, id int) (models.C
 }
 
 func (s *CategoryService) UpdateCategory(ctx context.Context, category models.Category) (models.Category, error) {
-	return s.CategoryRepo.UpdateCategory(ctx, category, category.SubcategoryIDs)
+	return s.CategoryRepo.UpdateCategory(ctx, category)
 }
 
 func (s *CategoryService) DeleteCategory(ctx context.Context, id int) error {
