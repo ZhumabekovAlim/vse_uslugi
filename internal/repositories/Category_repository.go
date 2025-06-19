@@ -29,10 +29,10 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category models
 
 	// Вставка категории
 	query := `
-		INSERT INTO categories (name, image_path, min_price, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO categories (name, image_path, created_at, updated_at)
+		VALUES (?, ?, ?, ?)
 	`
-	result, err := tx.ExecContext(ctx, query, category.Name, category.ImagePath, category.MinPrice, category.CreatedAt, category.UpdatedAt)
+	result, err := tx.ExecContext(ctx, query, category.Name, category.ImagePath, category.CreatedAt, category.UpdatedAt)
 	if err != nil {
 		tx.Rollback()
 		return models.Category{}, err
@@ -43,8 +43,9 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category models
 		tx.Rollback()
 		return models.Category{}, err
 	}
-	category.ID = int(categoryID)
 
+	category.ID = int(categoryID)
+	category.MinPrice = 0
 	if err := tx.Commit(); err != nil {
 		return models.Category{}, err
 	}
@@ -201,7 +202,7 @@ func (r *CategoryRepository) DeleteCategory(ctx context.Context, id int) error {
 func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Category, error) {
 	var categories []models.Category
 
-	query := `SELECT id, name, image_path, min_price, created_at, updated_at FROM categories`
+	query := `SELECT id, name, image_path, created_at, updated_at FROM categories`
 	rows, err := r.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -210,10 +211,13 @@ func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]models.Cat
 
 	for rows.Next() {
 		var category models.Category
-		err := rows.Scan(&category.ID, &category.Name, &category.ImagePath, &category.MinPrice, &category.CreatedAt, &category.UpdatedAt)
+		err := rows.Scan(&category.ID, &category.Name, &category.ImagePath, &category.CreatedAt, &category.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
+
+		priceQuery := `SELECT MIN(price) FROM service WHERE category_id = ?`
+		_ = r.DB.QueryRowContext(ctx, priceQuery, category.ID).Scan(&category.MinPrice)
 
 		// Получаем подкатегории для каждой категории
 		subQuery := `
@@ -246,7 +250,7 @@ func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int) (model
 
 	// Получаем саму категорию
 	query := `
-		SELECT id, name, image_path, min_price, created_at, updated_at
+		SELECT id, name, image_path, created_at, updated_at
 		FROM categories
 		WHERE id = ?
 	`
@@ -254,10 +258,12 @@ func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int) (model
 		&category.ID,
 		&category.Name,
 		&category.ImagePath,
-		&category.MinPrice,
 		&category.CreatedAt,
 		&category.UpdatedAt,
 	)
+	priceQuery := `SELECT MIN(price) FROM service WHERE category_id = ?`
+	_ = r.DB.QueryRowContext(ctx, priceQuery, category.ID).Scan(&category.MinPrice)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return models.Category{}, nil
