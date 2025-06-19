@@ -192,53 +192,51 @@ func (h *CategoryHandler) GetAllCategories(w http.ResponseWriter, r *http.Reques
 //}
 
 func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseMultipartForm(10 << 20) // 10MB
+	err := r.ParseMultipartForm(10 << 20) // 10 MB
 	if err != nil {
-		http.Error(w, "cannot parse form", http.StatusBadRequest)
+		http.Error(w, "failed to parse multipart form", http.StatusBadRequest)
 		return
 	}
 
 	name := r.FormValue("name")
 	if name == "" {
-		http.Error(w, "name is required", http.StatusBadRequest)
+		http.Error(w, "missing category name", http.StatusBadRequest)
 		return
 	}
 
-	// --- Обработка изображения
+	// Обработка изображения
 	file, header, err := r.FormFile("image")
 	if err != nil {
-		http.Error(w, "could not get image file", http.StatusBadRequest)
+		http.Error(w, "missing image file", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
 
-	timestamp := time.Now().Unix()
-	imageName := fmt.Sprintf("category_image_%d%s", timestamp, filepath.Ext(header.Filename))
-	uploadDir := "cmd/uploads/categories"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		http.Error(w, "failed to create directory", http.StatusInternalServerError)
-		return
-	}
-	imagePath := filepath.Join(uploadDir, imageName)
+	// Генерация уникального имени
+	timestamp := time.Now().UnixNano()
+	ext := filepath.Ext(header.Filename)
+	imageName := fmt.Sprintf("category_image_%d%s", timestamp, ext)
+	savePath := filepath.Join("cmd/uploads/categories", imageName)
+	publicURL := fmt.Sprintf("/static/categories/%s", imageName)
 
-	out, err := os.Create(imagePath)
+	// Сохраняем изображение
+	out, err := os.Create(savePath)
 	if err != nil {
-		http.Error(w, "failed to save image", http.StatusInternalServerError)
+		http.Error(w, "cannot save image", http.StatusInternalServerError)
 		return
 	}
 	defer out.Close()
-
 	_, err = io.Copy(out, file)
 	if err != nil {
-		http.Error(w, "failed to save image content", http.StatusInternalServerError)
+		http.Error(w, "failed to write image", http.StatusInternalServerError)
 		return
 	}
 
-	// --- Создание категории
+	// Создаём категорию
 	category := models.Category{
 		Name:      name,
-		ImagePath: imagePath,
-		MinPrice:  0,
+		ImagePath: publicURL,
+		MinPrice:  0, // по умолчанию
 	}
 
 	createdCategory, err := h.Service.CreateCategory(r.Context(), category)
@@ -249,36 +247,4 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(createdCategory)
-}
-
-func (h *CategoryHandler) ServeCategoryImage(w http.ResponseWriter, r *http.Request) {
-	imageName := r.URL.Query().Get("filename")
-	if imageName == "" {
-		http.Error(w, "missing filename", http.StatusBadRequest)
-		return
-	}
-
-	filePath := filepath.Join("cmd/uploads/categories", filepath.Base(imageName))
-
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		http.Error(w, "image not found", http.StatusNotFound)
-		return
-	}
-
-	ext := filepath.Ext(filePath)
-	var contentType string
-	switch ext {
-	case ".png":
-		contentType = "image/png"
-	case ".jpg", ".jpeg":
-		contentType = "image/jpeg"
-	case ".webp":
-		contentType = "image/webp"
-	default:
-		contentType = "application/octet-stream"
-	}
-
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Disposition", "inline; filename=\""+filepath.Base(filePath)+"\"")
-	http.ServeFile(w, r, filePath)
 }

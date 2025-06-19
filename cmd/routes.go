@@ -57,8 +57,9 @@ func (app *application) routes() http.Handler {
 	mux.Get("/category/:id", authMiddleware.ThenFunc(app.categoryHandler.GetCategoryByID))
 	mux.Put("/category/:id", authMiddleware.ThenFunc(app.categoryHandler.UpdateCategory))
 	mux.Del("/category/:id", authMiddleware.ThenFunc(app.categoryHandler.DeleteCategory))
+	fs := http.StripPrefix("/static/categories/", http.FileServer(http.Dir("./cmd/uploads/categories")))
+	mux.Get("/static/categories/", fs)
 	mux.Get("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
-	mux.Get("/category/image", http.HandlerFunc(app.categoryHandler.ServeCategoryImage))
 
 	// Reviews
 	mux.Post("/review", authMiddleware.ThenFunc(app.reviewsHandler.CreateReview))                     //РАБОТАЕТ
