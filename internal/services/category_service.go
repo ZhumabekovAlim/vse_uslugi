@@ -14,7 +14,7 @@ func (s *CategoryService) CreateCategory(ctx context.Context, category models.Ca
 	return s.CategoryRepo.CreateCategory(ctx, category)
 }
 
-func (s *CategoryService) GetCategoryByID(ctx context.Context, id int) ([]models.Category, error) {
+func (s *CategoryService) GetCategoryByID(ctx context.Context, id int) (models.Category, error) {
 	return s.CategoryRepo.GetCategoryByID(ctx, id)
 }
 
