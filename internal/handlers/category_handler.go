@@ -247,7 +247,7 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 		}
 		defer out.Close()
 		io.Copy(out, file)
-		imagePath = "/uploads/" + newFileName
+		imagePath = "/images/categories/" + newFileName
 	}
 
 	category := models.Category{
