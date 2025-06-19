@@ -55,7 +55,7 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category models
 func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int) (models.Category, error) {
 	var category models.Category
 
-	// Основной запрос категории
+	// Получаем саму категорию
 	query := `
 		SELECT id, name, image_path, min_price, created_at, updated_at
 		FROM categories
@@ -76,14 +76,13 @@ func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int) (model
 		return models.Category{}, err
 	}
 
-	// Подтягиваем subcategories через связующую таблицу
+	// Загружаем связанные субкатегории через category_subcategory
 	subQuery := `
 		SELECT s.id, s.category_id, s.name, s.created_at, s.updated_at
 		FROM subcategories s
-		JOIN category_subcategory cs ON cs.subcategory_id = s.id
+		INNER JOIN category_subcategory cs ON cs.subcategory_id = s.id
 		WHERE cs.category_id = ?
 	`
-
 	rows, err := r.DB.QueryContext(ctx, subQuery, id)
 	if err != nil {
 		return category, err
@@ -97,6 +96,7 @@ func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int) (model
 		}
 		category.Subcategories = append(category.Subcategories, sub)
 	}
+
 	if err := rows.Err(); err != nil {
 		return category, err
 	}
