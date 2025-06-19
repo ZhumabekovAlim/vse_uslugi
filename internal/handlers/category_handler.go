@@ -282,7 +282,7 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 	category.UpdatedAt = time.Now()
 
 	// Обновляем в БД
-	if err := h.Service.UpdateCategory; err != nil {
+	if err, _ := h.Service.UpdateCategory(r.Context(), category); err != nil {
 		log.Printf("error updating category: %v", err)
 		http.Error(w, "failed to update category", http.StatusInternalServerError)
 		return
