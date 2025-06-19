@@ -218,7 +218,7 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	ext := filepath.Ext(header.Filename)
 	imageName := fmt.Sprintf("category_image_%d%s", timestamp, ext)
 	savePath := filepath.Join("cmd/uploads/categories", imageName)
-	publicURL := fmt.Sprintf("/static/categories/%s", imageName)
+	publicURL := fmt.Sprintf("/images/categories/%s", imageName)
 
 	saveDir := "cmd/uploads/categories"
 	err = os.MkdirAll(saveDir, 0755)
