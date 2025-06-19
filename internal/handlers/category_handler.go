@@ -35,27 +35,52 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(createdCategory)
 }
 
+//func (h *CategoryHandler) GetCategoryByID(w http.ResponseWriter, r *http.Request) {
+//	idStr := r.URL.Query().Get(":id")
+//	if idStr == "" {
+//		http.Error(w, "Missing category ID", http.StatusBadRequest)
+//		return
+//	}
+//
+//	id, err := strconv.Atoi(idStr)
+//	if err != nil {
+//		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+//		return
+//	}
+//
+//	category, err := h.Service.GetCategoryByID(r.Context(), id)
+//	if err != nil {
+//		if errors.Is(err, models.ErrCategoryNotFound) {
+//			http.Error(w, err.Error(), http.StatusNotFound)
+//			return
+//		}
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		return
+//	}
+//
+//	w.Header().Set("Content-Type", "application/json")
+//	json.NewEncoder(w).Encode(category)
+//}
+
 func (h *CategoryHandler) GetCategoryByID(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
-		http.Error(w, "Missing category ID", http.StatusBadRequest)
-		return
-	}
-
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
 
 	category, err := h.Service.GetCategoryByID(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, models.ErrCategoryNotFound) {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "failed to get category", http.StatusInternalServerError)
 		return
+	}
+
+	if category.ID == 0 {
+		http.Error(w, "category not found", http.StatusNotFound)
+		return
+	}
+	if category.Subcategories == nil {
+		category.Subcategories = []models.Subcategory{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
