@@ -23,79 +23,79 @@ type ServiceHandler struct {
 	Service *services.ServiceService
 }
 
-func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseMultipartForm(32 << 20) // 32MB
-	if err != nil {
-		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
-		return
-	}
-
-	var service models.Service
-	service.Name = r.FormValue("name")
-	service.Address = r.FormValue("address")
-	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
-	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
-	service.Description = r.FormValue("description")
-	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
-	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
-	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
-	service.Top = r.FormValue("top")
-	service.Status = r.FormValue("status")
-	service.CreatedAt = time.Now()
-
-	uploadDir := "./uploads"
-	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-			http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	files := r.MultipartForm.File["images"]
-	var imageInfos []models.Image
-
-	for _, fileHeader := range files {
-		file, err := fileHeader.Open()
-		if err != nil {
-			http.Error(w, "Failed to open file", http.StatusInternalServerError)
-			return
-		}
-		defer file.Close()
-
-		filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
-		filePath := filepath.Join(uploadDir, filename)
-
-		dst, err := os.Create(filePath)
-		if err != nil {
-			http.Error(w, "Cannot save file", http.StatusInternalServerError)
-			return
-		}
-		defer dst.Close()
-
-		if _, err := io.Copy(dst, file); err != nil {
-			http.Error(w, "Failed to save file", http.StatusInternalServerError)
-			return
-		}
-
-		imageInfos = append(imageInfos, models.Image{
-			Name: fileHeader.Filename,
-			Path: "/uploads/" + filename,
-			Type: fileHeader.Header.Get("Content-Type"),
-		})
-	}
-
-	service.Images = imageInfos
-
-	createdService, err := h.Service.CreateService(r.Context(), service)
-	if err != nil {
-		log.Printf("Failed to create service error: %v", err)
-		http.Error(w, "Failed to create service", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(createdService)
-}
+//func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
+//	err := r.ParseMultipartForm(32 << 20) // 32MB
+//	if err != nil {
+//		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
+//		return
+//	}
+//
+//	var service models.Service
+//	service.Name = r.FormValue("name")
+//	service.Address = r.FormValue("address")
+//	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+//	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
+//	service.Description = r.FormValue("description")
+//	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
+//	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
+//	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
+//	service.Top = r.FormValue("top")
+//	service.Status = r.FormValue("status")
+//	service.CreatedAt = time.Now()
+//
+//	uploadDir := "./uploads"
+//	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+//		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+//			http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
+//			return
+//		}
+//	}
+//
+//	files := r.MultipartForm.File["images"]
+//	var imageInfos []models.Image
+//
+//	for _, fileHeader := range files {
+//		file, err := fileHeader.Open()
+//		if err != nil {
+//			http.Error(w, "Failed to open file", http.StatusInternalServerError)
+//			return
+//		}
+//		defer file.Close()
+//
+//		filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
+//		filePath := filepath.Join(uploadDir, filename)
+//
+//		dst, err := os.Create(filePath)
+//		if err != nil {
+//			http.Error(w, "Cannot save file", http.StatusInternalServerError)
+//			return
+//		}
+//		defer dst.Close()
+//
+//		if _, err := io.Copy(dst, file); err != nil {
+//			http.Error(w, "Failed to save file", http.StatusInternalServerError)
+//			return
+//		}
+//
+//		imageInfos = append(imageInfos, models.Image{
+//			Name: fileHeader.Filename,
+//			Path: "/uploads/" + filename,
+//			Type: fileHeader.Header.Get("Content-Type"),
+//		})
+//	}
+//
+//	service.Images = imageInfos
+//
+//	createdService, err := h.Service.CreateService(r.Context(), service)
+//	if err != nil {
+//		log.Printf("Failed to create service error: %v", err)
+//		http.Error(w, "Failed to create service", http.StatusInternalServerError)
+//		return
+//	}
+//
+//	w.Header().Set("Content-Type", "application/json")
+//	json.NewEncoder(w).Encode(createdService)
+//}
 
 func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
@@ -120,91 +120,91 @@ func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(service)
 }
 
-func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
-	if idStr == "" {
-		http.Error(w, "Missing service ID", http.StatusBadRequest)
-		return
-	}
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid service ID", http.StatusBadRequest)
-		return
-	}
-
-	err = r.ParseMultipartForm(32 << 20) // 32 MB
-	if err != nil {
-		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
-		return
-	}
-
-	var service models.Service
-	service.ID = id
-	service.Name = r.FormValue("name")
-	service.Address = r.FormValue("address")
-	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
-	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
-	service.Description = r.FormValue("description")
-	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
-	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
-	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
-	service.Top = r.FormValue("top")
-	service.Liked = r.FormValue("liked") == "true"
-	service.UpdatedAt = &time.Time{}
-	*service.UpdatedAt = time.Now()
-
-	// Обработка изображений
-	uploadDir := "./uploads"
-	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-			http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	files := r.MultipartForm.File["images"]
-	var imageInfos []models.Image
-	for _, fileHeader := range files {
-		file, err := fileHeader.Open()
-		if err != nil {
-			http.Error(w, "Failed to open image", http.StatusInternalServerError)
-			return
-		}
-		defer file.Close()
-
-		filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
-		filePath := filepath.Join(uploadDir, filename)
-
-		dst, err := os.Create(filePath)
-		if err != nil {
-			http.Error(w, "Failed to save image", http.StatusInternalServerError)
-			return
-		}
-		defer dst.Close()
-
-		if _, err := io.Copy(dst, file); err != nil {
-			http.Error(w, "Error copying image", http.StatusInternalServerError)
-			return
-		}
-
-		imageInfos = append(imageInfos, models.Image{
-			Name: fileHeader.Filename,
-			Path: "/uploads/" + filename,
-			Type: fileHeader.Header.Get("Content-Type"),
-		})
-	}
-	service.Images = imageInfos
-
-	// Вызов сервиса
-	updatedService, err := h.Service.UpdateService(r.Context(), service)
-	if err != nil {
-		http.Error(w, "Failed to update service: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updatedService)
-}
+//func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
+//	idStr := r.URL.Query().Get(":id")
+//	if idStr == "" {
+//		http.Error(w, "Missing service ID", http.StatusBadRequest)
+//		return
+//	}
+//	id, err := strconv.Atoi(idStr)
+//	if err != nil {
+//		http.Error(w, "Invalid service ID", http.StatusBadRequest)
+//		return
+//	}
+//
+//	err = r.ParseMultipartForm(32 << 20) // 32 MB
+//	if err != nil {
+//		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
+//		return
+//	}
+//
+//	var service models.Service
+//	service.ID = id
+//	service.Name = r.FormValue("name")
+//	service.Address = r.FormValue("address")
+//	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+//	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
+//	service.Description = r.FormValue("description")
+//	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
+//	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
+//	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
+//	service.Top = r.FormValue("top")
+//	service.Liked = r.FormValue("liked") == "true"
+//	service.UpdatedAt = &time.Time{}
+//	*service.UpdatedAt = time.Now()
+//
+//	// Обработка изображений
+//	uploadDir := "./uploads"
+//	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+//		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+//			http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
+//			return
+//		}
+//	}
+//
+//	files := r.MultipartForm.File["images"]
+//	var imageInfos []models.Image
+//	for _, fileHeader := range files {
+//		file, err := fileHeader.Open()
+//		if err != nil {
+//			http.Error(w, "Failed to open image", http.StatusInternalServerError)
+//			return
+//		}
+//		defer file.Close()
+//
+//		filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
+//		filePath := filepath.Join(uploadDir, filename)
+//
+//		dst, err := os.Create(filePath)
+//		if err != nil {
+//			http.Error(w, "Failed to save image", http.StatusInternalServerError)
+//			return
+//		}
+//		defer dst.Close()
+//
+//		if _, err := io.Copy(dst, file); err != nil {
+//			http.Error(w, "Error copying image", http.StatusInternalServerError)
+//			return
+//		}
+//
+//		imageInfos = append(imageInfos, models.Image{
+//			Name: fileHeader.Filename,
+//			Path: "/uploads/" + filename,
+//			Type: fileHeader.Header.Get("Content-Type"),
+//		})
+//	}
+//	service.Images = imageInfos
+//
+//	// Вызов сервиса
+//	updatedService, err := h.Service.UpdateService(r.Context(), service)
+//	if err != nil {
+//		http.Error(w, "Failed to update service: "+err.Error(), http.StatusInternalServerError)
+//		return
+//	}
+//
+//	w.Header().Set("Content-Type", "application/json")
+//	json.NewEncoder(w).Encode(updatedService)
+//}
 
 func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
@@ -402,4 +402,199 @@ func (h *ServiceHandler) GetServicesByStatusAndUserID(w http.ResponseWriter, r *
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(services)
+}
+
+func (h *ServiceHandler) ServeServiceImage(w http.ResponseWriter, r *http.Request) {
+	filename := r.URL.Query().Get(":filename")
+	if filename == "" {
+		http.Error(w, "filename is required", http.StatusBadRequest)
+		return
+	}
+	imagePath := filepath.Join("cmd/uploads/services", filename)
+
+	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+		http.Error(w, "image not found", http.StatusNotFound)
+		return
+	}
+
+	// Content-Type по расширению
+	ext := filepath.Ext(imagePath)
+	switch ext {
+	case ".jpg", ".jpeg":
+		w.Header().Set("Content-Type", "image/jpeg")
+	case ".png":
+		w.Header().Set("Content-Type", "image/png")
+	case ".gif":
+		w.Header().Set("Content-Type", "image/gif")
+	default:
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+
+	http.ServeFile(w, r, imagePath)
+}
+
+func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseMultipartForm(32 << 20) // 32MB
+	if err != nil {
+		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
+		return
+	}
+
+	var service models.Service
+	service.Name = r.FormValue("name")
+	service.Address = r.FormValue("address")
+	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
+	service.Description = r.FormValue("description")
+	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
+	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
+	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
+	service.Top = r.FormValue("top")
+	service.Status = r.FormValue("status")
+	service.CreatedAt = time.Now()
+
+	// Сохраняем изображения
+	saveDir := "cmd/uploads/services"
+	if err := os.MkdirAll(saveDir, 0755); err != nil {
+		http.Error(w, "Failed to create image directory", http.StatusInternalServerError)
+		return
+	}
+
+	files := r.MultipartForm.File["images"]
+	var imageInfos []models.Image
+
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			http.Error(w, "Failed to open image", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+
+		timestamp := time.Now().UnixNano()
+		ext := filepath.Ext(fileHeader.Filename)
+		imageName := fmt.Sprintf("service_image_%d%s", timestamp, ext)
+		savePath := filepath.Join(saveDir, imageName)
+		publicURL := fmt.Sprintf("/images/services/%s", imageName)
+
+		dst, err := os.Create(savePath)
+		if err != nil {
+			http.Error(w, "Cannot save image", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, file); err != nil {
+			http.Error(w, "Failed to write image", http.StatusInternalServerError)
+			return
+		}
+
+		imageInfos = append(imageInfos, models.Image{
+			Name: fileHeader.Filename,
+			Path: publicURL,
+			Type: fileHeader.Header.Get("Content-Type"),
+		})
+	}
+
+	service.Images = imageInfos
+
+	createdService, err := h.Service.CreateService(r.Context(), service)
+	if err != nil {
+		log.Printf("Failed to create service: %v", err)
+		http.Error(w, "Failed to create service", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(createdService)
+}
+
+func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get(":id")
+	if idStr == "" {
+		http.Error(w, "Missing service ID", http.StatusBadRequest)
+		return
+	}
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid service ID", http.StatusBadRequest)
+		return
+	}
+
+	err = r.ParseMultipartForm(32 << 20) // до 32MB
+	if err != nil {
+		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
+		return
+	}
+
+	var service models.Service
+	service.ID = id
+	service.Name = r.FormValue("name")
+	service.Address = r.FormValue("address")
+	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
+	service.Description = r.FormValue("description")
+	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
+	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
+	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
+	service.Top = r.FormValue("top")
+	service.Liked = r.FormValue("liked") == "true"
+	now := time.Now()
+	service.UpdatedAt = &now
+
+	// Обработка изображений
+	saveDir := "cmd/uploads/services"
+	err = os.MkdirAll(saveDir, 0755)
+	if err != nil {
+		http.Error(w, "Failed to create image directory", http.StatusInternalServerError)
+		return
+	}
+
+	files := r.MultipartForm.File["images"]
+	var imageInfos []models.Image
+
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			http.Error(w, "Failed to open image", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+
+		timestamp := time.Now().UnixNano()
+		ext := filepath.Ext(fileHeader.Filename)
+		imageName := fmt.Sprintf("service_image_%d%s", timestamp, ext)
+		savePath := filepath.Join(saveDir, imageName)
+		publicURL := fmt.Sprintf("/images/services/%s", imageName)
+
+		dst, err := os.Create(savePath)
+		if err != nil {
+			http.Error(w, "Cannot save image", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, file); err != nil {
+			http.Error(w, "Failed to write image", http.StatusInternalServerError)
+			return
+		}
+
+		imageInfos = append(imageInfos, models.Image{
+			Name: fileHeader.Filename,
+			Path: publicURL,
+			Type: fileHeader.Header.Get("Content-Type"),
+		})
+	}
+
+	service.Images = imageInfos
+
+	updatedService, err := h.Service.UpdateService(r.Context(), service)
+	if err != nil {
+		log.Printf("Failed to update service: %v", err)
+		http.Error(w, "Failed to update service", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedService)
 }

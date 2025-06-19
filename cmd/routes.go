@@ -50,6 +50,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/service/user/:user_id", authMiddleware.ThenFunc(app.serviceHandler.GetServiceByUserID))           //РАБОТАЕТ
 	mux.Post("/service/filtered", authMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesPost))          //РАБОТАЕТ
 	mux.Post("/service/filter", authMiddleware.ThenFunc(app.serviceHandler.GetServicesByStatusAndUserID))
+	mux.Get("/images/services/:filename", http.HandlerFunc(app.serviceHandler.ServeServiceImage))
 
 	// Categories
 	mux.Post("/category", authMiddleware.ThenFunc(app.categoryHandler.CreateCategory)) //РАБОТАЕТ
