@@ -71,7 +71,7 @@ func (app *application) routes() http.Handler {
 
 	// Service Favorites
 	mux.Post("/favorites", authMiddleware.ThenFunc(app.serviceFavorite.AddToFavorites)) //РАБОТАЕТ
-	mux.Del("/favorites/user/:user_id/service/:service_is", authMiddleware.ThenFunc(app.serviceFavorite.RemoveFromFavorites))
+	mux.Del("/favorites/user/:user_id/service/:service_id", authMiddleware.ThenFunc(app.serviceFavorite.RemoveFromFavorites))
 	mux.Get("/favorites/check/user/:user_id/service/:service_id", authMiddleware.ThenFunc(app.serviceFavorite.IsFavorite)) //РАБОТАЕТ
 	mux.Get("/favorites/:user_id", authMiddleware.ThenFunc(app.serviceFavorite.GetFavoritesByUser))                        //РАБОТАЕТ
 
