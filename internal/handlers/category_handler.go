@@ -47,40 +47,40 @@ func (h *CategoryHandler) GetCategoryByID(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(category)
 }
 
-func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
-	if idStr == "" {
-		http.Error(w, "Missing category ID", http.StatusBadRequest)
-		return
-	}
-
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid category ID", http.StatusBadRequest)
-		return
-	}
-
-	var category models.Category
-	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-	category.ID = id
-
-	updatedCategory, err := h.Service.UpdateCategory(r.Context(), category)
-	if err != nil {
-		if errors.Is(err, models.ErrCategoryNotFound) {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(updatedCategory)
-}
+//func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
+//	idStr := r.URL.Query().Get(":id")
+//	if idStr == "" {
+//		http.Error(w, "Missing category ID", http.StatusBadRequest)
+//		return
+//	}
+//
+//	id, err := strconv.Atoi(idStr)
+//	if err != nil {
+//		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+//		return
+//	}
+//
+//	var category models.Category
+//	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
+//		http.Error(w, "Invalid request body", http.StatusBadRequest)
+//		return
+//	}
+//	category.ID = id
+//
+//	updatedCategory, err := h.Service.UpdateCategory(r.Context(), category)
+//	if err != nil {
+//		if errors.Is(err, models.ErrCategoryNotFound) {
+//			http.Error(w, err.Error(), http.StatusNotFound)
+//			return
+//		}
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		return
+//	}
+//
+//	w.Header().Set("Content-Type", "application/json")
+//	w.WriteHeader(http.StatusOK)
+//	json.NewEncoder(w).Encode(updatedCategory)
+//}
 
 func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
@@ -121,77 +121,6 @@ func (h *CategoryHandler) GetAllCategories(w http.ResponseWriter, r *http.Reques
 		return
 	}
 }
-
-//func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
-//	err := r.ParseMultipartForm(10 << 20)
-//	if err != nil {
-//		http.Error(w, "could not parse form", http.StatusBadRequest)
-//		return
-//	}
-//
-//	name := r.FormValue("name")
-//	if name == "" {
-//		http.Error(w, "name is required", http.StatusBadRequest)
-//		return
-//	}
-//
-//	subcategoryIDsStr := r.Form["subcategory_ids"]
-//	subcategoryIDs := []int{}
-//	for _, idStr := range subcategoryIDsStr {
-//		id, err := strconv.Atoi(idStr)
-//		if err == nil {
-//			subcategoryIDs = append(subcategoryIDs, id)
-//		}
-//	}
-//
-//	// default min_price to 0
-//	category := models.Category{
-//		Name:      name,
-//		MinPrice:  0,
-//		CreatedAt: time.Now(),
-//		UpdatedAt: time.Now(),
-//	}
-//
-//	// handle image
-//	file, header, err := r.FormFile("image")
-//	if err == nil {
-//		defer file.Close()
-//
-//		uploadDir := "cmd/uploads/categories"
-//		os.MkdirAll(uploadDir, 0755)
-//
-//		safeFileName := fmt.Sprintf("category_image_%d%s", time.Now().UnixNano(), filepath.Ext(header.Filename))
-//		relativePath := filepath.Join("categories", safeFileName)
-//		fullPath := filepath.Join("uploads", relativePath)
-//
-//		tmpFile, err := os.Create(fullPath)
-//		if err != nil {
-//			http.Error(w, "cannot save file", http.StatusInternalServerError)
-//			return
-//		}
-//		defer tmpFile.Close()
-//
-//		_, err = io.Copy(tmpFile, file)
-//		if err != nil {
-//			http.Error(w, "copy failed", http.StatusInternalServerError)
-//			return
-//		}
-//
-//		// сохранение относительного пути, который будет доступен через "/static/..."
-//		category.ImagePath = "/static/" + relativePath
-//
-//	}
-//
-//	createdCategory, err := h.Service.CreateCategory(r.Context(), category)
-//	if err != nil {
-//		http.Error(w, err.Error(), http.StatusInternalServerError)
-//		return
-//	}
-//
-//	w.WriteHeader(http.StatusCreated)
-//	w.Header().Set("Content-Type", "application/json")
-//	json.NewEncoder(w).Encode(createdCategory)
-//}
 
 func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(10 << 20) // 10 MB
@@ -286,4 +215,78 @@ func (h *CategoryHandler) ServeImage(w http.ResponseWriter, r *http.Request) {
 
 	// Отправка файла
 	http.ServeFile(w, r, imagePath)
+}
+
+func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseMultipartForm(10 << 20) // 10 MB
+	if err != nil {
+		http.Error(w, "failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	idStr := r.URL.Query().Get(":id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "invalid category id", http.StatusBadRequest)
+		return
+	}
+
+	name := r.FormValue("name")
+
+	// Получаем текущую категорию из БД
+	category, err := h.Service.GetCategoryByID(r.Context(), id)
+	if err != nil {
+		http.Error(w, "category not found", http.StatusNotFound)
+		return
+	}
+
+	// Обновляем название, если указано
+	if name != "" {
+		category.Name = name
+	}
+
+	// Проверка, передан ли файл
+	file, fileHeader, err := r.FormFile("image")
+	if err == nil {
+		defer file.Close()
+
+		// Создаём директорию, если нет
+		uploadDir := "cmd/uploads/categories"
+		if err := os.MkdirAll(uploadDir, 0755); err != nil {
+			http.Error(w, "cannot create directory", http.StatusInternalServerError)
+			return
+		}
+
+		// Генерация уникального имени
+		ext := filepath.Ext(fileHeader.Filename)
+		fileName := fmt.Sprintf("category_image_%d%s", id, ext)
+		imagePath := filepath.Join(uploadDir, fileName)
+
+		dst, err := os.Create(imagePath)
+		if err != nil {
+			http.Error(w, "failed to save image", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+
+		_, err = io.Copy(dst, file)
+		if err != nil {
+			http.Error(w, "failed to write image", http.StatusInternalServerError)
+			return
+		}
+
+		// Сохраняем ссылку
+		category.ImagePath = fmt.Sprintf("/images/categories/%s", fileName)
+	}
+
+	category.UpdatedAt = time.Now()
+
+	// Обновляем в БД
+	if err := h.Service.UpdateCategory; err != nil {
+		http.Error(w, "failed to update category", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(category)
 }
