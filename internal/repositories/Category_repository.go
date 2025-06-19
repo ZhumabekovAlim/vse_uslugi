@@ -55,33 +55,51 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category models
 func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int) (models.Category, error) {
 	var category models.Category
 
-	// 1. Получаем саму категорию
-	query := `SELECT id, name, image_path, min_price, created_at, updated_at FROM categories WHERE id = ?`
-	err := r.DB.QueryRowContext(ctx, query).Scan(
-		&category.ID, &category.Name, &category.ImagePath, &category.MinPrice, &category.CreatedAt, &category.UpdatedAt,
+	// 1. Получаем основную категорию
+	query := `
+		SELECT id, name, image_path, min_price, created_at, updated_at
+		FROM categories
+		WHERE id = ?
+	`
+	err := r.DB.QueryRowContext(ctx, query, id).Scan(
+		&category.ID,
+		&category.Name,
+		&category.ImagePath,
+		&category.MinPrice,
+		&category.CreatedAt,
+		&category.UpdatedAt,
 	)
 	if err != nil {
-		return category, err
+		if err == sql.ErrNoRows {
+			return models.Category{}, nil // not found
+		}
+		return models.Category{}, err
 	}
 
 	// 2. Получаем связанные подкатегории
 	subQuery := `
-		SELECT id, category_id, name, created_at, updated_at
-		FROM subcategories
-		WHERE category_id = ?
+		SELECT s.id, s.category_id, s.name, s.created_at, s.updated_at
+		FROM subcategories s
+		INNER JOIN category_subcategory cs ON cs.subcategory_id = s.id
+		WHERE cs.category_id = ?
 	`
-	rows, err := r.DB.QueryContext(ctx, subQuery, category.ID)
+
+	rows, err := r.DB.QueryContext(ctx, subQuery, id)
 	if err != nil {
-		return category, err
+		return models.Category{}, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var sub models.Subcategory
-		if err := rows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
-			return category, err
+		err := rows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt)
+		if err != nil {
+			return models.Category{}, err
 		}
 		category.Subcategories = append(category.Subcategories, sub)
+	}
+	if err = rows.Err(); err != nil {
+		return models.Category{}, err
 	}
 
 	return category, nil
