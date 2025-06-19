@@ -69,6 +69,12 @@ func (h *CategoryHandler) GetCategoryByID(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		return
+	}
+
 	category, err := h.Service.GetCategoryByID(r.Context(), id)
 	if err != nil {
 		http.Error(w, "failed to get category", http.StatusInternalServerError)
