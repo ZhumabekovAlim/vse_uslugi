@@ -218,7 +218,8 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 		os.MkdirAll(uploadDir, 0755)
 
 		safeFileName := fmt.Sprintf("category_image_%d%s", time.Now().UnixNano(), filepath.Ext(header.Filename))
-		fullPath := filepath.Join(uploadDir, safeFileName)
+		relativePath := filepath.Join("categories", safeFileName)
+		fullPath := filepath.Join("uploads", relativePath)
 
 		tmpFile, err := os.Create(fullPath)
 		if err != nil {
@@ -233,7 +234,9 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		category.ImagePath = "/" + fullPath
+		// сохранение относительного пути, который будет доступен через "/static/..."
+		category.ImagePath = "/static/" + relativePath
+
 	}
 
 	createdCategory, err := h.Service.CreateCategory(r.Context(), category)

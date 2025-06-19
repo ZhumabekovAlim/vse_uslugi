@@ -44,6 +44,9 @@ func main() {
 	app.wsManager = NewWebSocketManager()
 	go app.wsManager.Run(db)
 
+	fs := http.FileServer(http.Dir("./uploads"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001", "http://localhost:5173", "http://localhost:5174"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
