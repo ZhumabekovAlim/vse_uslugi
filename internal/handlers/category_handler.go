@@ -3,37 +3,40 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"net/http"
-	"strconv"
-	"time"
-
+	"fmt"
+	"io"
 	"naimuBack/internal/models"
 	"naimuBack/internal/services"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"time"
 )
 
 type CategoryHandler struct {
 	Service *services.CategoryService
 }
 
-func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
-	var category models.Category
-	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	category.CreatedAt = time.Now()
-	category.UpdatedAt = time.Now()
-
-	createdCategory, err := h.Service.CreateCategory(r.Context(), category)
-	if err != nil {
-		http.Error(w, "Failed to create category", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(createdCategory)
-}
+//func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
+//	var category models.Category
+//	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
+//		http.Error(w, "Invalid request body", http.StatusBadRequest)
+//		return
+//	}
+//
+//	category.CreatedAt = time.Now()
+//	category.UpdatedAt = time.Now()
+//
+//	createdCategory, err := h.Service.CreateCategory(r.Context(), category)
+//	if err != nil {
+//		http.Error(w, "Failed to create category", http.StatusInternalServerError)
+//		return
+//	}
+//
+//	w.Header().Set("Content-Type", "application/json")
+//	json.NewEncoder(w).Encode(createdCategory)
+//}
 
 func (h *CategoryHandler) GetCategoryByID(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
@@ -135,4 +138,63 @@ func (h *CategoryHandler) GetAllCategories(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseMultipartForm(10 << 20) // 10MB
+	if err != nil {
+		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+		return
+	}
+
+	name := r.FormValue("name")
+	if name == "" {
+		http.Error(w, "Name is required", http.StatusBadRequest)
+		return
+	}
+
+	// Сохраняем изображение
+	file, fileHeader, err := r.FormFile("image")
+	if err != nil {
+		http.Error(w, "Image is required", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	uploadDir := "uploads"
+	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+		os.Mkdir(uploadDir, os.ModePerm)
+	}
+
+	filename := fmt.Sprintf("%d_%s", time.Now().Unix(), fileHeader.Filename)
+	filePath := filepath.Join(uploadDir, filename)
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		http.Error(w, "Failed to save image", http.StatusInternalServerError)
+		return
+	}
+	defer out.Close()
+
+	if _, err = io.Copy(out, file); err != nil {
+		http.Error(w, "Failed to write image file", http.StatusInternalServerError)
+		return
+	}
+
+	// Создание категории
+	category := models.Category{
+		Name:      name,
+		ImagePath: filePath,
+		MinPrice:  0, // по умолчанию
+	}
+
+	createdCategory, err := h.Service.CreateCategory(r.Context(), category)
+	if err != nil {
+		http.Error(w, "Failed to create category", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(createdCategory)
 }

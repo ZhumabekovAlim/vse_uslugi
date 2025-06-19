@@ -97,76 +97,6 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(createdService)
 }
 
-//func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
-//	err := r.ParseMultipartForm(32 << 20) // 32 MB
-//	if err != nil {
-//		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
-//		return
-//	}
-//
-//	var service models.Service
-//	service.Name = r.FormValue("name")
-//	service.Address = r.FormValue("address")
-//	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
-//	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
-//	service.Description = r.FormValue("description")
-//	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
-//	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
-//	service.CreatedAt = time.Now()
-//
-//	files := r.MultipartForm.File["images"]
-//	var imagePaths []string
-//
-//	uploadDir := "./uploads"
-//	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
-//		err = os.MkdirAll(uploadDir, os.ModePerm)
-//		if err != nil {
-//			http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
-//			return
-//		}
-//	}
-//
-//	for _, fileHeader := range files {
-//		file, err := fileHeader.Open()
-//		if err != nil {
-//			http.Error(w, "Failed to open uploaded file", http.StatusInternalServerError)
-//			return
-//		}
-//		defer file.Close()
-//
-//		// Генерируем уникальное имя файла
-//		filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
-//		filePath := filepath.Join(uploadDir, filename)
-//
-//		dst, err := os.Create(filePath)
-//		if err != nil {
-//			http.Error(w, "Cannot save file", http.StatusInternalServerError)
-//			return
-//		}
-//		defer dst.Close()
-//
-//		if _, err := io.Copy(dst, file); err != nil {
-//			http.Error(w, "Failed to save uploaded file", http.StatusInternalServerError)
-//			return
-//		}
-//
-//		imagePaths = append(imagePaths, "/uploads/"+filename) // путь для фронта
-//	}
-//
-//	service.Images = imagePaths
-//
-//	created, err := h.Service.CreateService(r.Context(), service)
-//	if err != nil {
-//		log.Printf("Failed to create service error: %v", err)
-//		http.Error(w, "Failed to create service", http.StatusInternalServerError)
-//		return
-//	}
-//
-//	w.Header().Set("Content-Type", "application/json")
-//	w.WriteHeader(http.StatusCreated)
-//	json.NewEncoder(w).Encode(created)
-//}
-
 func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
@@ -275,41 +205,6 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedService)
 }
-
-//func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
-//	idStr := r.URL.Query().Get(":id")
-//	if idStr == "" {
-//		http.Error(w, "Missing service ID", http.StatusBadRequest)
-//		return
-//	}
-//
-//	id, err := strconv.Atoi(idStr)
-//	if err != nil {
-//		http.Error(w, "Invalid service ID", http.StatusBadRequest)
-//		return
-//	}
-//
-//	var service models.Service
-//	if err := json.NewDecoder(r.Body).Decode(&service); err != nil {
-//		http.Error(w, "Invalid request body", http.StatusBadRequest)
-//		return
-//	}
-//	service.ID = id
-//
-//	updatedService, err := h.Service.UpdateService(r.Context(), service)
-//	if err != nil {
-//		if errors.Is(err, repositories.ErrServiceNotFound) {
-//			http.Error(w, err.Error(), http.StatusNotFound)
-//			return
-//		}
-//		http.Error(w, err.Error(), http.StatusInternalServerError)
-//		return
-//	}
-//
-//	w.Header().Set("Content-Type", "application/json")
-//	w.WriteHeader(http.StatusOK)
-//	json.NewEncoder(w).Encode(updatedService)
-//}
 
 func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
