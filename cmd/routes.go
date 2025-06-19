@@ -60,7 +60,7 @@ func (app *application) routes() http.Handler {
 	fs := http.StripPrefix("/static/categories/", http.FileServer(http.Dir("./cmd/uploads/categories")))
 	mux.Get("/static/categories/", fs)
 	mux.Get("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
-	mux.Get("/images/categories/{image}", standardMiddleware.ThenFunc(app.categoryHandler.ServeImage))
+	mux.Get("/images/categories/:filename", standardMiddleware.ThenFunc(app.categoryHandler.ServeImage))
 
 	// Reviews
 	mux.Post("/review", authMiddleware.ThenFunc(app.reviewsHandler.CreateReview))                     //РАБОТАЕТ
