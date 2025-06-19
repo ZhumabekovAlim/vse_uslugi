@@ -142,31 +142,30 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category models
 		}
 	}()
 
-	// Обновляем имя и путь к изображению, без min_price и subcategories
+	// Обновляем имя и путь к изображению
 	query := `
 		UPDATE categories
-		SET name = $1, image_path = $2, updated_at = NOW()
-		WHERE id = $3
+		SET name = ?, image_path = ?, updated_at = ?
+		WHERE id = ?
 	`
-	_, err = tx.ExecContext(ctx, query, category.Name, category.ImagePath, category.ID)
+	_, err = tx.ExecContext(ctx, query, category.Name, category.ImagePath, time.Now(), category.ID)
 	if err != nil {
 		tx.Rollback()
 		return models.Category{}, err
 	}
 
-	// Получаем обратно обновлённые данные из БД
-	getQuery := `
-		SELECT id, name, image_path, min_price, created_at, updated_at
+	// Получаем обратно обновлённые данные
+	row := tx.QueryRowContext(ctx, `
+		SELECT id, name, image_path, created_at, updated_at
 		FROM categories
-		WHERE id = $1
-	`
-	row := tx.QueryRowContext(ctx, getQuery, category.ID)
+		WHERE id = ?
+	`, category.ID)
+
 	var updated models.Category
 	err = row.Scan(
 		&updated.ID,
 		&updated.Name,
 		&updated.ImagePath,
-		&updated.MinPrice,
 		&updated.CreatedAt,
 		&updated.UpdatedAt,
 	)
@@ -175,12 +174,17 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category models
 		return models.Category{}, err
 	}
 
-	// Подгружаем подкатегории
-	subRows, err := tx.QueryContext(ctx, `
+	// Подтягиваем min_price
+	priceQuery := `SELECT MIN(price) FROM service WHERE category_id = ?`
+	_ = tx.QueryRowContext(ctx, priceQuery, updated.ID).Scan(&updated.MinPrice)
+
+	// Подтягиваем subcategories
+	subQuery := `
 		SELECT id, category_id, name, created_at, updated_at
 		FROM subcategories
-		WHERE category_id = $1
-	`, category.ID)
+		WHERE category_id = ?
+	`
+	subRows, err := tx.QueryContext(ctx, subQuery, updated.ID)
 	if err != nil {
 		tx.Rollback()
 		return models.Category{}, err
