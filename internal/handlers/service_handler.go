@@ -539,6 +539,7 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.Top = r.FormValue("top")
 	service.Liked = r.FormValue("liked") == "true"
+	service.Status = r.FormValue("status")
 	now := time.Now()
 	service.UpdatedAt = &now
 
