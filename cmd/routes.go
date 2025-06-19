@@ -1,7 +1,9 @@
 package main
 
 import (
+	"mime"
 	"net/http"
+	"path/filepath"
 
 	"github.com/bmizerany/pat"
 	"github.com/justinas/alice"
@@ -58,7 +60,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/category/:id", authMiddleware.ThenFunc(app.categoryHandler.GetCategoryByID))
 	mux.Put("/category/:id", authMiddleware.ThenFunc(app.categoryHandler.UpdateCategory))
 	mux.Del("/category/:id", authMiddleware.ThenFunc(app.categoryHandler.DeleteCategory))
-	mux.Get("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
+	mux.Get("/uploads/", standardMiddleware.Then(fileServerWithContentType("uploads")))
 
 	// Reviews
 	mux.Post("/review", authMiddleware.ThenFunc(app.reviewsHandler.CreateReview))                     //РАБОТАЕТ
@@ -102,4 +104,18 @@ func (app *application) routes() http.Handler {
 	mux.Get("/api/users/messages", authMiddleware.ThenFunc(app.messageHandler.GetMessagesByUserIDs))
 
 	return standardMiddleware.Then(mux)
+}
+func fileServerWithContentType(root string) http.Handler {
+	fs := http.FileServer(http.Dir(root))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join(root, r.URL.Path[len("/uploads/"):]) // убираем префикс вручную
+		ext := filepath.Ext(path)
+		mimeType := mime.TypeByExtension(ext)
+		if mimeType != "" {
+			w.Header().Set("Content-Type", mimeType)
+		} else {
+			w.Header().Set("Content-Type", "application/octet-stream")
+		}
+		fs.ServeHTTP(w, r)
+	})
 }
