@@ -399,21 +399,20 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 	return services, nil
 }
 
-func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, userID int, req models.FilterServicesRequest) ([]models.FilteredService, error) {
+func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
 	query := `
 		SELECT 
 			u.id, u.name, u.review_rating,
 			s.id, s.name, s.price, s.description,
-			CASE WHEN sf.service_id IS NOT NULL THEN true ELSE false END AS liked
+			CASE WHEN sf.id IS NOT NULL THEN TRUE ELSE FALSE END as liked
 		FROM service s
 		JOIN users u ON s.user_id = u.id
 		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
 		WHERE s.price BETWEEN ? AND ?
 	`
+	args := []interface{}{req.UserID, req.PriceFrom, req.PriceTo}
 
-	args := []interface{}{userID, req.PriceFrom, req.PriceTo}
-
-	// Category
+	// Фильтрация по категориям
 	if len(req.CategoryIDs) > 0 {
 		placeholders := strings.Repeat("?,", len(req.CategoryIDs))
 		placeholders = placeholders[:len(placeholders)-1]
@@ -423,7 +422,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, us
 		}
 	}
 
-	// Subcategory
+	// Фильтрация по подкатегориям
 	if len(req.SubcategoryIDs) > 0 {
 		placeholders := strings.Repeat("?,", len(req.SubcategoryIDs))
 		placeholders = placeholders[:len(placeholders)-1]
@@ -433,14 +432,14 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, us
 		}
 	}
 
-	// Ratings
+	// Фильтрация по рейтингу
 	if len(req.AvgRatings) > 0 {
 		sort.Ints(req.AvgRatings)
 		query += " AND s.avg_rating >= ?"
 		args = append(args, float64(req.AvgRatings[0]))
 	}
 
-	// Sorting
+	// Сортировка
 	switch req.Sorting {
 	case 1:
 		query += " ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC"
@@ -463,7 +462,8 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, us
 		var s models.FilteredService
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
+			&s.Liked,
 		); err != nil {
 			return nil, err
 		}
