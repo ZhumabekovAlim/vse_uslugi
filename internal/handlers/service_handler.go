@@ -601,28 +601,36 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServiceHandler) GetFilteredServicesWithLikes(w http.ResponseWriter, r *http.Request) {
-	var req models.FilterServicesRequest
-	userIDStr := r.URL.Query().Get(":user_id")
-	_, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
-		return
+	// Чтение query-параметров
+	categories := parseIntArray(r.URL.Query().Get("categories"))
+	subcategories := parseStringArray(r.URL.Query().Get("subcategories"))
+	ratings := parseFloatArray(r.URL.Query().Get("ratings"))
+
+	priceFrom, _ := strconv.ParseFloat(r.URL.Query().Get("price_from"), 64)
+	priceTo, _ := strconv.ParseFloat(r.URL.Query().Get("price_to"), 64)
+	sortOption, _ := strconv.Atoi(r.URL.Query().Get("sort"))
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	// Сборка запроса
+	filter := models.ServiceFilterRequest{
+		Categories:    categories,
+		Subcategories: subcategories,
+		PriceFrom:     priceFrom,
+		PriceTo:       priceTo,
+		Ratings:       ratings,
+		SortOption:    sortOption,
+		Page:          page,
+		Limit:         limit,
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-	services, err := h.Service.GetFilteredServicesWithLikes(r.Context(), req)
+
+	result, err := h.Service.GetFilteredServicesWithLikes(r.Context(), filter, 0)
 	if err != nil {
-		log.Printf("GetFilteredServicesWithLikes error: %v", err)
+		log.Printf("GetServices error: %v", err)
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
 		return
 	}
 
-	resp := map[string]interface{}{
-		"services": services,
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	json.NewEncoder(w).Encode(result)
 }

@@ -399,72 +399,113 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 	return services, nil
 }
 
-func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
-	query := `
-		SELECT 
-			u.id, u.name, u.review_rating,
-			s.id, s.name, s.price, s.description,
-			CASE WHEN sf.service_id IS NOT NULL THEN TRUE ELSE FALSE END AS liked
+func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Service, float64, float64, error) {
+	var (
+		services   []models.Service
+		params     []interface{}
+		conditions []string
+	)
+
+	baseQuery := `
+		SELECT s.id, s.name, s.description, s.price, u.id, u.name, u.review_rating, CASE WHEN sf.service_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked
 		FROM service s
-		JOIN users u ON s.user_id = u.id
 		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
-		WHERE s.price BETWEEN ? AND ?
+		JOIN users u ON s.user_id = u.id
+		INNER JOIN categories c ON s.category_id = c.id
+		
 	`
-	args := []interface{}{req.UserID, req.PriceFrom, req.PriceTo}
+	params = append(params, userID)
 
-	if len(req.CategoryIDs) > 0 {
-		placeholders := strings.Repeat("?,", len(req.CategoryIDs))
-		placeholders = placeholders[:len(placeholders)-1]
-		query += fmt.Sprintf(" AND s.category_id IN (%s)", placeholders)
-		for _, id := range req.CategoryIDs {
-			args = append(args, id)
+	// Filters
+	if len(categories) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(categories)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.category_id IN (%s)", placeholders))
+		for _, cat := range categories {
+			params = append(params, cat)
 		}
 	}
 
-	if len(req.SubcategoryIDs) > 0 {
-		placeholders := strings.Repeat("?,", len(req.SubcategoryIDs))
-		placeholders = placeholders[:len(placeholders)-1]
-		query += fmt.Sprintf(" AND s.subcategory_id IN (%s)", placeholders)
-		for _, id := range req.SubcategoryIDs {
-			args = append(args, id)
+	if len(subcategories) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(subcategories)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.subcategory_id IN (%s)", placeholders))
+		for _, sub := range subcategories {
+			params = append(params, sub)
 		}
 	}
 
-	if len(req.AvgRatings) > 0 {
-		sort.Ints(req.AvgRatings)
-		query += " AND s.avg_rating >= ?"
-		args = append(args, float64(req.AvgRatings[0]))
+	if priceFrom > 0 {
+		conditions = append(conditions, "s.price >= ?")
+		params = append(params, priceFrom)
+	}
+	if priceTo > 0 {
+		conditions = append(conditions, "s.price <= ?")
+		params = append(params, priceTo)
 	}
 
-	switch req.Sorting {
+	if len(ratings) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ratings)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.avg_rating IN (%s)", placeholders))
+		for _, r := range ratings {
+			params = append(params, r)
+		}
+	}
+
+	// Final WHERE clause
+	if len(conditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	// Sorting
+	switch sortOption {
 	case 1:
-		query += " ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC"
+		baseQuery += ` ORDER BY ( SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC `
+
 	case 2:
-		query += " ORDER BY s.price DESC"
+		baseQuery += ` ORDER BY s.price ASC`
 	case 3:
-		query += " ORDER BY s.price ASC"
+		baseQuery += ` ORDER BY s.price DESC`
 	default:
-		query += " ORDER BY s.created_at DESC"
+		baseQuery += ` ORDER BY s.created_at DESC`
 	}
 
-	rows, err := r.DB.QueryContext(ctx, query, args...)
+	// Pagination
+	baseQuery += " LIMIT ? OFFSET ?"
+	params = append(params, limit, offset)
+
+	// Query
+	rows, err := r.DB.QueryContext(ctx, baseQuery, params...)
 	if err != nil {
-		return nil, err
+		return nil, 0, 0, err
 	}
 	defer rows.Close()
 
-	var services []models.FilteredService
 	for rows.Next() {
-		var s models.FilteredService
-		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
-			&s.Liked, // ← теперь сработает, потому что мы возвращаем bool, а не строку
-		); err != nil {
-			return nil, err
+		var s models.Service
+		var imagesJSON []byte
+		err := rows.Scan(
+			&s.ID, &s.Name, &s.Description, &s.Price, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
+			&s.Liked,
+		)
+		if err != nil {
+			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
+		}
+
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
+		}
+
+		if err != nil {
+			return nil, 0, 0, err
 		}
 		services = append(services, s)
 	}
 
-	return services, nil
+	// Get min/max prices
+	var minPrice, maxPrice float64
+	err = r.DB.QueryRowContext(ctx, `SELECT MIN(price), MAX(price) FROM service`).Scan(&minPrice, &maxPrice)
+	if err != nil {
+		return services, 0, 0, nil // fallback
+	}
+
+	return services, minPrice, maxPrice, nil
 }
