@@ -404,7 +404,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		SELECT 
 			u.id, u.name, u.review_rating,
 			s.id, s.name, s.price, s.description,
-			CASE WHEN sf.id IS NOT NULL THEN TRUE ELSE FALSE END as liked
+			CASE WHEN sf.service_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked
 		FROM service s
 		JOIN users u ON s.user_id = u.id
 		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
