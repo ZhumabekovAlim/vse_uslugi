@@ -88,4 +88,5 @@ type FilteredService struct {
 	ServiceName        string  `json:"service_name"`
 	ServicePrice       float64 `json:"service_price"`
 	ServiceDescription string  `json:"service_description"`
+	Liked              bool    `json:"liked,omitempty"`
 }

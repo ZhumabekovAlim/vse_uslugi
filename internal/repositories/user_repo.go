@@ -302,47 +302,15 @@ func (r *UserRepository) SetSession(ctx context.Context, id string, session mode
 	return nil
 }
 
-//func (r *UserRepository) GetSession(ctx context.Context, id string) (models.Session, error) {
-//	query := `
-//		SELECT refresh_token, expires_at, name, surname, middlename, phone, city_id
-//		FROM users
-//		WHERE id = ?
-//	`
-//
-//	var session models.Session
-//	err := r.DB.QueryRowContext(ctx, query, id).Scan(&session.RefreshToken, &session.ExpiresAt)
-//	if err != nil {
-//		if err == sql.ErrNoRows {
-//			return session, errors.New("no session found for the user")
-//		}
-//		return session, err
-//	}
-//
-//	return session, nil
-//}
-
 func (r *UserRepository) GetSession(ctx context.Context, id string) (models.Session, error) {
 	query := `
-		SELECT 
-			u.refresh_token, u.expires_at,
-			u.name, u.surname, u.middlename, u.phone, u.city_id,
-			c.name as city_name
-		FROM users u
-		LEFT JOIN cities c ON u.city_id = c.id
-		WHERE u.id = ?
+		SELECT refresh_token, expires_at, name, surname, middlename, phone, city_id
+		FROM users
+		WHERE id = ?
 	`
 
 	var session models.Session
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&session.RefreshToken,
-		&session.ExpiresAt,
-		&session.Name,
-		&session.Surname,
-		&session.Middlename,
-		&session.Phone,
-		&session.CityID,
-		&session.City,
-	)
+	err := r.DB.QueryRowContext(ctx, query, id).Scan(&session.RefreshToken, &session.ExpiresAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return session, errors.New("no session found for the user")
@@ -353,23 +321,37 @@ func (r *UserRepository) GetSession(ctx context.Context, id string) (models.Sess
 	return session, nil
 }
 
-func (r *UserRepository) UserLogOut(ctx context.Context, userID int) error {
-
-	query := "UPDATE users SET refresh_token = ? WHERE id = ? "
-	rows, err := r.DB.QueryContext(ctx, query, "", userID)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	return nil
-}
-
-func (r *UserRepository) UpdatePassword(ctx context.Context, userID int, newPassword string) error {
-	query := `UPDATE users SET password = ? WHERE id = ?`
-	_, err := r.DB.ExecContext(ctx, query, newPassword, userID)
-	return err
-}
+//func (r *UserRepository) GetSession(ctx context.Context, id string) (models.Session, error) {
+//	query := `
+//		SELECT
+//			u.refresh_token, u.expires_at,
+//			u.name, u.surname, u.middlename, u.phone, u.city_id,
+//			c.name as city_name
+//		FROM users u
+//		LEFT JOIN cities c ON u.city_id = c.id
+//		WHERE u.id = ?
+//	`
+//
+//	var session models.Session
+//	err := r.DB.QueryRowContext(ctx, query, id).Scan(
+//		&session.RefreshToken,
+//		&session.ExpiresAt,
+//		&session.Name,
+//		&session.Surname,
+//		&session.Middlename,
+//		&session.Phone,
+//		&session.CityID,
+//		&session.City,
+//	)
+//	if err != nil {
+//		if err == sql.ErrNoRows {
+//			return session, errors.New("no session found for the user")
+//		}
+//		return session, err
+//	}
+//
+//	return session, nil
+//}
 
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (models.User, error) {
 	var user models.User
@@ -390,6 +372,24 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (mode
 		return models.User{}, err
 	}
 	return user, nil
+}
+
+func (r *UserRepository) UserLogOut(ctx context.Context, userID int) error {
+
+	query := "UPDATE users SET refresh_token = ? WHERE id = ? "
+	rows, err := r.DB.QueryContext(ctx, query, "", userID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	return nil
+}
+
+func (r *UserRepository) UpdatePassword(ctx context.Context, userID int, newPassword string) error {
+	query := `UPDATE users SET password = ? WHERE id = ?`
+	_, err := r.DB.ExecContext(ctx, query, newPassword, userID)
+	return err
 }
 
 func (r *UserRepository) GetUserByPhone1(ctx context.Context, phone string) (models.User, error) {

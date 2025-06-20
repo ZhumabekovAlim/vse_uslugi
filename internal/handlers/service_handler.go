@@ -599,3 +599,32 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedService)
 }
+
+func (h *ServiceHandler) GetFilteredServicesWithLikes(w http.ResponseWriter, r *http.Request) {
+	userIDStr := r.URL.Query().Get(":user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	var req models.FilterServicesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	services, err := h.Service.GetFilteredServicesWithLikes(r.Context(), userID, req)
+	if err != nil {
+		log.Printf("GetFilteredServicesWithLikes error: %v", err)
+		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
+		return
+	}
+
+	resp := map[string]interface{}{
+		"services": services,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
