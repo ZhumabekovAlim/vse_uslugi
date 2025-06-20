@@ -601,28 +601,29 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServiceHandler) GetFilteredServicesWithLikes(w http.ResponseWriter, r *http.Request) {
+	userStr := r.URL.Query().Get(":user_id")
+	userID, err := strconv.Atoi(userStr)
+	if err != nil {
+		http.Error(w, "Invalid sort option", http.StatusBadRequest)
+		return
+	}
 	var req models.FilterServicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	userIDStr := r.URL.Query().Get(":user_id")
-	userID, err := strconv.Atoi(userIDStr)
+	services, err := h.Service.GetFilteredServicesWithLikes(r.Context(), userID, req)
 	if err != nil {
-		http.Error(w, "Invalid user_id", http.StatusBadRequest)
-		return
-	}
-	req.UserID = userID
-
-	services, err := h.Service.GetFilteredServicesPost(r.Context(), req)
-	if err != nil {
+		log.Printf("GetServicesPost error: %v", err)
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	resp := map[string]interface{}{
 		"services": services,
-	})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
