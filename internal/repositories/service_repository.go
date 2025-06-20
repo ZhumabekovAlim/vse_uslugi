@@ -401,15 +401,15 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 
 func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, userID int, req models.FilterServicesRequest) ([]models.FilteredService, error) {
 	query := `
-	SELECT 
-		u.id, u.name, u.review_rating,
-		s.id, s.name, s.price, s.description,
-		CASE WHEN l.user_id IS NULL THEN false ELSE true END as liked
-	FROM service s
-	JOIN users u ON s.user_id = u.id
-	LEFT JOIN service_favorites l ON l.service_id = s.id AND l.user_id = ?
-	WHERE s.price BETWEEN ? AND ?
-`
+		SELECT 
+			u.id, u.name, u.review_rating,
+			s.id, s.name, s.price, s.description,
+			CASE WHEN sf.service_id IS NOT NULL THEN true ELSE false END AS liked
+		FROM service s
+		JOIN users u ON s.user_id = u.id
+		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+		WHERE s.price BETWEEN ? AND ?
+	`
 	args := []interface{}{req.UserID, req.PriceFrom, req.PriceTo}
 
 	if len(req.CategoryIDs) > 0 {
