@@ -409,7 +409,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, us
 		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
 		WHERE s.price BETWEEN ? AND ?
 	`
-	args := []interface{}{req.PriceFrom, req.PriceTo}
+	args := []interface{}{userID, req.PriceFrom, req.PriceTo}
 
 	// Category
 	if len(req.CategoryIDs) > 0 {
