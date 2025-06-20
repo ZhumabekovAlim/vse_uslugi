@@ -41,6 +41,15 @@ type Tokens struct {
 type Session struct {
 	RefreshToken string    `json:"refreshToken" bson:"refreshToken"`
 	ExpiresAt    time.Time `json:"expiresAt" bson:"expiresAt"`
+	// Из User
+	Name       string `json:"name"`
+	Surname    string `json:"surname"`
+	Middlename string `json:"middlename"`
+	Phone      string `json:"phone"`
+	CityID     int    `json:"city_id"`
+
+	// Из City
+	City string `json:"city"`
 }
 
 type SignInRequest struct {
