@@ -613,7 +613,7 @@ func (h *ServiceHandler) GetFilteredServicesWithLikes(w http.ResponseWriter, r *
 		return
 	}
 
-	services, err := h.Service.GetFilteredServicesPost(r.Context(), req)
+	services, err := h.Service.GetFilteredServicesWithLikes(r.Context(), req)
 	if err != nil {
 		log.Printf("GetFilteredServicesPost error: %v", err)
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
