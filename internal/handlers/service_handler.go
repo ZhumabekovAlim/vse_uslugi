@@ -601,21 +601,21 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServiceHandler) GetFilteredServicesWithLikes(w http.ResponseWriter, r *http.Request) {
-	userStr := r.URL.Query().Get(":user_id")
-	userID, err := strconv.Atoi(userStr)
+	var req models.FilterServicesRequest
+	userIDStr := r.URL.Query().Get(":user_id")
+	_, err := strconv.Atoi(userIDStr)
 	if err != nil {
-		http.Error(w, "Invalid sort option", http.StatusBadRequest)
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
-	var req models.FilterServicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	services, err := h.Service.GetFilteredServicesWithLikes(r.Context(), userID, req)
+	services, err := h.Service.GetFilteredServicesPost(r.Context(), req)
 	if err != nil {
-		log.Printf("GetServicesPost error: %v", err)
+		log.Printf("GetFilteredServicesPost error: %v", err)
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
 		return
 	}
