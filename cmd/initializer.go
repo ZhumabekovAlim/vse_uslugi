@@ -37,6 +37,8 @@ type application struct {
 	chatHandler         *handlers.ChatHandler
 	messageHandler      *handlers.MessageHandler
 	db                  *sql.DB
+	complaintHandler    *handlers.ComplaintHandler
+	complaintRepo       *repositories.ComplaintRepository
 
 	// authService *services/*/.AuthService
 }
@@ -50,6 +52,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	serviceFavoriteRepo := repositories.ServiceFavoriteRepository{DB: db}
 	subcategoryRepo := repositories.SubcategoryRepository{DB: db}
 	cityRepo := repositories.CityRepository{DB: db}
+	complaintRepo := repositories.ComplaintRepository{DB: db}
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
@@ -58,6 +61,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	serviceFavoritesService := &services.ServiceFavoriteService{ServiceFavoriteRepo: &serviceFavoriteRepo}
 	subcategoryService := services.SubcategoryService{SubcategoryRepo: &subcategoryRepo}
 	cityService := services.CityService{CityRepo: &cityRepo}
+	complaintService := services.ComplaintService{ComplaintRepo: &complaintRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -68,6 +72,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	serviceFavoriteHandler := &handlers.ServiceFavoriteHandler{Service: serviceFavoritesService}
 	subcategoryHandler := handlers.SubcategoryHandler{Service: &subcategoryService}
 	cityHandler := handlers.CityHandler{Service: &cityService}
+	complaintHandler := &handlers.ComplaintHandler{Service: &complaintService}
 
 	// Chat
 	wsManager := NewWebSocketManager()
@@ -95,6 +100,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		messageHandler:     messageHandler,
 		wsManager:          wsManager,
 		db:                 db,
+		complaintHandler:   complaintHandler,
 		//authService:    authService,
 	}
 }
