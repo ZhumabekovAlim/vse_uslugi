@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -21,6 +22,7 @@ func (h *ComplaintHandler) CreateComplaint(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if err := h.Service.CreateComplaint(r.Context(), c); err != nil {
+		log.Printf("CreateComplaint error: %v", err)
 		http.Error(w, "Failed to create complaint", http.StatusInternalServerError)
 		return
 	}
@@ -36,6 +38,7 @@ func (h *ComplaintHandler) GetComplaintsByServiceID(w http.ResponseWriter, r *ht
 	}
 	complaints, err := h.Service.GetComplaintsByServiceID(r.Context(), serviceID)
 	if err != nil {
+		log.Printf("GetComplaintByService error: %v", err)
 		http.Error(w, "Failed to get complaints", http.StatusInternalServerError)
 		return
 	}
@@ -51,6 +54,7 @@ func (h *ComplaintHandler) DeleteComplaintByID(w http.ResponseWriter, r *http.Re
 		return
 	}
 	if err := h.Service.DeleteComplaintByID(r.Context(), complaintID); err != nil {
+		log.Printf("DeleteComplaint error: %v", err)
 		http.Error(w, "Failed to delete complaint", http.StatusInternalServerError)
 		return
 	}
@@ -60,6 +64,7 @@ func (h *ComplaintHandler) DeleteComplaintByID(w http.ResponseWriter, r *http.Re
 func (h *ComplaintHandler) GetAllComplaints(w http.ResponseWriter, r *http.Request) {
 	complaints, err := h.Service.GetAllComplaints(r.Context())
 	if err != nil {
+		log.Printf("GetAllComplaints error: %v", err)
 		http.Error(w, "Failed to get complaints", http.StatusInternalServerError)
 		return
 	}
