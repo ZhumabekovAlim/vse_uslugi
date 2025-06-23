@@ -107,8 +107,8 @@ func (app *application) routes() http.Handler {
 
 	// Complaints
 	mux.Post("/complaints", authMiddleware.ThenFunc(app.complaintHandler.CreateComplaint))
-	mux.Get("/complaints/service/{service_id}", authMiddleware.ThenFunc(app.complaintHandler.GetComplaintsByServiceID))
-	mux.Del("/complaints/{id}", authMiddleware.ThenFunc(app.complaintHandler.DeleteComplaintByID))
+	mux.Get("/complaints/service/:service_id", authMiddleware.ThenFunc(app.complaintHandler.GetComplaintsByServiceID))
+	mux.Del("/complaints/:id", authMiddleware.ThenFunc(app.complaintHandler.DeleteComplaintByID))
 	mux.Get("/complaints", authMiddleware.ThenFunc(app.complaintHandler.GetAllComplaints))
 
 	return standardMiddleware.Then(mux)

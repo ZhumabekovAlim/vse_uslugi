@@ -18,8 +18,8 @@ func (s *ComplaintService) GetComplaintsByServiceID(ctx context.Context, service
 	return s.ComplaintRepo.GetComplaintsByServiceID(ctx, serviceID)
 }
 
-func (s *ComplaintService) DeleteComplaintByID(ctx context.Context, complaintID int) error {
-	return s.ComplaintRepo.DeleteComplaintByID(ctx, complaintID)
+func (s *ComplaintService) DeleteComplaintByID(ctx context.Context, id int) error {
+	return s.ComplaintRepo.DeleteComplaintByID(ctx, id)
 }
 
 func (s *ComplaintService) GetAllComplaints(ctx context.Context) ([]models.Complaint, error) {

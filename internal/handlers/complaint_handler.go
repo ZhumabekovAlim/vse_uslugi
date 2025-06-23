@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
 	"naimuBack/internal/models"
 	"naimuBack/internal/services"
 )
@@ -30,8 +29,7 @@ func (h *ComplaintHandler) CreateComplaint(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *ComplaintHandler) GetComplaintsByServiceID(w http.ResponseWriter, r *http.Request) {
-	serviceIDStr := mux.Vars(r)["service_id"]
-	serviceID, err := strconv.Atoi(serviceIDStr)
+	serviceID, err := strconv.Atoi(r.URL.Query().Get(":service_id"))
 	if err != nil {
 		http.Error(w, "Invalid service_id", http.StatusBadRequest)
 		return
@@ -47,13 +45,13 @@ func (h *ComplaintHandler) GetComplaintsByServiceID(w http.ResponseWriter, r *ht
 }
 
 func (h *ComplaintHandler) DeleteComplaintByID(w http.ResponseWriter, r *http.Request) {
-	complaintIDStr := mux.Vars(r)["id"]
-	complaintID, err := strconv.Atoi(complaintIDStr)
-	if err != nil {
+	idStr := r.URL.Query().Get(":id")
+	if idStr == "" {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.DeleteComplaintByID(r.Context(), complaintID); err != nil {
+	id, _ := strconv.Atoi(idStr)
+	if err := h.Service.DeleteComplaintByID(r.Context(), id); err != nil {
 		log.Printf("DeleteComplaint error: %v", err)
 		http.Error(w, "Failed to delete complaint", http.StatusInternalServerError)
 		return
