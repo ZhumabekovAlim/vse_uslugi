@@ -182,56 +182,6 @@ func (h *CategoryHandler) ServeImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, imagePath)
 }
 
-//func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
-//	ctx := r.Context()
-//	idStr := r.URL.Query().Get(":id")
-//	id, err := strconv.Atoi(idStr)
-//	if err != nil {
-//		http.Error(w, "invalid category id", http.StatusBadRequest)
-//		return
-//	}
-//
-//	err = r.ParseMultipartForm(10 << 20)
-//	if err != nil {
-//		http.Error(w, "cannot parse form", http.StatusBadRequest)
-//		return
-//	}
-//
-//	name := r.FormValue("name")
-//	file, header, err := r.FormFile("image")
-//	var imagePath string
-//	if err == nil {
-//		defer file.Close()
-//		ext := filepath.Ext(header.Filename)
-//		newFileName := fmt.Sprintf("category_image_%d%s", time.Now().UnixNano(), ext)
-//		savePath := filepath.Join("cmd", "uploads", newFileName)
-//		out, err := os.Create(savePath)
-//		if err != nil {
-//			http.Error(w, "cannot save image", http.StatusInternalServerError)
-//			return
-//		}
-//		defer out.Close()
-//		io.Copy(out, file)
-//		imagePath = "/images/categories/" + newFileName
-//	}
-//
-//	category := models.Category{
-//		ID:        id,
-//		Name:      name,
-//		ImagePath: imagePath,
-//	}
-//
-//	updated, err := h.Service.UpdateCategory(ctx, category)
-//	if err != nil {
-//		log.Printf("error updating category: %v", err)
-//		http.Error(w, "failed to update category", http.StatusInternalServerError)
-//		return
-//	}
-//
-//	w.Header().Set("Content-Type", "application/json")
-//	json.NewEncoder(w).Encode(updated)
-//}
-
 func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(10 << 20) // до 10 MB
 	if err != nil {

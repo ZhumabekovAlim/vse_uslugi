@@ -13,20 +13,6 @@ type CityHandler struct {
 	Service *services.CityService
 }
 
-//func (h *CityHandler) CreateCity(w http.ResponseWriter, r *http.Request) {
-//	var city models.City
-//	if err := json.NewDecoder(r.Body).Decode(&city); err != nil {
-//		http.Error(w, "Invalid body", http.StatusBadRequest)
-//		return
-//	}
-//	newCity, err := h.Service.CreateCity(r.Context(), city)
-//	if err != nil {
-//		http.Error(w, "Failed to create", http.StatusInternalServerError)
-//		return
-//	}
-//	json.NewEncoder(w).Encode(newCity)
-//}
-
 func (h *CityHandler) GetCities(w http.ResponseWriter, r *http.Request) {
 	cities, err := h.Service.GetCities(r.Context())
 	if err != nil {
