@@ -304,29 +304,13 @@ func (r *UserRepository) SetSession(ctx context.Context, id string, session mode
 
 func (r *UserRepository) GetSession(ctx context.Context, id string) (models.Session, error) {
 	query := `
-		SELECT 
-   			 u.refresh_token, 
-   			 u.expires_at,
-   			 u.name,
-   			 u.surname,
-   			 u.middlename,
-   			 u.phone,
-   			 u.city_id,
-   			 c.name AS city
-		FROM users u
-		LEFT JOIN cities c ON u.city_id = c.id
-		WHERE u.id = ?
+		SELECT refresh_token, expires_at
+		FROM users
+		WHERE id = ?
 	`
 
 	var session models.Session
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(&session.RefreshToken,
-		&session.ExpiresAt,
-		&session.Name,
-		&session.Surname,
-		&session.Middlename,
-		&session.Phone,
-		&session.CityID,
-		&session.City)
+	err := r.DB.QueryRowContext(ctx, query, id).Scan(&session.RefreshToken, &session.ExpiresAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return session, errors.New("no session found for the user")
