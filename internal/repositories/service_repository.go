@@ -61,9 +61,11 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 
 func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int) (models.Service, error) {
 	query := `
-		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id,s.description, s.avg_rating, s.top, s.liked, s.status, s.created_at, s.updated_at
+		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, c.name, s.subcategory_id, sub.name, s.description, s.avg_rating, s.top, s.liked, s.status, s.created_at, s.updated_at
 		FROM service s
 		JOIN users u ON s.user_id = u.id
+		JOIN categories c ON s.category_id = c.id
+		JOIN subcategories sub ON s.subcategory_id = sub.id
 		WHERE s.id = ?
 	`
 
@@ -71,7 +73,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int) (models.
 	var imagesJSON []byte
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
-		&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
+		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 

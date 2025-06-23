@@ -15,16 +15,18 @@ type Service struct {
 		Name         string  `json:"name"`
 		ReviewRating float64 `json:"review_rating"`
 	} `json:"user"`
-	Images        []Image    `json:"images"`
-	CategoryID    int        `json:"category_id, omitempty"`
-	SubcategoryID int        `json:"subcategory_id, omitempty"`
-	Description   string     `json:"description"`
-	AvgRating     float64    `json:"avg_rating"`
-	Top           string     `json:"top, omitempty"`
-	Liked         bool       `json:"liked, omitempty"`
-	Status        string     `json:"status, omitempty"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     *time.Time `json:"updated_at,omitempty"`
+	Images          []Image    `json:"images"`
+	CategoryID      int        `json:"category_id, omitempty"`
+	SubcategoryID   int        `json:"subcategory_id, omitempty"`
+	Description     string     `json:"description"`
+	AvgRating       float64    `json:"avg_rating"`
+	Top             string     `json:"top, omitempty"`
+	Liked           bool       `json:"liked, omitempty"`
+	Status          string     `json:"status, omitempty"`
+	CategoryName    string     `json:"category_name"`
+	SubcategoryName string     `json:"subcategory_name"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       *time.Time `json:"updated_at,omitempty"`
 }
 
 type Image struct {
