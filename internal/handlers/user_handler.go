@@ -9,7 +9,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"naimuBack/internal/models"
 	"naimuBack/internal/services"
@@ -378,57 +380,57 @@ func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(map[string]string{"message": "City updated successfully"})
 }
 
-func (h *UserHandler) UpdateToWorker(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
-		return
-	}
-
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
-		return
-	}
-
-	var user models.User
-	user.ID = id
-	user.Role = "worker"
-
-	if yearsStr := r.FormValue("years_of_exp"); yearsStr != "" {
-		if y, err := strconv.Atoi(yearsStr); err == nil {
-			user.YearsOfExp = &y
-		}
-	}
-
-	user.Skills = r.FormValue("skills") // ✅ Просто текст
-
-	categoryIDs := r.Form["category_ids"]
-	for _, c := range categoryIDs {
-		if cid, err := strconv.Atoi(c); err == nil {
-			user.Categories = append(user.Categories, models.Category{ID: cid})
-		}
-	}
-
-	// Загрузка файла
-	file, handler, err := r.FormFile("doc_of_proof")
-	if err == nil {
-		defer file.Close()
-		path := fmt.Sprintf("uploads/docs/%d_%s", id, handler.Filename)
-		dst, _ := os.Create(path)
-		defer dst.Close()
-		io.Copy(dst, file)
-		user.DocOfProof = &path
-	}
-
-	updated, err := h.Service.UpdateToWorker(r.Context(), user)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updated)
-}
+//func (h *UserHandler) UpdateToWorker(w http.ResponseWriter, r *http.Request) {
+//	idStr := r.URL.Query().Get(":id")
+//	id, err := strconv.Atoi(idStr)
+//	if err != nil {
+//		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+//		return
+//	}
+//
+//	if err := r.ParseMultipartForm(10 << 20); err != nil {
+//		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+//		return
+//	}
+//
+//	var user models.User
+//	user.ID = id
+//	user.Role = "worker"
+//
+//	if yearsStr := r.FormValue("years_of_exp"); yearsStr != "" {
+//		if y, err := strconv.Atoi(yearsStr); err == nil {
+//			user.YearsOfExp = &y
+//		}
+//	}
+//
+//	user.Skills = r.FormValue("skills") // ✅ Просто текст
+//
+//	categoryIDs := r.Form["category_ids"]
+//	for _, c := range categoryIDs {
+//		if cid, err := strconv.Atoi(c); err == nil {
+//			user.Categories = append(user.Categories, models.Category{ID: cid})
+//		}
+//	}
+//
+//	// Загрузка файла
+//	file, handler, err := r.FormFile("doc_of_proof")
+//	if err == nil {
+//		defer file.Close()
+//		path := fmt.Sprintf("uploads/docs/%d_%s", id, handler.Filename)
+//		dst, _ := os.Create(path)
+//		defer dst.Close()
+//		io.Copy(dst, file)
+//		user.DocOfProof = &path
+//	}
+//
+//	updated, err := h.Service.UpdateToWorker(r.Context(), user)
+//	if err != nil {
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		return
+//	}
+//	w.Header().Set("Content-Type", "application/json")
+//	json.NewEncoder(w).Encode(updated)
+//}
 
 func (h *UserHandler) CheckUserDuplicate(w http.ResponseWriter, r *http.Request) {
 	var req models.User
@@ -493,4 +495,105 @@ func (h *UserHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"message":"Пароль успешно изменен"}`))
+}
+
+func (h *UserHandler) UpdateToWorker(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get(":id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	var user models.User
+	user.ID = id
+	user.Role = "worker"
+
+	if yearsStr := r.FormValue("years_of_exp"); yearsStr != "" {
+		if y, err := strconv.Atoi(yearsStr); err == nil {
+			user.YearsOfExp = &y
+		}
+	}
+
+	user.Skills = r.FormValue("skills")
+
+	categoryIDs := r.Form["category_ids"]
+	for _, c := range categoryIDs {
+		if cid, err := strconv.Atoi(c); err == nil {
+			user.Categories = append(user.Categories, models.Category{ID: cid})
+		}
+	}
+
+	// === Сохраняем файл подтверждения ===
+	saveDir := "cmd/uploads/docs"
+	if err := os.MkdirAll(saveDir, 0755); err != nil {
+		http.Error(w, "Failed to create doc directory", http.StatusInternalServerError)
+		return
+	}
+
+	file, handler, err := r.FormFile("doc_of_proof")
+	if err == nil {
+		defer file.Close()
+
+		timestamp := time.Now().UnixNano()
+		ext := filepath.Ext(handler.Filename)
+		newName := fmt.Sprintf("doc_of_proof_%d%s", timestamp, ext)
+		savePath := filepath.Join(saveDir, newName)
+		publicURL := fmt.Sprintf("/docs/%s", newName)
+
+		dst, err := os.Create(savePath)
+		if err != nil {
+			http.Error(w, "Cannot save document", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, file); err != nil {
+			http.Error(w, "Failed to write document", http.StatusInternalServerError)
+			return
+		}
+
+		user.DocOfProof = &publicURL
+	}
+
+	updated, err := h.Service.UpdateToWorker(r.Context(), user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updated)
+}
+
+func (h *UserHandler) ServeProofDocument(w http.ResponseWriter, r *http.Request) {
+	filename := r.URL.Query().Get(":filename")
+	if filename == "" {
+		http.Error(w, "filename is required", http.StatusBadRequest)
+		return
+	}
+
+	docPath := filepath.Join("cmd/uploads/docs", filename)
+	if _, err := os.Stat(docPath); os.IsNotExist(err) {
+		http.Error(w, "document not found", http.StatusNotFound)
+		return
+	}
+
+	ext := filepath.Ext(docPath)
+	switch ext {
+	case ".jpg", ".jpeg":
+		w.Header().Set("Content-Type", "image/jpeg")
+	case ".png":
+		w.Header().Set("Content-Type", "image/png")
+	case ".pdf":
+		w.Header().Set("Content-Type", "application/pdf")
+	default:
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+
+	http.ServeFile(w, r, docPath)
 }
