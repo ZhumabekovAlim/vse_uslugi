@@ -74,10 +74,10 @@ func (s *ServiceService) GetServicesByStatusAndUserID(ctx context.Context, userI
 	return s.ServiceRepo.FetchByStatusAndUserID(ctx, userID, status)
 }
 
-func (s *ServiceService) GetFavoriteServicesByUserID(ctx context.Context, userID int) ([]models.FilteredService, error) {
-	return s.ServiceRepo.GetFavoriteServicesByUserID(ctx, userID)
-}
-
 func (s *ServiceService) GetFilteredServicesWithLikes(ctx context.Context, req models.FilterServicesRequest, userID int) ([]models.FilteredService, error) {
 	return s.ServiceRepo.GetFilteredServicesWithLikes(ctx, req, userID)
+}
+
+func (s *ServiceService) GetServiceByServiceIDAndUserID(ctx context.Context, serviceID int, userID int) (models.Service, error) {
+	return s.ServiceRepo.GetServiceByServiceIDAndUserID(ctx, serviceID, userID)
 }

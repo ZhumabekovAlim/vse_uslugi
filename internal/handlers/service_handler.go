@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"naimuBack/internal/models"
@@ -441,32 +440,6 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(updatedService)
 }
 
-// handler/service_handler.go
-func (h *ServiceHandler) GetFavoriteServicesByUserID(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	userIDStr := vars["id"]
-
-	userID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
-		return
-	}
-
-	services, err := h.Service.GetFavoriteServicesByUserID(r.Context(), userID)
-	if err != nil {
-		log.Printf("GetFavoriteServicesByUserID error: %v", err)
-		http.Error(w, "Failed to fetch favorite services", http.StatusInternalServerError)
-		return
-	}
-
-	resp := map[string]interface{}{
-		"favorites": services,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
-}
-
 func (h *ServiceHandler) GetFilteredServicesWithLikes(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get(":user_id")
 	userID, err := strconv.Atoi(userIDStr)
@@ -493,4 +466,45 @@ func (h *ServiceHandler) GetFilteredServicesWithLikes(w http.ResponseWriter, r *
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *ServiceHandler) GetServiceByServiceIDAndUserID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	serviceIDStr := r.URL.Query().Get(":service_id")
+	if serviceIDStr == "" {
+		http.Error(w, "service ID is required", http.StatusBadRequest)
+		return
+	}
+
+	serviceID, err := strconv.Atoi(serviceIDStr)
+	if err != nil {
+		http.Error(w, "invalid service ID", http.StatusBadRequest)
+		return
+	}
+	userIDStr := r.URL.Query().Get(":user_id")
+
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "unauthorized or missing user ID", http.StatusUnauthorized)
+		return
+	}
+
+	// Получение сервиса
+	service, err := h.Service.GetServiceByServiceIDAndUserID(ctx, serviceID, userID)
+	if err != nil {
+		if err.Error() == "service not found" {
+			http.Error(w, "service not found", http.StatusNotFound)
+		} else {
+			log.Printf("[ERROR] Failed to get service: %v", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Успешный ответ
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(service); err != nil {
+		log.Printf("[ERROR] Failed to encode response: %v", err)
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }

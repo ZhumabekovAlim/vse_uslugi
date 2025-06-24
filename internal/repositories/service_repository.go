@@ -402,40 +402,6 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 	return services, nil
 }
 
-func (r *ServiceRepository) GetFavoriteServicesByUserID(ctx context.Context, userID int) ([]models.FilteredService, error) {
-	query := `
-		SELECT 
-			u.id, u.name, u.review_rating,
-			s.id, s.name, s.price, s.description,
-			true as liked
-		FROM service_favorites sf
-		JOIN service s ON s.id = sf.service_id
-		JOIN users u ON s.user_id = u.id
-		WHERE sf.user_id = ?
-	`
-
-	rows, err := r.DB.QueryContext(ctx, query, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var services []models.FilteredService
-	for rows.Next() {
-		var s models.FilteredService
-		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
-			&s.Liked,
-		); err != nil {
-			return nil, err
-		}
-		services = append(services, s)
-	}
-
-	return services, nil
-}
-
 func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, req models.FilterServicesRequest, userID int) ([]models.FilteredService, error) {
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
@@ -532,4 +498,50 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 
 	log.Printf("[INFO] Successfully fetched %d services", len(services))
 	return services, nil
+}
+
+func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, serviceID int, userID int) (models.Service, error) {
+	query := `
+		SELECT 
+			s.id, s.name, s.address, s.price, s.user_id,
+			u.id, u.name, u.review_rating,
+			s.images, s.category_id, c.name,
+			s.subcategory_id, sub.name,
+			s.description, s.avg_rating, s.top,
+			CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
+			s.status, s.created_at, s.updated_at
+		FROM service s
+		JOIN users u ON s.user_id = u.id
+		JOIN categories c ON s.category_id = c.id
+		JOIN subcategories sub ON s.subcategory_id = sub.id
+		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+		WHERE s.id = ?
+	`
+
+	var s models.Service
+	var imagesJSON []byte
+
+	err := r.DB.QueryRowContext(ctx, query, userID, serviceID).Scan(
+		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+		&s.User.ID, &s.User.Name, &s.User.ReviewRating,
+		&imagesJSON, &s.CategoryID, &s.CategoryName,
+		&s.SubcategoryID, &s.SubcategoryName,
+		&s.Description, &s.AvgRating, &s.Top,
+		&s.Liked, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return models.Service{}, errors.New("service not found")
+	}
+	if err != nil {
+		return models.Service{}, fmt.Errorf("failed to get service: %w", err)
+	}
+
+	if len(imagesJSON) > 0 {
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return models.Service{}, fmt.Errorf("failed to decode images json: %w", err)
+		}
+	}
+
+	return s, nil
 }
