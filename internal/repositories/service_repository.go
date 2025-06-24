@@ -498,7 +498,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		var s models.FilteredService
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked,
 		); err != nil {
 			return nil, err
 		}
