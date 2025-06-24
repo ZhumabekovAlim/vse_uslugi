@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"naimuBack/internal/models"
 	"sort"
 	"strings"
@@ -436,6 +437,8 @@ func (r *ServiceRepository) GetFavoriteServicesByUserID(ctx context.Context, use
 }
 
 func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, req models.FilterServicesRequest, userID int) ([]models.FilteredService, error) {
+	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
+
 	query := `
 		SELECT 
 			u.id, u.name, u.review_rating,
@@ -446,12 +449,14 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
 		WHERE s.price BETWEEN ? AND ?
 	`
-	args := []interface{}{req.UserID, req.PriceFrom, req.PriceTo}
+
+	args := []interface{}{userID, req.PriceFrom, req.PriceTo}
 
 	// Category
 	if len(req.CategoryIDs) > 0 {
+		log.Printf("[DEBUG] Filtering by CategoryIDs: %v", req.CategoryIDs)
 		placeholders := strings.Repeat("?,", len(req.CategoryIDs))
-		placeholders = placeholders[:len(placeholders)-1] // remove trailing comma
+		placeholders = placeholders[:len(placeholders)-1]
 		query += fmt.Sprintf(" AND s.category_id IN (%s)", placeholders)
 		for _, id := range req.CategoryIDs {
 			args = append(args, id)
@@ -460,6 +465,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 
 	// Subcategory
 	if len(req.SubcategoryIDs) > 0 {
+		log.Printf("[DEBUG] Filtering by SubcategoryIDs: %v", req.SubcategoryIDs)
 		placeholders := strings.Repeat("?,", len(req.SubcategoryIDs))
 		placeholders = placeholders[:len(placeholders)-1]
 		query += fmt.Sprintf(" AND s.subcategory_id IN (%s)", placeholders)
@@ -471,6 +477,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	// Ratings
 	if len(req.AvgRatings) > 0 {
 		sort.Ints(req.AvgRatings)
+		log.Printf("[DEBUG] Filtering by minimum AvgRating: %.2f", float64(req.AvgRatings[0]))
 		query += " AND s.avg_rating >= ?"
 		args = append(args, float64(req.AvgRatings[0]))
 	}
@@ -479,19 +486,31 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	switch req.Sorting {
 	case 1:
 		query += " ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC"
+		log.Println("[DEBUG] Sorting by most reviewed")
 	case 2:
 		query += " ORDER BY s.price DESC"
+		log.Println("[DEBUG] Sorting by price DESC")
 	case 3:
 		query += " ORDER BY s.price ASC"
+		log.Println("[DEBUG] Sorting by price ASC")
 	default:
 		query += " ORDER BY s.created_at DESC"
+		log.Println("[DEBUG] Sorting by created_at DESC (default)")
 	}
+
+	log.Printf("[DEBUG] Final SQL Query: %s", query)
+	log.Printf("[DEBUG] Query Args: %+v", args)
 
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		log.Printf("[ERROR] Query execution failed: %v", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			log.Printf("[WARN] Failed to close rows: %v", cerr)
+		}
+	}()
 
 	var services []models.FilteredService
 	for rows.Next() {
@@ -500,10 +519,17 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 			&s.UserID, &s.UserName, &s.UserRating,
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked,
 		); err != nil {
-			return nil, err
+			log.Printf("[ERROR] Failed to scan row: %v", err)
+			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		services = append(services, s)
 	}
 
+	if err := rows.Err(); err != nil {
+		log.Printf("[ERROR] Error after reading rows: %v", err)
+		return nil, fmt.Errorf("error reading rows: %w", err)
+	}
+
+	log.Printf("[INFO] Successfully fetched %d services", len(services))
 	return services, nil
 }
