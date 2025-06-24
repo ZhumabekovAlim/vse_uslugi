@@ -440,7 +440,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-		SELECT 
+		SELECT DISTINCT
 			u.id, u.name, u.review_rating,
 			s.id, s.name, s.price, s.description,
 			CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
