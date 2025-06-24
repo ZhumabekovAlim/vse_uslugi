@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"naimuBack/internal/models"
@@ -440,37 +441,56 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(updatedService)
 }
 
-func (h *ServiceHandler) GetFilteredServicesWithLikes(w http.ResponseWriter, r *http.Request) {
-	// Чтение query-параметров
-	categories := parseIntArray(r.URL.Query().Get("categories"))
-	subcategories := parseStringArray(r.URL.Query().Get("subcategories"))
-	ratings := parseFloatArray(r.URL.Query().Get("ratings"))
+// handler/service_handler.go
+func (h *ServiceHandler) GetFavoriteServicesByUserID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userIDStr := vars["id"]
 
-	priceFrom, _ := strconv.ParseFloat(r.URL.Query().Get("price_from"), 64)
-	priceTo, _ := strconv.ParseFloat(r.URL.Query().Get("price_to"), 64)
-	sortOption, _ := strconv.Atoi(r.URL.Query().Get("sort"))
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-
-	// Сборка запроса
-	filter := models.ServiceFilterRequest{
-		Categories:    categories,
-		Subcategories: subcategories,
-		PriceFrom:     priceFrom,
-		PriceTo:       priceTo,
-		Ratings:       ratings,
-		SortOption:    sortOption,
-		Page:          page,
-		Limit:         limit,
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
 	}
 
-	result, err := h.Service.GetFilteredServicesWithLikes(r.Context(), filter, 0)
+	services, err := h.Service.GetFavoriteServicesByUserID(r.Context(), userID)
 	if err != nil {
-		log.Printf("GetServices error: %v", err)
+		log.Printf("GetFavoriteServicesByUserID error: %v", err)
+		http.Error(w, "Failed to fetch favorite services", http.StatusInternalServerError)
+		return
+	}
+
+	resp := map[string]interface{}{
+		"favorites": services,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *ServiceHandler) GetFilteredServicesWithLikes(w http.ResponseWriter, r *http.Request) {
+	userIDStr := r.URL.Query().Get(":user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+	var req models.FilterServicesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	services, err := h.Service.GetFilteredServicesWithLikes(r.Context(), req, userID)
+	if err != nil {
+		log.Printf("GetServicesPost error: %v", err)
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
 		return
 	}
 
+	resp := map[string]interface{}{
+		"services": services,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	json.NewEncoder(w).Encode(resp)
 }

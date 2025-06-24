@@ -52,7 +52,8 @@ func (app *application) routes() http.Handler {
 	mux.Post("/service/filtered", authMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesPost))          //РАБОТАЕТ
 	mux.Post("/service/status", authMiddleware.ThenFunc(app.serviceHandler.GetServicesByStatusAndUserID))
 	mux.Get("/images/services/:filename", http.HandlerFunc(app.serviceHandler.ServeServiceImage))
-	mux.Post("/service/filtered/user/:user_id", standardMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesWithLikes))
+	mux.Get("/service/user/:user_id/fav", standardMiddleware.ThenFunc(app.serviceHandler.GetFavoriteServicesByUserID))
+	mux.Post("/service/filtered/:user_id", authMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesWithLikes))
 
 	// Categories
 	mux.Post("/category", authMiddleware.ThenFunc(app.categoryHandler.CreateCategory)) //РАБОТАЕТ

@@ -74,34 +74,10 @@ func (s *ServiceService) GetServicesByStatusAndUserID(ctx context.Context, userI
 	return s.ServiceRepo.FetchByStatusAndUserID(ctx, userID, status)
 }
 
-func (s *ServiceService) GetFilteredServicesWithLikes(ctx context.Context, filter models.ServiceFilterRequest, userID int) (models.ServiceListResponse, error) {
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 10
-	}
-	offset := (filter.Page - 1) * filter.Limit
+func (s *ServiceService) GetFavoriteServicesByUserID(ctx context.Context, userID int) ([]models.FilteredService, error) {
+	return s.ServiceRepo.GetFavoriteServicesByUserID(ctx, userID)
+}
 
-	services, minPrice, maxPrice, err := s.ServiceRepo.GetFilteredServicesWithLikes(
-		ctx,
-		userID,
-		filter.Categories,
-		filter.Subcategories,
-		filter.PriceFrom,
-		filter.PriceTo,
-		filter.Ratings,
-		filter.SortOption,
-		filter.Limit,
-		offset,
-	)
-	if err != nil {
-		return models.ServiceListResponse{}, err
-	}
-
-	return models.ServiceListResponse{
-		Services: services,
-		MinPrice: minPrice,
-		MaxPrice: maxPrice,
-	}, nil
+func (s *ServiceService) GetFilteredServicesWithLikes(ctx context.Context, req models.FilterServicesRequest, userID int) ([]models.FilteredService, error) {
+	return s.ServiceRepo.GetFilteredServicesWithLikes(ctx, req, userID)
 }
