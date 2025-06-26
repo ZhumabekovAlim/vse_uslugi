@@ -31,8 +31,8 @@ type Work struct {
 	Schedule        string      `json:"schedule, omitempty"`
 	DistanceWork    string      `json:"distance_work,omitempty"`
 	PaymentPeriod   string      `json:"payment_period,omitempty"`
-	Latitude        *string     `json:"latitude,omitempty"`
-	Longitude       *string     `json:"longitude,omitempty"`
+	Latitude        string      `json:"latitude,omitempty"`
+	Longitude       string      `json:"longitude,omitempty"`
 	CreatedAt       time.Time   `json:"created_at"`
 	UpdatedAt       *time.Time  `json:"updated_at,omitempty"`
 }

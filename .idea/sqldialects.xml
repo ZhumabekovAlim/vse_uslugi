@@ -22,6 +22,9 @@
     <file url="file://$PROJECT_DIR$/db/migrations/000017_complaint.up.sql" dialect="MariaDB" />
     <file url="file://$PROJECT_DIR$/db/migrations/000018_work.up.sql" dialect="MariaDB" />
     <file url="file://$PROJECT_DIR$/db/migrations/000019_rent.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000020_work_reviews.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000021_work_responses.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000022_work_favorites.up.sql" dialect="MariaDB" />
     <file url="PROJECT" dialect="MariaDB" />
   </component>
 </project>

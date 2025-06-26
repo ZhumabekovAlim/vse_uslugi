@@ -291,6 +291,13 @@ func (h *WorkHandler) CreateWork(w http.ResponseWriter, r *http.Request) {
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.Top = r.FormValue("top")
 	service.Status = r.FormValue("status")
+	service.WorkExperience = r.FormValue("work_experience")
+	service.CityID, _ = strconv.Atoi(r.FormValue("city_id"))
+	service.Schedule = r.FormValue("schedule")
+	service.DistanceWork = r.FormValue("distance_work")
+	service.PaymentPeriod = r.FormValue("payment_period")
+	service.Latitude = r.FormValue("latitude")
+	service.Longitude = r.FormValue("longitude")
 	service.CreatedAt = time.Now()
 
 	// Сохраняем изображения
@@ -380,6 +387,13 @@ func (h *WorkHandler) UpdateWork(w http.ResponseWriter, r *http.Request) {
 	service.Top = r.FormValue("top")
 	service.Liked = r.FormValue("liked") == "true"
 	service.Status = r.FormValue("status")
+	service.WorkExperience = r.FormValue("work_experience")
+	service.CityID, _ = strconv.Atoi(r.FormValue("city_id"))
+	service.Schedule = r.FormValue("schedule")
+	service.DistanceWork = r.FormValue("distance_work")
+	service.PaymentPeriod = r.FormValue("payment_period")
+	service.Latitude = r.FormValue("latitude")
+	service.Longitude = r.FormValue("longitude")
 	now := time.Now()
 	service.UpdatedAt = &now
 

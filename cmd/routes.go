@@ -130,6 +130,21 @@ func (app *application) routes() http.Handler {
 	mux.Post("/work/filtered/:user_id", authMiddleware.ThenFunc(app.workHandler.GetFilteredWorksWithLikes))
 	mux.Get("/work/work_id/:work_id/user/:user_id", authMiddleware.ThenFunc(app.workHandler.GetWorkByWorkIDAndUserID))
 
+	// Work Reviews
+	mux.Post("/work_review", authMiddleware.ThenFunc(app.workReviewHandler.CreateWorkReview))               //РАБОТАЕТ
+	mux.Get("/work_review/:work_id", authMiddleware.ThenFunc(app.workReviewHandler.GetWorkReviewsByWorkID)) //РАБОТАЕТ
+	mux.Put("/work_review/:id", authMiddleware.ThenFunc(app.workReviewHandler.UpdateWorkReview))            //РАБОТАЕТ
+	mux.Del("/work_review/:id", authMiddleware.ThenFunc(app.workReviewHandler.DeleteWorkReview))            //РАБОТАЕТ
+
+	// Work Response
+	mux.Post("/work_responses", authMiddleware.ThenFunc(app.workResponseHandler.CreateWorkResponse))
+
+	// Work Favorites
+	mux.Post("/work_favorites", authMiddleware.ThenFunc(app.workFavoriteHandler.AddWorkToFavorites)) //РАБОТАЕТ
+	mux.Del("/work_favorites/user/:user_id/work/:work_id", authMiddleware.ThenFunc(app.workFavoriteHandler.RemoveWorkFromFavorites))
+	mux.Get("/work_favorites/check/user/:user_id/work/:work_id", authMiddleware.ThenFunc(app.workFavoriteHandler.IsWorkFavorite)) //РАБОТАЕТ
+	mux.Get("/work_favorites/:user_id", authMiddleware.ThenFunc(app.workFavoriteHandler.GetWorkFavoritesByUser))                  //РАБОТАЕТ
+
 	// Rent
 	mux.Post("/rent", authMiddleware.ThenFunc(app.rentHandler.CreateRent))                             //РАБОТАЕТ
 	mux.Get("/rent/get", authMiddleware.ThenFunc(app.rentHandler.GetRents))                            //РАБОТАЕТ
