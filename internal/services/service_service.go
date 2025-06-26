@@ -26,10 +26,6 @@ func (s *ServiceService) DeleteService(ctx context.Context, id int) error {
 	return s.ServiceRepo.DeleteService(ctx, id)
 }
 
-//func (s *ServiceService) GetServicesWithFilters(ctx context.Context, filters models.GetServicesRequest) ([]models.ServiceResponse, float64, float64, int, error) {
-//	return s.ServiceRepo.GetServicesWithFilters(ctx, filters)
-//}
-
 func (s *ServiceService) GetFilteredServices(ctx context.Context, filter models.ServiceFilterRequest, userID int) (models.ServiceListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1

@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type Service struct {
+type Work struct {
 	ID      int     `json:"id"`
 	Name    string  `json:"name"`
 	Address string  `json:"address"`
@@ -25,19 +25,25 @@ type Service struct {
 	Status          string     `json:"status, omitempty"`
 	CategoryName    string     `json:"category_name"`
 	SubcategoryName string     `json:"subcategory_name"`
+	WorkExperience  string     `json:"work_experience,omitempty"`
+	CityID          int        `json:"city_id"`
+	CityName        string     `json:"city_name"`
+	Schedule        string     `json:"schedule, omitempty"`
+	DistanceWork    string     `json:"distance_work,omitempty"`
+	PaymentPeriod   string     `json:"payment_period,omitempty"`
 	Latitude        *string    `json:"latitude,omitempty"`
 	Longitude       *string    `json:"longitude,omitempty"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       *time.Time `json:"updated_at,omitempty"`
 }
 
-type Image struct {
+type ImageWork struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
 	Type string `json:"type"`
 }
 
-type ServiceFilterRequest struct {
+type WorkFilterRequest struct {
 	Categories    []int     `json:"categories"`
 	Subcategories []string  `json:"subcategories"`
 	PriceFrom     float64   `json:"price_from"`
@@ -48,13 +54,13 @@ type ServiceFilterRequest struct {
 	Limit         int       `json:"limit"`
 }
 
-type ServiceListResponse struct {
-	Services []Service `json:"services"`
-	MinPrice float64   `json:"min_price"`
-	MaxPrice float64   `json:"max_price"`
+type WorkListResponse struct {
+	Works    []Work  `json:"works"`
+	MinPrice float64 `json:"min_price"`
+	MaxPrice float64 `json:"max_price"`
 }
 
-type FilterServicesRequest struct {
+type FilterWorkRequest struct {
 	CategoryIDs    []int   `json:"category_id"`
 	SubcategoryIDs []int   `json:"subcategory_id"`
 	PriceFrom      float64 `json:"price_from"`
@@ -64,7 +70,7 @@ type FilterServicesRequest struct {
 	UserID         int     `json:"user_id,omitempty"`
 }
 
-type FilteredService struct {
+type FilteredWork struct {
 	UserID             int     `json:"user_id"`
 	UserName           string  `json:"user_name"`
 	UserRating         float64 `json:"user_rating"`

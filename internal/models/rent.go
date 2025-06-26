@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type Service struct {
+type Rent struct {
 	ID      int     `json:"id"`
 	Name    string  `json:"name"`
 	Address string  `json:"address"`
@@ -15,29 +15,31 @@ type Service struct {
 		Name         string  `json:"name"`
 		ReviewRating float64 `json:"review_rating"`
 	} `json:"user"`
-	Images          []Image    `json:"images"`
-	CategoryID      int        `json:"category_id, omitempty"`
-	SubcategoryID   int        `json:"subcategory_id, omitempty"`
-	Description     string     `json:"description"`
-	AvgRating       float64    `json:"avg_rating"`
-	Top             string     `json:"top, omitempty"`
-	Liked           bool       `json:"liked, omitempty"`
-	Status          string     `json:"status, omitempty"`
-	CategoryName    string     `json:"category_name"`
-	SubcategoryName string     `json:"subcategory_name"`
-	Latitude        *string    `json:"latitude,omitempty"`
-	Longitude       *string    `json:"longitude,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       *time.Time `json:"updated_at,omitempty"`
+	Images          []ImageRent `json:"images"`
+	CategoryID      int         `json:"category_id, omitempty"`
+	SubcategoryID   int         `json:"subcategory_id, omitempty"`
+	Description     string      `json:"description"`
+	AvgRating       float64     `json:"avg_rating"`
+	Top             string      `json:"top, omitempty"`
+	Liked           bool        `json:"liked, omitempty"`
+	Status          string      `json:"status, omitempty"`
+	CategoryName    string      `json:"category_name"`
+	SubcategoryName string      `json:"subcategory_name"`
+	RentType        string      `json:"rent_type"`
+	Deposit         string      `json:"deposit"`
+	Latitude        *string     `json:"latitude,omitempty"`
+	Longitude       *string     `json:"longitude,omitempty"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       *time.Time  `json:"updated_at,omitempty"`
 }
 
-type Image struct {
+type ImageRent struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
 	Type string `json:"type"`
 }
 
-type ServiceFilterRequest struct {
+type RentFilterRequest struct {
 	Categories    []int     `json:"categories"`
 	Subcategories []string  `json:"subcategories"`
 	PriceFrom     float64   `json:"price_from"`
@@ -48,13 +50,13 @@ type ServiceFilterRequest struct {
 	Limit         int       `json:"limit"`
 }
 
-type ServiceListResponse struct {
-	Services []Service `json:"services"`
-	MinPrice float64   `json:"min_price"`
-	MaxPrice float64   `json:"max_price"`
+type RentListResponse struct {
+	Rents    []Rent  `json:"rents"`
+	MinPrice float64 `json:"min_price"`
+	MaxPrice float64 `json:"max_price"`
 }
 
-type FilterServicesRequest struct {
+type FilterRentRequest struct {
 	CategoryIDs    []int   `json:"category_id"`
 	SubcategoryIDs []int   `json:"subcategory_id"`
 	PriceFrom      float64 `json:"price_from"`
@@ -64,7 +66,7 @@ type FilterServicesRequest struct {
 	UserID         int     `json:"user_id,omitempty"`
 }
 
-type FilteredService struct {
+type FilteredRent struct {
 	UserID             int     `json:"user_id"`
 	UserName           string  `json:"user_name"`
 	UserRating         float64 `json:"user_rating"`

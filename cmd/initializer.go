@@ -17,28 +17,34 @@ import (
 )
 
 type application struct {
-	errorLog            *log.Logger
-	infoLog             *log.Logger
-	userHandler         *handlers.UserHandler
-	userRepo            *repositories.UserRepository
-	serviceHandler      *handlers.ServiceHandler
-	serviceRepo         *repositories.ServiceRepository
-	categoryHandler     *handlers.CategoryHandler
-	categoryRepo        *repositories.CategoryRepository
-	reviewsHandler      *handlers.ReviewHandler
-	reviewsRepo         *repositories.ReviewRepository
-	serviceFavorite     *handlers.ServiceFavoriteHandler
-	serviceFavoriteRepo *repositories.ServiceFavoriteRepository
-	subcategoryHandler  handlers.SubcategoryHandler
-	subcategoryRepo     repositories.SubcategoryRepository
-	cityHandler         handlers.CityHandler
-	cityRepo            repositories.CityRepository
-	wsManager           *WebSocketManager
-	chatHandler         *handlers.ChatHandler
-	messageHandler      *handlers.MessageHandler
-	db                  *sql.DB
-	complaintHandler    *handlers.ComplaintHandler
-	complaintRepo       *repositories.ComplaintRepository
+	errorLog               *log.Logger
+	infoLog                *log.Logger
+	userHandler            *handlers.UserHandler
+	userRepo               *repositories.UserRepository
+	serviceHandler         *handlers.ServiceHandler
+	serviceRepo            *repositories.ServiceRepository
+	categoryHandler        *handlers.CategoryHandler
+	categoryRepo           *repositories.CategoryRepository
+	reviewsHandler         *handlers.ReviewHandler
+	reviewsRepo            *repositories.ReviewRepository
+	serviceFavorite        *handlers.ServiceFavoriteHandler
+	serviceFavoriteRepo    *repositories.ServiceFavoriteRepository
+	subcategoryHandler     handlers.SubcategoryHandler
+	subcategoryRepo        repositories.SubcategoryRepository
+	cityHandler            handlers.CityHandler
+	cityRepo               repositories.CityRepository
+	wsManager              *WebSocketManager
+	chatHandler            *handlers.ChatHandler
+	messageHandler         *handlers.MessageHandler
+	db                     *sql.DB
+	complaintHandler       *handlers.ComplaintHandler
+	complaintRepo          *repositories.ComplaintRepository
+	serviceResponseHandler *handlers.ServiceResponseHandler
+	serviceResponseRepo    *repositories.ServiceResponseRepository
+	workHandler            *handlers.WorkHandler
+	workRepo               *repositories.WorkRepository
+	rentHandler            *handlers.RentHandler
+	rentRepo               *repositories.RentRepository
 
 	// authService *services/*/.AuthService
 }
@@ -53,6 +59,9 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	subcategoryRepo := repositories.SubcategoryRepository{DB: db}
 	cityRepo := repositories.CityRepository{DB: db}
 	complaintRepo := repositories.ComplaintRepository{DB: db}
+	serviceResponseRepo := repositories.ServiceResponseRepository{DB: db}
+	workRepo := repositories.WorkRepository{DB: db}
+	rentRepo := repositories.RentRepository{DB: db}
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
@@ -62,6 +71,9 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	subcategoryService := services.SubcategoryService{SubcategoryRepo: &subcategoryRepo}
 	cityService := services.CityService{CityRepo: &cityRepo}
 	complaintService := services.ComplaintService{ComplaintRepo: &complaintRepo}
+	serviceResponseService := &services.ServiceResponseService{ServiceResponseRepo: &serviceResponseRepo}
+	workService := &services.WorkService{WorkRepo: &workRepo}
+	rentService := &services.RentService{RentRepo: &rentRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -73,6 +85,9 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	subcategoryHandler := handlers.SubcategoryHandler{Service: &subcategoryService}
 	cityHandler := handlers.CityHandler{Service: &cityService}
 	complaintHandler := &handlers.ComplaintHandler{Service: &complaintService}
+	serviceResponseHandler := &handlers.ServiceResponseHandler{Service: serviceResponseService}
+	workHandler := &handlers.WorkHandler{Service: workService}
+	rentHandler := &handlers.RentHandler{Service: rentService}
 
 	// Chat
 	wsManager := NewWebSocketManager()
@@ -87,20 +102,23 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	messageHandler := &handlers.MessageHandler{MessageService: messageService}
 
 	return &application{
-		errorLog:           errorLog,
-		infoLog:            infoLog,
-		userHandler:        userHandler,
-		serviceHandler:     serviceHandler,
-		categoryHandler:    categoryHandler,
-		reviewsHandler:     reviewHandler,
-		serviceFavorite:    serviceFavoriteHandler,
-		subcategoryHandler: subcategoryHandler,
-		cityHandler:        cityHandler,
-		chatHandler:        chatHandler,
-		messageHandler:     messageHandler,
-		wsManager:          wsManager,
-		db:                 db,
-		complaintHandler:   complaintHandler,
+		errorLog:               errorLog,
+		infoLog:                infoLog,
+		userHandler:            userHandler,
+		serviceHandler:         serviceHandler,
+		categoryHandler:        categoryHandler,
+		reviewsHandler:         reviewHandler,
+		serviceFavorite:        serviceFavoriteHandler,
+		subcategoryHandler:     subcategoryHandler,
+		cityHandler:            cityHandler,
+		chatHandler:            chatHandler,
+		messageHandler:         messageHandler,
+		wsManager:              wsManager,
+		db:                     db,
+		complaintHandler:       complaintHandler,
+		serviceResponseHandler: serviceResponseHandler,
+		workHandler:            workHandler,
+		rentHandler:            rentHandler,
 		//authService:    authService,
 	}
 }

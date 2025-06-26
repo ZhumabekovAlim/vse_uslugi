@@ -113,5 +113,36 @@ func (app *application) routes() http.Handler {
 	mux.Del("/complaints/:id", authMiddleware.ThenFunc(app.complaintHandler.DeleteComplaintByID))
 	mux.Get("/complaints", authMiddleware.ThenFunc(app.complaintHandler.GetAllComplaints))
 
+	// Service Response
+	mux.Post("/responses", authMiddleware.ThenFunc(app.serviceResponseHandler.CreateServiceResponse))
+
+	// Work
+	mux.Post("/work", authMiddleware.ThenFunc(app.workHandler.CreateWork))                             //РАБОТАЕТ
+	mux.Get("/work/get", authMiddleware.ThenFunc(app.workHandler.GetWorks))                            //РАБОТАЕТ
+	mux.Get("/work/:id", authMiddleware.ThenFunc(app.workHandler.GetWorkByID))                         //РАБОТАЕТ
+	mux.Put("/work/:id", authMiddleware.ThenFunc(app.workHandler.UpdateWork))                          //РАБОТАЕТ
+	mux.Del("/work/:id", authMiddleware.ThenFunc(app.workHandler.DeleteWork))                          //РАБОТАЕТ
+	mux.Get("/work/sort/:type/user/:user_id", authMiddleware.ThenFunc(app.workHandler.GetWorksSorted)) //user_id - id пользователя который авторизован
+	mux.Get("/work/user/:user_id", authMiddleware.ThenFunc(app.workHandler.GetWorksByUserID))          //РАБОТАЕТ
+	mux.Post("/work/filtered", authMiddleware.ThenFunc(app.workHandler.GetFilteredWorksPost))          //РАБОТАЕТ
+	mux.Post("/work/status", authMiddleware.ThenFunc(app.workHandler.GetWorksByStatusAndUserID))
+	mux.Get("/images/works/:filename", http.HandlerFunc(app.workHandler.ServeWorkImage))
+	mux.Post("/work/filtered/:user_id", authMiddleware.ThenFunc(app.workHandler.GetFilteredWorksWithLikes))
+	mux.Get("/work/work_id/:work_id/user/:user_id", authMiddleware.ThenFunc(app.workHandler.GetWorkByWorkIDAndUserID))
+
+	// Rent
+	mux.Post("/rent", authMiddleware.ThenFunc(app.rentHandler.CreateRent))                             //РАБОТАЕТ
+	mux.Get("/rent/get", authMiddleware.ThenFunc(app.rentHandler.GetRents))                            //РАБОТАЕТ
+	mux.Get("/rent/:id", authMiddleware.ThenFunc(app.rentHandler.GetRentByID))                         //РАБОТАЕТ
+	mux.Put("/rent/:id", authMiddleware.ThenFunc(app.rentHandler.UpdateRent))                          //РАБОТАЕТ
+	mux.Del("/rent/:id", authMiddleware.ThenFunc(app.rentHandler.DeleteRent))                          //РАБОТАЕТ
+	mux.Get("/rent/sort/:type/user/:user_id", authMiddleware.ThenFunc(app.rentHandler.GetRentsSorted)) //user_id - id пользователя который авторизован
+	mux.Get("/rent/user/:user_id", authMiddleware.ThenFunc(app.rentHandler.GetRentsByUserID))          //РАБОТАЕТ
+	mux.Post("/rent/filtered", authMiddleware.ThenFunc(app.rentHandler.GetFilteredRentsPost))          //РАБОТАЕТ
+	mux.Post("/rent/status", authMiddleware.ThenFunc(app.rentHandler.GetRentsByStatusAndUserID))
+	mux.Get("/imrentages/rents/:filename", http.HandlerFunc(app.rentHandler.ServeRentsImage))
+	mux.Post("/rent/filtered/:user_id", authMiddleware.ThenFunc(app.rentHandler.GetFilteredRentsWithLikes))
+	mux.Get("/rent/rent_id/:rent_id/user/:user_id", authMiddleware.ThenFunc(app.rentHandler.GetRentByRentIDAndUserID))
+
 	return standardMiddleware.Then(mux)
 }
