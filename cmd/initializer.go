@@ -51,6 +51,12 @@ type application struct {
 	workResponseRepo       *repositories.WorkResponseRepository
 	workFavoriteHandler    *handlers.WorkFavoriteHandler
 	workFavoriteRepo       *repositories.WorkFavoriteRepository
+	rentReviewHandler      *handlers.RentReviewHandler
+	rentReviewRepo         *repositories.RentReviewRepository
+	rentResponseHandler    *handlers.RentResponseHandler
+	rentResponseRepo       *repositories.RentResponseRepository
+	rentFavoriteHandler    *handlers.RentFavoriteHandler
+	rentFavoriteRepo       *repositories.RentFavoriteRepository
 
 	// authService *services/*/.AuthService
 }
@@ -71,6 +77,9 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workReviewRepo := repositories.WorkReviewRepository{DB: db}
 	workResponseRepo := repositories.WorkResponseRepository{DB: db}
 	workFavoriteRepo := repositories.WorkFavoriteRepository{DB: db}
+	rentReviewRepo := repositories.RentReviewRepository{DB: db}
+	rentResponseRepo := repositories.RentResponseRepository{DB: db}
+	rentFavoriteRepo := repositories.RentFavoriteRepository{DB: db}
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
@@ -86,6 +95,9 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workReviewService := &services.WorkReviewService{WorkReviewsRepo: &workReviewRepo}
 	workResponseService := &services.WorkResponseService{WorkResponseRepo: &workResponseRepo}
 	workFavoriteService := &services.WorkFavoriteService{WorkFavoriteRepo: &workFavoriteRepo}
+	rentReviewService := &services.RentReviewService{RentReviewsRepo: &rentReviewRepo}
+	rentResponseService := &services.RentResponseService{RentResponseRepo: &rentResponseRepo}
+	rentFavoriteService := &services.RentFavoriteService{RentFavoriteRepo: &rentFavoriteRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -103,6 +115,9 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workReviewHandler := &handlers.WorkReviewHandler{Service: workReviewService}
 	workResponseHandler := &handlers.WorkResponseHandler{Service: workResponseService}
 	workFavoriteHandler := &handlers.WorkFavoriteHandler{Service: workFavoriteService}
+	rentReviewHandler := &handlers.RentReviewHandler{Service: rentReviewService}
+	rentResponseHandler := &handlers.RentResponseHandler{Service: rentResponseService}
+	rentFavoriteHandler := &handlers.RentFavoriteHandler{Service: rentFavoriteService}
 
 	// Chat
 	wsManager := NewWebSocketManager()
@@ -137,6 +152,9 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		workReviewHandler:      workReviewHandler,
 		workResponseHandler:    workResponseHandler,
 		workFavoriteHandler:    workFavoriteHandler,
+		rentReviewHandler:      rentReviewHandler,
+		rentResponseHandler:    rentResponseHandler,
+		rentFavoriteHandler:    rentFavoriteHandler,
 		//authService:    authService,
 	}
 }

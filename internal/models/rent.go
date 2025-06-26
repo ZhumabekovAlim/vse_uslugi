@@ -27,8 +27,8 @@ type Rent struct {
 	SubcategoryName string      `json:"subcategory_name"`
 	RentType        string      `json:"rent_type"`
 	Deposit         string      `json:"deposit"`
-	Latitude        *string     `json:"latitude,omitempty"`
-	Longitude       *string     `json:"longitude,omitempty"`
+	Latitude        string      `json:"latitude,omitempty"`
+	Longitude       string      `json:"longitude,omitempty"`
 	CreatedAt       time.Time   `json:"created_at"`
 	UpdatedAt       *time.Time  `json:"updated_at,omitempty"`
 }
