@@ -291,7 +291,7 @@ func (r *WorkRepository) GetWorksByUserID(ctx context.Context, userID int) ([]mo
 	return works, nil
 }
 
-func (r *WorkRepository) GetFilteredWorksPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredWork, error) {
+func (r *WorkRepository) GetFilteredWorksPost(ctx context.Context, req models.FilterWorkRequest) ([]models.FilteredWork, error) {
 	query := `
 		SELECT 
 			u.id, u.name, u.review_rating,

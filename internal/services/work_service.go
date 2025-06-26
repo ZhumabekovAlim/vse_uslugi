@@ -62,7 +62,7 @@ func (s *WorkService) GetWorksByUserID(ctx context.Context, userID int) ([]model
 	return s.WorkRepo.GetWorksByUserID(ctx, userID)
 }
 
-func (s *WorkService) GetFilteredWorksPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredWork, error) {
+func (s *WorkService) GetFilteredWorksPost(ctx context.Context, req models.FilterWorkRequest) ([]models.FilteredWork, error) {
 	return s.WorkRepo.GetFilteredWorksPost(ctx, req)
 }
 

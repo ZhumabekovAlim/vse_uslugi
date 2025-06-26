@@ -15,26 +15,26 @@ type Work struct {
 		Name         string  `json:"name"`
 		ReviewRating float64 `json:"review_rating"`
 	} `json:"user"`
-	Images          []Image    `json:"images"`
-	CategoryID      int        `json:"category_id, omitempty"`
-	SubcategoryID   int        `json:"subcategory_id, omitempty"`
-	Description     string     `json:"description"`
-	AvgRating       float64    `json:"avg_rating"`
-	Top             string     `json:"top, omitempty"`
-	Liked           bool       `json:"liked, omitempty"`
-	Status          string     `json:"status, omitempty"`
-	CategoryName    string     `json:"category_name"`
-	SubcategoryName string     `json:"subcategory_name"`
-	WorkExperience  string     `json:"work_experience,omitempty"`
-	CityID          int        `json:"city_id"`
-	CityName        string     `json:"city_name"`
-	Schedule        string     `json:"schedule, omitempty"`
-	DistanceWork    string     `json:"distance_work,omitempty"`
-	PaymentPeriod   string     `json:"payment_period,omitempty"`
-	Latitude        *string    `json:"latitude,omitempty"`
-	Longitude       *string    `json:"longitude,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       *time.Time `json:"updated_at,omitempty"`
+	Images          []ImageWork `json:"images"`
+	CategoryID      int         `json:"category_id, omitempty"`
+	SubcategoryID   int         `json:"subcategory_id, omitempty"`
+	Description     string      `json:"description"`
+	AvgRating       float64     `json:"avg_rating"`
+	Top             string      `json:"top, omitempty"`
+	Liked           bool        `json:"liked, omitempty"`
+	Status          string      `json:"status, omitempty"`
+	CategoryName    string      `json:"category_name"`
+	SubcategoryName string      `json:"subcategory_name"`
+	WorkExperience  string      `json:"work_experience,omitempty"`
+	CityID          int         `json:"city_id"`
+	CityName        string      `json:"city_name"`
+	Schedule        string      `json:"schedule, omitempty"`
+	DistanceWork    string      `json:"distance_work,omitempty"`
+	PaymentPeriod   string      `json:"payment_period,omitempty"`
+	Latitude        *string     `json:"latitude,omitempty"`
+	Longitude       *string     `json:"longitude,omitempty"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       *time.Time  `json:"updated_at,omitempty"`
 }
 
 type ImageWork struct {
