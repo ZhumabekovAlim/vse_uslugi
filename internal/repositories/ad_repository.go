@@ -14,62 +14,62 @@ import (
 )
 
 var (
-	ErrServiceNotFound = errors.New("service not found")
+	ErrAdNotFound = errors.New("ad not found")
 )
 
-type ServiceRepository struct {
+type AdRepository struct {
 	DB *sql.DB
 }
 
-func (r *ServiceRepository) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
+func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, error) {
 	query := `
-        INSERT INTO service (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, status, created_at)
+        INSERT INTO ad (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, status, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 	// Сохраняем images как JSON
-	imagesJSON, err := json.Marshal(service.Images)
+	imagesJSON, err := json.Marshal(ad.Images)
 	if err != nil {
-		return models.Service{}, err
+		return models.Ad{}, err
 	}
 
 	result, err := r.DB.ExecContext(ctx, query,
-		service.Name,
-		service.Address,
-		service.Price,
-		service.UserID,
+		ad.Name,
+		ad.Address,
+		ad.Price,
+		ad.UserID,
 		string(imagesJSON),
-		service.CategoryID,
-		service.SubcategoryID,
-		service.Description,
-		service.AvgRating,
-		service.Top,
-		service.Liked,
-		service.Status,
-		service.CreatedAt,
+		ad.CategoryID,
+		ad.SubcategoryID,
+		ad.Description,
+		ad.AvgRating,
+		ad.Top,
+		ad.Liked,
+		ad.Status,
+		ad.CreatedAt,
 	)
 	if err != nil {
-		return models.Service{}, err
+		return models.Ad{}, err
 	}
 
 	lastID, err := result.LastInsertId()
 	if err != nil {
-		return models.Service{}, err
+		return models.Ad{}, err
 	}
-	service.ID = int(lastID)
-	return service, nil
+	ad.ID = int(lastID)
+	return ad, nil
 }
 
-func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int) (models.Service, error) {
+func (r *AdRepository) GetAdByID(ctx context.Context, id int) (models.Ad, error) {
 	query := `
 		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, c.name, s.subcategory_id, sub.name, s.description, s.avg_rating, s.top, s.liked, s.status, s.created_at, s.updated_at
-		FROM service s
+		FROM ad s
 		JOIN users u ON s.user_id = u.id
 		JOIN categories c ON s.category_id = c.id
 		JOIN subcategories sub ON s.subcategory_id = sub.id
 		WHERE s.id = ?
 	`
 
-	var s models.Service
+	var s models.Ad
 	var imagesJSON []byte
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
@@ -78,30 +78,30 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int) (models.
 	)
 
 	if err == sql.ErrNoRows {
-		return models.Service{}, errors.New("not found")
+		return models.Ad{}, errors.New("not found")
 	}
 	if err != nil {
-		return models.Service{}, err
+		return models.Ad{}, err
 	}
 
 	if len(imagesJSON) > 0 {
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
-			return models.Service{}, fmt.Errorf("failed to decode images json: %w", err)
+			return models.Ad{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
 	}
 	return s, nil
 }
 
-func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Service) (models.Service, error) {
+func (r *AdRepository) UpdateAd(ctx context.Context, service models.Ad) (models.Ad, error) {
 	query := `
-        UPDATE service
+        UPDATE ad
         SET name = ?, address = ?, price = ?, user_id = ?, images = ?, category_id = ?, subcategory_id = ?, 
             description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, updated_at = ?
         WHERE id = ?
     `
 	imagesJSON, err := json.Marshal(service.Images)
 	if err != nil {
-		return models.Service{}, fmt.Errorf("failed to marshal images: %w", err)
+		return models.Ad{}, fmt.Errorf("failed to marshal images: %w", err)
 	}
 	updatedAt := time.Now()
 	service.UpdatedAt = &updatedAt
@@ -110,20 +110,20 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
 		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, service.UpdatedAt, service.ID,
 	)
 	if err != nil {
-		return models.Service{}, err
+		return models.Ad{}, err
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return models.Service{}, err
+		return models.Ad{}, err
 	}
 	if rowsAffected == 0 {
-		return models.Service{}, ErrServiceNotFound
+		return models.Ad{}, ErrAdNotFound
 	}
-	return r.GetServiceByID(ctx, service.ID)
+	return r.GetAdByID(ctx, service.ID)
 }
 
-func (r *ServiceRepository) DeleteService(ctx context.Context, id int) error {
-	query := `DELETE FROM service WHERE id = ?`
+func (r *AdRepository) DeleteAd(ctx context.Context, id int) error {
+	query := `DELETE FROM ad WHERE id = ?`
 	result, err := r.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
@@ -133,21 +133,21 @@ func (r *ServiceRepository) DeleteService(ctx context.Context, id int) error {
 		return err
 	}
 	if rowsAffected == 0 {
-		return ErrServiceNotFound
+		return ErrAdNotFound
 	}
 	return nil
 }
-func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Service, float64, float64, error) {
+func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Ad, float64, float64, error) {
 	var (
-		services   []models.Service
+		ads        []models.Ad
 		params     []interface{}
 		conditions []string
 	)
 
 	baseQuery := `
-		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.service_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked, s.status,  s.created_at, s.updated_at
-		FROM service s
-		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.ad_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked, s.status,  s.created_at, s.updated_at
+		FROM ad s
+		LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
 		JOIN users u ON s.user_id = u.id
 		INNER JOIN categories c ON s.category_id = c.id
 		
@@ -218,7 +218,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	defer rows.Close()
 
 	for rows.Next() {
-		var s models.Service
+		var s models.Ad
 		var imagesJSON []byte
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
@@ -236,23 +236,23 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 		if err != nil {
 			return nil, 0, 0, err
 		}
-		services = append(services, s)
+		ads = append(ads, s)
 	}
 
 	// Get min/max prices
 	var minPrice, maxPrice float64
-	err = r.DB.QueryRowContext(ctx, `SELECT MIN(price), MAX(price) FROM service`).Scan(&minPrice, &maxPrice)
+	err = r.DB.QueryRowContext(ctx, `SELECT MIN(price), MAX(price) FROM ad`).Scan(&minPrice, &maxPrice)
 	if err != nil {
-		return services, 0, 0, nil // fallback
+		return ads, 0, 0, nil // fallback
 	}
 
-	return services, minPrice, maxPrice, nil
+	return ads, minPrice, maxPrice, nil
 }
 
-func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
+func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.Ad, error) {
 	query := `
 		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.created_at, s.updated_at
-		FROM service s
+		FROM ad s
 		JOIN users u ON s.user_id = u.id
 		WHERE user_id = ?
 	`
@@ -263,9 +263,9 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 	}
 	defer rows.Close()
 
-	var services []models.Service
+	var ads []models.Ad
 	for rows.Next() {
-		var s models.Service
+		var s models.Ad
 		var imagesJSON []byte
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &imagesJSON,
@@ -280,22 +280,22 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 			}
 		}
 
-		services = append(services, s)
+		ads = append(ads, s)
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	return services, nil
+	return ads, nil
 }
 
-func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
+func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterAdRequest) ([]models.FilteredAd, error) {
 	query := `
 		SELECT 
 			u.id, u.name, u.review_rating,
 			s.id, s.name, s.price, s.description
-		FROM service s
+		FROM ad s
 		JOIN users u ON s.user_id = u.id
 		WHERE s.price BETWEEN ? AND ?
 	`
@@ -331,7 +331,7 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 	// Sorting
 	switch req.Sorting {
 	case 1:
-		query += " ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC"
+		query += " ORDER BY (SELECT COUNT(*) FROM ad_reviews r WHERE r.ad_id = s.id) DESC"
 	case 2:
 		query += " ORDER BY s.price DESC"
 	case 3:
@@ -346,22 +346,22 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 	}
 	defer rows.Close()
 
-	var services []models.FilteredService
+	var ads []models.FilteredAd
 	for rows.Next() {
-		var s models.FilteredService
+		var s models.FilteredAd
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
+			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription,
 		); err != nil {
 			return nil, err
 		}
-		services = append(services, s)
+		ads = append(ads, s)
 	}
 
-	return services, nil
+	return ads, nil
 }
 
-func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID int, status string) ([]models.Service, error) {
+func (r *AdRepository) FetchAdByStatusAndUserID(ctx context.Context, userID int, status string) ([]models.Ad, error) {
 	query := `
 	SELECT 
 		s.id, s.name, s.address, s.price, s.user_id,
@@ -369,7 +369,7 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 		s.images, s.category_id, s.subcategory_id, s.description,
 		s.avg_rating, s.top, s.liked, s.status,
 		s.created_at, s.updated_at
-	FROM service s
+	FROM ad s
 	JOIN users u ON s.user_id = u.id
 	WHERE s.status = ? AND s.user_id = ?`
 
@@ -379,9 +379,9 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 	}
 	defer rows.Close()
 
-	var services []models.Service
+	var ads []models.Ad
 	for rows.Next() {
-		var s models.Service
+		var s models.Ad
 		var imagesJSON []byte
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
@@ -396,12 +396,12 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("json decode error: %w", err)
 		}
-		services = append(services, s)
+		ads = append(ads, s)
 	}
-	return services, nil
+	return ads, nil
 }
 
-func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, req models.FilterServicesRequest, userID int) ([]models.FilteredService, error) {
+func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.FilterAdRequest, userID int) ([]models.FilteredAd, error) {
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
@@ -409,9 +409,9 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 			u.id, u.name, u.review_rating,
 			s.id, s.name, s.price, s.description,
 			CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
-		FROM service s
+		FROM ad s
 		JOIN users u ON s.user_id = u.id
-		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+		LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
 		WHERE s.price BETWEEN ? AND ?
 	`
 
@@ -450,7 +450,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	// Sorting
 	switch req.Sorting {
 	case 1:
-		query += " ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC"
+		query += " ORDER BY (SELECT COUNT(*) FROM ad_reviews r WHERE r.ad_id = s.id) DESC"
 		log.Println("[DEBUG] Sorting by most reviewed")
 	case 2:
 		query += " ORDER BY s.price DESC"
@@ -477,17 +477,17 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		}
 	}()
 
-	var services []models.FilteredService
+	var ads []models.FilteredAd
 	for rows.Next() {
-		var s models.FilteredService
+		var s models.FilteredAd
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked,
+			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &s.Liked,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
-		services = append(services, s)
+		ads = append(ads, s)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -495,11 +495,11 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		return nil, fmt.Errorf("error reading rows: %w", err)
 	}
 
-	log.Printf("[INFO] Successfully fetched %d services", len(services))
-	return services, nil
+	log.Printf("[INFO] Successfully fetched %d services", len(ads))
+	return ads, nil
 }
 
-func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, serviceID int, userID int) (models.Service, error) {
+func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userID int) (models.Ad, error) {
 	query := `
 		SELECT 
 			s.id, s.name, s.address, s.price, s.user_id,
@@ -509,18 +509,18 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 			s.description, s.avg_rating, s.top,
 			CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
 			s.status, s.created_at, s.updated_at
-		FROM service s
+		FROM ad s
 		JOIN users u ON s.user_id = u.id
 		JOIN categories c ON s.category_id = c.id
 		JOIN subcategories sub ON s.subcategory_id = sub.id
-		LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+		LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
 		WHERE s.id = ?
 	`
 
-	var s models.Service
+	var s models.Ad
 	var imagesJSON []byte
 
-	err := r.DB.QueryRowContext(ctx, query, userID, serviceID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, adID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.ReviewRating,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
@@ -530,15 +530,15 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 	)
 
 	if err == sql.ErrNoRows {
-		return models.Service{}, errors.New("service not found")
+		return models.Ad{}, errors.New("service not found")
 	}
 	if err != nil {
-		return models.Service{}, fmt.Errorf("failed to get service: %w", err)
+		return models.Ad{}, fmt.Errorf("failed to get service: %w", err)
 	}
 
 	if len(imagesJSON) > 0 {
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
-			return models.Service{}, fmt.Errorf("failed to decode images json: %w", err)
+			return models.Ad{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
 	}
 

@@ -57,6 +57,14 @@ type application struct {
 	rentResponseRepo       *repositories.RentResponseRepository
 	rentFavoriteHandler    *handlers.RentFavoriteHandler
 	rentFavoriteRepo       *repositories.RentFavoriteRepository
+	adHandler              *handlers.AdHandler
+	adRepo                 *repositories.AdRepository
+	adReviewHandler        *handlers.AdReviewHandler
+	adReviewRepo           *repositories.AdReviewRepository
+	adResponseHandler      *handlers.AdResponseHandler
+	adResponseRepo         *repositories.AdResponseRepository
+	adFavoriteHandler      *handlers.AdFavoriteHandler
+	adFavoriteRepo         *repositories.AdFavoriteRepository
 
 	// authService *services/*/.AuthService
 }
@@ -80,6 +88,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	rentReviewRepo := repositories.RentReviewRepository{DB: db}
 	rentResponseRepo := repositories.RentResponseRepository{DB: db}
 	rentFavoriteRepo := repositories.RentFavoriteRepository{DB: db}
+	adRepo := repositories.AdRepository{DB: db}
+	adReviewRepo := repositories.AdReviewRepository{DB: db}
+	adResponseRepo := repositories.AdResponseRepository{DB: db}
+	adFavoriteRepo := repositories.AdFavoriteRepository{DB: db}
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
@@ -98,6 +110,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	rentReviewService := &services.RentReviewService{RentReviewsRepo: &rentReviewRepo}
 	rentResponseService := &services.RentResponseService{RentResponseRepo: &rentResponseRepo}
 	rentFavoriteService := &services.RentFavoriteService{RentFavoriteRepo: &rentFavoriteRepo}
+	adService := &services.AdService{AdRepo: &adRepo}
+	adReviewService := &services.AdReviewService{AdReviewsRepo: &adReviewRepo}
+	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo}
+	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -118,6 +134,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	rentReviewHandler := &handlers.RentReviewHandler{Service: rentReviewService}
 	rentResponseHandler := &handlers.RentResponseHandler{Service: rentResponseService}
 	rentFavoriteHandler := &handlers.RentFavoriteHandler{Service: rentFavoriteService}
+	adHandler := &handlers.AdHandler{Service: adService}
+	adReviewHandler := &handlers.AdReviewHandler{Service: adReviewService}
+	adResponseHandler := &handlers.AdResponseHandler{Service: adResponseService}
+	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
 
 	// Chat
 	wsManager := NewWebSocketManager()
@@ -155,6 +175,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		rentReviewHandler:      rentReviewHandler,
 		rentResponseHandler:    rentResponseHandler,
 		rentFavoriteHandler:    rentFavoriteHandler,
+		adHandler:              adHandler,
+		adReviewHandler:        adReviewHandler,
+		adResponseHandler:      adResponseHandler,
+		adFavoriteHandler:      adFavoriteHandler,
 		//authService:    authService,
 	}
 }

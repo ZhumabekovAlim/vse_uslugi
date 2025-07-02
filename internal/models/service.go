@@ -27,6 +27,7 @@ type Service struct {
 	SubcategoryName string     `json:"subcategory_name"`
 	Latitude        *string    `json:"latitude,omitempty"`
 	Longitude       *string    `json:"longitude,omitempty"`
+	MainCategory    string     `json:"main_category"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       *time.Time `json:"updated_at,omitempty"`
 }
