@@ -30,7 +30,7 @@ func (h *WorkAdReviewHandler) CreateWorkAdReview(w http.ResponseWriter, r *http.
 }
 
 func (h *WorkAdReviewHandler) GetWorkAdReviewsByWorkID(w http.ResponseWriter, r *http.Request) {
-	workAdIDStr := r.URL.Query().Get(":workad_id")
+	workAdIDStr := r.URL.Query().Get(":work_ad_id")
 	workAdID, err := strconv.Atoi(workAdIDStr)
 	if err != nil {
 		http.Error(w, "Invalid service_id", http.StatusBadRequest)

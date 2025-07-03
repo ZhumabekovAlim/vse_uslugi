@@ -211,13 +211,22 @@ func (app *application) routes() http.Handler {
 	mux.Post("/work_ad/status", authMiddleware.ThenFunc(app.workAdHandler.GetWorksAdByStatusAndUserID))
 	mux.Get("/images/work_ad/:filename", http.HandlerFunc(app.workAdHandler.ServeWorkAdImage))
 	mux.Post("/work_ad/filtered/:user_id", authMiddleware.ThenFunc(app.workAdHandler.GetFilteredWorksAdWithLikes))
-	mux.Get("/work_ad/workad_id/:workad_id/user/:user_id", authMiddleware.ThenFunc(app.workAdHandler.GetWorkAdByWorkIDAndUserID))
+	mux.Get("/work_ad/work_ad_id/:work_ad_id/user/:user_id", authMiddleware.ThenFunc(app.workAdHandler.GetWorkAdByWorkIDAndUserID))
 
 	// Work Ad Reviews
 	mux.Post("/work_ad_review", authMiddleware.ThenFunc(app.workAdReviewHandler.CreateWorkAdReview))
-	mux.Get("/work_ad_review/:workad_id", authMiddleware.ThenFunc(app.workAdReviewHandler.GetWorkAdReviewsByWorkID))
+	mux.Get("/work_ad_review/:work_ad_id", authMiddleware.ThenFunc(app.workAdReviewHandler.GetWorkAdReviewsByWorkID))
 	mux.Put("/work_ad_review/:id", authMiddleware.ThenFunc(app.workAdReviewHandler.UpdateWorkAdReview))
 	mux.Del("/work_ad_review/:id", authMiddleware.ThenFunc(app.workAdReviewHandler.DeleteWorkAdReview))
+
+	// Work Response
+	mux.Post("/work_ad_responses", authMiddleware.ThenFunc(app.workAdResponseHandler.CreateWorkAdResponse))
+
+	// Work Favorites
+	mux.Post("/work_ad_favorites", authMiddleware.ThenFunc(app.workAdFavoriteHandler.AddWorkAdToFavorites))
+	mux.Del("/work_ad_favorites/user/:user_id/work/:work_ad_id", authMiddleware.ThenFunc(app.workAdFavoriteHandler.RemoveWorkAdFromFavorites))
+	mux.Get("/work_ad_favorites/check/user/:user_id/work/:work_ad_id", authMiddleware.ThenFunc(app.workAdFavoriteHandler.IsWorkAdFavorite))
+	mux.Get("/work_ad_favorites/:user_id", authMiddleware.ThenFunc(app.workAdFavoriteHandler.GetWorkAdFavoritesByUser))
 
 	return standardMiddleware.Then(mux)
 }

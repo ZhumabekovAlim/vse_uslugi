@@ -69,6 +69,10 @@ type application struct {
 	workAdRepo             *repositories.WorkAdRepository
 	workAdReviewHandler    *handlers.WorkAdReviewHandler
 	workAdReviewRepo       *repositories.WorkAdReviewRepository
+	workAdResponseHandler  *handlers.WorkAdResponseHandler
+	workAdResponseRepo     *repositories.WorkAdResponseRepository
+	workAdFavoriteHandler  *handlers.WorkAdFavoriteHandler
+	workAdFavoriteRepo     *repositories.WorkAdFavoriteRepository
 
 	// authService *services/*/.AuthService
 }
@@ -98,6 +102,8 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adFavoriteRepo := repositories.AdFavoriteRepository{DB: db}
 	workAdRepo := repositories.WorkAdRepository{DB: db}
 	workAdReviewRepo := repositories.WorkAdReviewRepository{DB: db}
+	workAdResponseRepo := repositories.WorkAdResponseRepository{DB: db}
+	workAdFavoriteRepo := repositories.WorkAdFavoriteRepository{DB: db}
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
@@ -122,6 +128,8 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
 	workAdService := &services.WorkAdService{WorkAdRepo: &workAdRepo}
 	workAdReviewService := &services.WorkAdReviewService{WorkAdReviewsRepo: &workAdReviewRepo}
+	workAdResponseService := &services.WorkAdResponseService{WorkAdResponseRepo: &workAdResponseRepo}
+	workAdFavoriteService := &services.WorkAdFavoriteService{WorkAdFavoriteRepo: &workAdFavoriteRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -148,6 +156,8 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
 	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
 	workAdReviewHandler := &handlers.WorkAdReviewHandler{Service: workAdReviewService}
+	workAdResponseHandler := &handlers.WorkAdResponseHandler{Service: workAdResponseService}
+	workAdFavoriteHandler := &handlers.WorkAdFavoriteHandler{Service: workAdFavoriteService}
 
 	// Chat
 	wsManager := NewWebSocketManager()
@@ -191,6 +201,8 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		adFavoriteHandler:      adFavoriteHandler,
 		workAdHandler:          workAdHandler,
 		workAdReviewHandler:    workAdReviewHandler,
+		workAdResponseHandler:  workAdResponseHandler,
+		workAdFavoriteHandler:  workAdFavoriteHandler,
 		//authService:    authService,
 	}
 }
