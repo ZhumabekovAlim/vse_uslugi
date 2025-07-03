@@ -55,9 +55,9 @@ type WorkAdFilterRequest struct {
 }
 
 type WorkAdListResponse struct {
-	Works    []Work  `json:"works"`
-	MinPrice float64 `json:"min_price"`
-	MaxPrice float64 `json:"max_price"`
+	WorksAd  []WorkAd `json:"works_ad"`
+	MinPrice float64  `json:"min_price"`
+	MaxPrice float64  `json:"max_price"`
 }
 
 type FilterWorkAdRequest struct {

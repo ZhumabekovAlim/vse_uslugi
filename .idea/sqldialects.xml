@@ -31,6 +31,10 @@
     <file url="file://$PROJECT_DIR$/db/migrations/000026_ad_reviews.up.sql" dialect="MariaDB" />
     <file url="file://$PROJECT_DIR$/db/migrations/000027_ad_responses.up.sql" dialect="MariaDB" />
     <file url="file://$PROJECT_DIR$/db/migrations/000028_ad_favorites.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000029_work_ad.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000031_work_ad_responses.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000032_work_ad_favorites.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000033_work_ad_reviews.up.sql" dialect="MariaDB" />
     <file url="PROJECT" dialect="MariaDB" />
   </component>
 </project>

@@ -65,6 +65,8 @@ type application struct {
 	adResponseRepo         *repositories.AdResponseRepository
 	adFavoriteHandler      *handlers.AdFavoriteHandler
 	adFavoriteRepo         *repositories.AdFavoriteRepository
+	workAdHandler          *handlers.WorkAdHandler
+	workAdRepo             *repositories.WorkAdRepository
 
 	// authService *services/*/.AuthService
 }
@@ -92,6 +94,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adReviewRepo := repositories.AdReviewRepository{DB: db}
 	adResponseRepo := repositories.AdResponseRepository{DB: db}
 	adFavoriteRepo := repositories.AdFavoriteRepository{DB: db}
+	workAdRepo := repositories.WorkAdRepository{DB: db}
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
@@ -114,6 +117,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adReviewService := &services.AdReviewService{AdReviewsRepo: &adReviewRepo}
 	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo}
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
+	workAdService := &services.WorkAdService{WorkAdRepo: &workAdRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -138,6 +142,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adReviewHandler := &handlers.AdReviewHandler{Service: adReviewService}
 	adResponseHandler := &handlers.AdResponseHandler{Service: adResponseService}
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
+	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
 
 	// Chat
 	wsManager := NewWebSocketManager()
@@ -179,6 +184,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		adReviewHandler:        adReviewHandler,
 		adResponseHandler:      adResponseHandler,
 		adFavoriteHandler:      adFavoriteHandler,
+		workAdHandler:          workAdHandler,
 		//authService:    authService,
 	}
 }

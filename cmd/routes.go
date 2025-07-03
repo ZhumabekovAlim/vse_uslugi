@@ -56,7 +56,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/service/service_id/:service_id/user/:user_id", authMiddleware.ThenFunc(app.serviceHandler.GetServiceByServiceIDAndUserID))
 
 	// Categories
-	mux.Post("/category", authMiddleware.ThenFunc(app.categoryHandler.CreateCategory)) //РАБОТАЕТ
+	mux.Post("/category", authMiddleware.ThenFunc(app.categoryHandler.CreateCategory))
 	mux.Get("/category", authMiddleware.ThenFunc(app.categoryHandler.GetAllCategories))
 	mux.Get("/category/:id", authMiddleware.ThenFunc(app.categoryHandler.GetCategoryByID))
 	mux.Put("/category/:id", authMiddleware.ThenFunc(app.categoryHandler.UpdateCategory))
@@ -67,16 +67,16 @@ func (app *application) routes() http.Handler {
 	mux.Get("/images/categories/:filename", standardMiddleware.ThenFunc(app.categoryHandler.ServeImage))
 
 	// Reviews
-	mux.Post("/review", authMiddleware.ThenFunc(app.reviewsHandler.CreateReview))                     //РАБОТАЕТ
-	mux.Get("/review/:service_id", authMiddleware.ThenFunc(app.reviewsHandler.GetReviewsByServiceID)) //РАБОТАЕТ
-	mux.Put("/review/:id", authMiddleware.ThenFunc(app.reviewsHandler.UpdateReview))                  //РАБОТАЕТ
-	mux.Del("/review/:id", authMiddleware.ThenFunc(app.reviewsHandler.DeleteReview))                  //РАБОТАЕТ
+	mux.Post("/review", authMiddleware.ThenFunc(app.reviewsHandler.CreateReview))
+	mux.Get("/review/:service_id", authMiddleware.ThenFunc(app.reviewsHandler.GetReviewsByServiceID))
+	mux.Put("/review/:id", authMiddleware.ThenFunc(app.reviewsHandler.UpdateReview))
+	mux.Del("/review/:id", authMiddleware.ThenFunc(app.reviewsHandler.DeleteReview))
 
 	// Service Favorites
-	mux.Post("/favorites", authMiddleware.ThenFunc(app.serviceFavorite.AddToFavorites)) //РАБОТАЕТ
+	mux.Post("/favorites", authMiddleware.ThenFunc(app.serviceFavorite.AddToFavorites))
 	mux.Del("/favorites/user/:user_id/service/:service_id", authMiddleware.ThenFunc(app.serviceFavorite.RemoveFromFavorites))
-	mux.Get("/favorites/check/user/:user_id/service/:service_id", authMiddleware.ThenFunc(app.serviceFavorite.IsFavorite)) //РАБОТАЕТ
-	mux.Get("/favorites/:user_id", authMiddleware.ThenFunc(app.serviceFavorite.GetFavoritesByUser))                        //РАБОТАЕТ
+	mux.Get("/favorites/check/user/:user_id/service/:service_id", authMiddleware.ThenFunc(app.serviceFavorite.IsFavorite))
+	mux.Get("/favorites/:user_id", authMiddleware.ThenFunc(app.serviceFavorite.GetFavoritesByUser))
 
 	// Subcategories
 	mux.Post("/subcategory", authMiddleware.ThenFunc(app.subcategoryHandler.CreateSubcategory))
@@ -117,88 +117,101 @@ func (app *application) routes() http.Handler {
 	mux.Post("/responses", authMiddleware.ThenFunc(app.serviceResponseHandler.CreateServiceResponse))
 
 	// Work
-	mux.Post("/work", authMiddleware.ThenFunc(app.workHandler.CreateWork))                    //РАБОТАЕТ
-	mux.Get("/work/get", authMiddleware.ThenFunc(app.workHandler.GetWorks))                   //РАБОТАЕТ
-	mux.Get("/work/:id", authMiddleware.ThenFunc(app.workHandler.GetWorkByID))                //РАБОТАЕТ
-	mux.Put("/work/:id", authMiddleware.ThenFunc(app.workHandler.UpdateWork))                 //РАБОТАЕТ
-	mux.Del("/work/:id", authMiddleware.ThenFunc(app.workHandler.DeleteWork))                 //РАБОТАЕТ
-	mux.Get("/work/user/:user_id", authMiddleware.ThenFunc(app.workHandler.GetWorksByUserID)) //РАБОТАЕТ
-	mux.Post("/work/filtered", authMiddleware.ThenFunc(app.workHandler.GetFilteredWorksPost)) //РАБОТАЕТ
+	mux.Post("/work", authMiddleware.ThenFunc(app.workHandler.CreateWork))
+	mux.Get("/work/get", authMiddleware.ThenFunc(app.workHandler.GetWorks))
+	mux.Get("/work/:id", authMiddleware.ThenFunc(app.workHandler.GetWorkByID))
+	mux.Put("/work/:id", authMiddleware.ThenFunc(app.workHandler.UpdateWork))
+	mux.Del("/work/:id", authMiddleware.ThenFunc(app.workHandler.DeleteWork))
+	mux.Get("/work/user/:user_id", authMiddleware.ThenFunc(app.workHandler.GetWorksByUserID))
+	mux.Post("/work/filtered", authMiddleware.ThenFunc(app.workHandler.GetFilteredWorksPost))
 	mux.Post("/work/status", authMiddleware.ThenFunc(app.workHandler.GetWorksByStatusAndUserID))
 	mux.Get("/images/works/:filename", http.HandlerFunc(app.workHandler.ServeWorkImage))
 	mux.Post("/work/filtered/:user_id", authMiddleware.ThenFunc(app.workHandler.GetFilteredWorksWithLikes))
 	mux.Get("/work/work_id/:work_id/user/:user_id", authMiddleware.ThenFunc(app.workHandler.GetWorkByWorkIDAndUserID))
 
 	// Work Reviews
-	mux.Post("/work_review", authMiddleware.ThenFunc(app.workReviewHandler.CreateWorkReview))               //РАБОТАЕТ
-	mux.Get("/work_review/:work_id", authMiddleware.ThenFunc(app.workReviewHandler.GetWorkReviewsByWorkID)) //РАБОТАЕТ
-	mux.Put("/work_review/:id", authMiddleware.ThenFunc(app.workReviewHandler.UpdateWorkReview))            //РАБОТАЕТ
-	mux.Del("/work_review/:id", authMiddleware.ThenFunc(app.workReviewHandler.DeleteWorkReview))            //РАБОТАЕТ
+	mux.Post("/work_review", authMiddleware.ThenFunc(app.workReviewHandler.CreateWorkReview))
+	mux.Get("/work_review/:work_id", authMiddleware.ThenFunc(app.workReviewHandler.GetWorkReviewsByWorkID))
+	mux.Put("/work_review/:id", authMiddleware.ThenFunc(app.workReviewHandler.UpdateWorkReview))
+	mux.Del("/work_review/:id", authMiddleware.ThenFunc(app.workReviewHandler.DeleteWorkReview))
 
 	// Work Response
 	mux.Post("/work_responses", authMiddleware.ThenFunc(app.workResponseHandler.CreateWorkResponse))
 
 	// Work Favorites
-	mux.Post("/work_favorites", authMiddleware.ThenFunc(app.workFavoriteHandler.AddWorkToFavorites)) //РАБОТАЕТ
+	mux.Post("/work_favorites", authMiddleware.ThenFunc(app.workFavoriteHandler.AddWorkToFavorites))
 	mux.Del("/work_favorites/user/:user_id/work/:work_id", authMiddleware.ThenFunc(app.workFavoriteHandler.RemoveWorkFromFavorites))
-	mux.Get("/work_favorites/check/user/:user_id/work/:work_id", authMiddleware.ThenFunc(app.workFavoriteHandler.IsWorkFavorite)) //РАБОТАЕТ
-	mux.Get("/work_favorites/:user_id", authMiddleware.ThenFunc(app.workFavoriteHandler.GetWorkFavoritesByUser))                  //РАБОТАЕТ
+	mux.Get("/work_favorites/check/user/:user_id/work/:work_id", authMiddleware.ThenFunc(app.workFavoriteHandler.IsWorkFavorite))
+	mux.Get("/work_favorites/:user_id", authMiddleware.ThenFunc(app.workFavoriteHandler.GetWorkFavoritesByUser))
 
 	// Rent
-	mux.Post("/rent", authMiddleware.ThenFunc(app.rentHandler.CreateRent))                    //РАБОТАЕТ
-	mux.Get("/rent/get", authMiddleware.ThenFunc(app.rentHandler.GetRents))                   //РАБОТАЕТ
-	mux.Get("/rent/:id", authMiddleware.ThenFunc(app.rentHandler.GetRentByID))                //РАБОТАЕТ
-	mux.Put("/rent/:id", authMiddleware.ThenFunc(app.rentHandler.UpdateRent))                 //РАБОТАЕТ
-	mux.Del("/rent/:id", authMiddleware.ThenFunc(app.rentHandler.DeleteRent))                 //РАБОТАЕТ
-	mux.Get("/rent/user/:user_id", authMiddleware.ThenFunc(app.rentHandler.GetRentsByUserID)) //РАБОТАЕТ
-	mux.Post("/rent/filtered", authMiddleware.ThenFunc(app.rentHandler.GetFilteredRentsPost)) //РАБОТАЕТ
+	mux.Post("/rent", authMiddleware.ThenFunc(app.rentHandler.CreateRent))
+	mux.Get("/rent/get", authMiddleware.ThenFunc(app.rentHandler.GetRents))
+	mux.Get("/rent/:id", authMiddleware.ThenFunc(app.rentHandler.GetRentByID))
+	mux.Put("/rent/:id", authMiddleware.ThenFunc(app.rentHandler.UpdateRent))
+	mux.Del("/rent/:id", authMiddleware.ThenFunc(app.rentHandler.DeleteRent))
+	mux.Get("/rent/user/:user_id", authMiddleware.ThenFunc(app.rentHandler.GetRentsByUserID))
+	mux.Post("/rent/filtered", authMiddleware.ThenFunc(app.rentHandler.GetFilteredRentsPost))
 	mux.Post("/rent/status", authMiddleware.ThenFunc(app.rentHandler.GetRentsByStatusAndUserID))
 	mux.Get("/images/rents/:filename", http.HandlerFunc(app.rentHandler.ServeRentsImage))
 	mux.Post("/rent/filtered/:user_id", authMiddleware.ThenFunc(app.rentHandler.GetFilteredRentsWithLikes))
 	mux.Get("/rent/rent_id/:rent_id/user/:user_id", authMiddleware.ThenFunc(app.rentHandler.GetRentByRentIDAndUserID))
 
 	// Rent Reviews
-	mux.Post("/rent_review", authMiddleware.ThenFunc(app.rentReviewHandler.CreateRentReview))               //РАБОТАЕТ
-	mux.Get("/rent_review/:rent_id", authMiddleware.ThenFunc(app.rentReviewHandler.GetRentReviewsByRentID)) //РАБОТАЕТ
-	mux.Put("/rent_review/:id", authMiddleware.ThenFunc(app.rentReviewHandler.UpdateRentReview))            //РАБОТАЕТ
-	mux.Del("/rent_review/:id", authMiddleware.ThenFunc(app.rentReviewHandler.DeleteRentReview))            //РАБОТАЕТ
+	mux.Post("/rent_review", authMiddleware.ThenFunc(app.rentReviewHandler.CreateRentReview))
+	mux.Get("/rent_review/:rent_id", authMiddleware.ThenFunc(app.rentReviewHandler.GetRentReviewsByRentID))
+	mux.Put("/rent_review/:id", authMiddleware.ThenFunc(app.rentReviewHandler.UpdateRentReview))
+	mux.Del("/rent_review/:id", authMiddleware.ThenFunc(app.rentReviewHandler.DeleteRentReview))
 
-	// Work Response
+	// Reent Response
 	mux.Post("/rent_responses", authMiddleware.ThenFunc(app.rentResponseHandler.CreateRentResponse))
 
-	// Work Favorites
-	mux.Post("/rent_favorites", authMiddleware.ThenFunc(app.rentFavoriteHandler.AddRentToFavorites)) //РАБОТАЕТ
+	// Rent Favorites
+	mux.Post("/rent_favorites", authMiddleware.ThenFunc(app.rentFavoriteHandler.AddRentToFavorites))
 	mux.Del("/rent_favorites/user/:user_id/rent/:rent_id", authMiddleware.ThenFunc(app.rentFavoriteHandler.RemoveRentFromFavorites))
-	mux.Get("/rent_favorites/check/user/:user_id/rent/:rent_id", authMiddleware.ThenFunc(app.rentFavoriteHandler.IsRentFavorite)) //РАБОТАЕТ
+	mux.Get("/rent_favorites/check/user/:user_id/rent/:rent_id", authMiddleware.ThenFunc(app.rentFavoriteHandler.IsRentFavorite))
 	mux.Get("/rent_favorites/:user_id", authMiddleware.ThenFunc(app.rentFavoriteHandler.GetRentFavoritesByUser))
 
 	// Ad
-	mux.Post("/ad", authMiddleware.ThenFunc(app.adHandler.CreateAd))                   //РАБОТАЕТ
-	mux.Get("/ad/get", authMiddleware.ThenFunc(app.adHandler.GetAd))                   //РАБОТАЕТ
-	mux.Get("/ad/:id", authMiddleware.ThenFunc(app.adHandler.GetAdByID))               //РАБОТАЕТ
-	mux.Put("/ad/:id", authMiddleware.ThenFunc(app.adHandler.UpdateAd))                //РАБОТАЕТ
-	mux.Del("/ad/:id", authMiddleware.ThenFunc(app.adHandler.DeleteAd))                //РАБОТАЕТ
-	mux.Get("/ad/user/:user_id", authMiddleware.ThenFunc(app.adHandler.GetAdByUserID)) //РАБОТАЕТ
-	mux.Post("/ad/filtered", authMiddleware.ThenFunc(app.adHandler.GetFilteredAdPost)) //РАБОТАЕТ
+	mux.Post("/ad", authMiddleware.ThenFunc(app.adHandler.CreateAd))
+	mux.Get("/ad/get", authMiddleware.ThenFunc(app.adHandler.GetAd))
+	mux.Get("/ad/:id", authMiddleware.ThenFunc(app.adHandler.GetAdByID))
+	mux.Put("/ad/:id", authMiddleware.ThenFunc(app.adHandler.UpdateAd))
+	mux.Del("/ad/:id", authMiddleware.ThenFunc(app.adHandler.DeleteAd))
+	mux.Get("/ad/user/:user_id", authMiddleware.ThenFunc(app.adHandler.GetAdByUserID))
+	mux.Post("/ad/filtered", authMiddleware.ThenFunc(app.adHandler.GetFilteredAdPost))
 	mux.Post("/ad/status", authMiddleware.ThenFunc(app.adHandler.GetAdByStatusAndUserID))
 	mux.Get("/images/ad/:filename", http.HandlerFunc(app.adHandler.ServeAdImage))
 	mux.Post("/ad/filtered/:user_id", authMiddleware.ThenFunc(app.adHandler.GetFilteredAdWithLikes))
 	mux.Get("/ad/ad_id/:ad_id/user/:user_id", authMiddleware.ThenFunc(app.adHandler.GetAdByAdIDAndUserID))
 
 	// Ad Reviews
-	mux.Post("/ad_review", authMiddleware.ThenFunc(app.adReviewHandler.CreateAdReview))         //РАБОТАЕТ
-	mux.Get("/ad_review/:ad_id", authMiddleware.ThenFunc(app.adReviewHandler.GetReviewsByAdID)) //РАБОТАЕТ
-	mux.Put("/ad_review/:id", authMiddleware.ThenFunc(app.adReviewHandler.UpdateAdReview))      //РАБОТАЕТ
-	mux.Del("/ad_review/:id", authMiddleware.ThenFunc(app.adReviewHandler.DeleteAdReview))      //РАБОТАЕТ
+	mux.Post("/ad_review", authMiddleware.ThenFunc(app.adReviewHandler.CreateAdReview))
+	mux.Get("/ad_review/:ad_id", authMiddleware.ThenFunc(app.adReviewHandler.GetReviewsByAdID))
+	mux.Put("/ad_review/:id", authMiddleware.ThenFunc(app.adReviewHandler.UpdateAdReview))
+	mux.Del("/ad_review/:id", authMiddleware.ThenFunc(app.adReviewHandler.DeleteAdReview))
 
 	// Ad Response
 	mux.Post("/ad_responses", authMiddleware.ThenFunc(app.adResponseHandler.CreateAdResponse))
 
-	// Work Favorites
-	mux.Post("/ad_favorites", authMiddleware.ThenFunc(app.adFavoriteHandler.AddAdToFavorites)) //РАБОТАЕТ
+	// Ad Favorites
+	mux.Post("/ad_favorites", authMiddleware.ThenFunc(app.adFavoriteHandler.AddAdToFavorites))
 	mux.Del("/ad_favorites/user/:user_id/ad/:ad_id", authMiddleware.ThenFunc(app.adFavoriteHandler.RemoveAdFromFavorites))
-	mux.Get("/ad_favorites/check/user/:user_id/ad/:ad_id", authMiddleware.ThenFunc(app.adFavoriteHandler.IsAdFavorite)) //РАБОТАЕТ
+	mux.Get("/ad_favorites/check/user/:user_id/ad/:ad_id", authMiddleware.ThenFunc(app.adFavoriteHandler.IsAdFavorite))
 	mux.Get("/ad_favorites/:user_id", authMiddleware.ThenFunc(app.adFavoriteHandler.GetAdFavoritesByUser))
+
+	// WorkAd
+	mux.Post("/work_ad", authMiddleware.ThenFunc(app.workAdHandler.CreateWorkAd))
+	mux.Get("/work_ad/get", authMiddleware.ThenFunc(app.workAdHandler.GetWorksAd))
+	mux.Get("/work_ad/:id", authMiddleware.ThenFunc(app.workAdHandler.GetWorkAdByID))
+	mux.Put("/work_ad/:id", authMiddleware.ThenFunc(app.workAdHandler.UpdateWorkAd))
+	mux.Del("/work_ad/:id", authMiddleware.ThenFunc(app.workAdHandler.DeleteWorkAd))
+	mux.Get("/work_ad/user/:user_id", authMiddleware.ThenFunc(app.workAdHandler.GetWorksAdByUserID))
+	mux.Post("/work_ad/filtered", authMiddleware.ThenFunc(app.workAdHandler.GetFilteredWorksAdPost))
+	mux.Post("/work_ad/status", authMiddleware.ThenFunc(app.workAdHandler.GetWorksAdByStatusAndUserID))
+	mux.Get("/images/work_ad/:filename", http.HandlerFunc(app.workAdHandler.ServeWorkAdImage))
+	mux.Post("/work_ad/filtered/:user_id", authMiddleware.ThenFunc(app.workAdHandler.GetFilteredWorksAdWithLikes))
+	mux.Get("/work_ad/workad_id/:workad_id/user/:user_id", authMiddleware.ThenFunc(app.workAdHandler.GetWorkAdByWorkIDAndUserID))
 
 	return standardMiddleware.Then(mux)
 }
