@@ -73,6 +73,14 @@ type application struct {
 	workAdResponseRepo     *repositories.WorkAdResponseRepository
 	workAdFavoriteHandler  *handlers.WorkAdFavoriteHandler
 	workAdFavoriteRepo     *repositories.WorkAdFavoriteRepository
+	rentAdHandler          *handlers.RentAdHandler
+	rentAdRepo             *repositories.AdRepository
+	rentAdReviewHandler    *handlers.RentAdReviewHandler
+	rentAdReviewRepo       *repositories.AdReviewRepository
+	rentAdResponseHandler  *handlers.RentAdResponseHandler
+	rentAdResponseRepo     *repositories.AdResponseRepository
+	rentAdFavoriteHandler  *handlers.RentAdFavoriteHandler
+	rentAdFavoriteRepo     *repositories.AdFavoriteRepository
 
 	// authService *services/*/.AuthService
 }
@@ -104,6 +112,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workAdReviewRepo := repositories.WorkAdReviewRepository{DB: db}
 	workAdResponseRepo := repositories.WorkAdResponseRepository{DB: db}
 	workAdFavoriteRepo := repositories.WorkAdFavoriteRepository{DB: db}
+	rentAdRepo := repositories.RentAdRepository{DB: db}
+	rentAdReviewRepo := repositories.RentAdReviewRepository{DB: db}
+	rentAdResponseRepo := repositories.RentAdResponseRepository{DB: db}
+	rentAdFavoriteRepo := repositories.RentAdFavoriteRepository{DB: db}
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
@@ -130,6 +142,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workAdReviewService := &services.WorkAdReviewService{WorkAdReviewsRepo: &workAdReviewRepo}
 	workAdResponseService := &services.WorkAdResponseService{WorkAdResponseRepo: &workAdResponseRepo}
 	workAdFavoriteService := &services.WorkAdFavoriteService{WorkAdFavoriteRepo: &workAdFavoriteRepo}
+	rentAdService := &services.RentAdService{RentAdRepo: &rentAdRepo}
+	rentAdReviewService := &services.RentAdReviewService{RentAdReviewsRepo: &rentAdReviewRepo}
+	rentAdResponseService := &services.RentAdResponseService{RentAdResponseRepo: &rentAdResponseRepo}
+	rentAdFavoriteService := &services.RentAdFavoriteService{RentAdFavoriteRepo: &rentAdFavoriteRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -158,6 +174,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workAdReviewHandler := &handlers.WorkAdReviewHandler{Service: workAdReviewService}
 	workAdResponseHandler := &handlers.WorkAdResponseHandler{Service: workAdResponseService}
 	workAdFavoriteHandler := &handlers.WorkAdFavoriteHandler{Service: workAdFavoriteService}
+	rentAdHandler := &handlers.RentAdHandler{Service: rentAdService}
+	rentADReviewHandler := &handlers.RentAdReviewHandler{Service: rentAdReviewService}
+	rentAdResponseHandler := &handlers.RentAdResponseHandler{Service: rentAdResponseService}
+	rentAdFavoriteHandler := &handlers.RentAdFavoriteHandler{Service: rentAdFavoriteService}
 
 	// Chat
 	wsManager := NewWebSocketManager()
@@ -203,6 +223,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		workAdReviewHandler:    workAdReviewHandler,
 		workAdResponseHandler:  workAdResponseHandler,
 		workAdFavoriteHandler:  workAdFavoriteHandler,
+		rentAdHandler:          rentAdHandler,
+		rentAdReviewHandler:    rentADReviewHandler,
+		rentAdResponseHandler:  rentAdResponseHandler,
+		rentAdFavoriteHandler:  rentAdFavoriteHandler,
 		//authService:    authService,
 	}
 }

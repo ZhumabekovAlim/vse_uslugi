@@ -51,9 +51,9 @@ type RentAdFilterRequest struct {
 }
 
 type RentAdListResponse struct {
-	Rents    []Rent  `json:"rents"`
-	MinPrice float64 `json:"min_price"`
-	MaxPrice float64 `json:"max_price"`
+	RentsAd  []RentAd `json:"rents_ad"`
+	MinPrice float64  `json:"min_price"`
+	MaxPrice float64  `json:"max_price"`
 }
 
 type FilterRentAdRequest struct {

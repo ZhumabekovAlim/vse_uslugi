@@ -19,11 +19,11 @@ import (
 	"time"
 )
 
-type RentHandler struct {
-	Service *services.RentService
+type RentAdHandler struct {
+	Service *services.RentAdService
 }
 
-func (h *RentHandler) GetRentByID(w http.ResponseWriter, r *http.Request) {
+func (h *RentAdHandler) GetRentAdByID(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
@@ -36,7 +36,7 @@ func (h *RentHandler) GetRentByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rent, err := h.Service.GetRentByID(r.Context(), id)
+	rent, err := h.Service.GetRentAdByID(r.Context(), id)
 	if err != nil {
 		http.Error(w, "Service not found", http.StatusNotFound)
 		return
@@ -46,7 +46,7 @@ func (h *RentHandler) GetRentByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(rent)
 }
 
-func (h *RentHandler) DeleteRent(w http.ResponseWriter, r *http.Request) {
+func (h *RentAdHandler) DeleteRentAd(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
@@ -59,9 +59,9 @@ func (h *RentHandler) DeleteRent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Service.DeleteRent(r.Context(), id)
+	err = h.Service.DeleteRentAd(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, repositories.ErrWorkNotFound) {
+		if errors.Is(err, repositories.ErrRentAdNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -72,11 +72,11 @@ func (h *RentHandler) DeleteRent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *RentHandler) GetRents(w http.ResponseWriter, r *http.Request) {
+func (h *RentAdHandler) GetRentsAd(w http.ResponseWriter, r *http.Request) {
 	// Чтение query-параметров
-	categories := parseIntArrayRent(r.URL.Query().Get("categories"))
-	subcategories := parseStringArrayRent(r.URL.Query().Get("subcategories"))
-	ratings := parseFloatArrayRent(r.URL.Query().Get("ratings"))
+	categories := parseIntArrayRentAd(r.URL.Query().Get("categories"))
+	subcategories := parseStringArrayRentAd(r.URL.Query().Get("subcategories"))
+	ratings := parseFloatArrayRentAd(r.URL.Query().Get("ratings"))
 
 	priceFrom, _ := strconv.ParseFloat(r.URL.Query().Get("price_from"), 64)
 	priceTo, _ := strconv.ParseFloat(r.URL.Query().Get("price_to"), 64)
@@ -85,7 +85,7 @@ func (h *RentHandler) GetRents(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 
 	// Сборка запроса
-	filter := models.RentFilterRequest{
+	filter := models.RentAdFilterRequest{
 		Categories:    categories,
 		Subcategories: subcategories,
 		PriceFrom:     priceFrom,
@@ -96,7 +96,7 @@ func (h *RentHandler) GetRents(w http.ResponseWriter, r *http.Request) {
 		Limit:         limit,
 	}
 
-	result, err := h.Service.GetFilteredRents(r.Context(), filter, 0)
+	result, err := h.Service.GetFilteredRentsAd(r.Context(), filter, 0)
 	if err != nil {
 		log.Printf("GetServices error: %v", err)
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
@@ -106,7 +106,7 @@ func (h *RentHandler) GetRents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
-func parseIntArrayRent(input string) []int {
+func parseIntArrayRentAd(input string) []int {
 	if input == "" {
 		return nil
 	}
@@ -120,7 +120,7 @@ func parseIntArrayRent(input string) []int {
 	return result
 }
 
-func parseFloatArrayRent(input string) []float64 {
+func parseFloatArrayRentAd(input string) []float64 {
 	if input == "" {
 		return nil
 	}
@@ -134,14 +134,14 @@ func parseFloatArrayRent(input string) []float64 {
 	return result
 }
 
-func parseStringArrayRent(input string) []string {
+func parseStringArrayRentAd(input string) []string {
 	if input == "" {
 		return nil
 	}
 	return strings.Split(input, ",")
 }
 
-func (h *RentHandler) GetRentsSorted(w http.ResponseWriter, r *http.Request) {
+func (h *RentAdHandler) GetRentsAdSorted(w http.ResponseWriter, r *http.Request) {
 	sortStr := r.URL.Query().Get(":type")
 	sortOption, err := strconv.Atoi(sortStr)
 	if err != nil || sortOption < 1 || sortOption > 3 {
@@ -166,13 +166,13 @@ func (h *RentHandler) GetRentsSorted(w http.ResponseWriter, r *http.Request) {
 		limit = 10
 	}
 
-	filter := models.RentFilterRequest{
+	filter := models.RentAdFilterRequest{
 		SortOption: sortOption,
 		Page:       page,
 		Limit:      limit,
 	}
 
-	result, err := h.Service.GetFilteredRents(r.Context(), filter, userID)
+	result, err := h.Service.GetFilteredRentsAd(r.Context(), filter, userID)
 	if err != nil {
 		http.Error(w, "Failed to get services", http.StatusInternalServerError)
 		return
@@ -182,7 +182,7 @@ func (h *RentHandler) GetRentsSorted(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func (h *RentHandler) GetRentsByUserID(w http.ResponseWriter, r *http.Request) {
+func (h *RentAdHandler) GetRentsAdByUserID(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get(":user_id")
 
 	userID, err := strconv.Atoi(userIDStr)
@@ -191,7 +191,7 @@ func (h *RentHandler) GetRentsByUserID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rents, err := h.Service.GetRentsByUserID(r.Context(), userID)
+	rents, err := h.Service.GetRentsAdByUserID(r.Context(), userID)
 	if err != nil {
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
 		return
@@ -201,14 +201,14 @@ func (h *RentHandler) GetRentsByUserID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(rents)
 }
 
-func (h *RentHandler) GetFilteredRentsPost(w http.ResponseWriter, r *http.Request) {
-	var req models.FilterRentRequest
+func (h *RentAdHandler) GetFilteredRentsAdPost(w http.ResponseWriter, r *http.Request) {
+	var req models.FilterRentAdRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	rents, err := h.Service.GetFilteredRentsPost(r.Context(), req)
+	rents, err := h.Service.GetFilteredRentsAdPost(r.Context(), req)
 	if err != nil {
 		log.Printf("GetServicesPost error: %v", err)
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
@@ -223,7 +223,7 @@ func (h *RentHandler) GetFilteredRentsPost(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(resp)
 }
 
-func (h *RentHandler) GetRentsByStatusAndUserID(w http.ResponseWriter, r *http.Request) {
+func (h *RentAdHandler) GetRentsAdByStatusAndUserID(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		UserID int    `json:"user_id"`
 		Status string `json:"status"`
@@ -234,7 +234,7 @@ func (h *RentHandler) GetRentsByStatusAndUserID(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	rents, err := h.Service.GetRentsByStatusAndUserID(r.Context(), req.UserID, req.Status)
+	rents, err := h.Service.GetRentsAdByStatusAndUserID(r.Context(), req.UserID, req.Status)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -244,13 +244,13 @@ func (h *RentHandler) GetRentsByStatusAndUserID(w http.ResponseWriter, r *http.R
 	json.NewEncoder(w).Encode(rents)
 }
 
-func (h *RentHandler) ServeRentsImage(w http.ResponseWriter, r *http.Request) {
+func (h *RentAdHandler) ServeRentsAdImage(w http.ResponseWriter, r *http.Request) {
 	filename := r.URL.Query().Get(":filename")
 	if filename == "" {
 		http.Error(w, "filename is required", http.StatusBadRequest)
 		return
 	}
-	imagePath := filepath.Join("cmd/uploads/rents", filename)
+	imagePath := filepath.Join("cmd/uploads/rents_ad", filename)
 
 	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
 		http.Error(w, "image not found", http.StatusNotFound)
@@ -273,14 +273,14 @@ func (h *RentHandler) ServeRentsImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, imagePath)
 }
 
-func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
+func (h *RentAdHandler) CreateRentAd(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(32 << 20) // 32MB
 	if err != nil {
 		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
 		return
 	}
 
-	var service models.Rent
+	var service models.RentAd
 	service.Name = r.FormValue("name")
 	service.Address = r.FormValue("address")
 	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
@@ -294,14 +294,14 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 	service.CreatedAt = time.Now()
 
 	// Сохраняем изображения
-	saveDir := "cmd/uploads/rents"
+	saveDir := "cmd/uploads/rents_ad"
 	if err := os.MkdirAll(saveDir, 0755); err != nil {
 		http.Error(w, "Failed to create image directory", http.StatusInternalServerError)
 		return
 	}
 
 	files := r.MultipartForm.File["images"]
-	var imageInfosRent []models.ImageRent
+	var imageInfosRent []models.ImageRentAd
 
 	for _, fileHeader := range files {
 		file, err := fileHeader.Open()
@@ -313,9 +313,9 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 
 		timestamp := time.Now().UnixNano()
 		ext := filepath.Ext(fileHeader.Filename)
-		imageName := fmt.Sprintf("rent_image_%d%s", timestamp, ext)
+		imageName := fmt.Sprintf("rent_ad_image_%d%s", timestamp, ext)
 		savePath := filepath.Join(saveDir, imageName)
-		publicURL := fmt.Sprintf("/images/rents/%s", imageName)
+		publicURL := fmt.Sprintf("/images/rent_ad/%s", imageName)
 
 		dst, err := os.Create(savePath)
 		if err != nil {
@@ -329,7 +329,7 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		imageInfosRent = append(imageInfosRent, models.ImageRent{
+		imageInfosRent = append(imageInfosRent, models.ImageRentAd{
 			Name: fileHeader.Filename,
 			Path: publicURL,
 			Type: fileHeader.Header.Get("Content-Type"),
@@ -338,7 +338,7 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 
 	service.Images = imageInfosRent
 
-	createdService, err := h.Service.CreateRent(r.Context(), service)
+	createdService, err := h.Service.CreateRentAd(r.Context(), service)
 	if err != nil {
 		log.Printf("Failed to create service: %v", err)
 		http.Error(w, "Failed to create service", http.StatusInternalServerError)
@@ -349,7 +349,7 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(createdService)
 }
 
-func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
+func (h *RentAdHandler) UpdateRentAd(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
@@ -367,7 +367,7 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var service models.Rent
+	var service models.RentAd
 	service.ID = id
 	service.Name = r.FormValue("name")
 	service.Address = r.FormValue("address")
@@ -384,7 +384,7 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 	service.UpdatedAt = &now
 
 	// Обработка изображений
-	saveDir := "cmd/uploads/rents"
+	saveDir := "cmd/uploads/rents_ad"
 	err = os.MkdirAll(saveDir, 0755)
 	if err != nil {
 		http.Error(w, "Failed to create image directory", http.StatusInternalServerError)
@@ -392,7 +392,7 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	files := r.MultipartForm.File["images"]
-	var imageInfos []models.ImageRent
+	var imageInfos []models.ImageRentAd
 
 	for _, fileHeader := range files {
 		file, err := fileHeader.Open()
@@ -404,9 +404,9 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 
 		timestamp := time.Now().UnixNano()
 		ext := filepath.Ext(fileHeader.Filename)
-		imageName := fmt.Sprintf("rent_image_%d%s", timestamp, ext)
+		imageName := fmt.Sprintf("rent_ad_image_%d%s", timestamp, ext)
 		savePath := filepath.Join(saveDir, imageName)
-		publicURL := fmt.Sprintf("/images/rents/%s", imageName)
+		publicURL := fmt.Sprintf("/images/rents_ad/%s", imageName)
 
 		dst, err := os.Create(savePath)
 		if err != nil {
@@ -420,7 +420,7 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		imageInfos = append(imageInfos, models.ImageRent{
+		imageInfos = append(imageInfos, models.ImageRentAd{
 			Name: fileHeader.Filename,
 			Path: publicURL,
 			Type: fileHeader.Header.Get("Content-Type"),
@@ -429,7 +429,7 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 
 	service.Images = imageInfos
 
-	updatedService, err := h.Service.UpdateRent(r.Context(), service)
+	updatedService, err := h.Service.UpdateRentAd(r.Context(), service)
 	if err != nil {
 		log.Printf("Failed to update service: %v", err)
 		http.Error(w, "Failed to update service", http.StatusInternalServerError)
@@ -440,20 +440,20 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(updatedService)
 }
 
-func (h *RentHandler) GetFilteredRentsWithLikes(w http.ResponseWriter, r *http.Request) {
+func (h *RentAdHandler) GetFilteredRentsAdWithLikes(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get(":user_id")
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
-	var req models.FilterRentRequest
+	var req models.FilterRentAdRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	rents, err := h.Service.GetFilteredRentsWithLikes(r.Context(), req, userID)
+	rents_ad, err := h.Service.GetFilteredRentsAdWithLikes(r.Context(), req, userID)
 	if err != nil {
 		log.Printf("GetServicesPost error: %v", err)
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
@@ -461,22 +461,22 @@ func (h *RentHandler) GetFilteredRentsWithLikes(w http.ResponseWriter, r *http.R
 	}
 
 	resp := map[string]interface{}{
-		"rents": rents,
+		"rents_ad": rents_ad,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
 
-func (h *RentHandler) GetRentByRentIDAndUserID(w http.ResponseWriter, r *http.Request) {
+func (h *RentAdHandler) GetRentAdByRentIDAndUserID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	rentIDStr := r.URL.Query().Get(":rent_id")
-	if rentIDStr == "" {
+	rentAdIDStr := r.URL.Query().Get(":rent_ad_id")
+	if rentAdIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
 	}
 
-	rentID, err := strconv.Atoi(rentIDStr)
+	rentAdID, err := strconv.Atoi(rentAdIDStr)
 	if err != nil {
 		http.Error(w, "invalid service ID", http.StatusBadRequest)
 		return
@@ -490,7 +490,7 @@ func (h *RentHandler) GetRentByRentIDAndUserID(w http.ResponseWriter, r *http.Re
 	}
 
 	// Получение сервиса
-	rent, err := h.Service.GetRentByRentIDAndUserID(ctx, rentID, userID)
+	rent, err := h.Service.GetRentAdByRentIDAndUserID(ctx, rentAdID, userID)
 	if err != nil {
 		if err.Error() == "service not found" {
 			http.Error(w, "service not found", http.StatusNotFound)
