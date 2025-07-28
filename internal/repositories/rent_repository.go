@@ -69,8 +69,8 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int) (models.Rent, 
 		SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.review_rating, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked, w.status, w.rent_type, w.deposit, w.latitude, w.longitude, w.created_at, w.updated_at
 		FROM rent w
 		JOIN users u ON w.user_id = u.id
-		JOIN categories c ON w.category_id = c.id
-		JOIN subcategories sub ON w.subcategory_id = sub.id
+		JOIN rent_categories c ON w.category_id = c.id
+		JOIN rent_subcategories sub ON w.subcategory_id = sub.id
 		WHERE w.id = ?
 	`
 
@@ -154,7 +154,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ca
 		FROM rent s
 		LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
 		JOIN users u ON s.user_id = u.id
-		INNER JOIN categories c ON s.category_id = c.id
+		INNER JOIN rent_categories c ON s.category_id = c.id
 		
 	`
 	params = append(params, userID)
@@ -515,8 +515,8 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
 			s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
 		FROM rent s
 		JOIN users u ON s.user_id = u.id
-		JOIN categories c ON s.category_id = c.id
-		JOIN subcategories sub ON s.subcategory_id = sub.id
+		JOIN rent_categories c ON s.category_id = c.id
+		JOIN rent_subcategories sub ON s.subcategory_id = sub.id
 		LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
 		WHERE s.id = ?
 	`
