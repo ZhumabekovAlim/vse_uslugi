@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrCategoryNotFound = models.ErrCategoryNotFound
+	ErrWorkCategoryNotFound = models.ErrWorkCategoryNotFound
 )
 
 type WorkCategoryRepository struct {

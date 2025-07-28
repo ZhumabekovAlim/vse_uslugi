@@ -22,6 +22,8 @@ var (
 	ErrTransactionNotFound    = errors.New("transaction not found")
 	ErrExpenseNotFound        = errors.New("personal expense not found")
 	ErrCategoryNotFound       = errors.New("category not found")
+	ErrRentCategoryNotFound   = errors.New("category not found")
+	ErrWorkCategoryNotFound   = errors.New("category not found")
 	ErrBalanceHistoryNotFound = errors.New("balance history not found")
 	ErrNoFriends              = errors.New("not friends")
 	ErrAlreadyFriends         = errors.New("already friends")
