@@ -35,7 +35,7 @@ func (s *WorkAdService) GetFilteredWorksAd(ctx context.Context, filter models.Wo
 	}
 	offset := (filter.Page - 1) * filter.Limit
 
-	works_ad, minPrice, maxPrice, err := s.WorkAdRepo.GetWorksAdWithFilters(
+	worksad, minPrice, maxPrice, err := s.WorkAdRepo.GetWorksAdWithFilters(
 		ctx,
 		userID,
 		filter.Categories,
@@ -52,7 +52,7 @@ func (s *WorkAdService) GetFilteredWorksAd(ctx context.Context, filter models.Wo
 	}
 
 	return models.WorkAdListResponse{
-		WorksAd:  works_ad,
+		WorksAd:  worksad,
 		MinPrice: minPrice,
 		MaxPrice: maxPrice,
 	}, nil
