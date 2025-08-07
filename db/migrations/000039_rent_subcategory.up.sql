@@ -6,3 +6,5 @@ CREATE TABLE rent_subcategories (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES rent_categories(id) ON DELETE CASCADE
 );
+
+use naimudb;

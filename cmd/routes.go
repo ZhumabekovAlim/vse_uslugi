@@ -49,7 +49,7 @@ func (app *application) routes() http.Handler {
 	mux.Del("/service/:id", authMiddleware.ThenFunc(app.serviceHandler.DeleteService))                              //РАБОТАЕТ
 	mux.Get("/service/sort/:type/user/:user_id", standardMiddleware.ThenFunc(app.serviceHandler.GetServicesSorted)) //user_id - id пользователя который авторизован
 	mux.Get("/service/user/:user_id", standardMiddleware.ThenFunc(app.serviceHandler.GetServiceByUserID))           //РАБОТАЕТ
-	mux.Post("/service/filtered", authMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesPost))              //РАБОТАЕТ
+	mux.Post("/service/filtered", standardMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesPost))          //РАБОТАЕТ
 	mux.Post("/service/status", authMiddleware.ThenFunc(app.serviceHandler.GetServicesByStatusAndUserID))
 	mux.Get("/images/services/:filename", http.HandlerFunc(app.serviceHandler.ServeServiceImage))
 	mux.Post("/service/filtered/:user_id", authMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesWithLikes))
@@ -65,6 +65,22 @@ func (app *application) routes() http.Handler {
 	mux.Get("/static/categories/", fs)
 	mux.Get("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 	mux.Get("/images/categories/:filename", standardMiddleware.ThenFunc(app.categoryHandler.ServeImage))
+
+	// Rent Categories
+	mux.Post("/rent_category", authMiddleware.ThenFunc(app.rentCategoryHandler.CreateCategory))
+	mux.Get("/rent_category", standardMiddleware.ThenFunc(app.rentCategoryHandler.GetAllCategories))
+	mux.Get("/rent_category/:id", standardMiddleware.ThenFunc(app.rentCategoryHandler.GetCategoryByID))
+	mux.Put("/rent_category/:id", authMiddleware.ThenFunc(app.rentCategoryHandler.UpdateCategory))
+	mux.Del("/rent_category/:id", authMiddleware.ThenFunc(app.rentCategoryHandler.DeleteCategory))
+	mux.Get("/images/rent_categories/:filename", standardMiddleware.ThenFunc(app.rentCategoryHandler.ServeImage))
+
+	// Work Categories
+	mux.Post("/work_category", authMiddleware.ThenFunc(app.workCategoryHandler.CreateCategory))
+	mux.Get("/work_category", standardMiddleware.ThenFunc(app.workCategoryHandler.GetAllCategories))
+	mux.Get("/work_category/:id", standardMiddleware.ThenFunc(app.workCategoryHandler.GetCategoryByID))
+	mux.Put("/work_category/:id", authMiddleware.ThenFunc(app.workCategoryHandler.UpdateCategory))
+	mux.Del("/work_category/:id", authMiddleware.ThenFunc(app.workCategoryHandler.DeleteCategory))
+	mux.Get("/images/work_categories/:filename", standardMiddleware.ThenFunc(app.workCategoryHandler.ServeImage))
 
 	// Reviews
 	mux.Post("/review", authMiddleware.ThenFunc(app.reviewsHandler.CreateReview))
@@ -85,6 +101,22 @@ func (app *application) routes() http.Handler {
 	mux.Get("/subcategory/:id", standardMiddleware.ThenFunc(app.subcategoryHandler.GetSubcategoryByID))
 	mux.Put("/subcategory/:id", authMiddleware.ThenFunc(app.subcategoryHandler.UpdateSubcategoryByID))
 	mux.Del("/subcategory/:id", authMiddleware.ThenFunc(app.subcategoryHandler.DeleteSubcategoryByID))
+
+	// Rent Subcategories
+	mux.Post("/rent_subcategory", authMiddleware.ThenFunc(app.rentSubcategoryHandler.CreateSubcategory))
+	mux.Get("/rent_subcategory", standardMiddleware.ThenFunc(app.rentSubcategoryHandler.GetAllSubcategories))
+	mux.Get("/rent_subcategory/cat/:category_id", standardMiddleware.ThenFunc(app.rentSubcategoryHandler.GetByCategory))
+	mux.Get("/rent_subcategory/:id", standardMiddleware.ThenFunc(app.rentSubcategoryHandler.GetSubcategoryByID))
+	mux.Put("/rent_subcategory/:id", authMiddleware.ThenFunc(app.rentSubcategoryHandler.UpdateSubcategoryByID))
+	mux.Del("/rent_subcategory/:id", authMiddleware.ThenFunc(app.rentSubcategoryHandler.DeleteSubcategoryByID))
+
+	// Work Subcategories
+	mux.Post("/work_subcategory", authMiddleware.ThenFunc(app.workSubcategoryHandler.CreateSubcategory))
+	mux.Get("/work_subcategory", standardMiddleware.ThenFunc(app.workSubcategoryHandler.GetAllSubcategories))
+	mux.Get("/work_subcategory/cat/:category_id", standardMiddleware.ThenFunc(app.workSubcategoryHandler.GetByCategory))
+	mux.Get("/work_subcategory/:id", standardMiddleware.ThenFunc(app.workSubcategoryHandler.GetSubcategoryByID))
+	mux.Put("/work_subcategory/:id", authMiddleware.ThenFunc(app.workSubcategoryHandler.UpdateSubcategoryByID))
+	mux.Del("/work_subcategory/:id", authMiddleware.ThenFunc(app.workSubcategoryHandler.DeleteSubcategoryByID))
 
 	// City
 	mux.Post("/city", authMiddleware.ThenFunc(app.cityHandler.CreateCity))

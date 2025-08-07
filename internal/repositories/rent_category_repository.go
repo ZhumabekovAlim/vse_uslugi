@@ -8,10 +8,6 @@ import (
 	"time"
 )
 
-var (
-	ErrRentCategoryNotFound = models.ErrRentCategoryNotFound
-)
-
 type RentCategoryRepository struct {
 	DB *sql.DB
 }

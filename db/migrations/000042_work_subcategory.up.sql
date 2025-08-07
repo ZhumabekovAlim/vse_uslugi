@@ -6,3 +6,5 @@ CREATE TABLE work_subcategories (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES work_categories(id) ON DELETE CASCADE
 );
+
+use naimudb;

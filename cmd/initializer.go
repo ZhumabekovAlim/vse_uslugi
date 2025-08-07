@@ -25,12 +25,20 @@ type application struct {
 	serviceRepo            *repositories.ServiceRepository
 	categoryHandler        *handlers.CategoryHandler
 	categoryRepo           *repositories.CategoryRepository
+	rentCategoryHandler    *handlers.RentCategoryHandler
+	rentCategoryRepo       *repositories.RentCategoryRepository
+	workCategoryHandler    *handlers.WorkCategoryHandler
+	workCategoryRepo       *repositories.WorkCategoryRepository
 	reviewsHandler         *handlers.ReviewHandler
 	reviewsRepo            *repositories.ReviewRepository
 	serviceFavorite        *handlers.ServiceFavoriteHandler
 	serviceFavoriteRepo    *repositories.ServiceFavoriteRepository
 	subcategoryHandler     handlers.SubcategoryHandler
 	subcategoryRepo        repositories.SubcategoryRepository
+	rentSubcategoryHandler handlers.RentSubcategoryHandler
+	rentSubcategoryRepo    repositories.RentSubcategoryRepository
+	workSubcategoryHandler handlers.WorkSubcategoryHandler
+	workSubcategoryRepo    repositories.WorkSubcategoryRepository
 	cityHandler            handlers.CityHandler
 	cityRepo               repositories.CityRepository
 	wsManager              *WebSocketManager
@@ -90,9 +98,13 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	userRepo := repositories.UserRepository{DB: db}
 	serviceRepo := repositories.ServiceRepository{DB: db}
 	categoryRepo := repositories.CategoryRepository{DB: db}
+	rentCategoryRepo := repositories.RentCategoryRepository{DB: db}
+	workCategoryRepo := repositories.WorkCategoryRepository{DB: db}
 	reviewsRepo := repositories.ReviewRepository{DB: db}
 	serviceFavoriteRepo := repositories.ServiceFavoriteRepository{DB: db}
 	subcategoryRepo := repositories.SubcategoryRepository{DB: db}
+	rentSubcategoryRepo := repositories.RentSubcategoryRepository{DB: db}
+	workSubcategoryRepo := repositories.WorkSubcategoryRepository{DB: db}
 	cityRepo := repositories.CityRepository{DB: db}
 	complaintRepo := repositories.ComplaintRepository{DB: db}
 	serviceResponseRepo := repositories.ServiceResponseRepository{DB: db}
@@ -120,9 +132,13 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
 	categoryService := &services.CategoryService{CategoryRepo: &categoryRepo}
+	rentCategoryService := &services.RentCategoryService{CategoryRepo: &rentCategoryRepo}
+	workCategoryService := &services.WorkCategoryService{CategoryRepo: &workCategoryRepo}
 	reviewsService := &services.ReviewService{ReviewsRepo: &reviewsRepo}
 	serviceFavoritesService := &services.ServiceFavoriteService{ServiceFavoriteRepo: &serviceFavoriteRepo}
 	subcategoryService := services.SubcategoryService{SubcategoryRepo: &subcategoryRepo}
+	rentSubcategoryService := services.RentSubcategoryService{SubcategoryRepo: &rentSubcategoryRepo}
+	workSubcategoryService := services.WorkSubcategoryService{SubcategoryRepo: &workSubcategoryRepo}
 	cityService := services.CityService{CityRepo: &cityRepo}
 	complaintService := services.ComplaintService{ComplaintRepo: &complaintRepo}
 	serviceResponseService := &services.ServiceResponseService{ServiceResponseRepo: &serviceResponseRepo}
@@ -152,9 +168,13 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	userHandler := &handlers.UserHandler{Service: userService}
 	serviceHandler := &handlers.ServiceHandler{Service: serviceService}
 	categoryHandler := &handlers.CategoryHandler{Service: categoryService}
+	rentCategoryHandler := &handlers.RentCategoryHandler{Service: rentCategoryService}
+	workCategoryHandler := &handlers.WorkCategoryHandler{Service: workCategoryService}
 	reviewHandler := &handlers.ReviewHandler{Service: reviewsService}
 	serviceFavoriteHandler := &handlers.ServiceFavoriteHandler{Service: serviceFavoritesService}
 	subcategoryHandler := handlers.SubcategoryHandler{Service: &subcategoryService}
+	rentSubcategoryHandler := handlers.RentSubcategoryHandler{Service: &rentSubcategoryService}
+	workSubcategoryHandler := handlers.WorkSubcategoryHandler{Service: &workSubcategoryService}
 	cityHandler := handlers.CityHandler{Service: &cityService}
 	complaintHandler := &handlers.ComplaintHandler{Service: &complaintService}
 	serviceResponseHandler := &handlers.ServiceResponseHandler{Service: serviceResponseService}
@@ -197,9 +217,13 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		userHandler:            userHandler,
 		serviceHandler:         serviceHandler,
 		categoryHandler:        categoryHandler,
+		rentCategoryHandler:    rentCategoryHandler,
+		workCategoryHandler:    workCategoryHandler,
 		reviewsHandler:         reviewHandler,
 		serviceFavorite:        serviceFavoriteHandler,
 		subcategoryHandler:     subcategoryHandler,
+		rentSubcategoryHandler: rentSubcategoryHandler,
+		workSubcategoryHandler: workSubcategoryHandler,
 		cityHandler:            cityHandler,
 		chatHandler:            chatHandler,
 		messageHandler:         messageHandler,

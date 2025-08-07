@@ -5,3 +5,5 @@ CREATE TABLE rent_category_subcategory (
     FOREIGN KEY (category_id) REFERENCES rent_categories(id) ON DELETE CASCADE,
     FOREIGN KEY (subcategory_id) REFERENCES rent_subcategories(id) ON DELETE CASCADE
 );
+
+use naimudb;

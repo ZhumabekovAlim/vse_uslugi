@@ -40,6 +40,11 @@
     <file url="file://$PROJECT_DIR$/db/migrations/000036_rent_ad_responses.up.sql" dialect="MariaDB" />
     <file url="file://$PROJECT_DIR$/db/migrations/000037_rent_ad_favorites.up.sql" dialect="MariaDB" />
     <file url="file://$PROJECT_DIR$/db/migrations/000038_rent_category.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000039_rent_subcategory.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000040_rent_category_subcategory.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000041_work_category.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000042_work_subcategory.up.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/db/migrations/000043_work_category_subcategory.up.sql" dialect="MariaDB" />
     <file url="PROJECT" dialect="MariaDB" />
   </component>
 </project>

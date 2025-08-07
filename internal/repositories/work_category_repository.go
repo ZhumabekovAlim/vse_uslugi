@@ -8,10 +8,6 @@ import (
 	"time"
 )
 
-var (
-	ErrWorkCategoryNotFound = models.ErrWorkCategoryNotFound
-)
-
 type WorkCategoryRepository struct {
 	DB *sql.DB
 }

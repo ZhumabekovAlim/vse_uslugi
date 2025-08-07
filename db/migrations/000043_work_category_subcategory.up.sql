@@ -5,3 +5,5 @@ CREATE TABLE work_category_subcategory (
     FOREIGN KEY (category_id) REFERENCES work_categories(id) ON DELETE CASCADE,
     FOREIGN KEY (subcategory_id) REFERENCES work_subcategories(id) ON DELETE CASCADE
 );
+
+use naimudb;
