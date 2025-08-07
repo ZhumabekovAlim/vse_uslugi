@@ -484,7 +484,7 @@ func (h *WorkAdHandler) GetFilteredWorksAdWithLikes(w http.ResponseWriter, r *ht
 
 func (h *WorkAdHandler) GetWorkAdByWorkIDAndUserID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	workadIDStr := r.URL.Query().Get(":workad_id")
+	workadIDStr := r.URL.Query().Get(":work_ad_id")
 	if workadIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
