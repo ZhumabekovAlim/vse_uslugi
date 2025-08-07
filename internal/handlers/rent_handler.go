@@ -381,6 +381,10 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
+	service.RentType = r.FormValue("rent_type")
+	service.Deposit = r.FormValue("deposit")
+	service.Latitude = r.FormValue("latitude")
+	service.Longitude = r.FormValue("longitude")
 	service.Top = r.FormValue("top")
 	service.Liked = r.FormValue("liked") == "true"
 	service.Status = r.FormValue("status")
