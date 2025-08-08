@@ -69,12 +69,12 @@ func (r *WorkAdRepository) CreateWorkAd(ctx context.Context, work models.WorkAd)
 
 func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int) (models.WorkAd, error) {
 	query := `
-		SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.review_rating, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked, w.status, w.work_experience, w.city_id, city.name, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
+               SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.review_rating, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked, w.status, w.work_experience, w.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
 		FROM work_ad w
 		JOIN users u ON w.user_id = u.id
 		JOIN work_categories c ON w.category_id = c.id
 		JOIN work_subcategories sub ON w.subcategory_id = sub.id
-		JOIN cities city ON w.city_id = c.id
+               JOIN cities city ON w.city_id = city.id
 		WHERE w.id = ?
 	`
 
@@ -82,7 +82,7 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int) (models.Wo
 	var imagesJSON []byte
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
 		&s.UpdatedAt,
 	)
 
@@ -517,8 +517,8 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 			s.images, s.category_id, c.name,
 			s.subcategory_id, sub.name,
 			s.description, s.avg_rating, s.top,
-			CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
-			s.status, s.work_experience, s.city_id, city.name, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
+               CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
+               s.status, s.work_experience, s.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
 		FROM work_ad s
 		JOIN users u ON s.user_id = u.id
 		JOIN work_categories c ON s.category_id = c.id
@@ -537,7 +537,7 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
+		&s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
