@@ -49,6 +49,8 @@ type application struct {
 	complaintRepo          *repositories.ComplaintRepository
 	serviceResponseHandler *handlers.ServiceResponseHandler
 	serviceResponseRepo    *repositories.ServiceResponseRepository
+	userResponsesHandler   *handlers.UserResponsesHandler
+	userResponsesRepo      *repositories.UserResponsesRepository
 	workHandler            *handlers.WorkHandler
 	workRepo               *repositories.WorkRepository
 	rentHandler            *handlers.RentHandler
@@ -108,6 +110,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	cityRepo := repositories.CityRepository{DB: db}
 	complaintRepo := repositories.ComplaintRepository{DB: db}
 	serviceResponseRepo := repositories.ServiceResponseRepository{DB: db}
+	userResponsesRepo := repositories.UserResponsesRepository{DB: db}
 	workRepo := repositories.WorkRepository{DB: db}
 	rentRepo := repositories.RentRepository{DB: db}
 	workReviewRepo := repositories.WorkReviewRepository{DB: db}
@@ -142,6 +145,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	cityService := services.CityService{CityRepo: &cityRepo}
 	complaintService := services.ComplaintService{ComplaintRepo: &complaintRepo}
 	serviceResponseService := &services.ServiceResponseService{ServiceResponseRepo: &serviceResponseRepo}
+	userResponsesService := &services.UserResponsesService{ResponsesRepo: &userResponsesRepo}
 	workService := &services.WorkService{WorkRepo: &workRepo}
 	rentService := &services.RentService{RentRepo: &rentRepo}
 	workReviewService := &services.WorkReviewService{WorkReviewsRepo: &workReviewRepo}
@@ -178,6 +182,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	cityHandler := handlers.CityHandler{Service: &cityService}
 	complaintHandler := &handlers.ComplaintHandler{Service: &complaintService}
 	serviceResponseHandler := &handlers.ServiceResponseHandler{Service: serviceResponseService}
+	userResponsesHandler := &handlers.UserResponsesHandler{Service: userResponsesService}
 	workHandler := &handlers.WorkHandler{Service: workService}
 	rentHandler := &handlers.RentHandler{Service: rentService}
 	workReviewHandler := &handlers.WorkReviewHandler{Service: workReviewService}
@@ -231,6 +236,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		db:                     db,
 		complaintHandler:       complaintHandler,
 		serviceResponseHandler: serviceResponseHandler,
+		userResponsesHandler:   userResponsesHandler,
 		workHandler:            workHandler,
 		rentHandler:            rentHandler,
 		workReviewHandler:      workReviewHandler,
