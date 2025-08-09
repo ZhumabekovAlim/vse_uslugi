@@ -14,10 +14,11 @@ type RentAd struct {
 		ID           int     `json:"id"`
 		Name         string  `json:"name"`
 		Surname      string  `json:"surname"`
-		Phone        string  `json:"phone"`
-		ReviewRating float64 `json:"review_rating"`
-		ReviewsCount int     `json:"reviews_count"`
-	} `json:"user"`
+               Phone        string  `json:"phone"`
+               ReviewRating float64 `json:"review_rating"`
+               ReviewsCount int     `json:"reviews_count"`
+               AvatarPath   *string `json:"avatar_path,omitempty"`
+       } `json:"user"`
 	Images          []ImageRentAd `json:"images"`
 	CategoryID      int           `json:"category_id, omitempty"`
 	SubcategoryID   int           `json:"subcategory_id, omitempty"`
@@ -73,9 +74,10 @@ type FilteredRentAd struct {
 	UserID            int     `json:"user_id"`
 	UserName          string  `json:"user_name"`
 	UserSurname       string  `json:"user_surname"`
-	UserPhone         string  `json:"user_phone"`
-	UserRating        float64 `json:"user_rating"`
-	UserReviewsCount  int     `json:"user_reviews_count"`
+       UserPhone         string  `json:"user_phone"`
+       UserAvatarPath    *string `json:"user_avatar_path,omitempty"`
+       UserRating        float64 `json:"user_rating"`
+       UserReviewsCount  int     `json:"user_reviews_count"`
 	RentAdID          int     `json:"rentad_id"`
 	RentAdName        string  `json:"rentad_name"`
 	RentAdPrice       float64 `json:"rentad_price"`
