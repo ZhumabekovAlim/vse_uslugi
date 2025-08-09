@@ -242,7 +242,11 @@ func (s *UserService) UpdateUser(ctx context.Context, user models.User) (models.
 	if existingUser2.Phone != "" {
 		return models.User{}, errors.New("user with this phone already exists")
 	}
-	return s.UserRepo.UpdateUser(ctx, user)
+        return s.UserRepo.UpdateUser(ctx, user)
+}
+
+func (s *UserService) UpdateUserAvatar(ctx context.Context, userID int, avatarPath string) (models.User, error) {
+       return s.UserRepo.UpdateUserAvatar(ctx, userID, avatarPath)
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, id int) error {

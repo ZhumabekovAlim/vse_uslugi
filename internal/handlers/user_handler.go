@@ -1,17 +1,17 @@
 package handlers
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strconv"
-	"time"
+        "context"
+        "encoding/json"
+        "errors"
+        "fmt"
+        "io"
+        "log"
+        "net/http"
+        "os"
+        "path/filepath"
+        "strconv"
+        "time"
 
 	"naimuBack/internal/models"
 	"naimuBack/internal/services"
@@ -543,5 +543,85 @@ func (h *UserHandler) ServeProofDocument(w http.ResponseWriter, r *http.Request)
 		w.Header().Set("Content-Type", "application/octet-stream")
 	}
 
-	http.ServeFile(w, r, docPath)
+        http.ServeFile(w, r, docPath)
+}
+
+func (h *UserHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+       idStr := r.URL.Query().Get(":id")
+       if idStr == "" {
+               http.Error(w, "Missing user ID", http.StatusBadRequest)
+               return
+       }
+       id, err := strconv.Atoi(idStr)
+       if err != nil {
+               http.Error(w, "Invalid user ID", http.StatusBadRequest)
+               return
+       }
+       if err := r.ParseMultipartForm(10 << 20); err != nil {
+               http.Error(w, "Invalid multipart form", http.StatusBadRequest)
+               return
+       }
+       file, handler, err := r.FormFile("avatar")
+       if err != nil {
+               http.Error(w, "Failed to get avatar file", http.StatusBadRequest)
+               return
+       }
+       defer file.Close()
+
+       saveDir := "cmd/uploads/avatars"
+       if err := os.MkdirAll(saveDir, 0755); err != nil {
+               http.Error(w, "Failed to create avatar directory", http.StatusInternalServerError)
+               return
+       }
+
+       timestamp := time.Now().UnixNano()
+       ext := filepath.Ext(handler.Filename)
+       filename := fmt.Sprintf("avatar_%d%s", timestamp, ext)
+       savePath := filepath.Join(saveDir, filename)
+       publicURL := fmt.Sprintf("/images/avatars/%s", filename)
+
+       dst, err := os.Create(savePath)
+       if err != nil {
+               http.Error(w, "Cannot save avatar", http.StatusInternalServerError)
+               return
+       }
+       defer dst.Close()
+
+       if _, err := io.Copy(dst, file); err != nil {
+               http.Error(w, "Failed to write avatar", http.StatusInternalServerError)
+               return
+       }
+
+       user, err := h.Service.UpdateUserAvatar(r.Context(), id, publicURL)
+       if err != nil {
+               http.Error(w, err.Error(), http.StatusInternalServerError)
+               return
+       }
+       w.Header().Set("Content-Type", "application/json")
+       json.NewEncoder(w).Encode(user)
+}
+
+func (h *UserHandler) ServeAvatar(w http.ResponseWriter, r *http.Request) {
+       filename := r.URL.Query().Get(":filename")
+       if filename == "" {
+               http.Error(w, "filename is required", http.StatusBadRequest)
+               return
+       }
+       imagePath := filepath.Join("cmd/uploads/avatars", filename)
+       if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+               http.Error(w, "image not found", http.StatusNotFound)
+               return
+       }
+       ext := filepath.Ext(imagePath)
+       switch ext {
+       case ".jpg", ".jpeg":
+               w.Header().Set("Content-Type", "image/jpeg")
+       case ".png":
+               w.Header().Set("Content-Type", "image/png")
+       case ".gif":
+               w.Header().Set("Content-Type", "image/gif")
+       default:
+               w.Header().Set("Content-Type", "application/octet-stream")
+       }
+       http.ServeFile(w, r, imagePath)
 }

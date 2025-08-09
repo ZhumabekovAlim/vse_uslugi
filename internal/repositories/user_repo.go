@@ -51,15 +51,15 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.Us
 	var user models.User
 
 	// Получаем основную информацию о пользователе
-	query := `SELECT id, name, surname, phone, email, password, city_id, role,
-		years_of_exp, skills, doc_of_proof, created_at, updated_at
-		FROM users WHERE id = ?`
+       query := `SELECT id, name, surname, phone, email, password, city_id, role,
+               years_of_exp, skills, doc_of_proof, avatar_path, created_at, updated_at
+               FROM users WHERE id = ?`
 
 	err := r.DB.QueryRowContext(ctx, query, userID).Scan(
 		&user.ID, &user.Name, &user.Surname, &user.Phone, &user.Email, &user.Password,
-		&user.CityID, &user.Role, &user.YearsOfExp, &user.Skills, &user.DocOfProof,
-		&user.CreatedAt, &user.UpdatedAt,
-	)
+               &user.CityID, &user.Role, &user.YearsOfExp, &user.Skills, &user.DocOfProof, &user.AvatarPath,
+               &user.CreatedAt, &user.UpdatedAt,
+       )
 	if err != nil {
 		return models.User{}, err
 	}
@@ -129,14 +129,18 @@ func (r *UserRepository) UpdateUser(ctx context.Context, user models.User) (mode
 		setParts = append(setParts, "years_of_exp = ?")
 		args = append(args, user.YearsOfExp)
 	}
-	if user.DocOfProof != nil {
-		setParts = append(setParts, "doc_of_proof = ?")
-		args = append(args, user.DocOfProof)
-	}
-	if user.ReviewRating != 0 {
-		setParts = append(setParts, "review_rating = ?")
-		args = append(args, user.ReviewRating)
-	}
+        if user.DocOfProof != nil {
+                setParts = append(setParts, "doc_of_proof = ?")
+                args = append(args, user.DocOfProof)
+        }
+       if user.AvatarPath != nil {
+               setParts = append(setParts, "avatar_path = ?")
+               args = append(args, user.AvatarPath)
+       }
+        if user.ReviewRating != 0 {
+                setParts = append(setParts, "review_rating = ?")
+                args = append(args, user.ReviewRating)
+        }
 	if user.Role != "" {
 		setParts = append(setParts, "role = ?")
 		args = append(args, user.Role)
@@ -195,14 +199,14 @@ func (r *UserRepository) DeleteUser(ctx context.Context, id int) error {
 func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (models.User, error) {
 	var user models.User
 	query := `
-        SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
         FROM users
         WHERE phone = ?
     `
 	err := r.DB.QueryRowContext(ctx, query, phone).Scan(
 		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-		&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
-		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
+               &user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
+               &user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return models.User{}, ErrUserNotFound
@@ -215,7 +219,7 @@ func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (mode
 
 func (r *UserRepository) GetUsersByRole(ctx context.Context, role string) ([]models.User, error) {
 	query := `
-        SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
         FROM users
         WHERE role = ?
     `
@@ -230,8 +234,8 @@ func (r *UserRepository) GetUsersByRole(ctx context.Context, role string) ([]mod
 		var user models.User
 		err := rows.Scan(
 			&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-			&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
-			&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
+                       &user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
+                       &user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -249,7 +253,7 @@ func (r *UserRepository) GetUsersByRole(ctx context.Context, role string) ([]mod
 
 func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	query := `
-        SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
         FROM users
     `
 	rows, err := r.DB.QueryContext(ctx, query)
@@ -263,8 +267,8 @@ func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error)
 		var user models.User
 		err := rows.Scan(
 			&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-			&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
-			&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
+                       &user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
+                       &user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -324,14 +328,14 @@ func (r *UserRepository) GetSession(ctx context.Context, id string) (models.Sess
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (models.User, error) {
 	var user models.User
 	query := `
-        SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
         FROM users
         WHERE email = ?
     `
 	err := r.DB.QueryRowContext(ctx, query, email).Scan(
 		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-		&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
-		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
+               &user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
+               &user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -363,14 +367,14 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, userID int, newPass
 func (r *UserRepository) GetUserByPhone1(ctx context.Context, phone string) (models.User, error) {
 	var user models.User
 	query := `
-        SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, review_rating, role, latitude, longitude, created_at, updated_at
+       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
         FROM users
         WHERE phone = ?
     `
 	err := r.DB.QueryRowContext(ctx, query, phone).Scan(
 		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-		&user.YearsOfExp, &user.DocOfProof, &user.ReviewRating, &user.Role,
-		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
+               &user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
+               &user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -378,7 +382,15 @@ func (r *UserRepository) GetUserByPhone1(ctx context.Context, phone string) (mod
 		}
 		return models.User{}, err
 	}
-	return user, nil
+        return user, nil
+}
+
+func (r *UserRepository) UpdateUserAvatar(ctx context.Context, userID int, avatarPath string) (models.User, error) {
+       query := `UPDATE users SET avatar_path = ?, updated_at = NOW() WHERE id = ?`
+       if _, err := r.DB.ExecContext(ctx, query, avatarPath, userID); err != nil {
+               return models.User{}, err
+       }
+       return r.GetUserByID(ctx, userID)
 }
 
 func (r *UserRepository) ChangeCityForUser(ctx context.Context, userID int, cityID int) error {
