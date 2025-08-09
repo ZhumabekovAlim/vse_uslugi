@@ -40,7 +40,15 @@ func (r *ChatRepository) GetChatByID(ctx context.Context, id int) (models.Chat, 
 
 func (r *ChatRepository) GetAllChats(ctx context.Context) ([]models.Chat, error) {
 	var chats []models.Chat
-	query := `SELECT id, user1_id, user2_id, created_at FROM chats`
+	query := `
+               SELECT c.id,
+                      c.user1_id, u1.name, u1.surname, u1.avatar_path,
+                      c.user2_id, u2.name, u2.surname, u2.avatar_path,
+                      c.created_at
+               FROM chats c
+               JOIN users u1 ON c.user1_id = u1.id
+               JOIN users u2 ON c.user2_id = u2.id
+       `
 
 	rows, err := r.Db.QueryContext(ctx, query)
 	if err != nil {
@@ -50,7 +58,12 @@ func (r *ChatRepository) GetAllChats(ctx context.Context) ([]models.Chat, error)
 
 	for rows.Next() {
 		var chat models.Chat
-		err := rows.Scan(&chat.ID, &chat.User1ID, &chat.User2ID, &chat.CreatedAt)
+		err := rows.Scan(
+			&chat.ID,
+			&chat.User1ID, &chat.User1.Name, &chat.User1.Surname, &chat.User1.AvatarPath,
+			&chat.User2ID, &chat.User2.Name, &chat.User2.Surname, &chat.User2.AvatarPath,
+			&chat.CreatedAt,
+		)
 		if err != nil {
 			return nil, err
 		}
