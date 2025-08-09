@@ -69,19 +69,19 @@ func (r *WorkAdRepository) CreateWorkAd(ctx context.Context, work models.WorkAd)
 
 func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int) (models.WorkAd, error) {
 	query := `
-               SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.review_rating, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked, w.status, w.work_experience, w.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
-		FROM work_ad w
-		JOIN users u ON w.user_id = u.id
-		JOIN work_categories c ON w.category_id = c.id
-		JOIN work_subcategories sub ON w.subcategory_id = sub.id
+               SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked, w.status, w.work_experience, w.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
+                FROM work_ad w
+                JOIN users u ON w.user_id = u.id
+                JOIN work_categories c ON w.category_id = c.id
+                JOIN work_subcategories sub ON w.subcategory_id = sub.id
                JOIN cities city ON w.city_id = city.id
-		WHERE w.id = ?
-	`
+                WHERE w.id = ?
+       `
 
 	var s models.WorkAd
 	var imagesJSON []byte
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
+		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating,
 		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
 		&s.UpdatedAt,
 	)
@@ -97,6 +97,10 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int) (models.Wo
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.WorkAd{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
+	}
+	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+	if err == nil {
+		s.User.ReviewsCount = count
 	}
 	return s, nil
 }
@@ -154,13 +158,13 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 	)
 
 	baseQuery := `
-        SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.work_ad_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked, s.status, s.work_experience, s.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
-		FROM work_ad s
-		LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
-		JOIN users u ON s.user_id = u.id
-		INNER JOIN work_categories c ON s.category_id = c.id
-		
-	`
+       SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.work_ad_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked, s.status, s.work_experience, s.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
+               FROM work_ad s
+               LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
+               JOIN users u ON s.user_id = u.id
+               INNER JOIN work_categories c ON s.category_id = c.id
+
+       `
 	params = append(params, userID)
 
 	// Filters
@@ -230,7 +234,7 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 		var s models.WorkAd
 		var imagesJSON []byte
 		err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating,
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
 			&s.UpdatedAt,
 		)
@@ -242,8 +246,9 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
 		}
 
-		if err != nil {
-			return nil, 0, 0, err
+		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+		if err == nil {
+			s.User.ReviewsCount = count
 		}
 		works_ad = append(works_ad, s)
 	}
@@ -302,13 +307,13 @@ func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) (
 
 func (r *WorkAdRepository) GetFilteredWorksAdPost(ctx context.Context, req models.FilterWorkAdRequest) ([]models.FilteredWorkAd, error) {
 	query := `
-		SELECT 
-			u.id, u.name, u.review_rating,
-			s.id, s.name, s.price, s.description
-		FROM work_ad s
-		JOIN users u ON s.user_id = u.id
-		WHERE s.price BETWEEN ? AND ?
-	`
+               SELECT
+                       u.id, u.name, u.surname, u.phone, u.review_rating,
+                       s.id, s.name, s.price, s.description
+               FROM work_ad s
+               JOIN users u ON s.user_id = u.id
+               WHERE s.price BETWEEN ? AND ?
+       `
 	args := []interface{}{req.PriceFrom, req.PriceTo}
 
 	// Category
@@ -360,10 +365,14 @@ func (r *WorkAdRepository) GetFilteredWorksAdPost(ctx context.Context, req model
 	for rows.Next() {
 		var s models.FilteredWorkAd
 		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserRating,
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserRating,
 			&s.WorkAdID, &s.WorkAdName, &s.WorkAdPrice, &s.WorkAdDescription,
 		); err != nil {
 			return nil, err
+		}
+		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+		if err == nil {
+			s.UserReviewsCount = count
 		}
 		works = append(works, s)
 	}
@@ -415,15 +424,15 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-		SELECT DISTINCT
-			u.id, u.name, u.review_rating,
-			s.id, s.name, s.price, s.description,
-			CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
-		FROM work_ad s
-		JOIN users u ON s.user_id = u.id
-		LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
-		WHERE s.price BETWEEN ? AND ?
-	`
+               SELECT DISTINCT
+                       u.id, u.name, u.surname, u.phone, u.review_rating,
+                       s.id, s.name, s.price, s.description,
+                       CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
+               FROM work_ad s
+               JOIN users u ON s.user_id = u.id
+               LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
+               WHERE s.price BETWEEN ? AND ?
+       `
 
 	args := []interface{}{userID, req.PriceFrom, req.PriceTo}
 
@@ -491,11 +500,15 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 	for rows.Next() {
 		var s models.FilteredWorkAd
 		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserRating,
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserRating,
 			&s.WorkAdID, &s.WorkAdName, &s.WorkAdPrice, &s.WorkAdDescription, &s.Liked,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+		if err == nil {
+			s.UserReviewsCount = count
 		}
 		works = append(works, s)
 	}
@@ -511,12 +524,12 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 
 func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, workadID int, userID int) (models.WorkAd, error) {
 	query := `
-		SELECT 
-			s.id, s.name, s.address, s.price, s.user_id,
-			u.id, u.name, u.review_rating,
-			s.images, s.category_id, c.name,
-			s.subcategory_id, sub.name,
-			s.description, s.avg_rating, s.top,
+               SELECT
+                       s.id, s.name, s.address, s.price, s.user_id,
+                       u.id, u.name, u.surname, u.phone, u.review_rating,
+                       s.images, s.category_id, c.name,
+                       s.subcategory_id, sub.name,
+                       s.description, s.avg_rating, s.top,
                CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
                s.status, s.work_experience, s.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
 		FROM work_ad s
@@ -533,7 +546,7 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 
 	err := r.DB.QueryRowContext(ctx, query, userID, workadID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-		&s.User.ID, &s.User.Name, &s.User.ReviewRating,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
@@ -551,6 +564,11 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.WorkAd{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
+	}
+
+	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+	if err == nil {
+		s.User.ReviewsCount = count
 	}
 
 	return s, nil

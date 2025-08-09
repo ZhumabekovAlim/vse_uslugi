@@ -66,18 +66,18 @@ func (r *RentRepository) CreateRent(ctx context.Context, rent models.Rent) (mode
 
 func (r *RentRepository) GetRentByID(ctx context.Context, id int) (models.Rent, error) {
 	query := `
-		SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.review_rating, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked, w.status, w.rent_type, w.deposit, w.latitude, w.longitude, w.created_at, w.updated_at
-		FROM rent w
-		JOIN users u ON w.user_id = u.id
-		JOIN rent_categories c ON w.category_id = c.id
-		JOIN rent_subcategories sub ON w.subcategory_id = sub.id
-		WHERE w.id = ?
-	`
+               SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked, w.status, w.rent_type, w.deposit, w.latitude, w.longitude, w.created_at, w.updated_at
+                FROM rent w
+                JOIN users u ON w.user_id = u.id
+                JOIN rent_categories c ON w.category_id = c.id
+                JOIN rent_subcategories sub ON w.subcategory_id = sub.id
+                WHERE w.id = ?
+       `
 
 	var s models.Rent
 	var imagesJSON []byte
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
+		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating,
 		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &s.Latitude, &s.Longitude, &s.CreatedAt,
 		&s.UpdatedAt,
 	)
@@ -93,6 +93,10 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int) (models.Rent, 
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.Rent{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
+	}
+	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+	if err == nil {
+		s.User.ReviewsCount = count
 	}
 	return s, nil
 }
@@ -150,13 +154,13 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ca
 	)
 
 	baseQuery := `
-		SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.rent_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
-		FROM rent s
-		LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
-		JOIN users u ON s.user_id = u.id
-		INNER JOIN rent_categories c ON s.category_id = c.id
-		
-	`
+               SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.rent_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+               FROM rent s
+               LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
+               JOIN users u ON s.user_id = u.id
+               INNER JOIN rent_categories c ON s.category_id = c.id
+
+       `
 	params = append(params, userID)
 
 	// Filters
@@ -226,7 +230,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ca
 		var s models.Rent
 		var imagesJSON []byte
 		err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating,
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating,
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
@@ -237,8 +241,9 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ca
 			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
 		}
 
-		if err != nil {
-			return nil, 0, 0, err
+		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+		if err == nil {
+			s.User.ReviewsCount = count
 		}
 		rents = append(rents, s)
 	}
@@ -296,13 +301,13 @@ func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]mo
 
 func (r *RentRepository) GetFilteredRentsPost(ctx context.Context, req models.FilterRentRequest) ([]models.FilteredRent, error) {
 	query := `
-		SELECT 
-			u.id, u.name, u.review_rating,
-			s.id, s.name, s.price, s.description
-		FROM rent s
-		JOIN users u ON s.user_id = u.id
-		WHERE s.price BETWEEN ? AND ?
-	`
+               SELECT
+                       u.id, u.name, u.surname, u.phone, u.review_rating,
+                       s.id, s.name, s.price, s.description
+               FROM rent s
+               JOIN users u ON s.user_id = u.id
+               WHERE s.price BETWEEN ? AND ?
+       `
 	args := []interface{}{req.PriceFrom, req.PriceTo}
 
 	// Category
@@ -354,10 +359,14 @@ func (r *RentRepository) GetFilteredRentsPost(ctx context.Context, req models.Fi
 	for rows.Next() {
 		var s models.FilteredRent
 		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserRating,
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserRating,
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
 		); err != nil {
 			return nil, err
+		}
+		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+		if err == nil {
+			s.UserReviewsCount = count
 		}
 		rents = append(rents, s)
 	}
@@ -409,15 +418,15 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-		SELECT DISTINCT
-			u.id, u.name, u.review_rating,
-			s.id, s.name, s.price, s.description,
-			CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
-		FROM rent s
-		JOIN users u ON s.user_id = u.id
-		LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
-		WHERE s.price BETWEEN ? AND ?
-	`
+               SELECT DISTINCT
+                       u.id, u.name, u.surname, u.phone, u.review_rating,
+                       s.id, s.name, s.price, s.description,
+                       CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
+               FROM rent s
+               JOIN users u ON s.user_id = u.id
+               LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
+               WHERE s.price BETWEEN ? AND ?
+       `
 
 	args := []interface{}{userID, req.PriceFrom, req.PriceTo}
 
@@ -485,11 +494,15 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 	for rows.Next() {
 		var s models.FilteredRent
 		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserRating,
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserRating,
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+		if err == nil {
+			s.UserReviewsCount = count
 		}
 		rents = append(rents, s)
 	}
@@ -505,28 +518,28 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 
 func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID int, userID int) (models.Rent, error) {
 	query := `
-		SELECT 
-			s.id, s.name, s.address, s.price, s.user_id,
-			u.id, u.name, u.review_rating,
-			s.images, s.category_id, c.name,
-			s.subcategory_id, sub.name,
-			s.description, s.avg_rating, s.top,
-			CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
-			s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
-		FROM rent s
-		JOIN users u ON s.user_id = u.id
-		JOIN rent_categories c ON s.category_id = c.id
-		JOIN rent_subcategories sub ON s.subcategory_id = sub.id
-		LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
-		WHERE s.id = ?
-	`
+               SELECT
+                       s.id, s.name, s.address, s.price, s.user_id,
+                       u.id, u.name, u.surname, u.phone, u.review_rating,
+                       s.images, s.category_id, c.name,
+                       s.subcategory_id, sub.name,
+                       s.description, s.avg_rating, s.top,
+                       CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
+                       s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+               FROM rent s
+               JOIN users u ON s.user_id = u.id
+               JOIN rent_categories c ON s.category_id = c.id
+               JOIN rent_subcategories sub ON s.subcategory_id = sub.id
+               LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
+               WHERE s.id = ?
+       `
 
 	var s models.Rent
 	var imagesJSON []byte
 
 	err := r.DB.QueryRowContext(ctx, query, userID, rentID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-		&s.User.ID, &s.User.Name, &s.User.ReviewRating,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
@@ -544,6 +557,11 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.Rent{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
+	}
+
+	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+	if err == nil {
+		s.User.ReviewsCount = count
 	}
 
 	return s, nil
