@@ -13,7 +13,10 @@ type Service struct {
 	User    struct {
 		ID           int     `json:"id"`
 		Name         string  `json:"name"`
+		Surname      string  `json:"surname"`
+		Phone        string  `json:"phone"`
 		ReviewRating float64 `json:"review_rating"`
+		ReviewsCount int     `json:"reviews_count"`
 	} `json:"user"`
 	Images          []Image    `json:"images"`
 	CategoryID      int        `json:"category_id, omitempty"`
@@ -68,7 +71,10 @@ type FilterServicesRequest struct {
 type FilteredService struct {
 	UserID             int     `json:"user_id"`
 	UserName           string  `json:"user_name"`
+	UserSurname        string  `json:"user_surname"`
+	UserPhone          string  `json:"user_phone"`
 	UserRating         float64 `json:"user_rating"`
+	UserReviewsCount   int     `json:"user_reviews_count"`
 	ServiceID          int     `json:"service_id"`
 	ServiceName        string  `json:"service_name"`
 	ServicePrice       float64 `json:"service_price"`
