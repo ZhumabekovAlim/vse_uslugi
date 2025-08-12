@@ -314,13 +314,13 @@ func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.
 
 func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterAdRequest) ([]models.FilteredAd, error) {
 	query := `
-               SELECT
-                       u.id, u.name, u.surname, u.phone, u.avatar_path, u.review_rating,
-                       s.id, s.name, s.price, s.description
-               FROM ad s
-               JOIN users u ON s.user_id = u.id
-               WHERE s.price BETWEEN ? AND ?
-       `
+       SELECT
+               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+               s.id, s.name, s.price, s.description
+       FROM ad s
+       JOIN users u ON s.user_id = u.id
+       WHERE s.price BETWEEN ? AND ?
+`
 	args := []interface{}{req.PriceFrom, req.PriceTo}
 
 	// Category
@@ -432,15 +432,15 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-               SELECT DISTINCT
-                       u.id, u.name, u.surname, u.phone, u.avatar_path, u.review_rating,
-                       s.id, s.name, s.price, s.description,
-                       CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
-               FROM ad s
-               JOIN users u ON s.user_id = u.id
-               LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
-               WHERE s.price BETWEEN ? AND ?
-       `
+       SELECT DISTINCT
+               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+               s.id, s.name, s.price, s.description,
+               CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
+       FROM ad s
+       JOIN users u ON s.user_id = u.id
+       LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
+       WHERE s.price BETWEEN ? AND ?
+`
 
 	args := []interface{}{userID, req.PriceFrom, req.PriceTo}
 
