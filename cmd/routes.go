@@ -90,6 +90,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/review/:service_id", standardMiddleware.ThenFunc(app.reviewsHandler.GetReviewsByServiceID))
 	mux.Put("/review/:id", authMiddleware.ThenFunc(app.reviewsHandler.UpdateReview))
 	mux.Del("/review/:id", authMiddleware.ThenFunc(app.reviewsHandler.DeleteReview))
+	mux.Get("/reviews/:user_id", authMiddleware.ThenFunc(app.userReviewsHandler.GetReviewsByUserID))
 
 	// Service Favorites
 	mux.Post("/favorites", authMiddleware.ThenFunc(app.serviceFavorite.AddToFavorites))
