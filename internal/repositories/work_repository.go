@@ -84,7 +84,7 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int) (models.Work, 
 	var imagesJSON []byte
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-               &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
 		&s.UpdatedAt,
 	)
@@ -101,6 +101,9 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int) (models.Work, 
 			return models.Work{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
 	}
+
+	s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
+
 	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 	if err == nil {
 		s.User.ReviewsCount = count
@@ -240,12 +243,12 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ca
 	for rows.Next() {
 		var s models.Work
 		var imagesJSON []byte
-               err := rows.Scan(
-                        &s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-                        &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-                        &imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
-                        &s.UpdatedAt,
-                )
+		err := rows.Scan(
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+			&s.UpdatedAt,
+		)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
 		}
@@ -253,6 +256,8 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ca
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
 		}
+
+		s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
 
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
@@ -273,7 +278,7 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ca
 }
 
 func (r *WorkRepository) GetWorksByUserID(ctx context.Context, userID int) ([]models.Work, error) {
-       query := `
+	query := `
                 SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.work_experience, s.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM work s
                 JOIN users u ON s.user_id = u.id
@@ -290,11 +295,11 @@ func (r *WorkRepository) GetWorksByUserID(ctx context.Context, userID int) ([]mo
 	for rows.Next() {
 		var s models.Work
 		var imagesJSON []byte
-               if err := rows.Scan(
-                        &s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON,
-                        &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
-                        &s.UpdatedAt,
-                ); err != nil {
+		if err := rows.Scan(
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON,
+			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+			&s.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 
@@ -303,6 +308,8 @@ func (r *WorkRepository) GetWorksByUserID(ctx context.Context, userID int) ([]mo
 				return nil, fmt.Errorf("json decode error: %w", err)
 			}
 		}
+
+		s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
 
 		works = append(works, s)
 	}
@@ -373,12 +380,12 @@ func (r *WorkRepository) GetFilteredWorksPost(ctx context.Context, req models.Fi
 	var works []models.FilteredWork
 	for rows.Next() {
 		var s models.FilteredWork
-               if err := rows.Scan(
-                        &s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-                        &s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
-                ); err != nil {
-                       return nil, err
-               }
+		if err := rows.Scan(
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
+		); err != nil {
+			return nil, err
+		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
 			s.UserReviewsCount = count
@@ -390,7 +397,7 @@ func (r *WorkRepository) GetFilteredWorksPost(ctx context.Context, req models.Fi
 }
 
 func (r *WorkRepository) FetchByStatusAndUserID(ctx context.Context, userID int, status string) ([]models.Work, error) {
-       query := `
+	query := `
         SELECT
                 s.id, s.name, s.address, s.price, s.user_id,
                 u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
@@ -411,19 +418,20 @@ func (r *WorkRepository) FetchByStatusAndUserID(ctx context.Context, userID int,
 	for rows.Next() {
 		var s models.Work
 		var imagesJSON []byte
-               err := rows.Scan(
-                        &s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-                        &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-                        &imagesJSON, &s.CategoryID, &s.SubcategoryID,
-                        &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude,
-                        &s.CreatedAt, &s.UpdatedAt,
-                )
+		err := rows.Scan(
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+			&imagesJSON, &s.CategoryID, &s.SubcategoryID,
+			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude,
+			&s.CreatedAt, &s.UpdatedAt,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("scan error: %w", err)
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("json decode error: %w", err)
 		}
+		s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
 		works = append(works, s)
 	}
 	return works, nil
@@ -432,7 +440,7 @@ func (r *WorkRepository) FetchByStatusAndUserID(ctx context.Context, userID int,
 func (r *WorkRepository) GetFilteredWorksWithLikes(ctx context.Context, req models.FilterWorkRequest, userID int) ([]models.FilteredWork, error) {
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
-       query := `
+	query := `
                SELECT DISTINCT
                        u.id, u.name, u.surname, u.phone, u.avatar_path, u.review_rating,
                        s.id, s.name, s.price, s.description,
@@ -508,13 +516,13 @@ func (r *WorkRepository) GetFilteredWorksWithLikes(ctx context.Context, req mode
 	var works []models.FilteredWork
 	for rows.Next() {
 		var s models.FilteredWork
-               if err := rows.Scan(
-                        &s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-                        &s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked,
-                ); err != nil {
-                       log.Printf("[ERROR] Failed to scan row: %v", err)
-                       return nil, fmt.Errorf("failed to scan row: %w", err)
-               }
+		if err := rows.Scan(
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked,
+		); err != nil {
+			log.Printf("[ERROR] Failed to scan row: %v", err)
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
 			s.UserReviewsCount = count
@@ -553,10 +561,10 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
 	var s models.Work
 	var imagesJSON []byte
 
-       err := r.DB.QueryRowContext(ctx, query, userID, workID).Scan(
-               &s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-               &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-               &imagesJSON, &s.CategoryID, &s.CategoryName,
+	err := r.DB.QueryRowContext(ctx, query, userID, workID).Scan(
+		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
 		&s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
@@ -574,6 +582,8 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
 			return models.Work{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
 	}
+
+	s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
 
 	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 	if err == nil {

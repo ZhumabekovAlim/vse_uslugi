@@ -98,6 +98,9 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int) (models.Wo
 			return models.WorkAd{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
 	}
+
+	s.AvgRating = getAverageRating(ctx, r.DB, "work_ad_reviews", "work_ad_id", s.ID)
+
 	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 	if err == nil {
 		s.User.ReviewsCount = count
@@ -246,6 +249,8 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
 		}
 
+		s.AvgRating = getAverageRating(ctx, r.DB, "work_ad_reviews", "work_ad_id", s.ID)
+
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
 			s.User.ReviewsCount = count
@@ -294,6 +299,8 @@ func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) (
 				return nil, fmt.Errorf("json decode error: %w", err)
 			}
 		}
+
+		s.AvgRating = getAverageRating(ctx, r.DB, "work_ad_reviews", "work_ad_id", s.ID)
 
 		works_ad = append(works_ad, s)
 	}
@@ -415,6 +422,7 @@ func (r *WorkAdRepository) FetchByStatusAndUserID(ctx context.Context, userID in
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("json decode error: %w", err)
 		}
+		s.AvgRating = getAverageRating(ctx, r.DB, "work_ad_reviews", "work_ad_id", s.ID)
 		works = append(works, s)
 	}
 	return works, nil
@@ -565,6 +573,8 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 			return models.WorkAd{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
 	}
+
+	s.AvgRating = getAverageRating(ctx, r.DB, "work_ad_reviews", "work_ad_id", s.ID)
 
 	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 	if err == nil {
