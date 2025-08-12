@@ -308,13 +308,13 @@ func (r *RentAdRepository) GetRentsAdByUserID(ctx context.Context, userID int) (
 
 func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req models.FilterRentAdRequest) ([]models.FilteredRentAd, error) {
 	query := `
-               SELECT
-                       u.id, u.name, u.surname, u.phone, u.avatar_path, u.review_rating,
-                       s.id, s.name, s.price, s.description
-               FROM rent_ad s
-               JOIN users u ON s.user_id = u.id
-               WHERE s.price BETWEEN ? AND ?
-       `
+       SELECT
+               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+               s.id, s.name, s.price, s.description
+       FROM rent_ad s
+       JOIN users u ON s.user_id = u.id
+       WHERE s.price BETWEEN ? AND ?
+`
 	args := []interface{}{req.PriceFrom, req.PriceTo}
 
 	// Category
@@ -426,15 +426,15 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-               SELECT DISTINCT
-                       u.id, u.name, u.surname, u.phone, u.avatar_path, u.review_rating,
-                       s.id, s.name, s.price, s.description,
-                       CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
-               FROM rent_ad s
-               JOIN users u ON s.user_id = u.id
-               LEFT JOIN rent_ad_favorites sf ON sf.rent_ad_id = s.id AND sf.user_id = ?
-               WHERE s.price BETWEEN ? AND ?
-       `
+       SELECT DISTINCT
+               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+               s.id, s.name, s.price, s.description,
+               CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
+       FROM rent_ad s
+       JOIN users u ON s.user_id = u.id
+       LEFT JOIN rent_ad_favorites sf ON sf.rent_ad_id = s.id AND sf.user_id = ?
+       WHERE s.price BETWEEN ? AND ?
+`
 
 	args := []interface{}{userID, req.PriceFrom, req.PriceTo}
 

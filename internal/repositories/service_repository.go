@@ -315,13 +315,13 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 
 func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
 	query := `
-               SELECT
-                       u.id, u.name, u.surname, u.phone, u.avatar_path, u.review_rating,
-                       s.id, s.name, s.price, s.description
-               FROM service s
-               JOIN users u ON s.user_id = u.id
-               WHERE s.price BETWEEN ? AND ?
-       `
+       SELECT
+               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+               s.id, s.name, s.price, s.description
+       FROM service s
+       JOIN users u ON s.user_id = u.id
+       WHERE s.price BETWEEN ? AND ?
+`
 	args := []interface{}{req.PriceFrom, req.PriceTo}
 
 	// Category
@@ -433,15 +433,15 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-               SELECT DISTINCT
-                       u.id, u.name, u.surname, u.phone, u.avatar_path, u.review_rating,
-                       s.id, s.name, s.price, s.description,
-                       CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
-               FROM service s
-               JOIN users u ON s.user_id = u.id
-               LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
-               WHERE s.price BETWEEN ? AND ?
-       `
+       SELECT DISTINCT
+               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+               s.id, s.name, s.price, s.description,
+               CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
+       FROM service s
+       JOIN users u ON s.user_id = u.id
+       LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+       WHERE s.price BETWEEN ? AND ?
+`
 
 	args := []interface{}{userID, req.PriceFrom, req.PriceTo}
 
