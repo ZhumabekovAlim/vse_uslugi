@@ -26,6 +26,7 @@ func (app *application) routes() http.Handler {
 	// Users
 	mux.Post("/user", adminAuthMiddleware.ThenFunc(app.userHandler.CreateUser))                //
 	mux.Get("/user", authMiddleware.ThenFunc(app.userHandler.GetUsers))                        //РАБОТАЕТ
+	mux.Get("/user/token", authMiddleware.ThenFunc(app.userHandler.GetUserByToken))            //РАБОТАЕТ
 	mux.Get("/user/:id", authMiddleware.ThenFunc(app.userHandler.GetUserByID))                 //РАБОТАЕТ
 	mux.Put("/user/:id", authMiddleware.ThenFunc(app.userHandler.UpdateUser))                  //РАБОТАЕТ
 	mux.Del("/user/:id", authMiddleware.ThenFunc(app.userHandler.DeleteUser))                  //ИСПРАВИТЬ
@@ -33,11 +34,11 @@ func (app *application) routes() http.Handler {
 	mux.Post("/user/sign_in", standardMiddleware.ThenFunc(app.userHandler.SignIn))             //РАБОТАЕТ
 	mux.Post("/user/change_number", standardMiddleware.ThenFunc(app.userHandler.ChangeNumber)) //РАБОТАЕТ
 	mux.Post("/user/change_email", standardMiddleware.ThenFunc(app.userHandler.ChangeEmail))   //РАБОТАЕТ
-        mux.Put("/user/:id/city", authMiddleware.ThenFunc(app.userHandler.ChangeCityForUser))
-        mux.Get("/docs/:filename", authMiddleware.ThenFunc(app.userHandler.ServeProofDocument))
-       mux.Post("/user/:id/avatar", authMiddleware.ThenFunc(app.userHandler.UploadAvatar))
-       mux.Get("/images/avatars/:filename", standardMiddleware.ThenFunc(app.userHandler.ServeAvatar))
-        mux.Post("/user/:id/upgrade", authMiddleware.ThenFunc(app.userHandler.UpdateToWorker))
+	mux.Put("/user/:id/city", authMiddleware.ThenFunc(app.userHandler.ChangeCityForUser))
+	mux.Get("/docs/:filename", authMiddleware.ThenFunc(app.userHandler.ServeProofDocument))
+	mux.Post("/user/:id/avatar", authMiddleware.ThenFunc(app.userHandler.UploadAvatar))
+	mux.Get("/images/avatars/:filename", standardMiddleware.ThenFunc(app.userHandler.ServeAvatar))
+	mux.Post("/user/:id/upgrade", authMiddleware.ThenFunc(app.userHandler.UpdateToWorker))
 	mux.Post("/users/check_duplicate", standardMiddleware.ThenFunc(app.userHandler.CheckUserDuplicate))
 	mux.Post("/user/request_reset", authMiddleware.ThenFunc(app.userHandler.RequestPasswordReset))
 	mux.Post("/user/verify_reset_code", authMiddleware.ThenFunc(app.userHandler.VerifyResetCode))

@@ -226,6 +226,22 @@ func (s *UserService) GetUserByID(ctx context.Context, id int) (models.User, err
 	return s.UserRepo.GetUserByID(ctx, id)
 }
 
+func (s *UserService) GetUserByToken(ctx context.Context, tokenString string) (models.User, error) {
+	claims := &models.Claims{}
+
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(signingKey), nil
+	})
+	if err != nil || !token.Valid {
+		return models.User{}, fmt.Errorf("invalid token")
+	}
+
+	return s.UserRepo.GetUserByID(ctx, int(claims.UserID))
+}
+
 func (s *UserService) UpdateUser(ctx context.Context, user models.User) (models.User, error) {
 	existingUser1, err := s.UserRepo.GetUserByEmail(ctx, user.Email)
 	if err != nil {
@@ -242,11 +258,11 @@ func (s *UserService) UpdateUser(ctx context.Context, user models.User) (models.
 	if existingUser2.Phone != "" {
 		return models.User{}, errors.New("user with this phone already exists")
 	}
-        return s.UserRepo.UpdateUser(ctx, user)
+	return s.UserRepo.UpdateUser(ctx, user)
 }
 
 func (s *UserService) UpdateUserAvatar(ctx context.Context, userID int, avatarPath string) (models.User, error) {
-       return s.UserRepo.UpdateUserAvatar(ctx, userID, avatarPath)
+	return s.UserRepo.UpdateUserAvatar(ctx, userID, avatarPath)
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, id int) error {
