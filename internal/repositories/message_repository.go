@@ -52,11 +52,12 @@ func (r *MessageRepository) CreateMessage(ctx context.Context, message models.Me
 	return "", err
 }
 
-func (r *MessageRepository) GetMessagesForChat(ctx context.Context, chatID int) ([]models.Message, error) {
+func (r *MessageRepository) GetMessagesForChat(ctx context.Context, chatID, page, pageSize int) ([]models.Message, error) {
 	var messages []models.Message
-	query := `SELECT id, sender_id, receiver_id, text, created_at FROM messages WHERE chat_id = ? ORDER BY created_at ASC`
+	offset := (page - 1) * pageSize
+	query := `SELECT id, sender_id, receiver_id, text, created_at FROM messages WHERE chat_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?`
 
-	rows, err := r.Db.QueryContext(ctx, query, chatID)
+	rows, err := r.Db.QueryContext(ctx, query, chatID, pageSize, offset)
 	if err != nil {
 		return nil, err
 	}

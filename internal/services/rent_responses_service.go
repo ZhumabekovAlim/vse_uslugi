@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 )
@@ -11,6 +12,7 @@ type RentResponseService struct {
 	RentRepo         *repositories.RentRepository
 	ChatRepo         *repositories.ChatRepository
 	ConfirmationRepo *repositories.RentConfirmationRepository
+	MessageRepo      *repositories.MessageRepository
 }
 
 func (s *RentResponseService) CreateRentResponse(ctx context.Context, resp models.RentResponses) (models.RentResponses, error) {
@@ -40,6 +42,15 @@ func (s *RentResponseService) CreateRentResponse(ctx context.Context, resp model
 		PerformerID: resp.UserID,
 	})
 	if err != nil {
+		return resp, err
+	}
+
+	text := fmt.Sprintf("Здравствуйте! Предлагаю цену %v. %s", resp.Price, resp.Description)
+	if _, err = s.MessageRepo.CreateMessage(ctx, models.Message{
+		SenderID:   resp.UserID,
+		ReceiverID: rent.UserID,
+		Text:       text,
+	}); err != nil {
 		return resp, err
 	}
 
