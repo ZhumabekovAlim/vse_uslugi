@@ -411,16 +411,20 @@ func (h *UserHandler) CheckUserDuplicate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err := h.Service.CheckUserDuplicate(r.Context(), req)
+	duplicate, err := h.Service.CheckUserDuplicate(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusConflict) // 409 — если найден дубликат
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Код отправлен на номер",
-	})
+	resp := map[string]any{"duplicate": duplicate}
+	if duplicate {
+		resp["message"] = "номер телефона или email уже зарегистрирован"
+	} else {
+		resp["message"] = "Код отправлен на номер"
+	}
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (h *UserHandler) RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
