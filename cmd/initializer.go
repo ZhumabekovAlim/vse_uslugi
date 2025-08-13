@@ -79,6 +79,9 @@ type application struct {
 	adResponseRepo             *repositories.AdResponseRepository
 	adFavoriteHandler          *handlers.AdFavoriteHandler
 	adFavoriteRepo             *repositories.AdFavoriteRepository
+	adConfirmationHandler      *handlers.AdConfirmationHandler
+	adConfirmationRepo         *repositories.AdConfirmationRepository
+
 	workAdHandler              *handlers.WorkAdHandler
 	workAdRepo                 *repositories.WorkAdRepository
 	workAdReviewHandler        *handlers.WorkAdReviewHandler
@@ -87,6 +90,9 @@ type application struct {
 	workAdResponseRepo         *repositories.WorkAdResponseRepository
 	workAdFavoriteHandler      *handlers.WorkAdFavoriteHandler
 	workAdFavoriteRepo         *repositories.WorkAdFavoriteRepository
+	workAdConfirmationHandler  *handlers.WorkAdConfirmationHandler
+	workAdConfirmationRepo     *repositories.WorkAdConfirmationRepository
+
 	rentAdHandler              *handlers.RentAdHandler
 	rentAdRepo                 *repositories.AdRepository
 	rentAdReviewHandler        *handlers.RentAdReviewHandler
@@ -95,6 +101,12 @@ type application struct {
 	rentAdResponseRepo         *repositories.AdResponseRepository
 	rentAdFavoriteHandler      *handlers.RentAdFavoriteHandler
 	rentAdFavoriteRepo         *repositories.AdFavoriteRepository
+	rentAdConfirmationHandler  *handlers.RentAdConfirmationHandler
+	rentAdConfirmationRepo     *repositories.RentAdConfirmationRepository
+	workConfirmationHandler    *handlers.WorkConfirmationHandler
+	workConfirmationRepo       *repositories.WorkConfirmationRepository
+	rentConfirmationHandler    *handlers.RentConfirmationHandler
+	rentConfirmationRepo       *repositories.RentConfirmationRepository
 
 	// authService *services/*/.AuthService
 }
@@ -138,6 +150,11 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	rentAdReviewRepo := repositories.RentAdReviewRepository{DB: db}
 	rentAdResponseRepo := repositories.RentAdResponseRepository{DB: db}
 	rentAdFavoriteRepo := repositories.RentAdFavoriteRepository{DB: db}
+	adConfirmationRepo := repositories.AdConfirmationRepository{DB: db}
+	workConfirmationRepo := repositories.WorkConfirmationRepository{DB: db}
+	workAdConfirmationRepo := repositories.WorkAdConfirmationRepository{DB: db}
+	rentConfirmationRepo := repositories.RentConfirmationRepository{DB: db}
+	rentAdConfirmationRepo := repositories.RentAdConfirmationRepository{DB: db}
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
@@ -158,23 +175,28 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workService := &services.WorkService{WorkRepo: &workRepo}
 	rentService := &services.RentService{RentRepo: &rentRepo}
 	workReviewService := &services.WorkReviewService{WorkReviewsRepo: &workReviewRepo}
-	workResponseService := &services.WorkResponseService{WorkResponseRepo: &workResponseRepo}
+	workResponseService := &services.WorkResponseService{WorkResponseRepo: &workResponseRepo, WorkRepo: &workRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workConfirmationRepo}
 	workFavoriteService := &services.WorkFavoriteService{WorkFavoriteRepo: &workFavoriteRepo}
 	rentReviewService := &services.RentReviewService{RentReviewsRepo: &rentReviewRepo}
-	rentResponseService := &services.RentResponseService{RentResponseRepo: &rentResponseRepo}
+	rentResponseService := &services.RentResponseService{RentResponseRepo: &rentResponseRepo, RentRepo: &rentRepo, ChatRepo: &chatRepo, ConfirmationRepo: &rentConfirmationRepo}
 	rentFavoriteService := &services.RentFavoriteService{RentFavoriteRepo: &rentFavoriteRepo}
 	adService := &services.AdService{AdRepo: &adRepo}
 	adReviewService := &services.AdReviewService{AdReviewsRepo: &adReviewRepo}
-	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo}
+	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo, AdRepo: &adRepo, ChatRepo: &chatRepo, ConfirmationRepo: &adConfirmationRepo}
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
 	workAdService := &services.WorkAdService{WorkAdRepo: &workAdRepo}
 	workAdReviewService := &services.WorkAdReviewService{WorkAdReviewsRepo: &workAdReviewRepo}
-	workAdResponseService := &services.WorkAdResponseService{WorkAdResponseRepo: &workAdResponseRepo}
+	workAdResponseService := &services.WorkAdResponseService{WorkAdResponseRepo: &workAdResponseRepo, WorkAdRepo: &workAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workAdConfirmationRepo}
 	workAdFavoriteService := &services.WorkAdFavoriteService{WorkAdFavoriteRepo: &workAdFavoriteRepo}
 	rentAdService := &services.RentAdService{RentAdRepo: &rentAdRepo}
 	rentAdReviewService := &services.RentAdReviewService{RentAdReviewsRepo: &rentAdReviewRepo}
-	rentAdResponseService := &services.RentAdResponseService{RentAdResponseRepo: &rentAdResponseRepo}
+	rentAdResponseService := &services.RentAdResponseService{RentAdResponseRepo: &rentAdResponseRepo, RentAdRepo: &rentAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &rentAdConfirmationRepo}
 	rentAdFavoriteService := &services.RentAdFavoriteService{RentAdFavoriteRepo: &rentAdFavoriteRepo}
+	adConfirmationService := &services.AdConfirmationService{ConfirmationRepo: &adConfirmationRepo}
+	workConfirmationService := &services.WorkConfirmationService{ConfirmationRepo: &workConfirmationRepo}
+	workAdConfirmationService := &services.WorkAdConfirmationService{ConfirmationRepo: &workAdConfirmationRepo}
+	rentConfirmationService := &services.RentConfirmationService{ConfirmationRepo: &rentConfirmationRepo}
+	rentAdConfirmationService := &services.RentAdConfirmationService{ConfirmationRepo: &rentAdConfirmationRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -206,14 +228,19 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adReviewHandler := &handlers.AdReviewHandler{Service: adReviewService}
 	adResponseHandler := &handlers.AdResponseHandler{Service: adResponseService}
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
+	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
 	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
 	workAdReviewHandler := &handlers.WorkAdReviewHandler{Service: workAdReviewService}
 	workAdResponseHandler := &handlers.WorkAdResponseHandler{Service: workAdResponseService}
 	workAdFavoriteHandler := &handlers.WorkAdFavoriteHandler{Service: workAdFavoriteService}
+	workAdConfirmationHandler := &handlers.WorkAdConfirmationHandler{Service: workAdConfirmationService}
 	rentAdHandler := &handlers.RentAdHandler{Service: rentAdService}
 	rentADReviewHandler := &handlers.RentAdReviewHandler{Service: rentAdReviewService}
 	rentAdResponseHandler := &handlers.RentAdResponseHandler{Service: rentAdResponseService}
 	rentAdFavoriteHandler := &handlers.RentAdFavoriteHandler{Service: rentAdFavoriteService}
+	rentAdConfirmationHandler := &handlers.RentAdConfirmationHandler{Service: rentAdConfirmationService}
+	workConfirmationHandler := &handlers.WorkConfirmationHandler{Service: workConfirmationService}
+	rentConfirmationHandler := &handlers.RentConfirmationHandler{Service: rentConfirmationService}
 
 	// Chat
 	wsManager := NewWebSocketManager()
@@ -261,14 +288,23 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		adReviewHandler:            adReviewHandler,
 		adResponseHandler:          adResponseHandler,
 		adFavoriteHandler:          adFavoriteHandler,
+		adConfirmationHandler:      adConfirmationHandler,
+
 		workAdHandler:              workAdHandler,
 		workAdReviewHandler:        workAdReviewHandler,
 		workAdResponseHandler:      workAdResponseHandler,
 		workAdFavoriteHandler:      workAdFavoriteHandler,
+		workAdConfirmationHandler:  workAdConfirmationHandler,
+
 		rentAdHandler:              rentAdHandler,
 		rentAdReviewHandler:        rentADReviewHandler,
 		rentAdResponseHandler:      rentAdResponseHandler,
 		rentAdFavoriteHandler:      rentAdFavoriteHandler,
+
+		rentAdConfirmationHandler:  rentAdConfirmationHandler,
+		workConfirmationHandler:    workConfirmationHandler,
+		rentConfirmationHandler:    rentConfirmationHandler,
+
 		//authService:    authService,
 	}
 }

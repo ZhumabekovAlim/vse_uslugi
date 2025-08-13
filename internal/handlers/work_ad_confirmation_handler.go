@@ -1,0 +1,28 @@
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"naimuBack/internal/services"
+)
+
+type WorkAdConfirmationHandler struct {
+	Service *services.WorkAdConfirmationService
+}
+
+func (h *WorkAdConfirmationHandler) ConfirmWorkAd(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		WorkAdID    int `json:"work_ad_id"`
+		PerformerID int `json:"performer_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.ConfirmWorkAd(r.Context(), req.WorkAdID, req.PerformerID); err != nil {
+		http.Error(w, "Could not confirm work ad", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}

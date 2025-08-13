@@ -8,8 +8,40 @@ import (
 
 type WorkResponseService struct {
 	WorkResponseRepo *repositories.WorkResponseRepository
+	WorkRepo         *repositories.WorkRepository
+	ChatRepo         *repositories.ChatRepository
+	ConfirmationRepo *repositories.WorkConfirmationRepository
 }
 
 func (s *WorkResponseService) CreateWorkResponse(ctx context.Context, resp models.WorkResponses) (models.WorkResponses, error) {
-	return s.WorkResponseRepo.CreateWorkResponse(ctx, resp)
+	resp, err := s.WorkResponseRepo.CreateWorkResponse(ctx, resp)
+	if err != nil {
+		return resp, err
+	}
+
+	work, err := s.WorkRepo.GetWorkByID(ctx, resp.WorkID)
+	if err != nil {
+		return resp, err
+	}
+
+	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: work.UserID, User2ID: resp.UserID})
+	if err != nil {
+		return resp, err
+	}
+
+	resp.ChatID = chatID
+	resp.ClientID = work.UserID
+	resp.PerformerID = resp.UserID
+
+	_, err = s.ConfirmationRepo.Create(ctx, models.WorkConfirmation{
+		WorkID:      resp.WorkID,
+		ChatID:      chatID,
+		ClientID:    work.UserID,
+		PerformerID: resp.UserID,
+	})
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, nil
 }
