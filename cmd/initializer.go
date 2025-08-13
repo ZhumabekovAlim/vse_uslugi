@@ -81,6 +81,7 @@ type application struct {
 	adFavoriteRepo             *repositories.AdFavoriteRepository
 	adConfirmationHandler      *handlers.AdConfirmationHandler
 	adConfirmationRepo         *repositories.AdConfirmationRepository
+
 	workAdHandler              *handlers.WorkAdHandler
 	workAdRepo                 *repositories.WorkAdRepository
 	workAdReviewHandler        *handlers.WorkAdReviewHandler
@@ -91,6 +92,7 @@ type application struct {
 	workAdFavoriteRepo         *repositories.WorkAdFavoriteRepository
 	workAdConfirmationHandler  *handlers.WorkAdConfirmationHandler
 	workAdConfirmationRepo     *repositories.WorkAdConfirmationRepository
+
 	rentAdHandler              *handlers.RentAdHandler
 	rentAdRepo                 *repositories.AdRepository
 	rentAdReviewHandler        *handlers.RentAdReviewHandler
@@ -287,18 +289,22 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		adResponseHandler:          adResponseHandler,
 		adFavoriteHandler:          adFavoriteHandler,
 		adConfirmationHandler:      adConfirmationHandler,
+
 		workAdHandler:              workAdHandler,
 		workAdReviewHandler:        workAdReviewHandler,
 		workAdResponseHandler:      workAdResponseHandler,
 		workAdFavoriteHandler:      workAdFavoriteHandler,
 		workAdConfirmationHandler:  workAdConfirmationHandler,
+
 		rentAdHandler:              rentAdHandler,
 		rentAdReviewHandler:        rentADReviewHandler,
 		rentAdResponseHandler:      rentAdResponseHandler,
 		rentAdFavoriteHandler:      rentAdFavoriteHandler,
+
 		rentAdConfirmationHandler:  rentAdConfirmationHandler,
 		workConfirmationHandler:    workConfirmationHandler,
 		rentConfirmationHandler:    rentConfirmationHandler,
+
 		//authService:    authService,
 	}
 }

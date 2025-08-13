@@ -14,6 +14,7 @@ type ServiceResponseService struct {
 }
 
 func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp models.ServiceResponses) (models.ServiceResponses, error) {
+
        resp, err := s.ServiceResponseRepo.CreateResponse(ctx, resp)
        if err != nil {
                return resp, err
@@ -42,4 +43,5 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
                return resp, err
        }
        return resp, nil
+
 }
