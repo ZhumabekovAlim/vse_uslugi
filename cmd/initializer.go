@@ -82,31 +82,31 @@ type application struct {
 	adConfirmationHandler      *handlers.AdConfirmationHandler
 	adConfirmationRepo         *repositories.AdConfirmationRepository
 
-	workAdHandler              *handlers.WorkAdHandler
-	workAdRepo                 *repositories.WorkAdRepository
-	workAdReviewHandler        *handlers.WorkAdReviewHandler
-	workAdReviewRepo           *repositories.WorkAdReviewRepository
-	workAdResponseHandler      *handlers.WorkAdResponseHandler
-	workAdResponseRepo         *repositories.WorkAdResponseRepository
-	workAdFavoriteHandler      *handlers.WorkAdFavoriteHandler
-	workAdFavoriteRepo         *repositories.WorkAdFavoriteRepository
-	workAdConfirmationHandler  *handlers.WorkAdConfirmationHandler
-	workAdConfirmationRepo     *repositories.WorkAdConfirmationRepository
+	workAdHandler             *handlers.WorkAdHandler
+	workAdRepo                *repositories.WorkAdRepository
+	workAdReviewHandler       *handlers.WorkAdReviewHandler
+	workAdReviewRepo          *repositories.WorkAdReviewRepository
+	workAdResponseHandler     *handlers.WorkAdResponseHandler
+	workAdResponseRepo        *repositories.WorkAdResponseRepository
+	workAdFavoriteHandler     *handlers.WorkAdFavoriteHandler
+	workAdFavoriteRepo        *repositories.WorkAdFavoriteRepository
+	workAdConfirmationHandler *handlers.WorkAdConfirmationHandler
+	workAdConfirmationRepo    *repositories.WorkAdConfirmationRepository
 
-	rentAdHandler              *handlers.RentAdHandler
-	rentAdRepo                 *repositories.AdRepository
-	rentAdReviewHandler        *handlers.RentAdReviewHandler
-	rentAdReviewRepo           *repositories.AdReviewRepository
-	rentAdResponseHandler      *handlers.RentAdResponseHandler
-	rentAdResponseRepo         *repositories.AdResponseRepository
-	rentAdFavoriteHandler      *handlers.RentAdFavoriteHandler
-	rentAdFavoriteRepo         *repositories.AdFavoriteRepository
-	rentAdConfirmationHandler  *handlers.RentAdConfirmationHandler
-	rentAdConfirmationRepo     *repositories.RentAdConfirmationRepository
-	workConfirmationHandler    *handlers.WorkConfirmationHandler
-	workConfirmationRepo       *repositories.WorkConfirmationRepository
-	rentConfirmationHandler    *handlers.RentConfirmationHandler
-	rentConfirmationRepo       *repositories.RentConfirmationRepository
+	rentAdHandler             *handlers.RentAdHandler
+	rentAdRepo                *repositories.AdRepository
+	rentAdReviewHandler       *handlers.RentAdReviewHandler
+	rentAdReviewRepo          *repositories.AdReviewRepository
+	rentAdResponseHandler     *handlers.RentAdResponseHandler
+	rentAdResponseRepo        *repositories.AdResponseRepository
+	rentAdFavoriteHandler     *handlers.RentAdFavoriteHandler
+	rentAdFavoriteRepo        *repositories.AdFavoriteRepository
+	rentAdConfirmationHandler *handlers.RentAdConfirmationHandler
+	rentAdConfirmationRepo    *repositories.RentAdConfirmationRepository
+	workConfirmationHandler   *handlers.WorkConfirmationHandler
+	workConfirmationRepo      *repositories.WorkConfirmationRepository
+	rentConfirmationHandler   *handlers.RentConfirmationHandler
+	rentConfirmationRepo      *repositories.RentConfirmationRepository
 
 	// authService *services/*/.AuthService
 }
@@ -254,8 +254,61 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	messageHandler := &handlers.MessageHandler{MessageService: messageService}
 
 	return &application{
-		errorLog:                   errorLog,
-		infoLog:                    infoLog,
+		errorLog: errorLog,
+		infoLog:  infoLog,
+
+		// DB и WebSocket
+		db:        db,
+		wsManager: wsManager,
+
+		// Репозитории (pointer vs value строго как в вашей структуре)
+		userRepo:                &userRepo,
+		serviceRepo:             &serviceRepo,
+		categoryRepo:            &categoryRepo,
+		rentCategoryRepo:        &rentCategoryRepo,
+		workCategoryRepo:        &workCategoryRepo,
+		reviewsRepo:             &reviewsRepo,
+		serviceFavoriteRepo:     &serviceFavoriteRepo,
+		subcategoryRepo:         subcategoryRepo,     // value
+		rentSubcategoryRepo:     rentSubcategoryRepo, // value
+		workSubcategoryRepo:     workSubcategoryRepo, // value
+		cityRepo:                cityRepo,            // value
+		complaintRepo:           &complaintRepo,
+		serviceResponseRepo:     &serviceResponseRepo,
+		serviceConfirmationRepo: &serviceConfirmationRepo,
+		userResponsesRepo:       &userResponsesRepo,
+		userReviewsRepo:         &userReviewsRepo,
+		workRepo:                &workRepo,
+		rentRepo:                &rentRepo,
+		workReviewRepo:          &workReviewRepo,
+		workResponseRepo:        &workResponseRepo,
+		workFavoriteRepo:        &workFavoriteRepo,
+		rentReviewRepo:          &rentReviewRepo,
+		rentResponseRepo:        &rentResponseRepo,
+		rentFavoriteRepo:        &rentFavoriteRepo,
+		adRepo:                  &adRepo,
+		adReviewRepo:            &adReviewRepo,
+		adResponseRepo:          &adResponseRepo,
+		adFavoriteRepo:          &adFavoriteRepo,
+		adConfirmationRepo:      &adConfirmationRepo,
+		workConfirmationRepo:    &workConfirmationRepo,
+		rentConfirmationRepo:    &rentConfirmationRepo,
+
+		// WorkAd блок
+		workAdRepo:             &workAdRepo,
+		workAdReviewRepo:       &workAdReviewRepo,
+		workAdResponseRepo:     &workAdResponseRepo,
+		workAdFavoriteRepo:     &workAdFavoriteRepo,
+		workAdConfirmationRepo: &workAdConfirmationRepo,
+
+		// RentAd блок
+		rentAdRepo:             (*repositories.AdRepository)(&rentAdRepo),
+		rentAdReviewRepo:       (*repositories.AdReviewRepository)(&rentAdReviewRepo),
+		rentAdResponseRepo:     (*repositories.AdResponseRepository)(&rentAdResponseRepo),
+		rentAdFavoriteRepo:     (*repositories.AdFavoriteRepository)(&rentAdFavoriteRepo),
+		rentAdConfirmationRepo: &rentAdConfirmationRepo,
+
+		// Хендлеры
 		userHandler:                userHandler,
 		serviceHandler:             serviceHandler,
 		categoryHandler:            categoryHandler,
@@ -267,10 +320,6 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		rentSubcategoryHandler:     rentSubcategoryHandler,
 		workSubcategoryHandler:     workSubcategoryHandler,
 		cityHandler:                cityHandler,
-		chatHandler:                chatHandler,
-		messageHandler:             messageHandler,
-		wsManager:                  wsManager,
-		db:                         db,
 		complaintHandler:           complaintHandler,
 		serviceResponseHandler:     serviceResponseHandler,
 		serviceConfirmationHandler: serviceConfirmationHandler,
@@ -290,22 +339,24 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		adFavoriteHandler:          adFavoriteHandler,
 		adConfirmationHandler:      adConfirmationHandler,
 
-		workAdHandler:              workAdHandler,
-		workAdReviewHandler:        workAdReviewHandler,
-		workAdResponseHandler:      workAdResponseHandler,
-		workAdFavoriteHandler:      workAdFavoriteHandler,
-		workAdConfirmationHandler:  workAdConfirmationHandler,
+		workAdHandler:             workAdHandler,
+		workAdReviewHandler:       workAdReviewHandler,
+		workAdResponseHandler:     workAdResponseHandler,
+		workAdFavoriteHandler:     workAdFavoriteHandler,
+		workAdConfirmationHandler: workAdConfirmationHandler,
 
-		rentAdHandler:              rentAdHandler,
-		rentAdReviewHandler:        rentADReviewHandler,
-		rentAdResponseHandler:      rentAdResponseHandler,
-		rentAdFavoriteHandler:      rentAdFavoriteHandler,
+		rentAdHandler:             rentAdHandler,
+		rentAdReviewHandler:       rentADReviewHandler,
+		rentAdResponseHandler:     rentAdResponseHandler,
+		rentAdFavoriteHandler:     rentAdFavoriteHandler,
+		rentAdConfirmationHandler: rentAdConfirmationHandler,
 
-		rentAdConfirmationHandler:  rentAdConfirmationHandler,
-		workConfirmationHandler:    workConfirmationHandler,
-		rentConfirmationHandler:    rentConfirmationHandler,
+		workConfirmationHandler: workConfirmationHandler,
+		rentConfirmationHandler: rentConfirmationHandler,
 
-		//authService:    authService,
+		// Чаты/сообщения
+		chatHandler:    chatHandler,
+		messageHandler: messageHandler,
 	}
 }
 
