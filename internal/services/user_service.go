@@ -247,7 +247,7 @@ func (s *UserService) UpdateUser(ctx context.Context, user models.User) (models.
 	if err != nil {
 		return models.User{}, err
 	}
-	if existingUser1.Email == "" {
+	if existingUser1.Email != "" && existingUser1.ID != user.ID {
 		return models.User{}, errors.New("user with this email already exists")
 	}
 
@@ -255,9 +255,10 @@ func (s *UserService) UpdateUser(ctx context.Context, user models.User) (models.
 	if err != nil {
 		return models.User{}, err
 	}
-	if existingUser2.Phone == "" {
+	if existingUser2.Phone != "" && existingUser2.ID != user.ID {
 		return models.User{}, errors.New("user with this phone already exists")
 	}
+
 	return s.UserRepo.UpdateUser(ctx, user)
 }
 

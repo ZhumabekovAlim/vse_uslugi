@@ -51,12 +51,12 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.Us
 	var user models.User
 
 	// Получаем основную информацию о пользователе
-	query := `SELECT id, name, surname, phone, email, password, city_id, role,
+	query := `SELECT id, name, middlename, surname, phone, email, password, city_id, role,
                years_of_exp, skills, doc_of_proof, avatar_path, created_at, updated_at
                FROM users WHERE id = ?`
 
 	err := r.DB.QueryRowContext(ctx, query, userID).Scan(
-		&user.ID, &user.Name, &user.Surname, &user.Phone, &user.Email, &user.Password,
+		&user.ID, &user.Name, &user.Middlename, &user.Surname, &user.Phone, &user.Email, &user.Password,
 		&user.CityID, &user.Role, &user.YearsOfExp, &user.Skills, &user.DocOfProof, &user.AvatarPath,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
