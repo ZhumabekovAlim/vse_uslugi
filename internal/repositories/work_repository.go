@@ -167,12 +167,13 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ca
                SELECT s.id, s.name, s.address, s.price, s.user_id,
                       u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
                       s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
-                      CASE WHEN sf.work_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked,
-                      s.status, s.work_experience, s.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
-               FROM work s
-               LEFT JOIN work_favorites sf ON sf.work_id = s.id AND sf.user_id = ?
-               JOIN users u ON s.user_id = u.id
-               INNER JOIN work_categories c ON s.category_id = c.id
+                     CASE WHEN sf.work_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked,
+                     s.status, s.work_experience, s.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
+              FROM work s
+              LEFT JOIN work_favorites sf ON sf.work_id = s.id AND sf.user_id = ?
+              JOIN users u ON s.user_id = u.id
+              INNER JOIN work_categories c ON s.category_id = c.id
+              JOIN cities city ON s.city_id = city.id
 
        `
 	params = append(params, userID)
@@ -246,7 +247,7 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ca
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
 			&s.UpdatedAt,
 		)
 		if err != nil {
