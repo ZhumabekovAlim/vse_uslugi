@@ -35,6 +35,10 @@ func (s *ChatService) GetAllChats(ctx context.Context) ([]models.Chat, error) {
 	return s.ChatRepo.GetAllChats(ctx)
 }
 
+func (s *ChatService) GetChatsByUserID(ctx context.Context, userID int) ([]models.AdChats, error) {
+	return s.ChatRepo.GetChatsByUserID(ctx, userID)
+}
+
 func (s *ChatService) DeleteChat(ctx context.Context, id int) error {
 	return s.ChatRepo.DeleteChat(ctx, id)
 }

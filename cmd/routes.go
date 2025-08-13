@@ -136,6 +136,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/api/chats", authMiddleware.ThenFunc(app.chatHandler.CreateChat))
 	mux.Get("/api/chats/:id", authMiddleware.ThenFunc(app.chatHandler.GetChatByID))
 	mux.Get("/api/chats", authMiddleware.ThenFunc(app.chatHandler.GetAllChats))
+	mux.Get("/api/chats/user/:user_id", authMiddleware.ThenFunc(app.chatHandler.GetChatsByUserID))
 	mux.Del("/api/chats/:id", authMiddleware.ThenFunc(app.chatHandler.DeleteChat))
 
 	mux.Post("/api/messages", authMiddleware.ThenFunc(app.messageHandler.CreateMessage))
