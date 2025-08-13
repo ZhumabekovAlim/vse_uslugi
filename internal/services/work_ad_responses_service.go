@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 )
@@ -11,6 +12,7 @@ type WorkAdResponseService struct {
 	WorkAdRepo         *repositories.WorkAdRepository
 	ChatRepo           *repositories.ChatRepository
 	ConfirmationRepo   *repositories.WorkAdConfirmationRepository
+	MessageRepo        *repositories.MessageRepository
 }
 
 func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp models.WorkAdResponses) (models.WorkAdResponses, error) {
@@ -40,6 +42,15 @@ func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp m
 		PerformerID: resp.UserID,
 	})
 	if err != nil {
+		return resp, err
+	}
+
+	text := fmt.Sprintf("Здравствуйте! Предлагаю цену %v. %s", resp.Price, resp.Description)
+	if _, err = s.MessageRepo.CreateMessage(ctx, models.Message{
+		SenderID:   resp.UserID,
+		ReceiverID: work.UserID,
+		Text:       text,
+	}); err != nil {
 		return resp, err
 	}
 

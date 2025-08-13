@@ -39,7 +39,20 @@ func (h *MessageHandler) GetMessagesForChat(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	messages, err := h.MessageService.GetMessagesForChat(r.Context(), chatID)
+	pageParam := r.URL.Query().Get("page")
+	pageSizeParam := r.URL.Query().Get("page_size")
+
+	page, err := strconv.Atoi(pageParam)
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	pageSize, err := strconv.Atoi(pageSizeParam)
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
+
+	messages, err := h.MessageService.GetMessagesForChat(r.Context(), chatID, page, pageSize)
 	if err != nil {
 		http.Error(w, "Failed to retrieve messages", http.StatusInternalServerError)
 		return

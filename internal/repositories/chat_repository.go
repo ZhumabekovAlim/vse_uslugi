@@ -81,3 +81,52 @@ func (r *ChatRepository) DeleteChat(ctx context.Context, id int) error {
 	_, err := r.Db.ExecContext(ctx, query, id)
 	return err
 }
+
+// GetChatsByUserID retrieves chats grouped by advertisements for a specific author.
+func (r *ChatRepository) GetChatsByUserID(ctx context.Context, userID int) ([]models.AdChats, error) {
+	query := `
+               SELECT a.id, a.name,
+                      u.id, u.name, u.surname,
+                      ar.price,
+                      c.id
+               FROM ad a
+               JOIN ad_responses ar ON ar.ad_id = a.id
+               JOIN users u ON u.id = ar.user_id
+               JOIN chats c ON ((c.user1_id = a.user_id AND c.user2_id = u.id) OR (c.user1_id = u.id AND c.user2_id = a.user_id))
+               WHERE a.user_id = ?
+               ORDER BY a.id`
+
+	rows, err := r.Db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []models.AdChats
+	adIndex := make(map[int]int)
+
+	for rows.Next() {
+		var adID int
+		var adName string
+		var user models.ChatUser
+		if err := rows.Scan(&adID, &adName, &user.ID, &user.Name, &user.Surname, &user.Price, &user.ChatID); err != nil {
+			return nil, err
+		}
+
+		if idx, ok := adIndex[adID]; ok {
+			result[idx].Users = append(result[idx].Users, user)
+		} else {
+			result = append(result, models.AdChats{
+				AdID:   adID,
+				AdName: adName,
+				Users:  []models.ChatUser{user},
+			})
+			adIndex[adID] = len(result) - 1
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
