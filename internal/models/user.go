@@ -15,10 +15,10 @@ type User struct {
 	Email        string     `json:"email"`
 	Password     string     `json:"password"`
 	CityID       *int       `json:"city_id,omitempty"`
-        YearsOfExp   *int       `json:"years_of_exp,omitempty"`
-        DocOfProof   *string    `json:"doc_of_proof,omitempty"`
-        AvatarPath   *string    `json:"avatar_path,omitempty"`
-        ReviewRating float64    `json:"review_rating"`
+	YearsOfExp   *int       `json:"years_of_exp,omitempty"`
+	DocOfProof   *string    `json:"doc_of_proof,omitempty"`
+	AvatarPath   *string    `json:"avatar_path,omitempty"`
+	ReviewRating float64    `json:"review_rating"`
 	Role         string     `json:"role,omitempty"`
 	Latitude     *string    `json:"latitude,omitempty"`
 	Longitude    *string    `json:"longitude,omitempty"`
@@ -48,7 +48,8 @@ type Session struct {
 	Middlename string `json:"middlename"`
 	Phone      string `json:"phone"`
 	CityID     int    `json:"city_id"`
-
+	UserID     int    `json:"user_id"`
+	Role       string `json:"role"`
 	// Из City
 	City string `json:"city"`
 }
