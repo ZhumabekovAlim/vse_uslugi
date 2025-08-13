@@ -63,7 +63,9 @@ func (r *MessageRepository) CreateMessage(ctx context.Context, message models.Me
 func (r *MessageRepository) GetMessagesForChat(ctx context.Context, chatID, page, pageSize int) ([]models.Message, error) {
 	var messages []models.Message
 	offset := (page - 1) * pageSize
+
 	query := `SELECT id, sender_id, receiver_id, text, created_at, chat_id FROM messages WHERE chat_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?`
+
 
 	rows, err := r.Db.QueryContext(ctx, query, chatID, pageSize, offset)
 	if err != nil {

@@ -50,7 +50,9 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 		SenderID:   resp.UserID,
 		ReceiverID: service.UserID,
 		Text:       text,
+
 		ChatID:     chatID,
+
 	}); err != nil {
 		return resp, err
 	}

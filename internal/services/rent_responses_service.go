@@ -50,7 +50,9 @@ func (s *RentResponseService) CreateRentResponse(ctx context.Context, resp model
 		SenderID:   resp.UserID,
 		ReceiverID: rent.UserID,
 		Text:       text,
+
 		ChatID:     chatID,
+
 	}); err != nil {
 		return resp, err
 	}
