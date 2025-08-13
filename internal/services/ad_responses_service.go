@@ -50,6 +50,9 @@ func (s *AdResponseService) CreateAdResponse(ctx context.Context, resp models.Ad
 		SenderID:   resp.UserID,
 		ReceiverID: ad.UserID,
 		Text:       text,
+
+		ChatID:     chatID,
+
 	}); err != nil {
 		return resp, err
 	}

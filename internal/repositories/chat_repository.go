@@ -85,6 +85,52 @@ func (r *ChatRepository) DeleteChat(ctx context.Context, id int) error {
 // GetChatsByUserID retrieves chats grouped by advertisements for a specific author.
 func (r *ChatRepository) GetChatsByUserID(ctx context.Context, userID int) ([]models.AdChats, error) {
 	query := `
+
+               SELECT a.id, a.name, u.id, u.name, u.surname, ar.price, ac.chat_id
+               FROM ad a
+               JOIN ad_confirmations ac ON ac.ad_id = a.id
+               JOIN users u ON u.id = ac.performer_id
+               JOIN ad_responses ar ON ar.ad_id = a.id AND ar.user_id = ac.performer_id
+               WHERE a.user_id = ?
+               UNION ALL
+               SELECT s.id, s.name, u.id, u.name, u.surname, sr.price, sc.chat_id
+               FROM service s
+               JOIN service_confirmations sc ON sc.service_id = s.id
+               JOIN users u ON u.id = sc.performer_id
+               JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.performer_id
+               WHERE s.user_id = ?
+               UNION ALL
+               SELECT ra.id, ra.name, u.id, u.name, u.surname, rar.price, rac.chat_id
+               FROM rent_ad ra
+               JOIN rent_ad_confirmations rac ON rac.rent_ad_id = ra.id
+               JOIN users u ON u.id = rac.performer_id
+               JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id AND rar.user_id = rac.performer_id
+               WHERE ra.user_id = ?
+               UNION ALL
+               SELECT wa.id, wa.name, u.id, u.name, u.surname, war.price, wac.chat_id
+               FROM work_ad wa
+               JOIN work_ad_confirmations wac ON wac.work_ad_id = wa.id
+               JOIN users u ON u.id = wac.performer_id
+               JOIN work_ad_responses war ON war.work_ad_id = wa.id AND war.user_id = wac.performer_id
+               WHERE wa.user_id = ?
+               UNION ALL
+               SELECT r.id, r.name, u.id, u.name, u.surname, rr.price, rc.chat_id
+               FROM rent r
+               JOIN rent_confirmations rc ON rc.rent_id = r.id
+               JOIN users u ON u.id = rc.performer_id
+               JOIN rent_responses rr ON rr.rent_id = r.id AND rr.user_id = rc.performer_id
+               WHERE r.user_id = ?
+               UNION ALL
+               SELECT w.id, w.name, u.id, u.name, u.surname, wr.price, wc.chat_id
+               FROM work w
+               JOIN work_confirmations wc ON wc.work_id = w.id
+               JOIN users u ON u.id = wc.performer_id
+               JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.performer_id
+               WHERE w.user_id = ?
+               ORDER BY 1`
+
+	rows, err := r.Db.QueryContext(ctx, query, userID, userID, userID, userID, userID, userID)
+
                SELECT a.id, a.name,
                       u.id, u.name, u.surname,
                       ar.price,
@@ -97,6 +143,7 @@ func (r *ChatRepository) GetChatsByUserID(ctx context.Context, userID int) ([]mo
                ORDER BY a.id`
 
 	rows, err := r.Db.QueryContext(ctx, query, userID)
+
 	if err != nil {
 		return nil, err
 	}

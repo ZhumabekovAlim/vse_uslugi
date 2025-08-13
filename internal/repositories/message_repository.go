@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"naimuBack/internal/models"
+	"strconv"
 	"time"
 )
 
@@ -13,31 +14,34 @@ type MessageRepository struct {
 }
 
 func (r *MessageRepository) CreateMessage(ctx context.Context, message models.Message) (string, error) {
-	var chatID int
-	// Пытаемся найти существующий чат между двумя пользователями
-	queryChat := `
-        SELECT id 
-        FROM chats 
-        WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)
-        LIMIT 1`
-	err := r.Db.QueryRowContext(ctx, queryChat, message.SenderID, message.ReceiverID, message.ReceiverID, message.SenderID).Scan(&chatID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// Если чат не найден, создаём новый
-			createChatQuery := `
-                INSERT INTO chats (user1_id, user2_id, created_at)
-                VALUES (?, ?, ?)`
-			res, err := r.Db.ExecContext(ctx, createChatQuery, message.SenderID, message.ReceiverID, time.Now())
-			if err != nil {
+	chatID := message.ChatID
+	if chatID == 0 {
+		// Пытаемся найти существующий чат между двумя пользователями
+		queryChat := `
+                SELECT id
+                FROM chats
+                WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)
+                ORDER BY id ASC
+                LIMIT 1`
+		err := r.Db.QueryRowContext(ctx, queryChat, message.SenderID, message.ReceiverID, message.ReceiverID, message.SenderID).Scan(&chatID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// Если чат не найден, создаём новый
+				createChatQuery := `
+                                INSERT INTO chats (user1_id, user2_id, created_at)
+                                VALUES (?, ?, ?)`
+				res, err := r.Db.ExecContext(ctx, createChatQuery, message.SenderID, message.ReceiverID, time.Now())
+				if err != nil {
+					return "", err
+				}
+				newChatID, err := res.LastInsertId()
+				if err != nil {
+					return "", err
+				}
+				chatID = int(newChatID)
+			} else {
 				return "", err
 			}
-			newChatID, err := res.LastInsertId()
-			if err != nil {
-				return "", err
-			}
-			chatID = int(newChatID)
-		} else {
-			return "", err
 		}
 	}
 
@@ -45,17 +49,23 @@ func (r *MessageRepository) CreateMessage(ctx context.Context, message models.Me
 	insertMessageQuery := `
         INSERT INTO messages (sender_id, receiver_id, text, created_at, chat_id)
         VALUES (?, ?, ?, ?, ?)`
-	_, err = r.Db.ExecContext(ctx, insertMessageQuery, message.SenderID, message.ReceiverID, message.Text, time.Now(), chatID)
+	res, err := r.Db.ExecContext(ctx, insertMessageQuery, message.SenderID, message.ReceiverID, message.Text, time.Now(), chatID)
 	if err != nil {
 		return "", err
 	}
-	return "", err
+	id, err := res.LastInsertId()
+	if err != nil {
+		return "", err
+	}
+	return strconv.FormatInt(id, 10), nil
 }
 
 func (r *MessageRepository) GetMessagesForChat(ctx context.Context, chatID, page, pageSize int) ([]models.Message, error) {
 	var messages []models.Message
 	offset := (page - 1) * pageSize
-	query := `SELECT id, sender_id, receiver_id, text, created_at FROM messages WHERE chat_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?`
+
+	query := `SELECT id, sender_id, receiver_id, text, created_at, chat_id FROM messages WHERE chat_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?`
+
 
 	rows, err := r.Db.QueryContext(ctx, query, chatID, pageSize, offset)
 	if err != nil {
@@ -65,7 +75,7 @@ func (r *MessageRepository) GetMessagesForChat(ctx context.Context, chatID, page
 
 	for rows.Next() {
 		var message models.Message
-		err := rows.Scan(&message.ID, &message.SenderID, &message.ReceiverID, &message.Text, &message.CreatedAt)
+		err := rows.Scan(&message.ID, &message.SenderID, &message.ReceiverID, &message.Text, &message.CreatedAt, &message.ChatID)
 		if err != nil {
 			return nil, err
 		}

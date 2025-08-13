@@ -50,6 +50,9 @@ func (s *WorkResponseService) CreateWorkResponse(ctx context.Context, resp model
 		SenderID:   resp.UserID,
 		ReceiverID: work.UserID,
 		Text:       text,
+
+		ChatID:     chatID,
+
 	}); err != nil {
 		return resp, err
 	}
