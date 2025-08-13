@@ -65,6 +65,24 @@ func (h *ChatHandler) GetAllChats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(chats)
 }
 
+func (h *ChatHandler) GetChatsByUserID(w http.ResponseWriter, r *http.Request) {
+	idParam := r.URL.Query().Get(":user_id")
+	userID, err := strconv.Atoi(idParam)
+	if err != nil || userID <= 0 {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	chats, err := h.ChatService.GetChatsByUserID(r.Context(), userID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve chats", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(chats)
+}
+
 func (h *ChatHandler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 	idParam := r.URL.Query().Get(":id")
 	id, err := strconv.Atoi(idParam)

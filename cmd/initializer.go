@@ -126,6 +126,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	cityRepo := repositories.CityRepository{DB: db}
 	complaintRepo := repositories.ComplaintRepository{DB: db}
 	chatRepo := repositories.ChatRepository{Db: db}
+	messageRepo := repositories.MessageRepository{Db: db}
 	serviceResponseRepo := repositories.ServiceResponseRepository{DB: db}
 	serviceConfirmationRepo := repositories.ServiceConfirmationRepository{DB: db}
 	userResponsesRepo := repositories.UserResponsesRepository{DB: db}
@@ -168,29 +169,29 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workSubcategoryService := services.WorkSubcategoryService{SubcategoryRepo: &workSubcategoryRepo}
 	cityService := services.CityService{CityRepo: &cityRepo}
 	complaintService := services.ComplaintService{ComplaintRepo: &complaintRepo}
-	serviceResponseService := &services.ServiceResponseService{ServiceResponseRepo: &serviceResponseRepo, ServiceRepo: &serviceRepo, ChatRepo: &chatRepo, ConfirmationRepo: &serviceConfirmationRepo}
+	serviceResponseService := &services.ServiceResponseService{ServiceResponseRepo: &serviceResponseRepo, ServiceRepo: &serviceRepo, ChatRepo: &chatRepo, ConfirmationRepo: &serviceConfirmationRepo, MessageRepo: &messageRepo}
 	serviceConfirmationService := &services.ServiceConfirmationService{ConfirmationRepo: &serviceConfirmationRepo}
 	userResponsesService := &services.UserResponsesService{ResponsesRepo: &userResponsesRepo}
 	userReviewsService := &services.UserReviewsService{ReviewsRepo: &userReviewsRepo}
 	workService := &services.WorkService{WorkRepo: &workRepo}
 	rentService := &services.RentService{RentRepo: &rentRepo}
 	workReviewService := &services.WorkReviewService{WorkReviewsRepo: &workReviewRepo}
-	workResponseService := &services.WorkResponseService{WorkResponseRepo: &workResponseRepo, WorkRepo: &workRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workConfirmationRepo}
+	workResponseService := &services.WorkResponseService{WorkResponseRepo: &workResponseRepo, WorkRepo: &workRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workConfirmationRepo, MessageRepo: &messageRepo}
 	workFavoriteService := &services.WorkFavoriteService{WorkFavoriteRepo: &workFavoriteRepo}
 	rentReviewService := &services.RentReviewService{RentReviewsRepo: &rentReviewRepo}
-	rentResponseService := &services.RentResponseService{RentResponseRepo: &rentResponseRepo, RentRepo: &rentRepo, ChatRepo: &chatRepo, ConfirmationRepo: &rentConfirmationRepo}
+	rentResponseService := &services.RentResponseService{RentResponseRepo: &rentResponseRepo, RentRepo: &rentRepo, ChatRepo: &chatRepo, ConfirmationRepo: &rentConfirmationRepo, MessageRepo: &messageRepo}
 	rentFavoriteService := &services.RentFavoriteService{RentFavoriteRepo: &rentFavoriteRepo}
 	adService := &services.AdService{AdRepo: &adRepo}
 	adReviewService := &services.AdReviewService{AdReviewsRepo: &adReviewRepo}
-	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo, AdRepo: &adRepo, ChatRepo: &chatRepo, ConfirmationRepo: &adConfirmationRepo}
+	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo, AdRepo: &adRepo, ChatRepo: &chatRepo, ConfirmationRepo: &adConfirmationRepo, MessageRepo: &messageRepo}
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
 	workAdService := &services.WorkAdService{WorkAdRepo: &workAdRepo}
 	workAdReviewService := &services.WorkAdReviewService{WorkAdReviewsRepo: &workAdReviewRepo}
-	workAdResponseService := &services.WorkAdResponseService{WorkAdResponseRepo: &workAdResponseRepo, WorkAdRepo: &workAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workAdConfirmationRepo}
+	workAdResponseService := &services.WorkAdResponseService{WorkAdResponseRepo: &workAdResponseRepo, WorkAdRepo: &workAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workAdConfirmationRepo, MessageRepo: &messageRepo}
 	workAdFavoriteService := &services.WorkAdFavoriteService{WorkAdFavoriteRepo: &workAdFavoriteRepo}
 	rentAdService := &services.RentAdService{RentAdRepo: &rentAdRepo}
 	rentAdReviewService := &services.RentAdReviewService{RentAdReviewsRepo: &rentAdReviewRepo}
-	rentAdResponseService := &services.RentAdResponseService{RentAdResponseRepo: &rentAdResponseRepo, RentAdRepo: &rentAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &rentAdConfirmationRepo}
+	rentAdResponseService := &services.RentAdResponseService{RentAdResponseRepo: &rentAdResponseRepo, RentAdRepo: &rentAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &rentAdConfirmationRepo, MessageRepo: &messageRepo}
 	rentAdFavoriteService := &services.RentAdFavoriteService{RentAdFavoriteRepo: &rentAdFavoriteRepo}
 	adConfirmationService := &services.AdConfirmationService{ConfirmationRepo: &adConfirmationRepo}
 	workConfirmationService := &services.WorkConfirmationService{ConfirmationRepo: &workConfirmationRepo}
@@ -249,8 +250,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	chatHandler := &handlers.ChatHandler{ChatService: chatService}
 
 	// Создание репозитория, сервиса и обработчика для сообщений
-	messageRepo := &repositories.MessageRepository{Db: db}
-	messageService := &services.MessageService{MessageRepo: messageRepo}
+	messageService := &services.MessageService{MessageRepo: &messageRepo}
 	messageHandler := &handlers.MessageHandler{MessageService: messageService}
 
 	return &application{

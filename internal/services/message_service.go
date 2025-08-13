@@ -19,8 +19,8 @@ func (s *MessageService) CreateMessage(ctx context.Context, message models.Messa
 	return message, nil
 }
 
-func (s *MessageService) GetMessagesForChat(ctx context.Context, chatID int) ([]models.Message, error) {
-	return s.MessageRepo.GetMessagesForChat(ctx, chatID)
+func (s *MessageService) GetMessagesForChat(ctx context.Context, chatID, page, pageSize int) ([]models.Message, error) {
+	return s.MessageRepo.GetMessagesForChat(ctx, chatID, page, pageSize)
 }
 
 func (s *MessageService) DeleteMessage(ctx context.Context, messageID int) error {
