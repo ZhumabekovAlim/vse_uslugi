@@ -104,7 +104,7 @@ func (app *application) JWTMiddleware(next http.Handler, requiredRole string) ht
 			// Здесь оставлю как у тебя — через user_id (поменяй при необходимости на ByToken).
 			userIDStr := strconv.Itoa(int(refreshClaims.UserID))
 			session, err := app.userRepo.GetSession(r.Context(), userIDStr)
-			if err != nil || session == nil {
+			if err != nil || session == (models.Session{}) {
 				log.Printf("Failed to fetch session for user %v: %v", refreshClaims.UserID, err)
 				http.Error(w, "Invalid session", http.StatusUnauthorized)
 				return
