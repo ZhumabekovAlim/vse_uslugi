@@ -130,20 +130,6 @@ func (r *ChatRepository) GetChatsByUserID(ctx context.Context, userID int) ([]mo
                ORDER BY 1`
 
 	rows, err := r.Db.QueryContext(ctx, query, userID, userID, userID, userID, userID, userID)
-
-               SELECT a.id, a.name,
-                      u.id, u.name, u.surname,
-                      ar.price,
-                      c.id
-               FROM ad a
-               JOIN ad_responses ar ON ar.ad_id = a.id
-               JOIN users u ON u.id = ar.user_id
-               JOIN chats c ON ((c.user1_id = a.user_id AND c.user2_id = u.id) OR (c.user1_id = u.id AND c.user2_id = a.user_id))
-               WHERE a.user_id = ?
-               ORDER BY a.id`
-
-	rows, err := r.Db.QueryContext(ctx, query, userID)
-
 	if err != nil {
 		return nil, err
 	}
