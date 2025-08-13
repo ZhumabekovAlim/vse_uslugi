@@ -394,13 +394,13 @@ func (s *UserService) UpdateToWorker(ctx context.Context, user models.User) (mod
 	return s.UserRepo.UpdateWorkerProfile(ctx, user)
 }
 
-func (s *UserService) CheckUserDuplicate(ctx context.Context, req models.User) error {
+func (s *UserService) CheckUserDuplicate(ctx context.Context, req models.User) (bool, error) {
 	taken, err := s.UserRepo.IsPhoneOrEmailTaken(ctx, req.Phone, req.Email)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if taken {
-		return fmt.Errorf("номер телефона или email уже зарегистрирован")
+		return true, nil
 	}
 
 	// Генерация и отправка кода
@@ -409,14 +409,14 @@ func (s *UserService) CheckUserDuplicate(ctx context.Context, req models.User) e
 	apiKey := "kzfaad0a91a4b498db593b78414dfdaa2c213b8b8996afa325a223543481efeb11dd11"
 
 	if err := s.sendSMS(apiKey, req.Phone, message); err != nil {
-		return fmt.Errorf("не удалось отправить SMS: %v", err)
+		return false, fmt.Errorf("не удалось отправить SMS: %v", err)
 	}
 
 	if err := s.UserRepo.SaveVerificationCode(ctx, req.Phone, code); err != nil {
-		return fmt.Errorf("не удалось сохранить код подтверждения: %v", err)
+		return false, fmt.Errorf("не удалось сохранить код подтверждения: %v", err)
 	}
 
-	return nil
+	return false, nil
 }
 
 func (s *UserService) SendResetCode(ctx context.Context, email string) error {
