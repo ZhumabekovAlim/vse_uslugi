@@ -48,79 +48,115 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 
 func (app *application) JWTMiddleware(next http.Handler, requiredRole string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Получаем access token из заголовка
-		tokenString := r.Header.Get("Authorization")
-		if tokenString == "" {
-			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		if app.userRepo == nil {
+			app.serverError(w, fmt.Errorf("users repo is not initialized"))
 			return
 		}
 
-		// Удаляем префикс "Bearer "
-		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		// 1) Достаём access token из Authorization: Bearer xxx
+		auth := r.Header.Get("Authorization")
+		if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
+			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+			return
+		}
+		accessToken := strings.TrimPrefix(auth, "Bearer ")
 
-		// Проверяем access token
-		claims := &models.Claims{}
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		// 2) Пытаемся валидировать access token
+		accessClaims := &models.Claims{}
+		at, atErr := jwt.ParseWithClaims(accessToken, accessClaims, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				log.Println("Unexpected signing method:", token.Header["alg"])
-				return nil, http.ErrNoLocation
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 			return []byte("asdadsadadaadsasd"), nil
 		})
 
-		fmt.Println("middleware claims:", token)
-		// Если access token недействителен, проверяем refresh token
-		if err != nil || !token.Valid {
+		var effUserID uint
+		var effRole string
+
+		if atErr == nil && at != nil && at.Valid {
+			// Access valid — берём данные из него
+			effUserID = accessClaims.UserID
+			effRole = accessClaims.Role
+		} else {
+			// 3) Access недействителен — проверяем refresh
 			refreshToken := r.Header.Get("Refresh-Token")
 			if refreshToken == "" {
 				http.Error(w, "Refresh token missing", http.StatusUnauthorized)
 				return
 			}
 
-			// Получаем refresh token из базы данных
-			session, err := app.userRepo.GetSession(r.Context(), strconv.Itoa(int(claims.UserID)))
-			if err != nil {
-				log.Printf("Failed to fetch session for user %v: %v", claims.UserID, err)
+			// 3.1) Парсим refresh-токен и берём user_id прямо из его клеймов (НЕ из битого access)
+			refreshClaims := &models.Claims{}
+			rt, rtErr := jwt.ParseWithClaims(refreshToken, refreshClaims, func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+				}
+				return []byte("asdadsadadaadsasd"), nil
+			})
+			if rtErr != nil || rt == nil || !rt.Valid {
+				http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
+				return
+			}
+
+			// 3.2) Достаём сессию из БД. ВАЖНО: лучше искать по самому refreshToken.
+			// Если твой репозиторий ждёт userID, можно сделать GetSessionByUserID(ctx, userID).
+			// Но надёжнее иметь метод: GetSessionByToken(ctx, refreshToken).
+			// Здесь оставлю как у тебя — через user_id (поменяй при необходимости на ByToken).
+			userIDStr := strconv.Itoa(int(refreshClaims.UserID))
+			session, err := app.userRepo.GetSession(r.Context(), userIDStr)
+			if err != nil || session == nil {
+				log.Printf("Failed to fetch session for user %v: %v", refreshClaims.UserID, err)
 				http.Error(w, "Invalid session", http.StatusUnauthorized)
 				return
 			}
 
-			// Проверяем совпадение токена из базы и его срок действия
-			if session.RefreshToken != refreshToken || session.ExpiresAt.Before(time.Now()) {
-				http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
+			if session.RefreshToken != refreshToken {
+				http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
+				return
+			}
+			if session.ExpiresAt.Before(time.Now()) {
+				http.Error(w, "Expired refresh token", http.StatusUnauthorized)
 				return
 			}
 
-			// Создаем новый access token, если refresh token действителен
-			newAccessToken, err := generateAccessToken(int(claims.UserID), claims.Role)
+			// 3.3) Генерим новый access token на основе данных refresh-клеймов
+			newAccessToken, err := generateAccessToken(int(refreshClaims.UserID), refreshClaims.Role)
 			if err != nil {
 				log.Printf("Error generating new access token: %v", err)
 				http.Error(w, "Error generating new access token", http.StatusInternalServerError)
 				return
 			}
-			fmt.Println(newAccessToken)
-			// Устанавливаем новый access token в заголовке ответа
+			// Отдаём новый access-токен в заголовке ответа
 			w.Header().Set("Authorization", "Bearer "+newAccessToken)
-			log.Printf("New access token issued for user: %v", claims.UserID)
 
-			claims = &models.Claims{UserID: claims.UserID, Role: claims.Role} // Обновляем данные пользователя для проверки ролей
+			effUserID = refreshClaims.UserID
+			effRole = refreshClaims.Role
+			log.Printf("New access token issued for user: %v", effUserID)
 		}
 
-		// Проверка ролей
-		if requiredRole == "admin" && claims.Role != "admin" {
-			http.Error(w, "Forbidden: only admins allowed", http.StatusForbidden)
-			return
-		}
-		if requiredRole == "client" && claims.Role != "client" && claims.Role != "admin" {
-			http.Error(w, "Forbidden: only clients or admins allowed", http.StatusForbidden)
-			return
+		// 4) Проверка ролей (на эффективной роли)
+		switch requiredRole {
+		case "admin":
+			if effRole != "admin" {
+				http.Error(w, "Forbidden: only admins allowed", http.StatusForbidden)
+				return
+			}
+		case "client":
+			if effRole != "client" && effRole != "admin" {
+				http.Error(w, "Forbidden: only clients or admins allowed", http.StatusForbidden)
+				return
+			}
+		case "worker":
+			if effRole != "worker" && effRole != "admin" {
+				http.Error(w, "Forbidden: only workers or admins allowed", http.StatusForbidden)
+				return
+			}
 		}
 
-		ctx := context.WithValue(r.Context(), "user_id", int(claims.UserID))
-		ctx = context.WithValue(ctx, "role", claims.Role)
-
-		// Передаем управление следующему обработчику
-		next.ServeHTTP(w, r)
+		// 5) Прокидываем user_id и role в контекст и НЕ забываем r.WithContext(ctx)
+		ctx := context.WithValue(r.Context(), "user_id", int(effUserID))
+		ctx = context.WithValue(ctx, "role", effRole)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
