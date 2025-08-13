@@ -1,0 +1,28 @@
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"naimuBack/internal/services"
+)
+
+type RentAdConfirmationHandler struct {
+	Service *services.RentAdConfirmationService
+}
+
+func (h *RentAdConfirmationHandler) ConfirmRentAd(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RentAdID    int `json:"rent_ad_id"`
+		PerformerID int `json:"performer_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.ConfirmRentAd(r.Context(), req.RentAdID, req.PerformerID); err != nil {
+		http.Error(w, "Could not confirm rent ad", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}

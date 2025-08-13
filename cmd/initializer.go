@@ -17,82 +17,94 @@ import (
 )
 
 type application struct {
-	errorLog               *log.Logger
-	infoLog                *log.Logger
-	userHandler            *handlers.UserHandler
-	userRepo               *repositories.UserRepository
-	serviceHandler         *handlers.ServiceHandler
-	serviceRepo            *repositories.ServiceRepository
-	categoryHandler        *handlers.CategoryHandler
-	categoryRepo           *repositories.CategoryRepository
-	rentCategoryHandler    *handlers.RentCategoryHandler
-	rentCategoryRepo       *repositories.RentCategoryRepository
-	workCategoryHandler    *handlers.WorkCategoryHandler
-	workCategoryRepo       *repositories.WorkCategoryRepository
-	reviewsHandler         *handlers.ReviewHandler
-	reviewsRepo            *repositories.ReviewRepository
-	serviceFavorite        *handlers.ServiceFavoriteHandler
-	serviceFavoriteRepo    *repositories.ServiceFavoriteRepository
-	subcategoryHandler     handlers.SubcategoryHandler
-	subcategoryRepo        repositories.SubcategoryRepository
-	rentSubcategoryHandler handlers.RentSubcategoryHandler
-	rentSubcategoryRepo    repositories.RentSubcategoryRepository
-	workSubcategoryHandler handlers.WorkSubcategoryHandler
-	workSubcategoryRepo    repositories.WorkSubcategoryRepository
-	cityHandler            handlers.CityHandler
-	cityRepo               repositories.CityRepository
-	wsManager              *WebSocketManager
-	chatHandler            *handlers.ChatHandler
-	messageHandler         *handlers.MessageHandler
-	db                     *sql.DB
-	complaintHandler       *handlers.ComplaintHandler
-	complaintRepo          *repositories.ComplaintRepository
-	serviceResponseHandler *handlers.ServiceResponseHandler
-	serviceResponseRepo    *repositories.ServiceResponseRepository
-	userResponsesHandler   *handlers.UserResponsesHandler
-	userResponsesRepo      *repositories.UserResponsesRepository
-	userReviewsHandler     *handlers.UserReviewsHandler
-	userReviewsRepo        *repositories.UserReviewsRepository
-	workHandler            *handlers.WorkHandler
-	workRepo               *repositories.WorkRepository
-	rentHandler            *handlers.RentHandler
-	rentRepo               *repositories.RentRepository
-	workReviewHandler      *handlers.WorkReviewHandler
-	workReviewRepo         *repositories.WorkReviewRepository
-	workResponseHandler    *handlers.WorkResponseHandler
-	workResponseRepo       *repositories.WorkResponseRepository
-	workFavoriteHandler    *handlers.WorkFavoriteHandler
-	workFavoriteRepo       *repositories.WorkFavoriteRepository
-	rentReviewHandler      *handlers.RentReviewHandler
-	rentReviewRepo         *repositories.RentReviewRepository
-	rentResponseHandler    *handlers.RentResponseHandler
-	rentResponseRepo       *repositories.RentResponseRepository
-	rentFavoriteHandler    *handlers.RentFavoriteHandler
-	rentFavoriteRepo       *repositories.RentFavoriteRepository
-	adHandler              *handlers.AdHandler
-	adRepo                 *repositories.AdRepository
-	adReviewHandler        *handlers.AdReviewHandler
-	adReviewRepo           *repositories.AdReviewRepository
-	adResponseHandler      *handlers.AdResponseHandler
-	adResponseRepo         *repositories.AdResponseRepository
-	adFavoriteHandler      *handlers.AdFavoriteHandler
-	adFavoriteRepo         *repositories.AdFavoriteRepository
-	workAdHandler          *handlers.WorkAdHandler
-	workAdRepo             *repositories.WorkAdRepository
-	workAdReviewHandler    *handlers.WorkAdReviewHandler
-	workAdReviewRepo       *repositories.WorkAdReviewRepository
-	workAdResponseHandler  *handlers.WorkAdResponseHandler
-	workAdResponseRepo     *repositories.WorkAdResponseRepository
-	workAdFavoriteHandler  *handlers.WorkAdFavoriteHandler
-	workAdFavoriteRepo     *repositories.WorkAdFavoriteRepository
-	rentAdHandler          *handlers.RentAdHandler
-	rentAdRepo             *repositories.AdRepository
-	rentAdReviewHandler    *handlers.RentAdReviewHandler
-	rentAdReviewRepo       *repositories.AdReviewRepository
-	rentAdResponseHandler  *handlers.RentAdResponseHandler
-	rentAdResponseRepo     *repositories.AdResponseRepository
-	rentAdFavoriteHandler  *handlers.RentAdFavoriteHandler
-	rentAdFavoriteRepo     *repositories.AdFavoriteRepository
+	errorLog                   *log.Logger
+	infoLog                    *log.Logger
+	userHandler                *handlers.UserHandler
+	userRepo                   *repositories.UserRepository
+	serviceHandler             *handlers.ServiceHandler
+	serviceRepo                *repositories.ServiceRepository
+	categoryHandler            *handlers.CategoryHandler
+	categoryRepo               *repositories.CategoryRepository
+	rentCategoryHandler        *handlers.RentCategoryHandler
+	rentCategoryRepo           *repositories.RentCategoryRepository
+	workCategoryHandler        *handlers.WorkCategoryHandler
+	workCategoryRepo           *repositories.WorkCategoryRepository
+	reviewsHandler             *handlers.ReviewHandler
+	reviewsRepo                *repositories.ReviewRepository
+	serviceFavorite            *handlers.ServiceFavoriteHandler
+	serviceFavoriteRepo        *repositories.ServiceFavoriteRepository
+	subcategoryHandler         handlers.SubcategoryHandler
+	subcategoryRepo            repositories.SubcategoryRepository
+	rentSubcategoryHandler     handlers.RentSubcategoryHandler
+	rentSubcategoryRepo        repositories.RentSubcategoryRepository
+	workSubcategoryHandler     handlers.WorkSubcategoryHandler
+	workSubcategoryRepo        repositories.WorkSubcategoryRepository
+	cityHandler                handlers.CityHandler
+	cityRepo                   repositories.CityRepository
+	wsManager                  *WebSocketManager
+	chatHandler                *handlers.ChatHandler
+	messageHandler             *handlers.MessageHandler
+	db                         *sql.DB
+	complaintHandler           *handlers.ComplaintHandler
+	complaintRepo              *repositories.ComplaintRepository
+	serviceResponseHandler     *handlers.ServiceResponseHandler
+	serviceResponseRepo        *repositories.ServiceResponseRepository
+	serviceConfirmationHandler *handlers.ServiceConfirmationHandler
+	serviceConfirmationRepo    *repositories.ServiceConfirmationRepository
+	userResponsesHandler       *handlers.UserResponsesHandler
+	userResponsesRepo          *repositories.UserResponsesRepository
+	userReviewsHandler         *handlers.UserReviewsHandler
+	userReviewsRepo            *repositories.UserReviewsRepository
+	workHandler                *handlers.WorkHandler
+	workRepo                   *repositories.WorkRepository
+	rentHandler                *handlers.RentHandler
+	rentRepo                   *repositories.RentRepository
+	workReviewHandler          *handlers.WorkReviewHandler
+	workReviewRepo             *repositories.WorkReviewRepository
+	workResponseHandler        *handlers.WorkResponseHandler
+	workResponseRepo           *repositories.WorkResponseRepository
+	workFavoriteHandler        *handlers.WorkFavoriteHandler
+	workFavoriteRepo           *repositories.WorkFavoriteRepository
+	rentReviewHandler          *handlers.RentReviewHandler
+	rentReviewRepo             *repositories.RentReviewRepository
+	rentResponseHandler        *handlers.RentResponseHandler
+	rentResponseRepo           *repositories.RentResponseRepository
+	rentFavoriteHandler        *handlers.RentFavoriteHandler
+	rentFavoriteRepo           *repositories.RentFavoriteRepository
+	adHandler                  *handlers.AdHandler
+	adRepo                     *repositories.AdRepository
+	adReviewHandler            *handlers.AdReviewHandler
+	adReviewRepo               *repositories.AdReviewRepository
+	adResponseHandler          *handlers.AdResponseHandler
+	adResponseRepo             *repositories.AdResponseRepository
+	adFavoriteHandler          *handlers.AdFavoriteHandler
+	adFavoriteRepo             *repositories.AdFavoriteRepository
+	adConfirmationHandler      *handlers.AdConfirmationHandler
+	adConfirmationRepo         *repositories.AdConfirmationRepository
+	workAdHandler              *handlers.WorkAdHandler
+	workAdRepo                 *repositories.WorkAdRepository
+	workAdReviewHandler        *handlers.WorkAdReviewHandler
+	workAdReviewRepo           *repositories.WorkAdReviewRepository
+	workAdResponseHandler      *handlers.WorkAdResponseHandler
+	workAdResponseRepo         *repositories.WorkAdResponseRepository
+	workAdFavoriteHandler      *handlers.WorkAdFavoriteHandler
+	workAdFavoriteRepo         *repositories.WorkAdFavoriteRepository
+	workAdConfirmationHandler  *handlers.WorkAdConfirmationHandler
+	workAdConfirmationRepo     *repositories.WorkAdConfirmationRepository
+	rentAdHandler              *handlers.RentAdHandler
+	rentAdRepo                 *repositories.AdRepository
+	rentAdReviewHandler        *handlers.RentAdReviewHandler
+	rentAdReviewRepo           *repositories.AdReviewRepository
+	rentAdResponseHandler      *handlers.RentAdResponseHandler
+	rentAdResponseRepo         *repositories.AdResponseRepository
+	rentAdFavoriteHandler      *handlers.RentAdFavoriteHandler
+	rentAdFavoriteRepo         *repositories.AdFavoriteRepository
+	rentAdConfirmationHandler  *handlers.RentAdConfirmationHandler
+	rentAdConfirmationRepo     *repositories.RentAdConfirmationRepository
+	workConfirmationHandler    *handlers.WorkConfirmationHandler
+	workConfirmationRepo       *repositories.WorkConfirmationRepository
+	rentConfirmationHandler    *handlers.RentConfirmationHandler
+	rentConfirmationRepo       *repositories.RentConfirmationRepository
 
 	// authService *services/*/.AuthService
 }
@@ -111,7 +123,9 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workSubcategoryRepo := repositories.WorkSubcategoryRepository{DB: db}
 	cityRepo := repositories.CityRepository{DB: db}
 	complaintRepo := repositories.ComplaintRepository{DB: db}
+	chatRepo := repositories.ChatRepository{Db: db}
 	serviceResponseRepo := repositories.ServiceResponseRepository{DB: db}
+	serviceConfirmationRepo := repositories.ServiceConfirmationRepository{DB: db}
 	userResponsesRepo := repositories.UserResponsesRepository{DB: db}
 	userReviewsRepo := repositories.UserReviewsRepository{DB: db}
 	workRepo := repositories.WorkRepository{DB: db}
@@ -134,6 +148,11 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	rentAdReviewRepo := repositories.RentAdReviewRepository{DB: db}
 	rentAdResponseRepo := repositories.RentAdResponseRepository{DB: db}
 	rentAdFavoriteRepo := repositories.RentAdFavoriteRepository{DB: db}
+	adConfirmationRepo := repositories.AdConfirmationRepository{DB: db}
+	workConfirmationRepo := repositories.WorkConfirmationRepository{DB: db}
+	workAdConfirmationRepo := repositories.WorkAdConfirmationRepository{DB: db}
+	rentConfirmationRepo := repositories.RentConfirmationRepository{DB: db}
+	rentAdConfirmationRepo := repositories.RentAdConfirmationRepository{DB: db}
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
@@ -147,29 +166,35 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workSubcategoryService := services.WorkSubcategoryService{SubcategoryRepo: &workSubcategoryRepo}
 	cityService := services.CityService{CityRepo: &cityRepo}
 	complaintService := services.ComplaintService{ComplaintRepo: &complaintRepo}
-	serviceResponseService := &services.ServiceResponseService{ServiceResponseRepo: &serviceResponseRepo}
+	serviceResponseService := &services.ServiceResponseService{ServiceResponseRepo: &serviceResponseRepo, ServiceRepo: &serviceRepo, ChatRepo: &chatRepo, ConfirmationRepo: &serviceConfirmationRepo}
+	serviceConfirmationService := &services.ServiceConfirmationService{ConfirmationRepo: &serviceConfirmationRepo}
 	userResponsesService := &services.UserResponsesService{ResponsesRepo: &userResponsesRepo}
 	userReviewsService := &services.UserReviewsService{ReviewsRepo: &userReviewsRepo}
 	workService := &services.WorkService{WorkRepo: &workRepo}
 	rentService := &services.RentService{RentRepo: &rentRepo}
 	workReviewService := &services.WorkReviewService{WorkReviewsRepo: &workReviewRepo}
-	workResponseService := &services.WorkResponseService{WorkResponseRepo: &workResponseRepo}
+	workResponseService := &services.WorkResponseService{WorkResponseRepo: &workResponseRepo, WorkRepo: &workRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workConfirmationRepo}
 	workFavoriteService := &services.WorkFavoriteService{WorkFavoriteRepo: &workFavoriteRepo}
 	rentReviewService := &services.RentReviewService{RentReviewsRepo: &rentReviewRepo}
-	rentResponseService := &services.RentResponseService{RentResponseRepo: &rentResponseRepo}
+	rentResponseService := &services.RentResponseService{RentResponseRepo: &rentResponseRepo, RentRepo: &rentRepo, ChatRepo: &chatRepo, ConfirmationRepo: &rentConfirmationRepo}
 	rentFavoriteService := &services.RentFavoriteService{RentFavoriteRepo: &rentFavoriteRepo}
 	adService := &services.AdService{AdRepo: &adRepo}
 	adReviewService := &services.AdReviewService{AdReviewsRepo: &adReviewRepo}
-	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo}
+	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo, AdRepo: &adRepo, ChatRepo: &chatRepo, ConfirmationRepo: &adConfirmationRepo}
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
 	workAdService := &services.WorkAdService{WorkAdRepo: &workAdRepo}
 	workAdReviewService := &services.WorkAdReviewService{WorkAdReviewsRepo: &workAdReviewRepo}
-	workAdResponseService := &services.WorkAdResponseService{WorkAdResponseRepo: &workAdResponseRepo}
+	workAdResponseService := &services.WorkAdResponseService{WorkAdResponseRepo: &workAdResponseRepo, WorkAdRepo: &workAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workAdConfirmationRepo}
 	workAdFavoriteService := &services.WorkAdFavoriteService{WorkAdFavoriteRepo: &workAdFavoriteRepo}
 	rentAdService := &services.RentAdService{RentAdRepo: &rentAdRepo}
 	rentAdReviewService := &services.RentAdReviewService{RentAdReviewsRepo: &rentAdReviewRepo}
-	rentAdResponseService := &services.RentAdResponseService{RentAdResponseRepo: &rentAdResponseRepo}
+	rentAdResponseService := &services.RentAdResponseService{RentAdResponseRepo: &rentAdResponseRepo, RentAdRepo: &rentAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &rentAdConfirmationRepo}
 	rentAdFavoriteService := &services.RentAdFavoriteService{RentAdFavoriteRepo: &rentAdFavoriteRepo}
+	adConfirmationService := &services.AdConfirmationService{ConfirmationRepo: &adConfirmationRepo}
+	workConfirmationService := &services.WorkConfirmationService{ConfirmationRepo: &workConfirmationRepo}
+	workAdConfirmationService := &services.WorkAdConfirmationService{ConfirmationRepo: &workAdConfirmationRepo}
+	rentConfirmationService := &services.RentConfirmationService{ConfirmationRepo: &rentConfirmationRepo}
+	rentAdConfirmationService := &services.RentAdConfirmationService{ConfirmationRepo: &rentAdConfirmationRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -186,6 +211,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	cityHandler := handlers.CityHandler{Service: &cityService}
 	complaintHandler := &handlers.ComplaintHandler{Service: &complaintService}
 	serviceResponseHandler := &handlers.ServiceResponseHandler{Service: serviceResponseService}
+	serviceConfirmationHandler := &handlers.ServiceConfirmationHandler{Service: serviceConfirmationService}
 	userResponsesHandler := &handlers.UserResponsesHandler{Service: userResponsesService}
 	userReviewsHandler := &handlers.UserReviewsHandler{Service: userReviewsService}
 	workHandler := &handlers.WorkHandler{Service: workService}
@@ -200,20 +226,24 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adReviewHandler := &handlers.AdReviewHandler{Service: adReviewService}
 	adResponseHandler := &handlers.AdResponseHandler{Service: adResponseService}
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
+	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
 	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
 	workAdReviewHandler := &handlers.WorkAdReviewHandler{Service: workAdReviewService}
 	workAdResponseHandler := &handlers.WorkAdResponseHandler{Service: workAdResponseService}
 	workAdFavoriteHandler := &handlers.WorkAdFavoriteHandler{Service: workAdFavoriteService}
+	workAdConfirmationHandler := &handlers.WorkAdConfirmationHandler{Service: workAdConfirmationService}
 	rentAdHandler := &handlers.RentAdHandler{Service: rentAdService}
 	rentADReviewHandler := &handlers.RentAdReviewHandler{Service: rentAdReviewService}
 	rentAdResponseHandler := &handlers.RentAdResponseHandler{Service: rentAdResponseService}
 	rentAdFavoriteHandler := &handlers.RentAdFavoriteHandler{Service: rentAdFavoriteService}
+	rentAdConfirmationHandler := &handlers.RentAdConfirmationHandler{Service: rentAdConfirmationService}
+	workConfirmationHandler := &handlers.WorkConfirmationHandler{Service: workConfirmationService}
+	rentConfirmationHandler := &handlers.RentConfirmationHandler{Service: rentConfirmationService}
 
 	// Chat
 	wsManager := NewWebSocketManager()
-	// Создание репозитория, сервиса и обработчика для чатов
-	chatRepo := &repositories.ChatRepository{Db: db}
-	chatService := &services.ChatService{ChatRepo: chatRepo}
+	// Создание сервиса и обработчика для чатов
+	chatService := &services.ChatService{ChatRepo: &chatRepo}
 	chatHandler := &handlers.ChatHandler{ChatService: chatService}
 
 	// Создание репозитория, сервиса и обработчика для сообщений
@@ -222,47 +252,53 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	messageHandler := &handlers.MessageHandler{MessageService: messageService}
 
 	return &application{
-		errorLog:               errorLog,
-		infoLog:                infoLog,
-		userHandler:            userHandler,
-		serviceHandler:         serviceHandler,
-		categoryHandler:        categoryHandler,
-		rentCategoryHandler:    rentCategoryHandler,
-		workCategoryHandler:    workCategoryHandler,
-		reviewsHandler:         reviewHandler,
-		serviceFavorite:        serviceFavoriteHandler,
-		subcategoryHandler:     subcategoryHandler,
-		rentSubcategoryHandler: rentSubcategoryHandler,
-		workSubcategoryHandler: workSubcategoryHandler,
-		cityHandler:            cityHandler,
-		chatHandler:            chatHandler,
-		messageHandler:         messageHandler,
-		wsManager:              wsManager,
-		db:                     db,
-		complaintHandler:       complaintHandler,
-		serviceResponseHandler: serviceResponseHandler,
-		userResponsesHandler:   userResponsesHandler,
-		userReviewsHandler:     userReviewsHandler,
-		workHandler:            workHandler,
-		rentHandler:            rentHandler,
-		workReviewHandler:      workReviewHandler,
-		workResponseHandler:    workResponseHandler,
-		workFavoriteHandler:    workFavoriteHandler,
-		rentReviewHandler:      rentReviewHandler,
-		rentResponseHandler:    rentResponseHandler,
-		rentFavoriteHandler:    rentFavoriteHandler,
-		adHandler:              adHandler,
-		adReviewHandler:        adReviewHandler,
-		adResponseHandler:      adResponseHandler,
-		adFavoriteHandler:      adFavoriteHandler,
-		workAdHandler:          workAdHandler,
-		workAdReviewHandler:    workAdReviewHandler,
-		workAdResponseHandler:  workAdResponseHandler,
-		workAdFavoriteHandler:  workAdFavoriteHandler,
-		rentAdHandler:          rentAdHandler,
-		rentAdReviewHandler:    rentADReviewHandler,
-		rentAdResponseHandler:  rentAdResponseHandler,
-		rentAdFavoriteHandler:  rentAdFavoriteHandler,
+		errorLog:                   errorLog,
+		infoLog:                    infoLog,
+		userHandler:                userHandler,
+		serviceHandler:             serviceHandler,
+		categoryHandler:            categoryHandler,
+		rentCategoryHandler:        rentCategoryHandler,
+		workCategoryHandler:        workCategoryHandler,
+		reviewsHandler:             reviewHandler,
+		serviceFavorite:            serviceFavoriteHandler,
+		subcategoryHandler:         subcategoryHandler,
+		rentSubcategoryHandler:     rentSubcategoryHandler,
+		workSubcategoryHandler:     workSubcategoryHandler,
+		cityHandler:                cityHandler,
+		chatHandler:                chatHandler,
+		messageHandler:             messageHandler,
+		wsManager:                  wsManager,
+		db:                         db,
+		complaintHandler:           complaintHandler,
+		serviceResponseHandler:     serviceResponseHandler,
+		serviceConfirmationHandler: serviceConfirmationHandler,
+		userResponsesHandler:       userResponsesHandler,
+		userReviewsHandler:         userReviewsHandler,
+		workHandler:                workHandler,
+		rentHandler:                rentHandler,
+		workReviewHandler:          workReviewHandler,
+		workResponseHandler:        workResponseHandler,
+		workFavoriteHandler:        workFavoriteHandler,
+		rentReviewHandler:          rentReviewHandler,
+		rentResponseHandler:        rentResponseHandler,
+		rentFavoriteHandler:        rentFavoriteHandler,
+		adHandler:                  adHandler,
+		adReviewHandler:            adReviewHandler,
+		adResponseHandler:          adResponseHandler,
+		adFavoriteHandler:          adFavoriteHandler,
+		adConfirmationHandler:      adConfirmationHandler,
+		workAdHandler:              workAdHandler,
+		workAdReviewHandler:        workAdReviewHandler,
+		workAdResponseHandler:      workAdResponseHandler,
+		workAdFavoriteHandler:      workAdFavoriteHandler,
+		workAdConfirmationHandler:  workAdConfirmationHandler,
+		rentAdHandler:              rentAdHandler,
+		rentAdReviewHandler:        rentADReviewHandler,
+		rentAdResponseHandler:      rentAdResponseHandler,
+		rentAdFavoriteHandler:      rentAdFavoriteHandler,
+		rentAdConfirmationHandler:  rentAdConfirmationHandler,
+		workConfirmationHandler:    workConfirmationHandler,
+		rentConfirmationHandler:    rentConfirmationHandler,
 		//authService:    authService,
 	}
 }
