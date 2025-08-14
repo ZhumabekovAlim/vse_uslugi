@@ -113,6 +113,7 @@ type application struct {
 	subscriptionRepo          *repositories.SubscriptionRepository
 	robokassaHandler          *handlers.RobokassaHandler
 
+
 	// authService *services/*/.AuthService
 }
 
@@ -192,6 +193,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo, AdRepo: &adRepo, ChatRepo: &chatRepo, ConfirmationRepo: &adConfirmationRepo, MessageRepo: &messageRepo}
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
 	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
+
 	robokassaService := &services.RobokassaService{
 		MerchantLogin: os.Getenv("ROBOKASSA_LOGIN"),
 		Password1:     os.Getenv("ROBOKASSA_PASSWORD1"),
@@ -199,6 +201,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		BaseURL:       "https://auth.robokassa.kz/Merchant/Index.aspx",
 		IsTest:        true,
 	}
+
 	workAdService := &services.WorkAdService{WorkAdRepo: &workAdRepo}
 	workAdReviewService := &services.WorkAdReviewService{WorkAdReviewsRepo: &workAdReviewRepo}
 	workAdResponseService := &services.WorkAdResponseService{WorkAdResponseRepo: &workAdResponseRepo, WorkAdRepo: &workAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workAdConfirmationRepo, MessageRepo: &messageRepo}
@@ -245,6 +248,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
 	subscriptionHandler := &handlers.SubscriptionHandler{Service: subscriptionService}
 	robokassaHandler := &handlers.RobokassaHandler{Service: robokassaService}
+
 	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
 	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
 	workAdReviewHandler := &handlers.WorkAdReviewHandler{Service: workAdReviewService}
@@ -357,6 +361,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		adConfirmationHandler:      adConfirmationHandler,
 		subscriptionHandler:        subscriptionHandler,
 		robokassaHandler:           robokassaHandler,
+
 
 		workAdHandler:             workAdHandler,
 		workAdReviewHandler:       workAdReviewHandler,
