@@ -193,7 +193,15 @@ WHERE wc.performer_id = ?
 
 ORDER BY 1`
 
-	rows, err := r.Db.QueryContext(ctx, query, userID, userID, userID, userID, userID, userID)
+	rows, err := r.Db.QueryContext(
+		ctx, query,
+		userID, userID, // ad (заказчик, исполнитель)
+		userID, userID, // service
+		userID, userID, // rent_ad
+		userID, userID, // work_ad
+		userID, userID, // rent
+		userID, userID, // work
+	)
 	if err != nil {
 		return nil, err
 	}
