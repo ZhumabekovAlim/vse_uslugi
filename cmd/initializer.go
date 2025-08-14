@@ -107,6 +107,8 @@ type application struct {
 	workConfirmationRepo      *repositories.WorkConfirmationRepository
 	rentConfirmationHandler   *handlers.RentConfirmationHandler
 	rentConfirmationRepo      *repositories.RentConfirmationRepository
+	subscriptionHandler       *handlers.SubscriptionHandler
+	subscriptionRepo          *repositories.SubscriptionRepository
 
 	// authService *services/*/.AuthService
 }
@@ -156,6 +158,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workAdConfirmationRepo := repositories.WorkAdConfirmationRepository{DB: db}
 	rentConfirmationRepo := repositories.RentConfirmationRepository{DB: db}
 	rentAdConfirmationRepo := repositories.RentAdConfirmationRepository{DB: db}
+	subscriptionRepo := repositories.SubscriptionRepository{DB: db}
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
@@ -185,6 +188,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adReviewService := &services.AdReviewService{AdReviewsRepo: &adReviewRepo}
 	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo, AdRepo: &adRepo, ChatRepo: &chatRepo, ConfirmationRepo: &adConfirmationRepo, MessageRepo: &messageRepo}
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
+	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
 	workAdService := &services.WorkAdService{WorkAdRepo: &workAdRepo}
 	workAdReviewService := &services.WorkAdReviewService{WorkAdReviewsRepo: &workAdReviewRepo}
 	workAdResponseService := &services.WorkAdResponseService{WorkAdResponseRepo: &workAdResponseRepo, WorkAdRepo: &workAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workAdConfirmationRepo, MessageRepo: &messageRepo}
@@ -229,6 +233,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adReviewHandler := &handlers.AdReviewHandler{Service: adReviewService}
 	adResponseHandler := &handlers.AdResponseHandler{Service: adResponseService}
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
+	subscriptionHandler := &handlers.SubscriptionHandler{Service: subscriptionService}
 	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
 	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
 	workAdReviewHandler := &handlers.WorkAdReviewHandler{Service: workAdReviewService}
@@ -293,6 +298,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		adConfirmationRepo:      &adConfirmationRepo,
 		workConfirmationRepo:    &workConfirmationRepo,
 		rentConfirmationRepo:    &rentConfirmationRepo,
+		subscriptionRepo:        &subscriptionRepo,
 
 		// WorkAd блок
 		workAdRepo:             &workAdRepo,
@@ -338,6 +344,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		adResponseHandler:          adResponseHandler,
 		adFavoriteHandler:          adFavoriteHandler,
 		adConfirmationHandler:      adConfirmationHandler,
+		subscriptionHandler:        subscriptionHandler,
 
 		workAdHandler:             workAdHandler,
 		workAdReviewHandler:       workAdReviewHandler,
