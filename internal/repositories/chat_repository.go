@@ -146,6 +146,16 @@ func (r *ChatRepository) GetChatsByUserID(ctx context.Context, userID int) ([]mo
 			return nil, err
 		}
 
+		rating, err := getUserAverageRating(ctx, r.Db, user.ID)
+		if err == nil {
+			user.ReviewRating = rating
+		}
+
+		count, err := getUserTotalReviews(ctx, r.Db, user.ID)
+		if err == nil {
+			user.ReviewsCount = count
+		}
+
 		if idx, ok := adIndex[adID]; ok {
 			result[idx].Users = append(result[idx].Users, user)
 		} else {
