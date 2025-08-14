@@ -5,6 +5,29 @@ import (
 	"database/sql"
 )
 
+func getUserAverageRating(ctx context.Context, db *sql.DB, userID int) (float64, error) {
+	query := `
+       SELECT COALESCE(AVG(rating),0) FROM (
+           SELECT r.rating FROM reviews r JOIN service s ON r.service_id = s.id WHERE s.user_id = ?
+           UNION ALL
+           SELECT ar.rating FROM ad_reviews ar JOIN ad a ON ar.ad_id = a.id WHERE a.user_id = ?
+           UNION ALL
+           SELECT wr.rating FROM work_reviews wr JOIN work w ON wr.work_id = w.id WHERE w.user_id = ?
+           UNION ALL
+           SELECT war.rating FROM work_ad_reviews war JOIN work_ad wa ON war.work_ad_id = wa.id WHERE wa.user_id = ?
+           UNION ALL
+           SELECT rr.rating FROM rent_reviews rr JOIN rent rn ON rr.rent_id = rn.id WHERE rn.user_id = ?
+           UNION ALL
+           SELECT rar.rating FROM rent_ad_reviews rar JOIN rent_ad ra ON rar.rent_ad_id = ra.id WHERE ra.user_id = ?
+       ) all_ratings`
+	var avg float64
+	err := db.QueryRowContext(ctx, query, userID, userID, userID, userID, userID, userID).Scan(&avg)
+	if err != nil {
+		return 0, err
+	}
+	return avg, nil
+}
+
 func getUserTotalReviews(ctx context.Context, db *sql.DB, userID int) (int, error) {
 	query := `
         SELECT (
