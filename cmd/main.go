@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"flag"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
@@ -66,28 +65,5 @@ func main() {
 	infoLog.Printf("Starting server on %s", *addr)
 	if err := srv.ListenAndServe(); err != nil {
 		errorLog.Fatal(err)
-	}
-}
-
-func (ws *WebSocketManager) Run(db *sql.DB) {
-	for {
-		select {
-		case client := <-ws.register:
-			ws.clients[client.ID] = client.Socket
-		case clientID := <-ws.unregister:
-			if conn, ok := ws.clients[clientID]; ok {
-				conn.Close()
-				delete(ws.clients, clientID)
-			}
-		case msg := <-ws.broadcast:
-			// Отправка сообщения всем клиентам
-			for id, conn := range ws.clients {
-				err := conn.WriteJSON(msg)
-				if err != nil {
-					log.Println("Error sending message:", err)
-					ws.unregister <- id
-				}
-			}
-		}
 	}
 }
