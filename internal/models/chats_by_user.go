@@ -9,6 +9,7 @@ type ChatUser struct {
 	ChatID       int     `json:"chat_id"`
 	ReviewRating float64 `json:"review_rating"`
 	ReviewsCount int     `json:"reviews_count"`
+	MyRole       string  `json:"my_role"`
 }
 
 // AdChats groups chat users by advertisement.
