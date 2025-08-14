@@ -47,7 +47,6 @@ func (app *application) routes() http.Handler {
 	mux.Post("/robokassa/pay", authMiddleware.ThenFunc(app.robokassaHandler.CreatePayment))
 	mux.Post("/robokassa/result", standardMiddleware.ThenFunc(app.robokassaHandler.Result))
 
-
 	// Service
 	mux.Post("/service", authMiddleware.ThenFunc(app.serviceHandler.CreateService))                                 //РАБОТАЕТ
 	mux.Get("/service/get", standardMiddleware.ThenFunc(app.serviceHandler.GetServices))                            //РАБОТАЕТ
@@ -135,7 +134,7 @@ func (app *application) routes() http.Handler {
 	mux.Del("/city/:id", authMiddleware.ThenFunc(app.cityHandler.DeleteCity))
 
 	// Chat
-	mux.Get("/ws", authMiddleware.ThenFunc(app.WebSocketHandler))
+	mux.Get("/ws", standardMiddleware.ThenFunc(app.WebSocketHandler))
 
 	mux.Post("/api/chats", authMiddleware.ThenFunc(app.chatHandler.CreateChat))
 	mux.Get("/api/chats/:id", authMiddleware.ThenFunc(app.chatHandler.GetChatByID))
