@@ -43,6 +43,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/user/request_reset", authMiddleware.ThenFunc(app.userHandler.RequestPasswordReset))
 	mux.Post("/user/verify_reset_code", authMiddleware.ThenFunc(app.userHandler.VerifyResetCode))
 	mux.Post("/user/reset_password", authMiddleware.ThenFunc(app.userHandler.ResetPassword))
+	mux.Get("/subscription/:user_id", authMiddleware.ThenFunc(app.subscriptionHandler.GetSubscription))
 
 	// Service
 	mux.Post("/service", authMiddleware.ThenFunc(app.serviceHandler.CreateService))                                 //РАБОТАЕТ
