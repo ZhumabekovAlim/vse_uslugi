@@ -85,118 +85,118 @@ func (r *ChatRepository) DeleteChat(ctx context.Context, id int) error {
 // GetChatsByUserID retrieves chats grouped by advertisements for a specific author.
 func (r *ChatRepository) GetChatsByUserID(ctx context.Context, userID int) ([]models.AdChats, error) {
 	query := `
-              	SELECT a.id, a.name, u.id, u.name, u.surname, ar.price, ac.chat_id, 'customer' AS my_role
-				FROM ad a
-				JOIN ad_confirmations ac ON ac.ad_id = a.id
-				JOIN users u ON u.id = ac.performer_id
-				JOIN ad_responses ar ON ar.ad_id = a.id AND ar.user_id = ac.performer_id
-				WHERE a.user_id = ?
-				
-				UNION ALL
-				
-				SELECT a.id, a.name, owner.id, owner.name, owner.surname, ar.price, ac.chat_id, 'performer' AS my_role
-				FROM ad a
-				JOIN ad_confirmations ac ON ac.ad_id = a.id
-				JOIN users owner ON owner.id = a.user_id
-				JOIN ad_responses ar ON ar.ad_id = a.id AND ar.user_id = ac.performer_id
-				WHERE ac.performer_id = ?
-				
-				UNION ALL
-				
-				SELECT s.id, s.name, u.id, u.name, u.surname, sr.price, sc.chat_id, 'customer' AS my_role
-				FROM service s
-				JOIN service_confirmations sc ON sc.service_id = s.id
-				JOIN users u ON u.id = sc.performer_id
-				JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.performer_id
-				WHERE s.user_id = ?
-				
-				UNION ALL
-				
-				SELECT s.id, s.name, owner.id, owner.name, owner.surname, sr.price, sc.chat_id, 'performer' AS my_role
-				FROM service s
-				JOIN service_confirmations sc ON sc.service_id = s.id
-				JOIN users owner ON owner.id = s.user_id
-				JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.performer_id
-				WHERE sc.performer_id = ?
-				
-				UNION ALL
-				
-				SELECT ra.id, ra.name, u.id, u.name, u.surname, rar.price, rac.chat_id, 'customer' AS my_role
-				FROM rent_ad ra
-				JOIN rent_ad_confirmations rac ON rac.rent_ad_id = ra.id
-				JOIN users u ON u.id = rac.performer_id
-				JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id AND rar.user_id = rac.performer_id
-				WHERE ra.user_id = ?
-				
-				UNION ALL
-				
-				SELECT ra.id, ra.name, owner.id, owner.name, owner.surname, rar.price, rac.chat_id, 'performer' AS my_role
-				FROM rent_ad ra
-				JOIN rent_ad_confirmations rac ON rac.rent_ad_id = ra.id
-				JOIN users owner ON owner.id = ra.user_id
-				JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id AND rar.user_id = rac.performer_id
-				WHERE rac.performer_id = ?
-				
-				UNION ALL
-				
-				SELECT wa.id, wa.name, u.id, u.name, u.surname, war.price, wac.chat_id, 'customer' AS my_role
-				FROM work_ad wa
-				JOIN work_ad_confirmations wac ON wac.work_ad_id = wa.id
-				JOIN users u ON u.id = wac.performer_id
-				JOIN work_ad_responses war ON war.work_ad_id = wa.id AND war.user_id = wac.performer_id
-				WHERE wa.user_id = ?
-				
-				UNION ALL
-				
-				SELECT wa.id, wa.name, owner.id, owner.name, owner.surname, war.price, wac.chat_id, 'performer' AS my_role
-				FROM work_ad wa
-				JOIN work_ad_confirmations wac ON wac.work_ad_id = wa.id
-				JOIN users owner ON owner.id = wa.user_id
-				JOIN work_ad_responses war ON war.work_ad_id = wa.id AND war.user_id = wac.performer_id
-				WHERE wac.performer_id = ?
-				
-				UNION ALL
-				
-				SELECT r.id, r.name, u.id, u.name, u.surname, rr.price, rc.chat_id, 'customer' AS my_role
-				FROM rent r
-				JOIN rent_confirmations rc ON rc.rent_id = r.id
-				JOIN users u ON u.id = rc.performer_id
-				JOIN rent_responses rr ON rr.rent_id = r.id AND rr.user_id = rc.performer_id
-				WHERE r.user_id = ?
-				
-				UNION ALL
-				
-				SELECT r.id, r.name, owner.id, owner.name, owner.surname, rr.price, rc.chat_id, 'performer' AS my_role
-				FROM rent r
-				JOIN rent_confirmations rc ON rc.rent_id = r.id
-				JOIN users owner ON owner.id = r.user_id
-				JOIN rent_responses rr ON rr.rent_id = r.id AND rr.user_id = rc.performer_id
-				WHERE rc.performer_id = ?
-				
-				UNION ALL
-				
-				SELECT w.id, w.name, u.id, u.name, u.surname, wr.price, wc.chat_id, 'customer' AS my_role
-				FROM work w
-				JOIN work_confirmations wc ON wc.work_id = w.id
-				JOIN users u ON u.id = wc.performer_id
-				JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.performer_id
-				WHERE w.user_id = ?
-				
-				UNION ALL
-				
-				SELECT w.id, w.name, owner.id, owner.name, owner.surname, wr.price, wc.chat_id, 'performer' AS my_role
-				FROM work w
-				JOIN work_confirmations wc ON wc.work_id = w.id
-				JOIN users owner ON owner.id = w.user_id
-				JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.performer_id
-				WHERE wc.performer_id = ?
-				
-				ORDER BY 1
+SELECT a.id, a.name, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, ar.price, ac.chat_id, 'customer' AS my_role
+FROM ad a
+JOIN ad_confirmations ac ON ac.ad_id = a.id
+JOIN users u ON u.id = ac.performer_id
+JOIN ad_responses ar ON ar.ad_id = a.id AND ar.user_id = ac.performer_id
+WHERE a.user_id = ?
+
+UNION ALL
+
+SELECT a.id, a.name, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, ar.price, ac.chat_id, 'performer' AS my_role
+FROM ad a
+JOIN ad_confirmations ac ON ac.ad_id = a.id
+JOIN users owner ON owner.id = a.user_id
+JOIN ad_responses ar ON ar.ad_id = a.id AND ar.user_id = ac.performer_id
+WHERE ac.performer_id = ?
+
+UNION ALL
+
+SELECT s.id, s.name, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, sr.price, sc.chat_id, 'customer' AS my_role
+FROM service s
+JOIN service_confirmations sc ON sc.service_id = s.id
+JOIN users u ON u.id = sc.performer_id
+JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.performer_id
+WHERE s.user_id = ?
+
+UNION ALL
+
+SELECT s.id, s.name, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, sr.price, sc.chat_id, 'performer' AS my_role
+FROM service s
+JOIN service_confirmations sc ON sc.service_id = s.id
+JOIN users owner ON owner.id = s.user_id
+JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.performer_id
+WHERE sc.performer_id = ?
+
+UNION ALL
+
+SELECT ra.id, ra.name, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, rar.price, rac.chat_id, 'customer' AS my_role
+FROM rent_ad ra
+JOIN rent_ad_confirmations rac ON rac.rent_ad_id = ra.id
+JOIN users u ON u.id = rac.performer_id
+JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id AND rar.user_id = rac.performer_id
+WHERE ra.user_id = ?
+
+UNION ALL
+
+SELECT ra.id, ra.name, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, rar.price, rac.chat_id, 'performer' AS my_role
+FROM rent_ad ra
+JOIN rent_ad_confirmations rac ON rac.rent_ad_id = ra.id
+JOIN users owner ON owner.id = ra.user_id
+JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id AND rar.user_id = rac.performer_id
+WHERE rac.performer_id = ?
+
+UNION ALL
+
+SELECT wa.id, wa.name, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, war.price, wac.chat_id, 'customer' AS my_role
+FROM work_ad wa
+JOIN work_ad_confirmations wac ON wac.work_ad_id = wa.id
+JOIN users u ON u.id = wac.performer_id
+JOIN work_ad_responses war ON war.work_ad_id = wa.id AND war.user_id = wac.performer_id
+WHERE wa.user_id = ?
+
+UNION ALL
+
+SELECT wa.id, wa.name, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, war.price, wac.chat_id, 'performer' AS my_role
+FROM work_ad wa
+JOIN work_ad_confirmations wac ON wac.work_ad_id = wa.id
+JOIN users owner ON owner.id = wa.user_id
+JOIN work_ad_responses war ON war.work_ad_id = wa.id AND war.user_id = wac.performer_id
+WHERE wac.performer_id = ?
+
+UNION ALL
+
+SELECT r.id, r.name, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, rr.price, rc.chat_id, 'customer' AS my_role
+FROM rent r
+JOIN rent_confirmations rc ON rc.rent_id = r.id
+JOIN users u ON u.id = rc.performer_id
+JOIN rent_responses rr ON rr.rent_id = r.id AND rr.user_id = rc.performer_id
+WHERE r.user_id = ?
+
+UNION ALL
+
+SELECT r.id, r.name, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, rr.price, rc.chat_id, 'performer' AS my_role
+FROM rent r
+JOIN rent_confirmations rc ON rc.rent_id = r.id
+JOIN users owner ON owner.id = r.user_id
+JOIN rent_responses rr ON rr.rent_id = r.id AND rr.user_id = rc.performer_id
+WHERE rc.performer_id = ?
+
+UNION ALL
+
+SELECT w.id, w.name, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, wr.price, wc.chat_id, 'customer' AS my_role
+FROM work w
+JOIN work_confirmations wc ON wc.work_id = w.id
+JOIN users u ON u.id = wc.performer_id
+JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.performer_id
+WHERE w.user_id = ?
+
+UNION ALL
+
+SELECT w.id, w.name, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, wr.price, wc.chat_id, 'performer' AS my_role
+FROM work w
+JOIN work_confirmations wc ON wc.work_id = w.id
+JOIN users owner ON owner.id = w.user_id
+JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.performer_id
+WHERE wc.performer_id = ?
+
+ORDER BY 1
 `
 
 	rows, err := r.Db.QueryContext(
 		ctx, query,
-		userID, userID, // ad (заказчик, исполнитель)
+		userID, userID, // ad
 		userID, userID, // service
 		userID, userID, // rent_ad
 		userID, userID, // work_ad
@@ -215,17 +215,19 @@ func (r *ChatRepository) GetChatsByUserID(ctx context.Context, userID int) ([]mo
 		var adID int
 		var adName string
 		var user models.ChatUser
-		if err := rows.Scan(&adID, &adName, &user.ID, &user.Name, &user.Surname, &user.Price, &user.ChatID, &user.MyRole); err != nil {
+		if err := rows.Scan(
+			&adID, &adName,
+			&user.ID, &user.Name, &user.Surname, &user.AvatarPath,
+			&user.Price, &user.ChatID, &user.MyRole,
+		); err != nil {
 			return nil, err
 		}
 
-		rating, err := getUserAverageRating(ctx, r.Db, user.ID)
-		if err == nil {
+		// рейтинг/отзывы как было
+		if rating, err := getUserAverageRating(ctx, r.Db, user.ID); err == nil {
 			user.ReviewRating = rating
 		}
-
-		count, err := getUserTotalReviews(ctx, r.Db, user.ID)
-		if err == nil {
+		if count, err := getUserTotalReviews(ctx, r.Db, user.ID); err == nil {
 			user.ReviewsCount = count
 		}
 
@@ -245,4 +247,5 @@ func (r *ChatRepository) GetChatsByUserID(ctx context.Context, userID int) ([]mo
 		return nil, err
 	}
 	return result, nil
+
 }
