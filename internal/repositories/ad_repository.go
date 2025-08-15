@@ -582,3 +582,175 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 
 	return s, nil
 }
+
+func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]models.AdItem, int, error) {
+	baseQuery := `
+        SELECT s.id, 'service' as type, s.name as title, s.description, s.price, s.address, s.created_at,
+               s.category_id, c.name as category_name, s.subcategory_id, sub.name as subcategory_name,
+               0 as views_count,
+               (SELECT COUNT(*) FROM service_responses sr WHERE sr.service_id = s.id) as responses_count,
+               u.id as author_id, u.name as author_name, u.review_rating as author_rating, u.phone as author_phone,
+               '' as author_chat_link,
+               NULL as work_scope, NULL as deposit_required, NULL as rental_terms,
+               NULL as employment_type, NULL as salary_from, NULL as salary_to
+        FROM service s
+        JOIN users u ON s.user_id = u.id
+        JOIN categories c ON s.category_id = c.id
+        LEFT JOIN subcategories sub ON s.subcategory_id = sub.id
+
+        UNION ALL
+
+        SELECT r.id, 'rental' as type, r.name as title, r.description, r.price, r.address, r.created_at,
+               r.category_id, rc.name as category_name, r.subcategory_id, rsub.name as subcategory_name,
+               0 as views_count,
+               (SELECT COUNT(*) FROM rent_ad_responses rr WHERE rr.rent_ad_id = r.id) as responses_count,
+               u.id as author_id, u.name as author_name, u.review_rating as author_rating, u.phone as author_phone,
+               '' as author_chat_link,
+               NULL as work_scope, r.deposit as deposit_required, r.rent_type as rental_terms,
+               NULL as employment_type, NULL as salary_from, NULL as salary_to
+        FROM rent_ad r
+        JOIN users u ON r.user_id = u.id
+        JOIN rent_categories rc ON r.category_id = rc.id
+        LEFT JOIN rent_subcategories rsub ON r.subcategory_id = rsub.id
+
+        UNION ALL
+
+        SELECT w.id, 'job' as type, w.name as title, w.description, w.price, w.address, w.created_at,
+               w.category_id, c.name as category_name, w.subcategory_id, sub.name as subcategory_name,
+               0 as views_count,
+               (SELECT COUNT(*) FROM work_ad_responses wr WHERE wr.work_ad_id = w.id) as responses_count,
+               u.id as author_id, u.name as author_name, u.review_rating as author_rating, u.phone as author_phone,
+               '' as author_chat_link,
+               NULL as work_scope, NULL as deposit_required, NULL as rental_terms,
+               w.schedule as employment_type, NULL as salary_from, NULL as salary_to
+        FROM work_ad w
+        JOIN users u ON w.user_id = u.id
+        JOIN categories c ON w.category_id = c.id
+        LEFT JOIN subcategories sub ON w.subcategory_id = sub.id
+        `
+
+	var conditions []string
+	var params []interface{}
+
+	if filter.Type != "" {
+		conditions = append(conditions, "type = ?")
+		params = append(params, filter.Type)
+	}
+	if filter.CategoryID != 0 {
+		conditions = append(conditions, "category_id = ?")
+		params = append(params, filter.CategoryID)
+	}
+	if filter.SubcategoryID != 0 {
+		conditions = append(conditions, "subcategory_id = ?")
+		params = append(params, filter.SubcategoryID)
+	}
+	if filter.MinPrice != 0 {
+		conditions = append(conditions, "price >= ?")
+		params = append(params, filter.MinPrice)
+	}
+	if filter.MaxPrice != 0 {
+		conditions = append(conditions, "price <= ?")
+		params = append(params, filter.MaxPrice)
+	}
+	if filter.Search != "" {
+		conditions = append(conditions, "title LIKE ?")
+		params = append(params, "%"+filter.Search+"%")
+	}
+
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS ads%s", baseQuery, whereClause)
+	var total int
+	if err := r.DB.QueryRowContext(ctx, countQuery, params...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	offset := (filter.Page - 1) * filter.PageSize
+	dataQuery := fmt.Sprintf("SELECT * FROM (%s) AS ads%s ORDER BY created_at DESC LIMIT ? OFFSET ?", baseQuery, whereClause)
+	paramsWithLimit := append(params, filter.PageSize, offset)
+
+	rows, err := r.DB.QueryContext(ctx, dataQuery, paramsWithLimit...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var items []models.AdItem
+	for rows.Next() {
+		var item models.AdItem
+		var (
+			viewsCount     sql.NullInt64
+			responsesCount sql.NullInt64
+			authorRating   sql.NullFloat64
+			authorChat     sql.NullString
+			workScope      sql.NullString
+			depositReq     sql.NullString
+			rentalTerms    sql.NullString
+			employmentType sql.NullString
+			salaryFrom     sql.NullFloat64
+			salaryTo       sql.NullFloat64
+		)
+		if err := rows.Scan(
+			&item.ID,
+			&item.Type,
+			&item.Title,
+			&item.Description,
+			&item.Price,
+			&item.Address,
+			&item.CreatedAt,
+			&item.Category.ID,
+			&item.Category.Name,
+			&item.Subcategory.ID,
+			&item.Subcategory.Name,
+			&viewsCount,
+			&responsesCount,
+			&item.Author.ID,
+			&item.Author.Name,
+			&authorRating,
+			&item.Author.Phone,
+			&authorChat,
+			&workScope,
+			&depositReq,
+			&rentalTerms,
+			&employmentType,
+			&salaryFrom,
+			&salaryTo,
+		); err != nil {
+			return nil, 0, err
+		}
+		item.ViewsCount = int(viewsCount.Int64)
+		item.ResponsesCount = int(responsesCount.Int64)
+		item.Author.Rating = authorRating.Float64
+		item.Author.ChatLink = authorChat.String
+		if workScope.Valid {
+			item.WorkScope = &workScope.String
+		}
+		if depositReq.Valid {
+			item.DepositRequired = &depositReq.String
+		}
+		if rentalTerms.Valid {
+			item.RentalTerms = &rentalTerms.String
+		}
+		if employmentType.Valid {
+			item.EmploymentType = &employmentType.String
+		}
+		if salaryFrom.Valid {
+			v := salaryFrom.Float64
+			item.SalaryFrom = &v
+		}
+		if salaryTo.Valid {
+			v := salaryTo.Float64
+			item.SalaryTo = &v
+		}
+		item.ResponsesPreview = []models.AdResponsePreview{}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return items, total, nil
+}

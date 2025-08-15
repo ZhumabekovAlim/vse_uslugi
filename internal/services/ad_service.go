@@ -77,3 +77,24 @@ func (s *AdService) GetFilteredAdWithLikes(ctx context.Context, req models.Filte
 func (s *AdService) GetAdByAdIDAndUserID(ctx context.Context, adID int, userID int) (models.Ad, error) {
 	return s.AdRepo.GetAdByAdIDAndUserID(ctx, adID, userID)
 }
+
+func (s *AdService) ListAds(ctx context.Context, filter models.AdsFilter) (models.AdsList, error) {
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.PageSize < 1 {
+		filter.PageSize = 20
+	}
+
+	items, total, err := s.AdRepo.GetAds(ctx, filter)
+	if err != nil {
+		return models.AdsList{}, err
+	}
+
+	return models.AdsList{
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		Total:    total,
+		Items:    items,
+	}, nil
+}
