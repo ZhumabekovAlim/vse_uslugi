@@ -13,11 +13,25 @@ import (
 	"time"
 )
 
-// --- WS manager ---
+/********** настройки таймингов **********/
+const (
+	readLimit          = 1 << 20           // 1MB
+	readDeadline       = 120 * time.Second // сколько ждём следующего сообщения/ponг’а
+	writeDeadline      = 5 * time.Second   // дедлайн на запись кадра
+	pingInterval       = 15 * time.Second  // как часто пингуем
+	firstHelloDeadline = 30 * time.Second  // время на первый кадр {userId}
+)
+
+/*****************************************/
 
 type directMsg struct {
 	userID int
 	msg    models.Message
+}
+
+type unreg struct {
+	userID int
+	conn   *websocket.Conn
 }
 
 type WebSocketManager struct {
@@ -25,7 +39,7 @@ type WebSocketManager struct {
 	broadcast  chan models.Message
 	direct     chan directMsg
 	register   chan Client
-	unregister chan int
+	unregister chan unreg
 }
 
 func NewWebSocketManager() *WebSocketManager {
@@ -34,7 +48,7 @@ func NewWebSocketManager() *WebSocketManager {
 		broadcast:  make(chan models.Message),
 		direct:     make(chan directMsg),
 		register:   make(chan Client),
-		unregister: make(chan int),
+		unregister: make(chan unreg),
 	}
 }
 
@@ -43,23 +57,31 @@ type Client struct {
 	Socket *websocket.Conn
 }
 
-// Все операции с clients — только здесь, чтобы не было гонок.
+// Все операции с clients — только здесь.
 func (ws *WebSocketManager) Run(_ *sql.DB) {
 	for {
 		select {
 		case client := <-ws.register:
+			// если был старый сокет — гасим (чтобы его тикер/ридер не мешали)
+			if old, ok := ws.clients[client.ID]; ok && old != nil && old != client.Socket {
+				_ = old.Close()
+			}
 			ws.clients[client.ID] = client.Socket
+			log.Printf("WS register user=%d", client.ID)
 
-		case clientID := <-ws.unregister:
-			if conn, ok := ws.clients[clientID]; ok {
-				_ = conn.Close()
-				delete(ws.clients, clientID)
+		case u := <-ws.unregister:
+			// удаляем только если совпадает текущий сокет пользователя
+			if cur, ok := ws.clients[u.userID]; ok && cur == u.conn {
+				_ = cur.Close()
+				delete(ws.clients, u.userID)
+				log.Printf("WS unregister user=%d", u.userID)
 			}
 
 		case msg := <-ws.broadcast:
 			for id, conn := range ws.clients {
+				_ = conn.SetWriteDeadline(time.Now().Add(writeDeadline))
 				if err := conn.WriteJSON(msg); err != nil {
-					log.Println("broadcast error:", err)
+					log.Printf("broadcast error to=%d: %v", id, err)
 					_ = conn.Close()
 					delete(ws.clients, id)
 				}
@@ -67,23 +89,25 @@ func (ws *WebSocketManager) Run(_ *sql.DB) {
 
 		case dm := <-ws.direct:
 			if conn, ok := ws.clients[dm.userID]; ok {
+				_ = conn.SetWriteDeadline(time.Now().Add(writeDeadline))
 				if err := conn.WriteJSON(dm.msg); err != nil {
-					log.Println("direct send error:", err)
+					log.Printf("direct send error to=%d: %v", dm.userID, err)
 					_ = conn.Close()
 					delete(ws.clients, dm.userID)
 				}
+			} else {
+				// получатель оффлайн — это нормально
+				log.Printf("direct skip: user=%d offline", dm.userID)
 			}
 		}
 	}
 }
 
-// --- WS handler ---
-
 var upgrader = websocket.Upgrader{
-	// Если нужен жёсткий контроль — проверь Origin здесь.
-	CheckOrigin:     func(r *http.Request) bool { return true },
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	CheckOrigin:       func(r *http.Request) bool { return true }, // при желании — белый список Origin
+	ReadBufferSize:    1024,
+	WriteBufferSize:   1024,
+	EnableCompression: true,
 }
 
 // Первым фреймом клиент обязан прислать { "userId": <int> }.
@@ -94,47 +118,54 @@ func (app *application) WebSocketHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// read deadlines + pong handler
-	conn.SetReadLimit(1 << 20)
-	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	// ограничение и дедлайны чтения
+	conn.SetReadLimit(readLimit)
+	conn.SetReadDeadline(time.Now().Add(firstHelloDeadline)) // время на hello
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(readDeadline))
 		return nil
 	})
 
+	// hello
 	var hello struct {
 		UserID int `json:"userId"`
 	}
 	if err := conn.ReadJSON(&hello); err != nil || hello.UserID == 0 {
 		log.Println("invalid hello payload:", err)
+		_ = writeClose(conn, websocket.ClosePolicyViolation, "hello required")
 		_ = conn.Close()
 		return
 	}
+	// после hello продлеваем чтение
+	conn.SetReadDeadline(time.Now().Add(readDeadline))
 
 	client := Client{ID: hello.UserID, Socket: conn}
 	app.wsManager.register <- client
 
-	// периодический ping, чтобы держать коннект живым
-	go func(c *websocket.Conn, uid int) {
-		t := time.NewTicker(30 * time.Second)
-		defer t.Stop()
-		for range t.C {
-			_ = c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-			if err := c.WriteMessage(websocket.PingMessage, nil); err != nil {
-				// закроем и дадим менеджеру убрать клиента
-				app.wsManager.unregister <- uid
-				return
-			}
-		}
-	}(conn, hello.UserID)
+	// ping-тример (живём пока запись удаётся)
+	go pingLoop(app.wsManager, conn, hello.UserID)
 
-	// читаем сообщения пользователя
+	// читаем сообщения
 	go handleWebSocketMessages(conn, hello.UserID, app.wsManager, app.db)
+}
+
+func pingLoop(ws *WebSocketManager, conn *websocket.Conn, uid int) {
+	t := time.NewTicker(pingInterval)
+	defer t.Stop()
+	for range t.C {
+		_ = conn.SetWriteDeadline(time.Now().Add(writeDeadline))
+		if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			// аккуратно закрываем и снимаем только если это актуальный сокет
+			_ = writeClose(conn, websocket.CloseGoingAway, "ping error")
+			ws.unregister <- unreg{userID: uid, conn: conn}
+			return
+		}
+	}
 }
 
 func handleWebSocketMessages(conn *websocket.Conn, userID int, wsManager *WebSocketManager, db *sql.DB) {
 	defer func() {
-		wsManager.unregister <- userID
+		wsManager.unregister <- unreg{userID: userID, conn: conn}
 		_ = conn.Close()
 	}()
 
@@ -142,6 +173,7 @@ func handleWebSocketMessages(conn *websocket.Conn, userID int, wsManager *WebSoc
 		var msg models.Message
 		if err := conn.ReadJSON(&msg); err != nil {
 			log.Println("read json error:", err)
+			_ = writeClose(conn, websocket.CloseNormalClosure, "read error")
 			return
 		}
 
@@ -157,33 +189,47 @@ func handleWebSocketMessages(conn *websocket.Conn, userID int, wsManager *WebSoc
 
 		msg.CreatedAt = time.Now()
 
-		// получаем/создаем чат и сохраняем сообщение
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		chatID, err := getOrCreateChat(ctx, db, msg.SenderID, msg.ReceiverID)
-		cancel()
-		if err != nil {
-			log.Println("get/create chat error:", err)
-			continue
-		}
-		msg.ChatID = chatID
-
-		ctx, cancel = context.WithTimeout(context.Background(), 3*time.Second)
-		if err := saveMessageToDB(ctx, db, msg); err != nil {
+		// получаем/создаём чат
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			chatID, err := getOrCreateChat(ctx, db, msg.SenderID, msg.ReceiverID)
 			cancel()
-			log.Println("save message error:", err)
-			continue
+			if err != nil {
+				log.Println("get/create chat error:", err)
+				continue
+			}
+			msg.ChatID = chatID
 		}
-		cancel()
 
-		// отправка получателю (через менеджер, без прямого доступа к карте)
+		// сохраняем
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			if err := saveMessageToDB(ctx, db, msg); err != nil {
+				cancel()
+				log.Println("save message error:", err)
+				continue
+			}
+			cancel()
+		}
+
+		// доставляем получателю
 		wsManager.direct <- directMsg{userID: msg.ReceiverID, msg: msg}
 	}
 }
 
-// --- DB helpers (MariaDB / MySQL) ---
+// аккуратная отправка close-фрейма
+func writeClose(conn *websocket.Conn, code int, reason string) error {
+	_ = conn.SetWriteDeadline(time.Now().Add(writeDeadline))
+	return conn.WriteControl(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(code, reason),
+		time.Now().Add(writeDeadline),
+	)
+}
+
+/********** DB helpers (MariaDB / MySQL) **********/
 
 func getOrCreateChat(ctx context.Context, db *sql.DB, user1ID, user2ID int) (int, error) {
-	// 1) пробуем найти
 	var chatID int
 	err := db.QueryRowContext(ctx, `
 		SELECT id FROM chats
@@ -197,12 +243,9 @@ func getOrCreateChat(ctx context.Context, db *sql.DB, user1ID, user2ID int) (int
 		return 0, err
 	}
 
-	// 2) создаём
-	res, err := db.ExecContext(ctx, `
-		INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)
-	`, user1ID, user2ID)
+	res, err := db.ExecContext(ctx, `INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)`, user1ID, user2ID)
 	if err != nil {
-		// возможен race при одновременном создании — пробуем перечитать
+		// гонка при одновременном создании
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			return getOrCreateChat(ctx, db, user1ID, user2ID)
 		}
