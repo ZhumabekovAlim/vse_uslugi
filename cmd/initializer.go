@@ -8,14 +8,12 @@ import (
 	_ "github.com/joho/godotenv"
 	_ "google.golang.org/api/option"
 	"log"
-	"net/http"
-	"os"
-
 	"naimuBack/internal/handlers"
 	_ "naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 	services "naimuBack/internal/services"
 	_ "naimuBack/utils"
+	"net/http"
 )
 
 type application struct {
@@ -113,7 +111,6 @@ type application struct {
 	subscriptionRepo          *repositories.SubscriptionRepository
 	robokassaHandler          *handlers.RobokassaHandler
 
-
 	// authService *services/*/.AuthService
 }
 
@@ -195,9 +192,11 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
 
 	robokassaService := &services.RobokassaService{
-		MerchantLogin: os.Getenv("ROBOKASSA_LOGIN"),
-		Password1:     os.Getenv("ROBOKASSA_PASSWORD1"),
-		Password2:     os.Getenv("ROBOKASSA_PASSWORD2"),
+		MerchantLogin: "vse_uslugi",
+		Password1:     "RB90Ht47aeUJmx1ojoPU",
+		Password2:     "m69yTN6tgNO5QvSyozX5",
+		TestPassword1: "bkn6BiMUY9N9H2dhE9lu",
+		TestPassword2: "bkn6BiMUY9N9H2dhE9lu",
 		BaseURL:       "https://auth.robokassa.kz/Merchant/Index.aspx",
 		IsTest:        true,
 	}
@@ -361,7 +360,6 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		adConfirmationHandler:      adConfirmationHandler,
 		subscriptionHandler:        subscriptionHandler,
 		robokassaHandler:           robokassaHandler,
-
 
 		workAdHandler:             workAdHandler,
 		workAdReviewHandler:       workAdReviewHandler,
