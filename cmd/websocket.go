@@ -13,16 +13,16 @@ import (
 	"time"
 )
 
-/********** настройки таймингов **********/
+/********** тайминги **********/
 const (
-	readLimit          = 1 << 20           // 1MB
-	readDeadline       = 120 * time.Second // сколько ждём следующего сообщения/ponг’а
-	writeDeadline      = 5 * time.Second   // дедлайн на запись кадра
-	pingInterval       = 15 * time.Second  // как часто пингуем
+	readLimit          = 1 << 20           // 1 MB
+	readDeadline       = 120 * time.Second // дедлайн чтения (продлевается pong’ом)
+	writeDeadline      = 5 * time.Second   // дедлайн записи
+	pingInterval       = 15 * time.Second  // период пингов
 	firstHelloDeadline = 30 * time.Second  // время на первый кадр {userId}
 )
 
-/*****************************************/
+/*****************************/
 
 type directMsg struct {
 	userID int
@@ -62,7 +62,7 @@ func (ws *WebSocketManager) Run(_ *sql.DB) {
 	for {
 		select {
 		case client := <-ws.register:
-			// если был старый сокет — гасим (чтобы его тикер/ридер не мешали)
+			// если уже есть сокет у этого пользователя — закрываем старый
 			if old, ok := ws.clients[client.ID]; ok && old != nil && old != client.Socket {
 				_ = old.Close()
 			}
@@ -70,7 +70,7 @@ func (ws *WebSocketManager) Run(_ *sql.DB) {
 			log.Printf("WS register user=%d", client.ID)
 
 		case u := <-ws.unregister:
-			// удаляем только если совпадает текущий сокет пользователя
+			// удаляем только если совпадает текущий сокет
 			if cur, ok := ws.clients[u.userID]; ok && cur == u.conn {
 				_ = cur.Close()
 				delete(ws.clients, u.userID)
@@ -96,7 +96,6 @@ func (ws *WebSocketManager) Run(_ *sql.DB) {
 					delete(ws.clients, dm.userID)
 				}
 			} else {
-				// получатель оффлайн — это нормально
 				log.Printf("direct skip: user=%d offline", dm.userID)
 			}
 		}
@@ -104,7 +103,7 @@ func (ws *WebSocketManager) Run(_ *sql.DB) {
 }
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin:       func(r *http.Request) bool { return true }, // при желании — белый список Origin
+	CheckOrigin:       func(r *http.Request) bool { return true }, // при необходимости — белый список Origin
 	ReadBufferSize:    1024,
 	WriteBufferSize:   1024,
 	EnableCompression: true,
@@ -118,15 +117,15 @@ func (app *application) WebSocketHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// ограничение и дедлайны чтения
+	// настройка чтения и pong
 	conn.SetReadLimit(readLimit)
-	conn.SetReadDeadline(time.Now().Add(firstHelloDeadline)) // время на hello
+	conn.SetReadDeadline(time.Now().Add(firstHelloDeadline)) // ждём hello
 	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(readDeadline))
 		return nil
 	})
 
-	// hello
+	// читаем hello
 	var hello struct {
 		UserID int `json:"userId"`
 	}
@@ -136,16 +135,15 @@ func (app *application) WebSocketHandler(w http.ResponseWriter, r *http.Request)
 		_ = conn.Close()
 		return
 	}
-	// после hello продлеваем чтение
-	conn.SetReadDeadline(time.Now().Add(readDeadline))
+	conn.SetReadDeadline(time.Now().Add(readDeadline)) // продлеваем после hello
 
 	client := Client{ID: hello.UserID, Socket: conn}
 	app.wsManager.register <- client
 
-	// ping-тример (живём пока запись удаётся)
+	// пинг-цикл
 	go pingLoop(app.wsManager, conn, hello.UserID)
 
-	// читаем сообщения
+	// чтение сообщений
 	go handleWebSocketMessages(conn, hello.UserID, app.wsManager, app.db)
 }
 
@@ -155,7 +153,6 @@ func pingLoop(ws *WebSocketManager, conn *websocket.Conn, uid int) {
 	for range t.C {
 		_ = conn.SetWriteDeadline(time.Now().Add(writeDeadline))
 		if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-			// аккуратно закрываем и снимаем только если это актуальный сокет
 			_ = writeClose(conn, websocket.CloseGoingAway, "ping error")
 			ws.unregister <- unreg{userID: uid, conn: conn}
 			return
@@ -170,16 +167,16 @@ func handleWebSocketMessages(conn *websocket.Conn, userID int, wsManager *WebSoc
 	}()
 
 	for {
-		var msg models.Message
+		var msg models.Message // ожидаем snake_case поля в JSON
 		if err := conn.ReadJSON(&msg); err != nil {
 			log.Println("read json error:", err)
 			_ = writeClose(conn, websocket.CloseNormalClosure, "read error")
 			return
 		}
 
-		// простая валидация
+		// валидация
 		if msg.SenderID != userID {
-			log.Println("reject: senderID != authenticated userID")
+			log.Println("reject: sender_id != authenticated userId")
 			continue
 		}
 		if msg.ReceiverID == 0 || strings.TrimSpace(msg.Text) == "" {
@@ -189,7 +186,7 @@ func handleWebSocketMessages(conn *websocket.Conn, userID int, wsManager *WebSoc
 
 		msg.CreatedAt = time.Now()
 
-		// получаем/создаём чат
+		// получить/создать чат
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			chatID, err := getOrCreateChat(ctx, db, msg.SenderID, msg.ReceiverID)
@@ -201,7 +198,7 @@ func handleWebSocketMessages(conn *websocket.Conn, userID int, wsManager *WebSoc
 			msg.ChatID = chatID
 		}
 
-		// сохраняем
+		// сохранить сообщение
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			if err := saveMessageToDB(ctx, db, msg); err != nil {
@@ -212,7 +209,7 @@ func handleWebSocketMessages(conn *websocket.Conn, userID int, wsManager *WebSoc
 			cancel()
 		}
 
-		// доставляем получателю
+		// доставка получателю
 		wsManager.direct <- directMsg{userID: msg.ReceiverID, msg: msg}
 	}
 }
@@ -243,9 +240,11 @@ func getOrCreateChat(ctx context.Context, db *sql.DB, user1ID, user2ID int) (int
 		return 0, err
 	}
 
-	res, err := db.ExecContext(ctx, `INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)`, user1ID, user2ID)
+	res, err := db.ExecContext(ctx, `
+		INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)
+	`, user1ID, user2ID)
 	if err != nil {
-		// гонка при одновременном создании
+		// гонка при одновременном создании — пробуем перечитать
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			return getOrCreateChat(ctx, db, user1ID, user2ID)
 		}
