@@ -315,14 +315,20 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 
 func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
 	query := `
-       SELECT
-               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-               s.id, s.name, s.price, s.description
-       FROM service s
-       JOIN users u ON s.user_id = u.id
-       WHERE s.price BETWEEN ? AND ?
+      SELECT
+              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+              s.id, s.name, s.price, s.description
+      FROM service s
+      JOIN users u ON s.user_id = u.id
+      WHERE 1=1
 `
-	args := []interface{}{req.PriceFrom, req.PriceTo}
+	args := []interface{}{}
+
+	// Price filter (optional)
+	if req.PriceFrom > 0 && req.PriceTo > 0 {
+		query += " AND s.price BETWEEN ? AND ?"
+		args = append(args, req.PriceFrom, req.PriceTo)
+	}
 
 	// Category
 	if len(req.CategoryIDs) > 0 {
