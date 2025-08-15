@@ -110,12 +110,14 @@ type application struct {
 	subscriptionHandler       *handlers.SubscriptionHandler
 	subscriptionRepo          *repositories.SubscriptionRepository
 	robokassaHandler          *handlers.RobokassaHandler
+	invoiceRepo               *repositories.InvoiceRepo
 
 	// authService *services/*/.AuthService
 }
 
 func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	// Repositories\
+	invoiceRepo := repositories.NewInvoiceRepo(db)
 	userRepo := repositories.UserRepository{DB: db}
 	serviceRepo := repositories.ServiceRepository{DB: db}
 	categoryRepo := repositories.CategoryRepository{DB: db}
@@ -160,6 +162,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	rentConfirmationRepo := repositories.RentConfirmationRepository{DB: db}
 	rentAdConfirmationRepo := repositories.RentAdConfirmationRepository{DB: db}
 	subscriptionRepo := repositories.SubscriptionRepository{DB: db}
+
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo}
@@ -246,7 +249,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adResponseHandler := &handlers.AdResponseHandler{Service: adResponseService}
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
 	subscriptionHandler := &handlers.SubscriptionHandler{Service: subscriptionService}
-	robokassaHandler := &handlers.RobokassaHandler{Service: robokassaService}
+	robokassaHandler := handlers.NewRobokassaHandler(robokassaService, invoiceRepo)
 
 	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
 	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
@@ -379,6 +382,8 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		// Чаты/сообщения
 		chatHandler:    chatHandler,
 		messageHandler: messageHandler,
+
+		invoiceRepo: invoiceRepo,
 	}
 }
 

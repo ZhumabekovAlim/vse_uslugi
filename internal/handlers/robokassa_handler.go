@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"naimuBack/internal/repositories"
 	"net/http"
 	"strconv"
 
-	services "naimuBack/internal/services"
+	"naimuBack/internal/repositories"
+	"naimuBack/internal/services"
 )
 
 type RobokassaHandler struct {
@@ -14,9 +14,15 @@ type RobokassaHandler struct {
 	InvoiceRepo *repositories.InvoiceRepo
 }
 
-// POST /robokassa/pay
-// { "invoice_id": 678678, "amount": 100.00, "description": "Товары для животных" }
+func NewRobokassaHandler(s *services.RobokassaService, r *repositories.InvoiceRepo) *RobokassaHandler {
+	return &RobokassaHandler{Service: s, InvoiceRepo: r}
+}
+
 func (h *RobokassaHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
+	if h.Service == nil || h.InvoiceRepo == nil {
+		http.Error(w, "robokassa not initialized", http.StatusInternalServerError)
+		return
+	}
 	var req struct {
 		Amount      float64 `json:"amount"`
 		Description string  `json:"description"`
@@ -26,30 +32,28 @@ func (h *RobokassaHandler) CreatePayment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// 1) генерим inv_id на бэке (вставкой в БД)
 	invID, err := h.InvoiceRepo.CreateInvoice(r.Context(), req.Amount, req.Description)
 	if err != nil {
 		http.Error(w, "create invoice: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	// 2) строим URL оплаты
-	payURL, err := h.Service.GeneratePayURL(invID, req.Amount, req.Description)
+	url, err := h.Service.GeneratePayURL(invID, req.Amount, req.Description)
 	if err != nil {
 		http.Error(w, "build pay url: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"inv_id": invID,
-		"url":    payURL,
+		"url":    url,
 	})
 }
 
-// POST /robokassa/result  (application/x-www-form-urlencoded)
-// В Robokassa обычно приходят как минимум: OutSum, InvId, SignatureValue, IsTest (для теста)
 func (h *RobokassaHandler) Result(w http.ResponseWriter, r *http.Request) {
+	if h.Service == nil || h.InvoiceRepo == nil {
+		http.Error(w, "robokassa not initialized", http.StatusInternalServerError)
+		return
+	}
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -61,22 +65,14 @@ func (h *RobokassaHandler) Result(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("IsTest") == "" && h.Service.IsTest {
 		isTest = true
 	}
-
 	if !h.Service.VerifyResult(outSum, invID, signature, isTest) {
 		http.Error(w, "invalid signature", http.StatusBadRequest)
 		return
 	}
-
-	// отметить оплату
-	if err := h.InvoiceRepo.MarkPaid(r.Context(), atoi(invID)); err != nil {
+	id, _ := strconv.Atoi(invID)
+	if err := h.InvoiceRepo.MarkPaid(r.Context(), id); err != nil {
 		http.Error(w, "mark paid: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	_, _ = w.Write([]byte("OK" + invID))
-}
-
-func atoi(s string) int {
-	i, _ := strconv.Atoi(s)
-	return i
 }

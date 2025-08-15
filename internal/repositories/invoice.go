@@ -5,16 +5,9 @@ import (
 	"database/sql"
 )
 
-type InvoiceRepo struct {
-	DB *sql.DB
-}
+type InvoiceRepo struct{ DB *sql.DB }
 
-type Invoice struct {
-	InvID       int
-	Amount      float64
-	Description string
-	Status      string
-}
+func NewInvoiceRepo(db *sql.DB) *InvoiceRepo { return &InvoiceRepo{DB: db} }
 
 func (r *InvoiceRepo) CreateInvoice(ctx context.Context, amount float64, description string) (int, error) {
 	const q = `INSERT INTO invoices (amount, description, status) VALUES (?, ?, 'pending')`
@@ -22,12 +15,11 @@ func (r *InvoiceRepo) CreateInvoice(ctx context.Context, amount float64, descrip
 	if err != nil {
 		return 0, err
 	}
-	id64, err := res.LastInsertId()
+	id, err := res.LastInsertId()
 	if err != nil {
 		return 0, err
 	}
-	// здесь уже гарантированно уникально и ≤ 9 цифр (триггер стопорит переполнение)
-	return int(id64), nil
+	return int(id), nil
 }
 
 func (r *InvoiceRepo) MarkPaid(ctx context.Context, invID int) error {
