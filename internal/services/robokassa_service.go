@@ -26,9 +26,8 @@ func (s *RobokassaService) GeneratePayURL(invID int, outSum float64, description
 	params.Set("InvId", strconv.Itoa(invID))
 	params.Set("Description", description)
 	params.Set("SignatureValue", strings.ToUpper(sig))
-	if s.IsTest {
-		params.Set("IsTest", "1")
-	}
+	params.Set("IsTest", "1")
+
 	return fmt.Sprintf("%s?%s", s.BaseURL, params.Encode()), nil
 }
 
