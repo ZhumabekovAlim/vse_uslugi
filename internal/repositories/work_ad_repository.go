@@ -314,14 +314,20 @@ func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) (
 
 func (r *WorkAdRepository) GetFilteredWorksAdPost(ctx context.Context, req models.FilterWorkAdRequest) ([]models.FilteredWorkAd, error) {
 	query := `
-       SELECT
-               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-               s.id, s.name, s.price, s.description
-       FROM work_ad s
-       JOIN users u ON s.user_id = u.id
-       WHERE s.price BETWEEN ? AND ?
+      SELECT
+              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+              s.id, s.name, s.price, s.description
+      FROM work_ad s
+      JOIN users u ON s.user_id = u.id
+      WHERE 1=1
 `
-	args := []interface{}{req.PriceFrom, req.PriceTo}
+	args := []interface{}{}
+
+	// Price filter (optional)
+	if req.PriceFrom > 0 && req.PriceTo > 0 {
+		query += " AND s.price BETWEEN ? AND ?"
+		args = append(args, req.PriceFrom, req.PriceTo)
+	}
 
 	// Category
 	if len(req.CategoryIDs) > 0 {
@@ -439,10 +445,16 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
        FROM work_ad s
        JOIN users u ON s.user_id = u.id
        LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
-       WHERE s.price BETWEEN ? AND ?
+       WHERE 1=1
 `
 
-	args := []interface{}{userID, req.PriceFrom, req.PriceTo}
+	args := []interface{}{userID}
+
+	// Price filter (optional)
+	if req.PriceFrom > 0 && req.PriceTo > 0 {
+		query += " AND s.price BETWEEN ? AND ?"
+		args = append(args, req.PriceFrom, req.PriceTo)
+	}
 
 	// Category
 	if len(req.CategoryIDs) > 0 {
