@@ -433,21 +433,26 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-       SELECT DISTINCT
-               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-               s.id, s.name, s.price, s.description,
-               CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
-       FROM service s
-       JOIN users u ON s.user_id = u.id
-       LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
-       WHERE s.price BETWEEN ? AND ?
+    SELECT DISTINCT
+           u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+           s.id, s.name, s.price, s.description,
+           CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
+    FROM service s
+    JOIN users u ON s.user_id = u.id
+    LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+    WHERE 1=1
 `
 
-	args := []interface{}{userID, req.PriceFrom, req.PriceTo}
+	args := []interface{}{userID}
 
-	// Category
+	// Price filter (optional)
+	if req.PriceFrom > 0 && req.PriceTo > 0 {
+		query += " AND s.price BETWEEN ? AND ?"
+		args = append(args, req.PriceFrom, req.PriceTo)
+	}
+
+	// Category filter
 	if len(req.CategoryIDs) > 0 {
-		log.Printf("[DEBUG] Filtering by CategoryIDs: %v", req.CategoryIDs)
 		placeholders := strings.Repeat("?,", len(req.CategoryIDs))
 		placeholders = placeholders[:len(placeholders)-1]
 		query += fmt.Sprintf(" AND s.category_id IN (%s)", placeholders)
@@ -456,9 +461,8 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		}
 	}
 
-	// Subcategory
+	// Subcategory filter
 	if len(req.SubcategoryIDs) > 0 {
-		log.Printf("[DEBUG] Filtering by SubcategoryIDs: %v", req.SubcategoryIDs)
 		placeholders := strings.Repeat("?,", len(req.SubcategoryIDs))
 		placeholders = placeholders[:len(placeholders)-1]
 		query += fmt.Sprintf(" AND s.subcategory_id IN (%s)", placeholders)
@@ -467,10 +471,9 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		}
 	}
 
-	// Ratings
+	// Ratings filter
 	if len(req.AvgRatings) > 0 {
 		sort.Ints(req.AvgRatings)
-		log.Printf("[DEBUG] Filtering by minimum AvgRating: %.2f", float64(req.AvgRatings[0]))
 		query += " AND s.avg_rating >= ?"
 		args = append(args, float64(req.AvgRatings[0]))
 	}
@@ -479,16 +482,12 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	switch req.Sorting {
 	case 1:
 		query += " ORDER BY (SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC"
-		log.Println("[DEBUG] Sorting by most reviewed")
 	case 2:
 		query += " ORDER BY s.price DESC"
-		log.Println("[DEBUG] Sorting by price DESC")
 	case 3:
 		query += " ORDER BY s.price ASC"
-		log.Println("[DEBUG] Sorting by price ASC")
 	default:
 		query += " ORDER BY s.created_at DESC"
-		log.Println("[DEBUG] Sorting by created_at DESC (default)")
 	}
 
 	log.Printf("[DEBUG] Final SQL Query: %s", query)
