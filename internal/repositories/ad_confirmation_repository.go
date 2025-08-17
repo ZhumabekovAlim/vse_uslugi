@@ -49,3 +49,19 @@ func (r *AdConfirmationRepository) Confirm(ctx context.Context, adID, performerI
 	}
 	return tx.Commit()
 }
+
+func (r *AdConfirmationRepository) Cancel(ctx context.Context, adID int) error {
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `UPDATE ad SET status = 'active' WHERE id = ?`, adID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM ad_confirmations WHERE ad_id = ?`, adID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

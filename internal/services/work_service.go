@@ -7,10 +7,18 @@ import (
 )
 
 type WorkService struct {
-	WorkRepo *repositories.WorkRepository
+	WorkRepo         *repositories.WorkRepository
+	SubscriptionRepo *repositories.SubscriptionRepository
 }
 
 func (s *WorkService) CreateWork(ctx context.Context, work models.Work) (models.Work, error) {
+	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+	if err != nil {
+		return models.Work{}, err
+	}
+	if !has {
+		return models.Work{}, ErrNoActiveSubscription
+	}
 	return s.WorkRepo.CreateWork(ctx, work)
 }
 
@@ -19,6 +27,21 @@ func (s *WorkService) GetWorkByID(ctx context.Context, id int) (models.Work, err
 }
 
 func (s *WorkService) UpdateWork(ctx context.Context, work models.Work) (models.Work, error) {
+	if work.Status == "active" {
+		existing, err := s.WorkRepo.GetWorkByID(ctx, work.ID)
+		if err != nil {
+			return models.Work{}, err
+		}
+		if existing.Status != "active" {
+			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+			if err != nil {
+				return models.Work{}, err
+			}
+			if !has {
+				return models.Work{}, ErrNoActiveSubscription
+			}
+		}
+	}
 	return s.WorkRepo.UpdateWork(ctx, work)
 }
 

@@ -49,3 +49,19 @@ func (r *WorkConfirmationRepository) Confirm(ctx context.Context, workID, perfor
 	}
 	return tx.Commit()
 }
+
+func (r *WorkConfirmationRepository) Cancel(ctx context.Context, workID int) error {
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `UPDATE work SET status = 'active' WHERE id = ?`, workID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM work_confirmations WHERE work_id = ?`, workID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

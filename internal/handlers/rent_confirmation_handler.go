@@ -26,3 +26,18 @@ func (h *RentConfirmationHandler) ConfirmRent(w http.ResponseWriter, r *http.Req
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+func (h *RentConfirmationHandler) CancelRent(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RentID int `json:"rent_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.CancelRent(r.Context(), req.RentID); err != nil {
+		http.Error(w, "Could not cancel rent", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}

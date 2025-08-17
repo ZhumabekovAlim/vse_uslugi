@@ -49,6 +49,7 @@ func (app *application) routes() http.Handler {
 
 	mux.Get("/user/posts/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetPostsByUserID))
 	mux.Get("/user/ads/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetAdsByUserID))
+	mux.Get("/user/orders/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetOrderHistoryByUserID))
 
 	mux.Get("/ads", standardMiddleware.ThenFunc(app.adHandler.GetAds))
 
@@ -63,6 +64,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/service/filtered", standardMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesPost))          //РАБОТАЕТ
 	mux.Post("/service/status", authMiddleware.ThenFunc(app.serviceHandler.GetServicesByStatusAndUserID))
 	mux.Post("/service/confirm", authMiddleware.ThenFunc(app.serviceConfirmationHandler.ConfirmService))
+	mux.Post("/service/cancel", authMiddleware.ThenFunc(app.serviceConfirmationHandler.CancelService))
 	mux.Get("/images/services/:filename", http.HandlerFunc(app.serviceHandler.ServeServiceImage))
 	mux.Post("/service/filtered/:user_id", authMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesWithLikes))
 	mux.Get("/service/service_id/:service_id/user/:user_id", standardMiddleware.ThenFunc(app.serviceHandler.GetServiceByServiceIDAndUserID))
@@ -173,6 +175,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/work/filtered", standardMiddleware.ThenFunc(app.workHandler.GetFilteredWorksPost))
 	mux.Post("/work/status", authMiddleware.ThenFunc(app.workHandler.GetWorksByStatusAndUserID))
 	mux.Post("/work/confirm", authMiddleware.ThenFunc(app.workConfirmationHandler.ConfirmWork))
+	mux.Post("/work/cancel", authMiddleware.ThenFunc(app.workConfirmationHandler.CancelWork))
 	mux.Get("/images/works/:filename", http.HandlerFunc(app.workHandler.ServeWorkImage))
 	mux.Post("/work/filtered/:user_id", authMiddleware.ThenFunc(app.workHandler.GetFilteredWorksWithLikes))
 	mux.Get("/work/work_id/:work_id/user/:user_id", standardMiddleware.ThenFunc(app.workHandler.GetWorkByWorkIDAndUserID))
@@ -202,6 +205,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/rent/filtered", standardMiddleware.ThenFunc(app.rentHandler.GetFilteredRentsPost))
 	mux.Post("/rent/status", authMiddleware.ThenFunc(app.rentHandler.GetRentsByStatusAndUserID))
 	mux.Post("/rent/confirm", authMiddleware.ThenFunc(app.rentConfirmationHandler.ConfirmRent))
+	mux.Post("/rent/cancel", authMiddleware.ThenFunc(app.rentConfirmationHandler.CancelRent))
 	mux.Get("/images/rents/:filename", http.HandlerFunc(app.rentHandler.ServeRentsImage))
 	mux.Post("/rent/filtered/:user_id", authMiddleware.ThenFunc(app.rentHandler.GetFilteredRentsWithLikes))
 	mux.Get("/rent/rent_id/:rent_id/user/:user_id", standardMiddleware.ThenFunc(app.rentHandler.GetRentByRentIDAndUserID))
@@ -231,6 +235,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/ad/filtered", standardMiddleware.ThenFunc(app.adHandler.GetFilteredAdPost))
 	mux.Post("/ad/status", authMiddleware.ThenFunc(app.adHandler.GetAdByStatusAndUserID))
 	mux.Post("/ad/confirm", authMiddleware.ThenFunc(app.adConfirmationHandler.ConfirmAd))
+	mux.Post("/ad/cancel", authMiddleware.ThenFunc(app.adConfirmationHandler.CancelAd))
 	mux.Get("/images/ad/:filename", http.HandlerFunc(app.adHandler.ServeAdImage))
 	mux.Post("/ad/filtered/:user_id", authMiddleware.ThenFunc(app.adHandler.GetFilteredAdWithLikes))
 	mux.Get("/ad/ad_id/:ad_id/user/:user_id", standardMiddleware.ThenFunc(app.adHandler.GetAdByAdIDAndUserID))
@@ -260,6 +265,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/work_ad/filtered", standardMiddleware.ThenFunc(app.workAdHandler.GetFilteredWorksAdPost))
 	mux.Post("/work_ad/status", authMiddleware.ThenFunc(app.workAdHandler.GetWorksAdByStatusAndUserID))
 	mux.Post("/work_ad/confirm", authMiddleware.ThenFunc(app.workAdConfirmationHandler.ConfirmWorkAd))
+	mux.Post("/work_ad/cancel", authMiddleware.ThenFunc(app.workAdConfirmationHandler.CancelWorkAd))
 	mux.Get("/images/work_ad/:filename", http.HandlerFunc(app.workAdHandler.ServeWorkAdImage))
 	mux.Post("/work_ad/filtered/:user_id", authMiddleware.ThenFunc(app.workAdHandler.GetFilteredWorksAdWithLikes))
 	mux.Get("/work_ad/work_ad_id/:work_ad_id/user/:user_id", standardMiddleware.ThenFunc(app.workAdHandler.GetWorkAdByWorkIDAndUserID))
@@ -289,6 +295,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/rent_ad/filtered", standardMiddleware.ThenFunc(app.rentAdHandler.GetFilteredRentsAdPost))
 	mux.Post("/rent_ad/status", authMiddleware.ThenFunc(app.rentAdHandler.GetRentsAdByStatusAndUserID))
 	mux.Post("/rent_ad/confirm", authMiddleware.ThenFunc(app.rentAdConfirmationHandler.ConfirmRentAd))
+	mux.Post("/rent_ad/cancel", authMiddleware.ThenFunc(app.rentAdConfirmationHandler.CancelRentAd))
 	mux.Get("/images/rents/:filename", http.HandlerFunc(app.rentAdHandler.ServeRentsAdImage))
 	mux.Post("/rent_ad/filtered/:user_id", authMiddleware.ThenFunc(app.rentAdHandler.GetFilteredRentsAdWithLikes))
 	mux.Get("/rent_ad/rent_ad_id/:rent_ad_id/user/:user_id", standardMiddleware.ThenFunc(app.rentAdHandler.GetRentAdByRentIDAndUserID))

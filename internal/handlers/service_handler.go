@@ -340,6 +340,10 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 
 	createdService, err := h.Service.CreateService(r.Context(), service)
 	if err != nil {
+		if errors.Is(err, services.ErrNoActiveSubscription) {
+			http.Error(w, err.Error(), http.StatusOK)
+			return
+		}
 		log.Printf("Failed to create service: %v", err)
 		http.Error(w, "Failed to create service", http.StatusInternalServerError)
 		return
@@ -431,6 +435,10 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 
 	updatedService, err := h.Service.UpdateService(r.Context(), service)
 	if err != nil {
+		if errors.Is(err, services.ErrNoActiveSubscription) {
+			http.Error(w, err.Error(), http.StatusOK)
+			return
+		}
 		log.Printf("Failed to update service: %v", err)
 		http.Error(w, "Failed to update service", http.StatusInternalServerError)
 		return

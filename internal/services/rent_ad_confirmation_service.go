@@ -12,3 +12,7 @@ type RentAdConfirmationService struct {
 func (s *RentAdConfirmationService) ConfirmRentAd(ctx context.Context, rentAdID, performerID int) error {
 	return s.ConfirmationRepo.Confirm(ctx, rentAdID, performerID)
 }
+
+func (s *RentAdConfirmationService) CancelRentAd(ctx context.Context, rentAdID int) error {
+	return s.ConfirmationRepo.Cancel(ctx, rentAdID)
+}

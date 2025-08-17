@@ -26,3 +26,18 @@ func (h *ServiceConfirmationHandler) ConfirmService(w http.ResponseWriter, r *ht
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+func (h *ServiceConfirmationHandler) CancelService(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ServiceID int `json:"service_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.CancelService(r.Context(), req.ServiceID); err != nil {
+		http.Error(w, "Could not cancel service", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
