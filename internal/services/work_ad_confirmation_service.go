@@ -12,3 +12,7 @@ type WorkAdConfirmationService struct {
 func (s *WorkAdConfirmationService) ConfirmWorkAd(ctx context.Context, workAdID, performerID int) error {
 	return s.ConfirmationRepo.Confirm(ctx, workAdID, performerID)
 }
+
+func (s *WorkAdConfirmationService) CancelWorkAd(ctx context.Context, workAdID int) error {
+	return s.ConfirmationRepo.Cancel(ctx, workAdID)
+}
