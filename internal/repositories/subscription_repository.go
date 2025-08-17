@@ -41,3 +41,12 @@ func (r *SubscriptionRepository) CountActiveExecutorListings(ctx context.Context
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, userID).Scan(&count)
 	return count, err
 }
+
+func (r *SubscriptionRepository) HasActiveSubscription(ctx context.Context, userID int) (bool, error) {
+	query := `SELECT COUNT(*) FROM subscription_slots WHERE user_id = ? AND status = 'active'`
+	var count int
+	if err := r.DB.QueryRowContext(ctx, query, userID).Scan(&count); err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}

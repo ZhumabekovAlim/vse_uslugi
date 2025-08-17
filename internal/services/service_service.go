@@ -7,10 +7,18 @@ import (
 )
 
 type ServiceService struct {
-	ServiceRepo *repositories.ServiceRepository
+	ServiceRepo      *repositories.ServiceRepository
+	SubscriptionRepo *repositories.SubscriptionRepository
 }
 
 func (s *ServiceService) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
+	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, service.UserID)
+	if err != nil {
+		return models.Service{}, err
+	}
+	if !has {
+		return models.Service{}, ErrNoActiveSubscription
+	}
 	return s.ServiceRepo.CreateService(ctx, service)
 }
 
@@ -19,6 +27,21 @@ func (s *ServiceService) GetServiceByID(ctx context.Context, id int) (models.Ser
 }
 
 func (s *ServiceService) UpdateService(ctx context.Context, service models.Service) (models.Service, error) {
+	if service.Status == "active" {
+		existing, err := s.ServiceRepo.GetServiceByID(ctx, service.ID)
+		if err != nil {
+			return models.Service{}, err
+		}
+		if existing.Status != "active" {
+			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, service.UserID)
+			if err != nil {
+				return models.Service{}, err
+			}
+			if !has {
+				return models.Service{}, ErrNoActiveSubscription
+			}
+		}
+	}
 	return s.ServiceRepo.UpdateService(ctx, service)
 }
 

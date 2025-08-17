@@ -344,6 +344,10 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 
 	createdService, err := h.Service.CreateRent(r.Context(), service)
 	if err != nil {
+		if errors.Is(err, services.ErrNoActiveSubscription) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		log.Printf("Failed to create service: %v", err)
 		http.Error(w, "Failed to create service", http.StatusInternalServerError)
 		return
@@ -439,6 +443,10 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 
 	updatedService, err := h.Service.UpdateRent(r.Context(), service)
 	if err != nil {
+		if errors.Is(err, services.ErrNoActiveSubscription) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		log.Printf("Failed to update service: %v", err)
 		http.Error(w, "Failed to update service", http.StatusInternalServerError)
 		return

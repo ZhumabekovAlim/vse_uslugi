@@ -50,3 +50,22 @@ func (h *UserItemsHandler) GetAdsByUserID(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(items)
 }
+
+// GetOrderHistoryByUserID returns all completed services, works, rents and ads for the specified user.
+func (h *UserItemsHandler) GetOrderHistoryByUserID(w http.ResponseWriter, r *http.Request) {
+	userIDStr := r.URL.Query().Get(":user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "invalid user_id", http.StatusBadRequest)
+		return
+	}
+
+	items, err := h.Service.GetOrderHistoryByUserID(r.Context(), userID)
+	if err != nil {
+		http.Error(w, "failed to get items", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
+}
