@@ -21,3 +21,8 @@ func (s *UserItemsService) GetServiceWorkRentByUserID(ctx context.Context, userI
 func (s *UserItemsService) GetAdWorkAdRentAdByUserID(ctx context.Context, userID int) ([]models.UserItem, error) {
 	return s.ItemsRepo.GetAdWorkAdRentAdByUserID(ctx, userID)
 }
+
+// GetOrderHistoryByUserID fetches completed service, work, rent, ad, work_ad and rent_ad items for the user.
+func (s *UserItemsService) GetOrderHistoryByUserID(ctx context.Context, userID int) ([]models.UserItem, error) {
+	return s.ItemsRepo.GetOrderHistoryByUserID(ctx, userID)
+}
