@@ -64,6 +64,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/service/filtered", standardMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesPost))          //РАБОТАЕТ
 	mux.Post("/service/status", authMiddleware.ThenFunc(app.serviceHandler.GetServicesByStatusAndUserID))
 	mux.Post("/service/confirm", authMiddleware.ThenFunc(app.serviceConfirmationHandler.ConfirmService))
+	mux.Post("/service/cancel", authMiddleware.ThenFunc(app.serviceConfirmationHandler.CancelService))
 	mux.Get("/images/services/:filename", http.HandlerFunc(app.serviceHandler.ServeServiceImage))
 	mux.Post("/service/filtered/:user_id", authMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesWithLikes))
 	mux.Get("/service/service_id/:service_id/user/:user_id", standardMiddleware.ThenFunc(app.serviceHandler.GetServiceByServiceIDAndUserID))
@@ -174,6 +175,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/work/filtered", standardMiddleware.ThenFunc(app.workHandler.GetFilteredWorksPost))
 	mux.Post("/work/status", authMiddleware.ThenFunc(app.workHandler.GetWorksByStatusAndUserID))
 	mux.Post("/work/confirm", authMiddleware.ThenFunc(app.workConfirmationHandler.ConfirmWork))
+	mux.Post("/work/cancel", authMiddleware.ThenFunc(app.workConfirmationHandler.CancelWork))
 	mux.Get("/images/works/:filename", http.HandlerFunc(app.workHandler.ServeWorkImage))
 	mux.Post("/work/filtered/:user_id", authMiddleware.ThenFunc(app.workHandler.GetFilteredWorksWithLikes))
 	mux.Get("/work/work_id/:work_id/user/:user_id", standardMiddleware.ThenFunc(app.workHandler.GetWorkByWorkIDAndUserID))
@@ -203,6 +205,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/rent/filtered", standardMiddleware.ThenFunc(app.rentHandler.GetFilteredRentsPost))
 	mux.Post("/rent/status", authMiddleware.ThenFunc(app.rentHandler.GetRentsByStatusAndUserID))
 	mux.Post("/rent/confirm", authMiddleware.ThenFunc(app.rentConfirmationHandler.ConfirmRent))
+	mux.Post("/rent/cancel", authMiddleware.ThenFunc(app.rentConfirmationHandler.CancelRent))
 	mux.Get("/images/rents/:filename", http.HandlerFunc(app.rentHandler.ServeRentsImage))
 	mux.Post("/rent/filtered/:user_id", authMiddleware.ThenFunc(app.rentHandler.GetFilteredRentsWithLikes))
 	mux.Get("/rent/rent_id/:rent_id/user/:user_id", standardMiddleware.ThenFunc(app.rentHandler.GetRentByRentIDAndUserID))

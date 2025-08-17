@@ -26,3 +26,18 @@ func (h *WorkConfirmationHandler) ConfirmWork(w http.ResponseWriter, r *http.Req
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+func (h *WorkConfirmationHandler) CancelWork(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		WorkID int `json:"work_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.CancelWork(r.Context(), req.WorkID); err != nil {
+		http.Error(w, "Could not cancel work", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}

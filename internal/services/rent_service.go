@@ -7,10 +7,18 @@ import (
 )
 
 type RentService struct {
-	RentRepo *repositories.RentRepository
+	RentRepo         *repositories.RentRepository
+	SubscriptionRepo *repositories.SubscriptionRepository
 }
 
 func (s *RentService) CreateRent(ctx context.Context, work models.Rent) (models.Rent, error) {
+	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+	if err != nil {
+		return models.Rent{}, err
+	}
+	if !has {
+		return models.Rent{}, ErrNoActiveSubscription
+	}
 	return s.RentRepo.CreateRent(ctx, work)
 }
 
@@ -19,6 +27,21 @@ func (s *RentService) GetRentByID(ctx context.Context, id int) (models.Rent, err
 }
 
 func (s *RentService) UpdateRent(ctx context.Context, work models.Rent) (models.Rent, error) {
+	if work.Status == "active" {
+		existing, err := s.RentRepo.GetRentByID(ctx, work.ID)
+		if err != nil {
+			return models.Rent{}, err
+		}
+		if existing.Status != "active" {
+			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+			if err != nil {
+				return models.Rent{}, err
+			}
+			if !has {
+				return models.Rent{}, ErrNoActiveSubscription
+			}
+		}
+	}
 	return s.RentRepo.UpdateRent(ctx, work)
 }
 
