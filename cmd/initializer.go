@@ -47,6 +47,16 @@ type application struct {
 	db                         *sql.DB
 	complaintHandler           *handlers.ComplaintHandler
 	complaintRepo              *repositories.ComplaintRepository
+	adComplaintHandler         *handlers.AdComplaintHandler
+	adComplaintRepo            *repositories.AdComplaintRepository
+	workComplaintHandler       *handlers.WorkComplaintHandler
+	workComplaintRepo          *repositories.WorkComplaintRepository
+	workAdComplaintHandler     *handlers.WorkAdComplaintHandler
+	workAdComplaintRepo        *repositories.WorkAdComplaintRepository
+	rentComplaintHandler       *handlers.RentComplaintHandler
+	rentComplaintRepo          *repositories.RentComplaintRepository
+	rentAdComplaintHandler     *handlers.RentAdComplaintHandler
+	rentAdComplaintRepo        *repositories.RentAdComplaintRepository
 	serviceResponseHandler     *handlers.ServiceResponseHandler
 	serviceResponseRepo        *repositories.ServiceResponseRepository
 	serviceConfirmationHandler *handlers.ServiceConfirmationHandler
@@ -132,6 +142,11 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workSubcategoryRepo := repositories.WorkSubcategoryRepository{DB: db}
 	cityRepo := repositories.CityRepository{DB: db}
 	complaintRepo := repositories.ComplaintRepository{DB: db}
+	adComplaintRepo := repositories.AdComplaintRepository{DB: db}
+	workComplaintRepo := repositories.WorkComplaintRepository{DB: db}
+	workAdComplaintRepo := repositories.WorkAdComplaintRepository{DB: db}
+	rentComplaintRepo := repositories.RentComplaintRepository{DB: db}
+	rentAdComplaintRepo := repositories.RentAdComplaintRepository{DB: db}
 	chatRepo := repositories.ChatRepository{Db: db}
 	messageRepo := repositories.MessageRepository{Db: db}
 	serviceResponseRepo := repositories.ServiceResponseRepository{DB: db}
@@ -179,6 +194,11 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workSubcategoryService := services.WorkSubcategoryService{SubcategoryRepo: &workSubcategoryRepo}
 	cityService := services.CityService{CityRepo: &cityRepo}
 	complaintService := services.ComplaintService{ComplaintRepo: &complaintRepo}
+	adComplaintService := services.AdComplaintService{ComplaintRepo: &adComplaintRepo}
+	workComplaintService := services.WorkComplaintService{ComplaintRepo: &workComplaintRepo}
+	workAdComplaintService := services.WorkAdComplaintService{ComplaintRepo: &workAdComplaintRepo}
+	rentComplaintService := services.RentComplaintService{ComplaintRepo: &rentComplaintRepo}
+	rentAdComplaintService := services.RentAdComplaintService{ComplaintRepo: &rentAdComplaintRepo}
 	serviceResponseService := &services.ServiceResponseService{ServiceResponseRepo: &serviceResponseRepo, ServiceRepo: &serviceRepo, ChatRepo: &chatRepo, ConfirmationRepo: &serviceConfirmationRepo, MessageRepo: &messageRepo}
 	serviceConfirmationService := &services.ServiceConfirmationService{ConfirmationRepo: &serviceConfirmationRepo}
 	userResponsesService := &services.UserResponsesService{ResponsesRepo: &userResponsesRepo}
@@ -236,6 +256,11 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workSubcategoryHandler := handlers.WorkSubcategoryHandler{Service: &workSubcategoryService}
 	cityHandler := handlers.CityHandler{Service: &cityService}
 	complaintHandler := &handlers.ComplaintHandler{Service: &complaintService}
+	adComplaintHandler := &handlers.AdComplaintHandler{Service: &adComplaintService}
+	workComplaintHandler := &handlers.WorkComplaintHandler{Service: &workComplaintService}
+	workAdComplaintHandler := &handlers.WorkAdComplaintHandler{Service: &workAdComplaintService}
+	rentComplaintHandler := &handlers.RentComplaintHandler{Service: &rentComplaintService}
+	rentAdComplaintHandler := &handlers.RentAdComplaintHandler{Service: &rentAdComplaintService}
 	serviceResponseHandler := &handlers.ServiceResponseHandler{Service: serviceResponseService}
 	serviceConfirmationHandler := &handlers.ServiceConfirmationHandler{Service: serviceConfirmationService}
 	userResponsesHandler := &handlers.UserResponsesHandler{Service: userResponsesService}
@@ -301,6 +326,11 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		workSubcategoryRepo:     workSubcategoryRepo, // value
 		cityRepo:                cityRepo,            // value
 		complaintRepo:           &complaintRepo,
+		adComplaintRepo:         &adComplaintRepo,
+		workComplaintRepo:       &workComplaintRepo,
+		workAdComplaintRepo:     &workAdComplaintRepo,
+		rentComplaintRepo:       &rentComplaintRepo,
+		rentAdComplaintRepo:     &rentAdComplaintRepo,
 		serviceResponseRepo:     &serviceResponseRepo,
 		serviceConfirmationRepo: &serviceConfirmationRepo,
 		userResponsesRepo:       &userResponsesRepo,
@@ -350,6 +380,11 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		workSubcategoryHandler:     workSubcategoryHandler,
 		cityHandler:                cityHandler,
 		complaintHandler:           complaintHandler,
+		adComplaintHandler:         adComplaintHandler,
+		workComplaintHandler:       workComplaintHandler,
+		workAdComplaintHandler:     workAdComplaintHandler,
+		rentComplaintHandler:       rentComplaintHandler,
+		rentAdComplaintHandler:     rentAdComplaintHandler,
 		serviceResponseHandler:     serviceResponseHandler,
 		serviceConfirmationHandler: serviceConfirmationHandler,
 		userResponsesHandler:       userResponsesHandler,

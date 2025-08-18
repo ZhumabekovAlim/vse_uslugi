@@ -162,6 +162,36 @@ func (app *application) routes() http.Handler {
 	mux.Del("/complaints/:id", authMiddleware.ThenFunc(app.complaintHandler.DeleteComplaintByID))
 	mux.Get("/complaints", standardMiddleware.ThenFunc(app.complaintHandler.GetAllComplaints))
 
+	// Ad Complaints
+	mux.Post("/ad_complaint", authMiddleware.ThenFunc(app.adComplaintHandler.CreateAdComplaint))
+	mux.Get("/ad_complaint/:ad_id", standardMiddleware.ThenFunc(app.adComplaintHandler.GetComplaintsByAdID))
+	mux.Del("/ad_complaint/:id", authMiddleware.ThenFunc(app.adComplaintHandler.DeleteAdComplaintByID))
+	mux.Get("/ad_complaints", standardMiddleware.ThenFunc(app.adComplaintHandler.GetAllAdComplaints))
+
+	// Work Complaints
+	mux.Post("/work_complaint", authMiddleware.ThenFunc(app.workComplaintHandler.CreateWorkComplaint))
+	mux.Get("/work_complaint/:work_id", standardMiddleware.ThenFunc(app.workComplaintHandler.GetComplaintsByWorkID))
+	mux.Del("/work_complaint/:id", authMiddleware.ThenFunc(app.workComplaintHandler.DeleteWorkComplaintByID))
+	mux.Get("/work_complaints", standardMiddleware.ThenFunc(app.workComplaintHandler.GetAllWorkComplaints))
+
+	// Work Ad Complaints
+	mux.Post("/work_ad_complaint", authMiddleware.ThenFunc(app.workAdComplaintHandler.CreateWorkAdComplaint))
+	mux.Get("/work_ad_complaint/:work_ad_id", standardMiddleware.ThenFunc(app.workAdComplaintHandler.GetComplaintsByWorkAdID))
+	mux.Del("/work_ad_complaint/:id", authMiddleware.ThenFunc(app.workAdComplaintHandler.DeleteWorkAdComplaintByID))
+	mux.Get("/work_ad_complaints", standardMiddleware.ThenFunc(app.workAdComplaintHandler.GetAllWorkAdComplaints))
+
+	// Rent Complaints
+	mux.Post("/rent_complaint", authMiddleware.ThenFunc(app.rentComplaintHandler.CreateRentComplaint))
+	mux.Get("/rent_complaint/:rent_id", standardMiddleware.ThenFunc(app.rentComplaintHandler.GetComplaintsByRentID))
+	mux.Del("/rent_complaint/:id", authMiddleware.ThenFunc(app.rentComplaintHandler.DeleteRentComplaintByID))
+	mux.Get("/rent_complaints", standardMiddleware.ThenFunc(app.rentComplaintHandler.GetAllRentComplaints))
+
+	// Rent Ad Complaints
+	mux.Post("/rent_ad_complaint", authMiddleware.ThenFunc(app.rentAdComplaintHandler.CreateRentAdComplaint))
+	mux.Get("/rent_ad_complaint/:rent_ad_id", standardMiddleware.ThenFunc(app.rentAdComplaintHandler.GetComplaintsByRentAdID))
+	mux.Del("/rent_ad_complaint/:id", authMiddleware.ThenFunc(app.rentAdComplaintHandler.DeleteRentAdComplaintByID))
+	mux.Get("/rent_ad_complaints", standardMiddleware.ThenFunc(app.rentAdComplaintHandler.GetAllRentAdComplaints))
+
 	// Service Response
 	mux.Post("/responses", authMiddleware.ThenFunc(app.serviceResponseHandler.CreateServiceResponse))
 	mux.Get("/responses/:user_id", authMiddleware.ThenFunc(app.userResponsesHandler.GetResponsesByUserID))
