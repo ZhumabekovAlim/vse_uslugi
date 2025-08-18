@@ -25,7 +25,9 @@ func (h *AdResponseHandler) CreateAdResponse(w http.ResponseWriter, r *http.Requ
 	resp, err := h.Service.CreateAdResponse(r.Context(), input)
 	if err != nil {
 		if errors.Is(err, models.ErrAlreadyResponded) {
+
 			http.Error(w, "already responded", http.StatusOK)
+
 			return
 		}
 		http.Error(w, "Could not create response", http.StatusInternalServerError)
