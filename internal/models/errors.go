@@ -30,6 +30,7 @@ var (
 	ErrCardNotFound           = errors.New("card not found")
 	ErrReviewNotFound         = errors.New("review not found")
 	ErrSubcategoryNotFound    = errors.New("subcategory not found")
+	ErrAlreadyResponded       = errors.New("user already responded")
 )
 
 var ErrInvalidVerificationCode = errors.New("invalid verification code")

@@ -12,10 +12,18 @@ type WorkAdResponseRepository struct {
 }
 
 func (r *WorkAdResponseRepository) CreateWorkAdResponse(ctx context.Context, resp models.WorkAdResponses) (models.WorkAdResponses, error) {
+	var count int
+	if err := r.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM work_ad_responses WHERE user_id = ? AND work_ad_id = ?`, resp.UserID, resp.WorkAdID).Scan(&count); err != nil {
+		return models.WorkAdResponses{}, err
+	}
+	if count > 0 {
+		return models.WorkAdResponses{}, models.ErrAlreadyResponded
+	}
+
 	query := `
-		INSERT INTO work_ad_responses (user_id, work_ad_id, price, description, created_at)
-		VALUES (?, ?, ?, ?, ?)
-	`
+               INSERT INTO work_ad_responses (user_id, work_ad_id, price, description, created_at)
+               VALUES (?, ?, ?, ?, ?)
+       `
 
 	now := time.Now()
 	result, err := r.DB.ExecContext(ctx, query, resp.UserID, resp.WorkAdID, resp.Price, resp.Description, now)

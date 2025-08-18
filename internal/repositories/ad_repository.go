@@ -438,17 +438,19 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-       SELECT DISTINCT
-               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-               s.id, s.name, s.price, s.description,
-               CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
-       FROM ad s
-       JOIN users u ON s.user_id = u.id
-       LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
-       WHERE 1=1
+   SELECT DISTINCT
+           u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+           s.id, s.name, s.price, s.description,
+           CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
+           CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded
+   FROM ad s
+   JOIN users u ON s.user_id = u.id
+   LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
+   LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
+   WHERE 1=1
 `
 
-	args := []interface{}{userID}
+	args := []interface{}{userID, userID}
 
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
@@ -521,7 +523,7 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 		var s models.FilteredAd
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &s.Liked,
+			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &s.Liked, &s.Responded,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)

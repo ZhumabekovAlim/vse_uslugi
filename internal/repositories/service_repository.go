@@ -439,17 +439,19 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-    SELECT DISTINCT
-           u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-           s.id, s.name, s.price, s.description,
-           CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked
-    FROM service s
-    JOIN users u ON s.user_id = u.id
-    LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
-    WHERE 1=1
+   SELECT DISTINCT
+          u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+          s.id, s.name, s.price, s.description,
+          CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
+          CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded
+   FROM service s
+   JOIN users u ON s.user_id = u.id
+   LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+   LEFT JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = ?
+   WHERE 1=1
 `
 
-	args := []interface{}{userID}
+	args := []interface{}{userID, userID}
 
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
@@ -515,7 +517,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		var s models.FilteredService
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked, &s.Responded,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)

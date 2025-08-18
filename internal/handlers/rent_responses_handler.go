@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"naimuBack/internal/models"
@@ -23,6 +24,10 @@ func (h *RentResponseHandler) CreateRentResponse(w http.ResponseWriter, r *http.
 
 	resp, err := h.Service.CreateRentResponse(r.Context(), input)
 	if err != nil {
+		if errors.Is(err, models.ErrAlreadyResponded) {
+			http.Error(w, "already responded", http.StatusOK)
+			return
+		}
 		http.Error(w, "Could not create response", http.StatusInternalServerError)
 		return
 	}
