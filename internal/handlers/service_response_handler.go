@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"naimuBack/internal/models"
@@ -23,6 +24,10 @@ func (h *ServiceResponseHandler) CreateServiceResponse(w http.ResponseWriter, r 
 
 	resp, err := h.Service.CreateServiceResponse(r.Context(), input)
 	if err != nil {
+		if errors.Is(err, models.ErrAlreadyResponded) {
+			http.Error(w, "already responded", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "Could not create response", http.StatusInternalServerError)
 		return
 	}
