@@ -41,3 +41,18 @@ func (h *RentAdConfirmationHandler) CancelRentAd(w http.ResponseWriter, r *http.
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+func (h *RentAdConfirmationHandler) DoneRentAd(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RentAdID int `json:"rent_ad_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.DoneRentAd(r.Context(), req.RentAdID); err != nil {
+		http.Error(w, "Could not mark rent ad done", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}

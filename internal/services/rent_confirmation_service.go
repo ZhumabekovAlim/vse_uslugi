@@ -16,3 +16,7 @@ func (s *RentConfirmationService) ConfirmRent(ctx context.Context, rentID, perfo
 func (s *RentConfirmationService) CancelRent(ctx context.Context, rentID int) error {
 	return s.ConfirmationRepo.Cancel(ctx, rentID)
 }
+
+func (s *RentConfirmationService) DoneRent(ctx context.Context, rentID int) error {
+	return s.ConfirmationRepo.Done(ctx, rentID)
+}

@@ -41,3 +41,18 @@ func (h *WorkAdConfirmationHandler) CancelWorkAd(w http.ResponseWriter, r *http.
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+func (h *WorkAdConfirmationHandler) DoneWorkAd(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		WorkAdID int `json:"work_ad_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.DoneWorkAd(r.Context(), req.WorkAdID); err != nil {
+		http.Error(w, "Could not mark work ad done", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}

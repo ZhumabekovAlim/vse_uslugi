@@ -41,3 +41,18 @@ func (h *AdConfirmationHandler) CancelAd(w http.ResponseWriter, r *http.Request)
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+func (h *AdConfirmationHandler) DoneAd(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AdID int `json:"ad_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.DoneAd(r.Context(), req.AdID); err != nil {
+		http.Error(w, "Could not mark ad done", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}

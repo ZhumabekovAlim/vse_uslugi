@@ -16,3 +16,7 @@ func (s *ServiceConfirmationService) ConfirmService(ctx context.Context, service
 func (s *ServiceConfirmationService) CancelService(ctx context.Context, serviceID int) error {
 	return s.ConfirmationRepo.Cancel(ctx, serviceID)
 }
+
+func (s *ServiceConfirmationService) DoneService(ctx context.Context, serviceID int) error {
+	return s.ConfirmationRepo.Done(ctx, serviceID)
+}

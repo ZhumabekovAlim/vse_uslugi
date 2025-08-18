@@ -65,3 +65,19 @@ func (r *RentConfirmationRepository) Cancel(ctx context.Context, rentID int) err
 	}
 	return tx.Commit()
 }
+
+func (r *RentConfirmationRepository) Done(ctx context.Context, rentID int) error {
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `UPDATE rent SET status = 'done' WHERE id = ?`, rentID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM rent_confirmations WHERE rent_id = ?`, rentID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
