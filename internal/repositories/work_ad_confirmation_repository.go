@@ -65,3 +65,19 @@ func (r *WorkAdConfirmationRepository) Cancel(ctx context.Context, workAdID int)
 	}
 	return tx.Commit()
 }
+
+func (r *WorkAdConfirmationRepository) Done(ctx context.Context, workAdID int) error {
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `UPDATE work_ad SET status = 'done' WHERE id = ?`, workAdID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM work_ad_confirmations WHERE work_ad_id = ?`, workAdID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

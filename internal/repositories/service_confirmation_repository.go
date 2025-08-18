@@ -65,3 +65,19 @@ func (r *ServiceConfirmationRepository) Cancel(ctx context.Context, serviceID in
 	}
 	return tx.Commit()
 }
+
+func (r *ServiceConfirmationRepository) Done(ctx context.Context, serviceID int) error {
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `UPDATE service SET status = 'done' WHERE id = ?`, serviceID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM service_confirmations WHERE service_id = ?`, serviceID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

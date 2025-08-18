@@ -16,3 +16,7 @@ func (s *WorkAdConfirmationService) ConfirmWorkAd(ctx context.Context, workAdID,
 func (s *WorkAdConfirmationService) CancelWorkAd(ctx context.Context, workAdID int) error {
 	return s.ConfirmationRepo.Cancel(ctx, workAdID)
 }
+
+func (s *WorkAdConfirmationService) DoneWorkAd(ctx context.Context, workAdID int) error {
+	return s.ConfirmationRepo.Done(ctx, workAdID)
+}
