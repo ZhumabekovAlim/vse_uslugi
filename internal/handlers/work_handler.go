@@ -349,8 +349,8 @@ func (h *WorkHandler) CreateWork(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, services.ErrNoActiveSubscription) {
 
-			http.Error(w, err.Error(), http.StatusOK)
-
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
 		}
 		log.Printf("Failed to create service: %v", err)
 		http.Error(w, "Failed to create service", http.StatusInternalServerError)
@@ -452,8 +452,7 @@ func (h *WorkHandler) UpdateWork(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, services.ErrNoActiveSubscription) {
 
-			http.Error(w, err.Error(), http.StatusOK)
-
+			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}
 		log.Printf("Failed to update service: %v", err)
