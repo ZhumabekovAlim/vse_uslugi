@@ -342,7 +342,7 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, services.ErrNoActiveSubscription) {
 
-			http.Error(w, err.Error(), http.StatusOK)
+			http.Error(w, err.Error(), http.StatusForbidden)
 
 			return
 		}
@@ -439,7 +439,7 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, services.ErrNoActiveSubscription) {
 
-			http.Error(w, err.Error(), http.StatusOK)
+			http.Error(w, err.Error(), http.StatusForbidden)
 
 			return
 		}

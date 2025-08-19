@@ -346,7 +346,7 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, services.ErrNoActiveSubscription) {
 
-			http.Error(w, err.Error(), http.StatusOK)
+			http.Error(w, err.Error(), http.StatusForbidden)
 
 			return
 		}
@@ -447,7 +447,7 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, services.ErrNoActiveSubscription) {
 
-			http.Error(w, err.Error(), http.StatusOK)
+			http.Error(w, err.Error(), http.StatusForbidden)
 
 			return
 		}
