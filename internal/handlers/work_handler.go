@@ -1,22 +1,22 @@
 package handlers
 
 import (
-	_ "context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"naimuBack/internal/models"
-	"naimuBack/internal/repositories"
-	"naimuBack/internal/services"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	_ "strings"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"naimuBack/internal/models"
+	"naimuBack/internal/repositories"
+	"naimuBack/internal/services"
 )
 
 type WorkHandler struct {
@@ -37,11 +37,17 @@ func (h *WorkHandler) GetWorkByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := 0
-	if userIDStr := r.URL.Query().Get("user_id"); userIDStr != "" {
-		userID, err = strconv.Atoi(userIDStr)
-		if err != nil {
-			http.Error(w, "Invalid user ID", http.StatusBadRequest)
-			return
+
+	tokenString := r.Header.Get("Authorization")
+	if strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(signingKey), nil
+		})
+		if err == nil && token.Valid {
+			userID = int(claims.UserID)
+
 		}
 	}
 
