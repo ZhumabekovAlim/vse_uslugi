@@ -37,6 +37,7 @@ func (h *AdHandler) GetAdByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := 0
+
 	tokenString := r.Header.Get("Authorization")
 	if strings.HasPrefix(tokenString, "Bearer ") {
 		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
@@ -46,6 +47,7 @@ func (h *AdHandler) GetAdByID(w http.ResponseWriter, r *http.Request) {
 		})
 		if err == nil && token.Valid {
 			userID = int(claims.UserID)
+
 		}
 	}
 
