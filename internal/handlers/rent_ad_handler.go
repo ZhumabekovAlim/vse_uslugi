@@ -36,7 +36,16 @@ func (h *RentAdHandler) GetRentAdByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rent, err := h.Service.GetRentAdByID(r.Context(), id)
+	userID := 0
+	if userIDStr := r.URL.Query().Get("user_id"); userIDStr != "" {
+		userID, err = strconv.Atoi(userIDStr)
+		if err != nil {
+			http.Error(w, "Invalid user ID", http.StatusBadRequest)
+			return
+		}
+	}
+
+	rent, err := h.Service.GetRentAdByID(r.Context(), id, userID)
 	if err != nil {
 		http.Error(w, "Service not found", http.StatusNotFound)
 		return

@@ -21,7 +21,7 @@ func (s *AdResponseService) CreateAdResponse(ctx context.Context, resp models.Ad
 		return resp, err
 	}
 
-	ad, err := s.AdRepo.GetAdByID(ctx, resp.AdID)
+	ad, err := s.AdRepo.GetAdByID(ctx, resp.AdID, 0)
 	if err != nil {
 		return resp, err
 	}
@@ -51,8 +51,7 @@ func (s *AdResponseService) CreateAdResponse(ctx context.Context, resp models.Ad
 		ReceiverID: ad.UserID,
 		Text:       text,
 
-		ChatID:     chatID,
-
+		ChatID: chatID,
 	}); err != nil {
 		return resp, err
 	}

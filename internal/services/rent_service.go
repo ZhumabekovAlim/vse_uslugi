@@ -22,13 +22,13 @@ func (s *RentService) CreateRent(ctx context.Context, work models.Rent) (models.
 	return s.RentRepo.CreateRent(ctx, work)
 }
 
-func (s *RentService) GetRentByID(ctx context.Context, id int) (models.Rent, error) {
-	return s.RentRepo.GetRentByID(ctx, id)
+func (s *RentService) GetRentByID(ctx context.Context, id int, userID int) (models.Rent, error) {
+	return s.RentRepo.GetRentByID(ctx, id, userID)
 }
 
 func (s *RentService) UpdateRent(ctx context.Context, work models.Rent) (models.Rent, error) {
 	if work.Status == "active" {
-		existing, err := s.RentRepo.GetRentByID(ctx, work.ID)
+		existing, err := s.RentRepo.GetRentByID(ctx, work.ID, 0)
 		if err != nil {
 			return models.Rent{}, err
 		}

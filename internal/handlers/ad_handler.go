@@ -36,7 +36,16 @@ func (h *AdHandler) GetAdByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ad, err := h.Service.GetAdByID(r.Context(), id)
+	userID := 0
+	if userIDStr := r.URL.Query().Get("user_id"); userIDStr != "" {
+		userID, err = strconv.Atoi(userIDStr)
+		if err != nil {
+			http.Error(w, "Invalid user ID", http.StatusBadRequest)
+			return
+		}
+	}
+
+	ad, err := h.Service.GetAdByID(r.Context(), id, userID)
 	if err != nil {
 		http.Error(w, "Service not found", http.StatusNotFound)
 		return

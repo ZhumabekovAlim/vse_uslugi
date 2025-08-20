@@ -64,21 +64,24 @@ func (r *RentRepository) CreateRent(ctx context.Context, rent models.Rent) (mode
 	return rent, nil
 }
 
-func (r *RentRepository) GetRentByID(ctx context.Context, id int) (models.Rent, error) {
+func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (models.Rent, error) {
 	query := `
-               SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked, w.status, w.rent_type, w.deposit, w.latitude, w.longitude, w.created_at, w.updated_at
+               SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
+                      CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
+                      w.status, w.rent_type, w.deposit, w.latitude, w.longitude, w.created_at, w.updated_at
                 FROM rent w
                 JOIN users u ON w.user_id = u.id
                 JOIN rent_categories c ON w.category_id = c.id
                 JOIN rent_subcategories sub ON w.subcategory_id = sub.id
+                LEFT JOIN rent_responses sr ON sr.rent_id = w.id AND sr.user_id = ?
                 WHERE w.id = ?
        `
 
 	var s models.Rent
 	var imagesJSON []byte
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &s.Latitude, &s.Longitude, &s.CreatedAt,
+		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &s.Status, &s.RentType, &s.Deposit, &s.Latitude, &s.Longitude, &s.CreatedAt,
 		&s.UpdatedAt,
 	)
 
@@ -131,7 +134,7 @@ func (r *RentRepository) UpdateRent(ctx context.Context, work models.Rent) (mode
 	if rowsAffected == 0 {
 		return models.Rent{}, ErrServiceNotFound
 	}
-	return r.GetRentByID(ctx, work.ID)
+	return r.GetRentByID(ctx, work.ID, 0)
 }
 
 func (r *RentRepository) DeleteRent(ctx context.Context, id int) error {
@@ -547,25 +550,27 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
                        CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
+                       CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
                        s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
                FROM rent s
                JOIN users u ON s.user_id = u.id
                JOIN rent_categories c ON s.category_id = c.id
                JOIN rent_subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
+               LEFT JOIN rent_responses sr ON sr.rent_id = s.id AND sr.user_id = ?
                WHERE s.id = ?
        `
 
 	var s models.Rent
 	var imagesJSON []byte
 
-	err := r.DB.QueryRowContext(ctx, query, userID, rentID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, rentID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&s.Liked, &s.Status, &s.RentType, &s.Deposit, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
+		&s.Liked, &s.Responded, &s.Status, &s.RentType, &s.Deposit, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {

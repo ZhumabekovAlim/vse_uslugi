@@ -67,25 +67,28 @@ func (r *WorkRepository) CreateWork(ctx context.Context, work models.Work) (mode
 	return work, nil
 }
 
-func (r *WorkRepository) GetWorkByID(ctx context.Context, id int) (models.Work, error) {
+func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (models.Work, error) {
 	query := `
-              SELECT w.id, w.name, w.address, w.price, w.user_id,
-                     u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
-                     w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked, w.status, w.work_experience, w.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
-               FROM work w
-               JOIN users u ON w.user_id = u.id
-               JOIN work_categories c ON w.category_id = c.id
-               JOIN work_subcategories sub ON w.subcategory_id = sub.id
+             SELECT w.id, w.name, w.address, w.price, w.user_id,
+                    u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+                    w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
+                    CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
+                    w.status, w.work_experience, w.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
+              FROM work w
+              JOIN users u ON w.user_id = u.id
+              JOIN work_categories c ON w.category_id = c.id
+              JOIN work_subcategories sub ON w.subcategory_id = sub.id
               JOIN cities city ON w.city_id = city.id
-               WHERE w.id = ?
+              LEFT JOIN work_responses sr ON sr.work_id = w.id AND sr.user_id = ?
+              WHERE w.id = ?
        `
 
 	var s models.Work
 	var imagesJSON []byte
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
 		&s.UpdatedAt,
 	)
 
@@ -138,7 +141,7 @@ func (r *WorkRepository) UpdateWork(ctx context.Context, work models.Work) (mode
 	if rowsAffected == 0 {
 		return models.Work{}, ErrServiceNotFound
 	}
-	return r.GetWorkByID(ctx, work.ID)
+	return r.GetWorkByID(ctx, work.ID, 0)
 }
 
 func (r *WorkRepository) DeleteWork(ctx context.Context, id int) error {
@@ -562,27 +565,29 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
                        s.images, s.category_id, c.name,
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
-               CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
-               s.status, s.work_experience, s.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
+              CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
+              CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
+              s.status, s.work_experience, s.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
                FROM work s
                JOIN users u ON s.user_id = u.id
                JOIN work_categories c ON s.category_id = c.id
                JOIN work_subcategories sub ON s.subcategory_id = sub.id
                JOIN cities city ON s.city_id = city.id
                LEFT JOIN work_favorites sf ON sf.work_id = s.id AND sf.user_id = ?
+               LEFT JOIN work_responses sr ON sr.work_id = s.id AND sr.user_id = ?
                WHERE s.id = ?
        `
 
 	var s models.Work
 	var imagesJSON []byte
 
-	err := r.DB.QueryRowContext(ctx, query, userID, workID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, workID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
+		&s.Liked, &s.Responded, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {

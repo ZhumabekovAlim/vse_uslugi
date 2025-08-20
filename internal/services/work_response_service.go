@@ -21,7 +21,7 @@ func (s *WorkResponseService) CreateWorkResponse(ctx context.Context, resp model
 		return resp, err
 	}
 
-	work, err := s.WorkRepo.GetWorkByID(ctx, resp.WorkID)
+	work, err := s.WorkRepo.GetWorkByID(ctx, resp.WorkID, 0)
 	if err != nil {
 		return resp, err
 	}
@@ -51,8 +51,7 @@ func (s *WorkResponseService) CreateWorkResponse(ctx context.Context, resp model
 		ReceiverID: work.UserID,
 		Text:       text,
 
-		ChatID:     chatID,
-
+		ChatID: chatID,
 	}); err != nil {
 		return resp, err
 	}

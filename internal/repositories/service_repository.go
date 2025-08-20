@@ -59,26 +59,29 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 	return service, nil
 }
 
-func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int) (models.Service, error) {
+func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID int) (models.Service, error) {
 	query := `
                SELECT s.id, s.name, s.address, s.price, s.user_id,
                       u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
                       s.images, s.category_id, c.name, s.subcategory_id, sub.name,
-                      s.description, s.avg_rating, s.top, s.liked, s.status, s.created_at, s.updated_at
+                      s.description, s.avg_rating, s.top, s.liked,
+                      CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
+                      s.status, s.created_at, s.updated_at
                FROM service s
                JOIN users u ON s.user_id = u.id
                JOIN categories c ON s.category_id = c.id
                JOIN subcategories sub ON s.subcategory_id = sub.id
+               LEFT JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = ?
                WHERE s.id = ?
        `
 
 	var s models.Service
 	var imagesJSON []byte
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName,
-		&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
+		&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &s.Status,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 
@@ -131,7 +134,7 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
 	if rowsAffected == 0 {
 		return models.Service{}, ErrServiceNotFound
 	}
-	return r.GetServiceByID(ctx, service.ID)
+	return r.GetServiceByID(ctx, service.ID, 0)
 }
 
 func (r *ServiceRepository) DeleteService(ctx context.Context, id int) error {
@@ -547,25 +550,27 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
                        CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
+                       CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
                        s.status, s.created_at, s.updated_at
                FROM service s
                JOIN users u ON s.user_id = u.id
                JOIN categories c ON s.category_id = c.id
                JOIN subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+               LEFT JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = ?
                WHERE s.id = ?
        `
 
 	var s models.Service
 	var imagesJSON []byte
 
-	err := r.DB.QueryRowContext(ctx, query, userID, serviceID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, serviceID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&s.Liked, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+		&s.Liked, &s.Responded, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {

@@ -21,7 +21,7 @@ func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp m
 		return resp, err
 	}
 
-	rent, err := s.RentAdRepo.GetRentAdByID(ctx, resp.RentAdID)
+	rent, err := s.RentAdRepo.GetRentAdByID(ctx, resp.RentAdID, 0)
 	if err != nil {
 		return resp, err
 	}
@@ -51,8 +51,7 @@ func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp m
 		ReceiverID: rent.UserID,
 		Text:       text,
 
-		ChatID:     chatID,
-
+		ChatID: chatID,
 	}); err != nil {
 		return resp, err
 	}

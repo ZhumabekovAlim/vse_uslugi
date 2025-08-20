@@ -59,25 +59,28 @@ func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, e
 	return ad, nil
 }
 
-func (r *AdRepository) GetAdByID(ctx context.Context, id int) (models.Ad, error) {
+func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (models.Ad, error) {
 	query := `
                SELECT s.id, s.name, s.address, s.price, s.user_id,
                       u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
                       s.images, s.category_id, c.name, s.subcategory_id, sub.name,
-                      s.description, s.avg_rating, s.top, s.liked, s.status, s.created_at, s.updated_at
+                      s.description, s.avg_rating, s.top, s.liked,
+                      CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
+                      s.status, s.created_at, s.updated_at
                FROM ad s
                JOIN users u ON s.user_id = u.id
                JOIN categories c ON s.category_id = c.id
                JOIN subcategories sub ON s.subcategory_id = sub.id
+               LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
                WHERE s.id = ?
        `
 
 	var s models.Ad
 	var imagesJSON []byte
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
+		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &s.Status,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 
@@ -130,7 +133,7 @@ func (r *AdRepository) UpdateAd(ctx context.Context, service models.Ad) (models.
 	if rowsAffected == 0 {
 		return models.Ad{}, ErrAdNotFound
 	}
-	return r.GetAdByID(ctx, service.ID)
+	return r.GetAdByID(ctx, service.ID, 0)
 }
 
 func (r *AdRepository) DeleteAd(ctx context.Context, id int) error {
@@ -553,25 +556,27 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
                        CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
+                       CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
                        s.status, s.created_at, s.updated_at
                FROM ad s
                JOIN users u ON s.user_id = u.id
                JOIN categories c ON s.category_id = c.id
                JOIN subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
+               LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
                WHERE s.id = ?
        `
 
 	var s models.Ad
 	var imagesJSON []byte
 
-	err := r.DB.QueryRowContext(ctx, query, userID, adID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, adID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&s.Liked, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+		&s.Liked, &s.Responded, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
