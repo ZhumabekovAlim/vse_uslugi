@@ -21,7 +21,7 @@ func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp m
 		return resp, err
 	}
 
-	work, err := s.WorkAdRepo.GetWorkAdByID(ctx, resp.WorkAdID)
+	work, err := s.WorkAdRepo.GetWorkAdByID(ctx, resp.WorkAdID, 0)
 	if err != nil {
 		return resp, err
 	}

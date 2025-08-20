@@ -1,22 +1,22 @@
 package handlers
 
 import (
-	_ "context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"naimuBack/internal/models"
-	"naimuBack/internal/repositories"
-	"naimuBack/internal/services"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	_ "strings"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"naimuBack/internal/models"
+	"naimuBack/internal/repositories"
+	"naimuBack/internal/services"
 )
 
 type AdHandler struct {
@@ -36,7 +36,20 @@ func (h *AdHandler) GetAdByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ad, err := h.Service.GetAdByID(r.Context(), id)
+	userID := 0
+	tokenString := r.Header.Get("Authorization")
+	if strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(signingKey), nil
+		})
+		if err == nil && token.Valid {
+			userID = int(claims.UserID)
+		}
+	}
+
+	ad, err := h.Service.GetAdByID(r.Context(), id, userID)
 	if err != nil {
 		http.Error(w, "Service not found", http.StatusNotFound)
 		return

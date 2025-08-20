@@ -22,7 +22,7 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 		return resp, err
 	}
 
-	service, err := s.ServiceRepo.GetServiceByID(ctx, resp.ServiceID)
+	service, err := s.ServiceRepo.GetServiceByID(ctx, resp.ServiceID, 0)
 	if err != nil {
 		return resp, err
 	}
@@ -51,8 +51,7 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 		ReceiverID: service.UserID,
 		Text:       text,
 
-		ChatID:     chatID,
-
+		ChatID: chatID,
 	}); err != nil {
 		return resp, err
 	}
