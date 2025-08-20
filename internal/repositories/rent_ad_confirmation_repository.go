@@ -43,7 +43,7 @@ func (r *RentAdConfirmationRepository) Confirm(ctx context.Context, rentAdID, pe
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE rent_ad SET status = 'in progress' WHERE id = ?`, rentAdID)
+	_, err = tx.ExecContext(ctx, `UPDATE rent_ad SET status = 'active' WHERE id = ?`, rentAdID)
 	if err != nil {
 		return err
 	}

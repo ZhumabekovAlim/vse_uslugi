@@ -41,6 +41,6 @@ This document demonstrates how to create a service response and confirm a perfor
   "performer_id": 5
 }
 ```
-- **Expected Result:** HTTP 200 OK. The service status changes to `in progress`, all other responses are deleted, and the chat remains for further communication.
+- **Expected Result:** HTTP 200 OK. The service status changes to `active`, all other responses are deleted, and the chat remains for further communication.
 
 In Postman, ensure you include the user's JWT token in the Authorization header (`Bearer <token>`).
