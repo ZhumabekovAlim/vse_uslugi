@@ -5,9 +5,11 @@ import (
 )
 
 type AdFavorite struct {
-	ID        int        `json:"id"`
-	UserID    int        `json:"user_id"`
-	AdID      int        `json:"ad_id"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	AdID      int       `json:"ad_id"`
+	Name      string    `json:"name"`
+	Price     float64   `json:"price"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
 }

@@ -30,7 +30,10 @@ func (r *WorkFavoriteRepository) IsWorkFavorite(ctx context.Context, userID, wor
 }
 
 func (r *WorkFavoriteRepository) GetWorkFavoritesByUser(ctx context.Context, userID int) ([]models.WorkFavorite, error) {
-	query := `SELECT id, user_id, work_id FROM work_favorites WHERE user_id = ?`
+	query := `SELECT wf.id, wf.user_id, wf.work_id, w.name, w.price, w.status, w.created_at
+                 FROM work_favorites wf
+                 JOIN work w ON wf.work_id = w.id
+                 WHERE wf.user_id = ?`
 	rows, err := r.DB.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
@@ -40,7 +43,7 @@ func (r *WorkFavoriteRepository) GetWorkFavoritesByUser(ctx context.Context, use
 	var favs []models.WorkFavorite
 	for rows.Next() {
 		var fav models.WorkFavorite
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkID)
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkID, &fav.Name, &fav.Price, &fav.Status, &fav.CreatedAt)
 		if err != nil {
 			return nil, err
 		}

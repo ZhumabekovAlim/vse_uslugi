@@ -30,7 +30,10 @@ func (r *AdFavoriteRepository) IsAdFavorite(ctx context.Context, userID, adID in
 }
 
 func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID int) ([]models.AdFavorite, error) {
-	query := `SELECT id, user_id, ad_id FROM ad_favorites WHERE user_id = ?`
+	query := `SELECT af.id, af.user_id, af.ad_id, a.name, a.price, a.status, a.created_at
+                 FROM ad_favorites af
+                 JOIN ad a ON af.ad_id = a.id
+                 WHERE af.user_id = ?`
 	rows, err := r.DB.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
@@ -40,7 +43,7 @@ func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID 
 	var favs []models.AdFavorite
 	for rows.Next() {
 		var fav models.AdFavorite
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.AdID)
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.AdID, &fav.Name, &fav.Price, &fav.Status, &fav.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
