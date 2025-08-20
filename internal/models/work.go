@@ -26,6 +26,7 @@ type Work struct {
 	AvgRating       float64     `json:"avg_rating"`
 	Top             string      `json:"top, omitempty"`
 	Liked           bool        `json:"liked, omitempty"`
+	Responded       bool        `json:"is_responded"`
 	Status          string      `json:"status, omitempty"`
 	CategoryName    string      `json:"category_name"`
 	SubcategoryName string      `json:"subcategory_name"`

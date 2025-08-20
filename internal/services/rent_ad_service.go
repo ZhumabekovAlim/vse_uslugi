@@ -14,8 +14,8 @@ func (s *RentAdService) CreateRentAd(ctx context.Context, work models.RentAd) (m
 	return s.RentAdRepo.CreateRentAd(ctx, work)
 }
 
-func (s *RentAdService) GetRentAdByID(ctx context.Context, id int) (models.RentAd, error) {
-	return s.RentAdRepo.GetRentAdByID(ctx, id)
+func (s *RentAdService) GetRentAdByID(ctx context.Context, id int, userID int) (models.RentAd, error) {
+	return s.RentAdRepo.GetRentAdByID(ctx, id, userID)
 }
 
 func (s *RentAdService) UpdateRentAd(ctx context.Context, work models.RentAd) (models.RentAd, error) {

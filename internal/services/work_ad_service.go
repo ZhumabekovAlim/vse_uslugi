@@ -14,8 +14,8 @@ func (s *WorkAdService) CreateWorkAd(ctx context.Context, work models.WorkAd) (m
 	return s.WorkAdRepo.CreateWorkAd(ctx, work)
 }
 
-func (s *WorkAdService) GetWorkAdByID(ctx context.Context, id int) (models.WorkAd, error) {
-	return s.WorkAdRepo.GetWorkAdByID(ctx, id)
+func (s *WorkAdService) GetWorkAdByID(ctx context.Context, id int, userID int) (models.WorkAd, error) {
+	return s.WorkAdRepo.GetWorkAdByID(ctx, id, userID)
 }
 
 func (s *WorkAdService) UpdateWorkAd(ctx context.Context, work models.WorkAd) (models.WorkAd, error) {

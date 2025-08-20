@@ -14,8 +14,8 @@ func (s *AdService) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, erro
 	return s.AdRepo.CreateAd(ctx, ad)
 }
 
-func (s *AdService) GetAdByID(ctx context.Context, id int) (models.Ad, error) {
-	return s.AdRepo.GetAdByID(ctx, id)
+func (s *AdService) GetAdByID(ctx context.Context, id int, userID int) (models.Ad, error) {
+	return s.AdRepo.GetAdByID(ctx, id, userID)
 }
 
 func (s *AdService) UpdateAd(ctx context.Context, service models.Ad) (models.Ad, error) {

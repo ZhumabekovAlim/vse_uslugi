@@ -22,13 +22,13 @@ func (s *ServiceService) CreateService(ctx context.Context, service models.Servi
 	return s.ServiceRepo.CreateService(ctx, service)
 }
 
-func (s *ServiceService) GetServiceByID(ctx context.Context, id int) (models.Service, error) {
-	return s.ServiceRepo.GetServiceByID(ctx, id)
+func (s *ServiceService) GetServiceByID(ctx context.Context, id int, userID int) (models.Service, error) {
+	return s.ServiceRepo.GetServiceByID(ctx, id, userID)
 }
 
 func (s *ServiceService) UpdateService(ctx context.Context, service models.Service) (models.Service, error) {
 	if service.Status == "active" {
-		existing, err := s.ServiceRepo.GetServiceByID(ctx, service.ID)
+		existing, err := s.ServiceRepo.GetServiceByID(ctx, service.ID, 0)
 		if err != nil {
 			return models.Service{}, err
 		}
