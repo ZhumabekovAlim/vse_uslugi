@@ -43,7 +43,7 @@ func (r *AdConfirmationRepository) Confirm(ctx context.Context, adID, performerI
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE ad SET status = 'in progress' WHERE id = ?`, adID)
+	_, err = tx.ExecContext(ctx, `UPDATE ad SET status = 'active' WHERE id = ?`, adID)
 	if err != nil {
 		return err
 	}
