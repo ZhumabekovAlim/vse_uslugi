@@ -30,7 +30,10 @@ func (r *RentAdFavoriteRepository) IsRentAdFavorite(ctx context.Context, userID,
 }
 
 func (r *RentAdFavoriteRepository) GetRentAdFavoritesByUser(ctx context.Context, userID int) ([]models.RentAdFavorite, error) {
-	query := `SELECT id, user_id, rent_ad_id FROM rent_ad_favorites WHERE user_id = ?`
+	query := `SELECT rf.id, rf.user_id, rf.rent_ad_id, ra.name, ra.price, ra.status, ra.created_at
+                 FROM rent_ad_favorites rf
+                 JOIN rent_ad ra ON rf.rent_ad_id = ra.id
+                 WHERE rf.user_id = ?`
 	rows, err := r.DB.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
@@ -40,7 +43,7 @@ func (r *RentAdFavoriteRepository) GetRentAdFavoritesByUser(ctx context.Context,
 	var favs []models.RentAdFavorite
 	for rows.Next() {
 		var fav models.RentAdFavorite
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.RentAdID)
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.RentAdID, &fav.Name, &fav.Price, &fav.Status, &fav.CreatedAt)
 		if err != nil {
 			return nil, err
 		}

@@ -30,7 +30,10 @@ func (r *ServiceFavoriteRepository) IsFavorite(ctx context.Context, userID, serv
 }
 
 func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, userID int) ([]models.ServiceFavorite, error) {
-	query := `SELECT id, user_id, service_id FROM service_favorites WHERE user_id = ?`
+	query := `SELECT sf.id, sf.user_id, sf.service_id, s.name, s.price, s.status, s.created_at
+                 FROM service_favorites sf
+                 JOIN service s ON sf.service_id = s.id
+                 WHERE sf.user_id = ?`
 	rows, err := r.DB.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
@@ -40,7 +43,7 @@ func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, user
 	var favs []models.ServiceFavorite
 	for rows.Next() {
 		var fav models.ServiceFavorite
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.ServiceID)
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.ServiceID, &fav.Name, &fav.Price, &fav.Status, &fav.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
