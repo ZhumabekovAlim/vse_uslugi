@@ -47,6 +47,10 @@ func (r *ServiceConfirmationRepository) Confirm(ctx context.Context, serviceID, 
 	if err != nil {
 		return err
 	}
+	_, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, performerID)
+	if err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
