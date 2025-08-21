@@ -26,6 +26,10 @@ func (s *AdService) DeleteAd(ctx context.Context, id int) error {
 	return s.AdRepo.DeleteAd(ctx, id)
 }
 
+func (s *AdService) ArchiveAd(ctx context.Context, id int) error {
+	return s.AdRepo.UpdateStatus(ctx, id, "archive")
+}
+
 func (s *AdService) GetFilteredAd(ctx context.Context, filter models.AdFilterRequest, userID int) (models.AdListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1

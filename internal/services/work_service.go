@@ -49,6 +49,10 @@ func (s *WorkService) DeleteWork(ctx context.Context, id int) error {
 	return s.WorkRepo.DeleteWork(ctx, id)
 }
 
+func (s *WorkService) ArchiveWork(ctx context.Context, id int) error {
+	return s.WorkRepo.UpdateStatus(ctx, id, "archive")
+}
+
 func (s *WorkService) GetFilteredWorks(ctx context.Context, filter models.WorkFilterRequest, userID int) (models.WorkListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1

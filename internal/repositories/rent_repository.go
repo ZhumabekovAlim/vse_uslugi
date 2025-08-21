@@ -152,6 +152,22 @@ func (r *RentRepository) DeleteRent(ctx context.Context, id int) error {
 	}
 	return nil
 }
+
+func (r *RentRepository) UpdateStatus(ctx context.Context, id int, status string) error {
+	query := `UPDATE rent SET status = ?, updated_at = ? WHERE id = ?`
+	res, err := r.DB.ExecContext(ctx, query, status, time.Now(), id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrRentNotFound
+	}
+	return nil
+}
 func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Rent, float64, float64, error) {
 	var (
 		rents      []models.Rent

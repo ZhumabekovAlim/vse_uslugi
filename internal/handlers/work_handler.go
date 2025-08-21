@@ -87,6 +87,21 @@ func (h *WorkHandler) DeleteWork(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *WorkHandler) ArchiveWork(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		WorkID int `json:"work_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.ArchiveWork(r.Context(), req.WorkID); err != nil {
+		http.Error(w, "Failed to archive work", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func (h *WorkHandler) GetWorks(w http.ResponseWriter, r *http.Request) {
 	// Чтение query-параметров
 	categories := parseIntArrayWork(r.URL.Query().Get("categories"))

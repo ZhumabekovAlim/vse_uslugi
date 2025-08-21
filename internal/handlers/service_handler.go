@@ -87,6 +87,21 @@ func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *ServiceHandler) ArchiveService(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ServiceID int `json:"service_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.ArchiveService(r.Context(), req.ServiceID); err != nil {
+		http.Error(w, "Failed to archive service", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
 	// Чтение query-параметров
 	categories := parseIntArray(r.URL.Query().Get("categories"))

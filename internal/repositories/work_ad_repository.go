@@ -156,6 +156,22 @@ func (r *WorkAdRepository) DeleteWorkAd(ctx context.Context, id int) error {
 	}
 	return nil
 }
+
+func (r *WorkAdRepository) UpdateStatus(ctx context.Context, id int, status string) error {
+	query := `UPDATE work_ad SET status = ?, updated_at = ? WHERE id = ?`
+	res, err := r.DB.ExecContext(ctx, query, status, time.Now(), id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrWorkAdNotFound
+	}
+	return nil
+}
 func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.WorkAd, float64, float64, error) {
 	var (
 		works_ad   []models.WorkAd

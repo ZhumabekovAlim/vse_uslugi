@@ -49,6 +49,10 @@ func (s *RentService) DeleteRent(ctx context.Context, id int) error {
 	return s.RentRepo.DeleteRent(ctx, id)
 }
 
+func (s *RentService) ArchiveRent(ctx context.Context, id int) error {
+	return s.RentRepo.UpdateStatus(ctx, id, "archive")
+}
+
 func (s *RentService) GetFilteredRents(ctx context.Context, filter models.RentFilterRequest, userID int) (models.RentListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1

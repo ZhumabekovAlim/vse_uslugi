@@ -151,6 +151,22 @@ func (r *AdRepository) DeleteAd(ctx context.Context, id int) error {
 	}
 	return nil
 }
+
+func (r *AdRepository) UpdateStatus(ctx context.Context, id int, status string) error {
+	query := `UPDATE ad SET status = ?, updated_at = ? WHERE id = ?`
+	res, err := r.DB.ExecContext(ctx, query, status, time.Now(), id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrAdNotFound
+	}
+	return nil
+}
 func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Ad, float64, float64, error) {
 	var (
 		ads        []models.Ad
