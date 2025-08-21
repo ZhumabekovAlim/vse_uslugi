@@ -152,6 +152,22 @@ func (r *ServiceRepository) DeleteService(ctx context.Context, id int) error {
 	}
 	return nil
 }
+
+func (r *ServiceRepository) UpdateStatus(ctx context.Context, id int, status string) error {
+	query := `UPDATE service SET status = ?, updated_at = ? WHERE id = ?`
+	res, err := r.DB.ExecContext(ctx, query, status, time.Now(), id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrServiceNotFound
+	}
+	return nil
+}
 func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Service, float64, float64, error) {
 	var (
 		services   []models.Service

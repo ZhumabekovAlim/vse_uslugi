@@ -87,6 +87,21 @@ func (h *WorkAdHandler) DeleteWorkAd(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *WorkAdHandler) ArchiveWorkAd(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		WorkAdID int `json:"work_ad_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.ArchiveWorkAd(r.Context(), req.WorkAdID); err != nil {
+		http.Error(w, "Failed to archive work ad", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func (h *WorkAdHandler) GetWorksAd(w http.ResponseWriter, r *http.Request) {
 	// Чтение query-параметров
 	categories := parseIntArrayWorkAd(r.URL.Query().Get("categories"))

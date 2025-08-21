@@ -54,11 +54,12 @@ func (app *application) routes() http.Handler {
 	mux.Get("/ads", standardMiddleware.ThenFunc(app.adHandler.GetAds))
 
 	// Service
-	mux.Post("/service", authMiddleware.ThenFunc(app.serviceHandler.CreateService))                                 //РАБОТАЕТ
-	mux.Get("/service/get", standardMiddleware.ThenFunc(app.serviceHandler.GetServices))                            //РАБОТАЕТ
-	mux.Get("/service/:id", standardMiddleware.ThenFunc(app.serviceHandler.GetServiceByID))                         //РАБОТАЕТ
-	mux.Put("/service/:id", authMiddleware.ThenFunc(app.serviceHandler.UpdateService))                              //РАБОТАЕТ
-	mux.Del("/service/:id", authMiddleware.ThenFunc(app.serviceHandler.DeleteService))                              //РАБОТАЕТ
+	mux.Post("/service", authMiddleware.ThenFunc(app.serviceHandler.CreateService))         //РАБОТАЕТ
+	mux.Get("/service/get", standardMiddleware.ThenFunc(app.serviceHandler.GetServices))    //РАБОТАЕТ
+	mux.Get("/service/:id", standardMiddleware.ThenFunc(app.serviceHandler.GetServiceByID)) //РАБОТАЕТ
+	mux.Put("/service/:id", authMiddleware.ThenFunc(app.serviceHandler.UpdateService))      //РАБОТАЕТ
+	mux.Del("/service/:id", authMiddleware.ThenFunc(app.serviceHandler.DeleteService))      //РАБОТАЕТ
+	mux.Post("/service/archive", authMiddleware.ThenFunc(app.serviceHandler.ArchiveService))
 	mux.Get("/service/sort/:type/user/:user_id", standardMiddleware.ThenFunc(app.serviceHandler.GetServicesSorted)) //user_id - id пользователя который авторизован
 	mux.Get("/service/user/:user_id", standardMiddleware.ThenFunc(app.serviceHandler.GetServiceByUserID))           //РАБОТАЕТ
 	mux.Post("/service/filtered", standardMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesPost))          //РАБОТАЕТ
@@ -202,6 +203,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/work/:id", standardMiddleware.ThenFunc(app.workHandler.GetWorkByID))
 	mux.Put("/work/:id", authMiddleware.ThenFunc(app.workHandler.UpdateWork))
 	mux.Del("/work/:id", authMiddleware.ThenFunc(app.workHandler.DeleteWork))
+	mux.Post("/work/archive", authMiddleware.ThenFunc(app.workHandler.ArchiveWork))
 	mux.Get("/work/user/:user_id", authMiddleware.ThenFunc(app.workHandler.GetWorksByUserID))
 	mux.Post("/work/filtered", standardMiddleware.ThenFunc(app.workHandler.GetFilteredWorksPost))
 	mux.Post("/work/status", authMiddleware.ThenFunc(app.workHandler.GetWorksByStatusAndUserID))
@@ -233,6 +235,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/rent/:id", standardMiddleware.ThenFunc(app.rentHandler.GetRentByID))
 	mux.Put("/rent/:id", authMiddleware.ThenFunc(app.rentHandler.UpdateRent))
 	mux.Del("/rent/:id", authMiddleware.ThenFunc(app.rentHandler.DeleteRent))
+	mux.Post("/rent/archive", authMiddleware.ThenFunc(app.rentHandler.ArchiveRent))
 	mux.Get("/rent/user/:user_id", authMiddleware.ThenFunc(app.rentHandler.GetRentsByUserID))
 	mux.Post("/rent/filtered", standardMiddleware.ThenFunc(app.rentHandler.GetFilteredRentsPost))
 	mux.Post("/rent/status", authMiddleware.ThenFunc(app.rentHandler.GetRentsByStatusAndUserID))
@@ -264,6 +267,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/ad/:id", standardMiddleware.ThenFunc(app.adHandler.GetAdByID))
 	mux.Put("/ad/:id", authMiddleware.ThenFunc(app.adHandler.UpdateAd))
 	mux.Del("/ad/:id", authMiddleware.ThenFunc(app.adHandler.DeleteAd))
+	mux.Post("/ad/archive", authMiddleware.ThenFunc(app.adHandler.ArchiveAd))
 	mux.Get("/ad/user/:user_id", authMiddleware.ThenFunc(app.adHandler.GetAdByUserID))
 	mux.Post("/ad/filtered", standardMiddleware.ThenFunc(app.adHandler.GetFilteredAdPost))
 	mux.Post("/ad/status", authMiddleware.ThenFunc(app.adHandler.GetAdByStatusAndUserID))
@@ -295,6 +299,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/work_ad/:id", standardMiddleware.ThenFunc(app.workAdHandler.GetWorkAdByID))
 	mux.Put("/work_ad/:id", authMiddleware.ThenFunc(app.workAdHandler.UpdateWorkAd))
 	mux.Del("/work_ad/:id", authMiddleware.ThenFunc(app.workAdHandler.DeleteWorkAd))
+	mux.Post("/work_ad/archive", authMiddleware.ThenFunc(app.workAdHandler.ArchiveWorkAd))
 	mux.Get("/work_ad/user/:user_id", authMiddleware.ThenFunc(app.workAdHandler.GetWorksAdByUserID))
 	mux.Post("/work_ad/filtered", standardMiddleware.ThenFunc(app.workAdHandler.GetFilteredWorksAdPost))
 	mux.Post("/work_ad/status", authMiddleware.ThenFunc(app.workAdHandler.GetWorksAdByStatusAndUserID))
@@ -326,6 +331,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/rent_ad/:id", standardMiddleware.ThenFunc(app.rentAdHandler.GetRentAdByID))
 	mux.Put("/rent_ad/:id", authMiddleware.ThenFunc(app.rentAdHandler.UpdateRentAd))
 	mux.Del("/rent_ad/:id", authMiddleware.ThenFunc(app.rentAdHandler.DeleteRentAd))
+	mux.Post("/rent_ad/archive", authMiddleware.ThenFunc(app.rentAdHandler.ArchiveRentAd))
 	mux.Get("/rent_ad/user/:user_id", authMiddleware.ThenFunc(app.rentAdHandler.GetRentsAdByUserID))
 	mux.Post("/rent_ad/filtered", standardMiddleware.ThenFunc(app.rentAdHandler.GetFilteredRentsAdPost))
 	mux.Post("/rent_ad/status", authMiddleware.ThenFunc(app.rentAdHandler.GetRentsAdByStatusAndUserID))

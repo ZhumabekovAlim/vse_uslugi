@@ -49,6 +49,10 @@ func (s *ServiceService) DeleteService(ctx context.Context, id int) error {
 	return s.ServiceRepo.DeleteService(ctx, id)
 }
 
+func (s *ServiceService) ArchiveService(ctx context.Context, id int) error {
+	return s.ServiceRepo.UpdateStatus(ctx, id, "archive")
+}
+
 func (s *ServiceService) GetFilteredServices(ctx context.Context, filter models.ServiceFilterRequest, userID int) (models.ServiceListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1

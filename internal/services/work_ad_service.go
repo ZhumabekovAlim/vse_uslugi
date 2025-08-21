@@ -26,6 +26,10 @@ func (s *WorkAdService) DeleteWorkAd(ctx context.Context, id int) error {
 	return s.WorkAdRepo.DeleteWorkAd(ctx, id)
 }
 
+func (s *WorkAdService) ArchiveWorkAd(ctx context.Context, id int) error {
+	return s.WorkAdRepo.UpdateStatus(ctx, id, "archive")
+}
+
 func (s *WorkAdService) GetFilteredWorksAd(ctx context.Context, filter models.WorkAdFilterRequest, userID int) (models.WorkAdListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1

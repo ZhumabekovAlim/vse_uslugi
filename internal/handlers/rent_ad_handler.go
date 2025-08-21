@@ -87,6 +87,21 @@ func (h *RentAdHandler) DeleteRentAd(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *RentAdHandler) ArchiveRentAd(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RentAdID int `json:"rent_ad_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.ArchiveRentAd(r.Context(), req.RentAdID); err != nil {
+		http.Error(w, "Failed to archive rent ad", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func (h *RentAdHandler) GetRentsAd(w http.ResponseWriter, r *http.Request) {
 	// Чтение query-параметров
 	categories := parseIntArrayRentAd(r.URL.Query().Get("categories"))

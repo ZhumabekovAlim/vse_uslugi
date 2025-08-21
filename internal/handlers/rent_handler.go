@@ -87,6 +87,21 @@ func (h *RentHandler) DeleteRent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *RentHandler) ArchiveRent(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RentID int `json:"rent_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.ArchiveRent(r.Context(), req.RentID); err != nil {
+		http.Error(w, "Failed to archive rent", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func (h *RentHandler) GetRents(w http.ResponseWriter, r *http.Request) {
 	// Чтение query-параметров
 	categories := parseIntArrayRent(r.URL.Query().Get("categories"))

@@ -26,6 +26,10 @@ func (s *RentAdService) DeleteRentAd(ctx context.Context, id int) error {
 	return s.RentAdRepo.DeleteRentAd(ctx, id)
 }
 
+func (s *RentAdService) ArchiveRentAd(ctx context.Context, id int) error {
+	return s.RentAdRepo.UpdateStatus(ctx, id, "archive")
+}
+
 func (s *RentAdService) GetFilteredRentsAd(ctx context.Context, filter models.RentAdFilterRequest, userID int) (models.RentAdListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1

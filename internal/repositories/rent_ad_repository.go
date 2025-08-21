@@ -152,6 +152,22 @@ func (r *RentAdRepository) DeleteRentAd(ctx context.Context, id int) error {
 	}
 	return nil
 }
+
+func (r *RentAdRepository) UpdateStatus(ctx context.Context, id int, status string) error {
+	query := `UPDATE rent_ad SET status = ?, updated_at = ? WHERE id = ?`
+	res, err := r.DB.ExecContext(ctx, query, status, time.Now(), id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrRentAdNotFound
+	}
+	return nil
+}
 func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.RentAd, float64, float64, error) {
 	var (
 		rents      []models.RentAd
