@@ -31,11 +31,14 @@ func (r *AdReviewRepository) CreateAdReview(ctx context.Context, rev models.AdRe
 
 func (r *AdReviewRepository) GetReviewsByAdID(ctx context.Context, adID int) ([]models.AdReviews, error) {
 	query := `
-		SELECT id, user_id, ad_id, rating, review, created_at, updated_at
-		FROM ad_reviews
-		WHERE ad_id = ?
-		ORDER BY created_at DESC
-	`
+               SELECT ar.id, ar.user_id, ar.ad_id, ar.rating, ar.review,
+                      u.name, u.surname, u.avatar_path,
+                      ar.created_at, ar.updated_at
+               FROM ad_reviews ar
+               JOIN users u ON ar.user_id = u.id
+               WHERE ar.ad_id = ?
+               ORDER BY ar.created_at DESC
+       `
 	rows, err := r.DB.QueryContext(ctx, query, adID)
 	if err != nil {
 		return nil, err
@@ -45,7 +48,9 @@ func (r *AdReviewRepository) GetReviewsByAdID(ctx context.Context, adID int) ([]
 	reviews := []models.AdReviews{}
 	for rows.Next() {
 		var rev models.AdReviews
-		err := rows.Scan(&rev.ID, &rev.UserID, &rev.AdID, &rev.Rating, &rev.Review, &rev.CreatedAt, &rev.UpdatedAt)
+		err := rows.Scan(&rev.ID, &rev.UserID, &rev.AdID, &rev.Rating, &rev.Review,
+			&rev.UserName, &rev.UserSurname, &rev.UserAvatarPath,
+			&rev.CreatedAt, &rev.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
