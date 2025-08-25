@@ -31,11 +31,14 @@ func (r *ReviewRepository) CreateReview(ctx context.Context, rev models.Reviews)
 
 func (r *ReviewRepository) GetReviewsByServiceID(ctx context.Context, serviceID int) ([]models.Reviews, error) {
 	query := `
-		SELECT id, user_id, service_id, rating, review, created_at, updated_at
-		FROM reviews
-		WHERE service_id = ?
-		ORDER BY created_at DESC
-	`
+               SELECT r.id, r.user_id, r.service_id, r.rating, r.review,
+                      u.name, u.surname, u.avatar_path,
+                      r.created_at, r.updated_at
+               FROM reviews r
+               JOIN users u ON r.user_id = u.id
+               WHERE r.service_id = ?
+               ORDER BY r.created_at DESC
+       `
 	rows, err := r.DB.QueryContext(ctx, query, serviceID)
 	if err != nil {
 		return nil, err
@@ -45,7 +48,9 @@ func (r *ReviewRepository) GetReviewsByServiceID(ctx context.Context, serviceID 
 	reviews := []models.Reviews{}
 	for rows.Next() {
 		var rev models.Reviews
-		err := rows.Scan(&rev.ID, &rev.UserID, &rev.ServiceID, &rev.Rating, &rev.Review, &rev.CreatedAt, &rev.UpdatedAt)
+		err := rows.Scan(&rev.ID, &rev.UserID, &rev.ServiceID, &rev.Rating, &rev.Review,
+			&rev.UserName, &rev.UserSurname, &rev.UserAvatarPath,
+			&rev.CreatedAt, &rev.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
