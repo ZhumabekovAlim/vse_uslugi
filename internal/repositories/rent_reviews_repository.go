@@ -31,11 +31,14 @@ func (r *RentReviewRepository) CreateRentReview(ctx context.Context, rev models.
 
 func (r *RentReviewRepository) GetRentReviewsByRentID(ctx context.Context, rentID int) ([]models.RentReviews, error) {
 	query := `
-		SELECT id, user_id, rent_id, rating, review, created_at, updated_at
-		FROM rent_reviews
-		WHERE rent_id = ?
-		ORDER BY created_at DESC
-	`
+               SELECT rr.id, rr.user_id, rr.rent_id, rr.rating, rr.review,
+                      u.name, u.surname, u.avatar_path,
+                      rr.created_at, rr.updated_at
+               FROM rent_reviews rr
+               JOIN users u ON rr.user_id = u.id
+               WHERE rr.rent_id = ?
+               ORDER BY rr.created_at DESC
+       `
 	rows, err := r.DB.QueryContext(ctx, query, rentID)
 	if err != nil {
 		return nil, err
@@ -45,9 +48,14 @@ func (r *RentReviewRepository) GetRentReviewsByRentID(ctx context.Context, rentI
 	reviews := []models.RentReviews{}
 	for rows.Next() {
 		var rev models.RentReviews
-		err := rows.Scan(&rev.ID, &rev.UserID, &rev.RentID, &rev.Rating, &rev.Review, &rev.CreatedAt, &rev.UpdatedAt)
+		err := rows.Scan(&rev.ID, &rev.UserID, &rev.RentID, &rev.Rating, &rev.Review,
+			&rev.UserName, &rev.UserSurname, &rev.UserAvatarPath,
+			&rev.CreatedAt, &rev.UpdatedAt)
 		if err != nil {
 			return nil, err
+		}
+		if rev.UserAvatarPath != nil && *rev.UserAvatarPath == "" {
+			rev.UserAvatarPath = nil
 		}
 		reviews = append(reviews, rev)
 	}

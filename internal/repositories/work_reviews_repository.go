@@ -31,11 +31,14 @@ func (r *WorkReviewRepository) CreateWorkReview(ctx context.Context, rev models.
 
 func (r *WorkReviewRepository) GetWorkReviewsByWorkID(ctx context.Context, workID int) ([]models.WorkReviews, error) {
 	query := `
-		SELECT id, user_id, work_id, rating, review, created_at, updated_at
-		FROM work_reviews
-		WHERE work_id = ?
-		ORDER BY created_at DESC
-	`
+               SELECT wr.id, wr.user_id, wr.work_id, wr.rating, wr.review,
+                      u.name, u.surname, u.avatar_path,
+                      wr.created_at, wr.updated_at
+               FROM work_reviews wr
+               JOIN users u ON wr.user_id = u.id
+               WHERE wr.work_id = ?
+               ORDER BY wr.created_at DESC
+       `
 	rows, err := r.DB.QueryContext(ctx, query, workID)
 	if err != nil {
 		return nil, err
@@ -45,9 +48,14 @@ func (r *WorkReviewRepository) GetWorkReviewsByWorkID(ctx context.Context, workI
 	reviews := []models.WorkReviews{}
 	for rows.Next() {
 		var rev models.WorkReviews
-		err := rows.Scan(&rev.ID, &rev.UserID, &rev.WorkID, &rev.Rating, &rev.Review, &rev.CreatedAt, &rev.UpdatedAt)
+		err := rows.Scan(&rev.ID, &rev.UserID, &rev.WorkID, &rev.Rating, &rev.Review,
+			&rev.UserName, &rev.UserSurname, &rev.UserAvatarPath,
+			&rev.CreatedAt, &rev.UpdatedAt)
 		if err != nil {
 			return nil, err
+		}
+		if rev.UserAvatarPath != nil && *rev.UserAvatarPath == "" {
+			rev.UserAvatarPath = nil
 		}
 		reviews = append(reviews, rev)
 	}
