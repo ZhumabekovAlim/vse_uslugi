@@ -54,6 +54,9 @@ func (r *ReviewRepository) GetReviewsByServiceID(ctx context.Context, serviceID 
 		if err != nil {
 			return nil, err
 		}
+		if rev.UserAvatarPath != nil && *rev.UserAvatarPath == "" {
+			rev.UserAvatarPath = nil
+		}
 		reviews = append(reviews, rev)
 	}
 	return reviews, nil

@@ -54,6 +54,9 @@ func (r *RentReviewRepository) GetRentReviewsByRentID(ctx context.Context, rentI
 		if err != nil {
 			return nil, err
 		}
+		if rev.UserAvatarPath != nil && *rev.UserAvatarPath == "" {
+			rev.UserAvatarPath = nil
+		}
 		reviews = append(reviews, rev)
 	}
 	return reviews, nil
