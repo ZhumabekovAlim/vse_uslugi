@@ -335,7 +335,7 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 	query := `
       SELECT
               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-              s.id, s.name, s.price, s.description
+              s.id, s.name, s.price, s.description, s.latitude, s.longitude
       FROM ad s
       JOIN users u ON s.user_id = u.id
       WHERE 1=1
@@ -398,7 +398,7 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 		var s models.FilteredAd
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription,
+			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &s.AdLatitude, &s.AdLongitude,
 		); err != nil {
 			return nil, err
 		}
@@ -459,7 +459,7 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 	query := `
    SELECT DISTINCT
            u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-           s.id, s.name, s.price, s.description,
+           s.id, s.name, s.price, s.description, s.latitude, s.longitude,
            CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
            CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded
    FROM ad s
@@ -542,7 +542,7 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 		var s models.FilteredAd
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &s.Liked, &s.Responded,
+			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &s.AdLatitude, &s.AdLongitude, &s.Liked, &s.Responded,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)

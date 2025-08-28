@@ -83,6 +83,8 @@ type FilteredRentAd struct {
 	RentAdName        string  `json:"rentad_name"`
 	RentAdPrice       float64 `json:"rentad_price"`
 	RentAdDescription string  `json:"rentad_description"`
+	RentAdLatitude    string  `json:"latitude"`
+	RentAdLongitude   string  `json:"longitude"`
 	Liked             bool    `json:"liked"`
 	Responded         bool    `json:"is_responded"`
 }
