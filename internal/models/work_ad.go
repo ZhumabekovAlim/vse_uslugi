@@ -88,6 +88,8 @@ type FilteredWorkAd struct {
 	WorkAdName        string  `json:"workad_name"`
 	WorkAdPrice       float64 `json:"workad_price"`
 	WorkAdDescription string  `json:"workad_description"`
+	WorkAdLatitude    string  `json:"latitude"`
+	WorkAdLongitude   string  `json:"longitude"`
 	Liked             bool    `json:"liked"`
 	Responded         bool    `json:"is_responded"`
 }

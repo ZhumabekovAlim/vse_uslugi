@@ -81,6 +81,8 @@ type FilteredAd struct {
 	AdName           string  `json:"ad_name"`
 	AdPrice          float64 `json:"ad_price"`
 	AdDescription    string  `json:"ad_description"`
+	AdLatitude       *string `json:"latitude"`
+	AdLongitude      *string `json:"longitude"`
 	Liked            bool    `json:"liked"`
 	Responded        bool    `json:"is_responded"`
 }

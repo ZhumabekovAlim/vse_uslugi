@@ -336,7 +336,7 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 	query := `
       SELECT
               u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-              s.id, s.name, s.price, s.description
+              s.id, s.name, s.price, s.description, s.latitude, s.longitude
       FROM service s
       JOIN users u ON s.user_id = u.id
       WHERE 1=1
@@ -399,7 +399,7 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 		var s models.FilteredService
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.ServiceLatitude, &s.ServiceLongitude,
 		); err != nil {
 			return nil, err
 		}
@@ -460,7 +460,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	query := `
    SELECT DISTINCT
           u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-          s.id, s.name, s.price, s.description,
+          s.id, s.name, s.price, s.description, s.latitude, s.longitude,
           CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
           CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded
    FROM service s
@@ -536,7 +536,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		var s models.FilteredService
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked, &s.Responded,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.ServiceLatitude, &s.ServiceLongitude, &s.Liked, &s.Responded,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
