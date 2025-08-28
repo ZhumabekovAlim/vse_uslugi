@@ -396,11 +396,20 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 	var ads []models.FilteredAd
 	for rows.Next() {
 		var s models.FilteredAd
+		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &s.AdLatitude, &s.AdLongitude,
+
+			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon,
+
 		); err != nil {
 			return nil, err
+		}
+		if lat.Valid {
+			s.AdLatitude = &lat.String
+		}
+		if lon.Valid {
+			s.AdLongitude = &lon.String
 		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
@@ -540,12 +549,21 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 	var ads []models.FilteredAd
 	for rows.Next() {
 		var s models.FilteredAd
+		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &s.AdLatitude, &s.AdLongitude, &s.Liked, &s.Responded,
+
+			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon, &s.Liked, &s.Responded,
+
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		if lat.Valid {
+			s.AdLatitude = &lat.String
+		}
+		if lon.Valid {
+			s.AdLongitude = &lon.String
 		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {

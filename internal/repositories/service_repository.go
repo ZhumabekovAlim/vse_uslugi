@@ -397,11 +397,20 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 	var services []models.FilteredService
 	for rows.Next() {
 		var s models.FilteredService
+		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.ServiceLatitude, &s.ServiceLongitude,
+
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon,
+
 		); err != nil {
 			return nil, err
+		}
+		if lat.Valid {
+			s.ServiceLatitude = &lat.String
+		}
+		if lon.Valid {
+			s.ServiceLongitude = &lon.String
 		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
@@ -534,12 +543,21 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	var services []models.FilteredService
 	for rows.Next() {
 		var s models.FilteredService
+		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.ServiceLatitude, &s.ServiceLongitude, &s.Liked, &s.Responded,
+
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &s.Liked, &s.Responded,
+
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		if lat.Valid {
+			s.ServiceLatitude = &lat.String
+		}
+		if lon.Valid {
+			s.ServiceLongitude = &lon.String
 		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
