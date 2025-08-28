@@ -328,7 +328,9 @@ func (r *RentAdRepository) GetRentsAdByUserID(ctx context.Context, userID int) (
 func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req models.FilterRentAdRequest) ([]models.FilteredRentAd, error) {
 	query := `
       SELECT
-              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+
+              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+
               s.id, s.name, s.price, s.description, s.latitude, s.longitude
       FROM rent_ad s
       JOIN users u ON s.user_id = u.id
@@ -452,7 +454,9 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 
 	query := `
    SELECT DISTINCT
-           u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+
+           u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+
            s.id, s.name, s.price, s.description, s.latitude, s.longitude,
            CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
            CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded

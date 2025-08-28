@@ -19,37 +19,48 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 	switch itemType {
 	case "service":
 		query = `
-            SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, sr.price, sr.description, sr.created_at
+
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), sr.price, sr.description, sr.created_at
+
             FROM service_responses sr
             JOIN users u ON u.id = sr.user_id
             WHERE sr.service_id = ?`
 	case "ad":
 		query = `
-            SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, ar.price, ar.description, ar.created_at
+
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), ar.price, ar.description, ar.created_at
+
             FROM ad_responses ar
             JOIN users u ON u.id = ar.user_id
             WHERE ar.ad_id = ?`
 	case "work":
 		query = `
-            SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, wr.price, wr.description, wr.created_at
+
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), wr.price, wr.description, wr.created_at
+
             FROM work_responses wr
             JOIN users u ON u.id = wr.user_id
             WHERE wr.work_id = ?`
 	case "work_ad":
 		query = `
-            SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, war.price, war.description, war.created_at
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), war.price, war.description, war.created_at
+
             FROM work_ad_responses war
             JOIN users u ON u.id = war.user_id
             WHERE war.work_ad_id = ?`
 	case "rent":
 		query = `
-            SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, rr.price, rr.description, rr.created_at
+
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), rr.price, rr.description, rr.created_at
+
             FROM rent_responses rr
             JOIN users u ON u.id = rr.user_id
             WHERE rr.rent_id = ?`
 	case "rent_ad":
 		query = `
-            SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, rar.price, rar.description, rar.created_at
+
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), rar.price, rar.description, rar.created_at
+
             FROM rent_ad_responses rar
             JOIN users u ON u.id = rar.user_id
             WHERE rar.rent_ad_id = ?`

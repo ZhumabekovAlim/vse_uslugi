@@ -335,7 +335,9 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
 	query := `
       SELECT
-              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+
+              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+
               s.id, s.name, s.price, s.description, s.latitude, s.longitude
       FROM service s
       JOIN users u ON s.user_id = u.id
@@ -468,7 +470,9 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 
 	query := `
    SELECT DISTINCT
-          u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
+
+          u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+
           s.id, s.name, s.price, s.description, s.latitude, s.longitude,
           CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
           CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded
