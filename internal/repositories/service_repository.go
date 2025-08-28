@@ -176,17 +176,18 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	)
 
 	baseQuery := `
-               SELECT s.id, s.name, s.address, s.price, s.user_id,
-                      u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
-                      s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
-                      CASE WHEN sf.service_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked,
-                      s.status,  s.created_at, s.updated_at
-               FROM service s
-               LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
-               JOIN users u ON s.user_id = u.id
-               INNER JOIN categories c ON s.category_id = c.id
+              SELECT s.id, s.name, s.address, s.price, s.user_id,
+                     u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+                     s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
+                     s.latitude, s.longitude,
+                     CASE WHEN sf.service_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked,
+                     s.status,  s.created_at, s.updated_at
+              FROM service s
+              LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+              JOIN users u ON s.user_id = u.id
+              INNER JOIN categories c ON s.category_id = c.id
 
-       `
+      `
 	params = append(params, userID)
 
 	// Filters
@@ -255,14 +256,22 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	for rows.Next() {
 		var s models.Service
 		var imagesJSON []byte
+		var lat, lon sql.NullString
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
+			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &lat, &lon, &s.Liked, &s.Status,
 			&s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
+		}
+
+		if lat.Valid {
+			s.Latitude = &lat.String
+		}
+		if lon.Valid {
+			s.Longitude = &lon.String
 		}
 
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
@@ -404,7 +413,6 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
 
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon,
-
 		); err != nil {
 			return nil, err
 		}
@@ -552,7 +560,6 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
 
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &s.Liked, &s.Responded,
-
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)

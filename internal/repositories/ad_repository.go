@@ -23,8 +23,8 @@ type AdRepository struct {
 
 func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, error) {
 	query := `
-        INSERT INTO ad (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO ad (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, status, latitude, longitude, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 	// Сохраняем images как JSON
 	imagesJSON, err := json.Marshal(ad.Images)
@@ -45,6 +45,8 @@ func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, e
 		ad.Top,
 		ad.Liked,
 		ad.Status,
+		ad.Latitude,
+		ad.Longitude,
 		ad.CreatedAt,
 	)
 	if err != nil {
@@ -66,7 +68,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
                       s.images, s.category_id, c.name, s.subcategory_id, sub.name,
                       s.description, s.avg_rating, s.top, s.liked,
                       CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
-                      s.status, s.created_at, s.updated_at
+                      s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                FROM ad s
                JOIN users u ON s.user_id = u.id
                JOIN categories c ON s.category_id = c.id
@@ -77,10 +79,11 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 
 	var s models.Ad
 	var imagesJSON []byte
+	var lat, lon sql.NullString
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &s.Status,
+		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &lat, &lon, &s.Status,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 
@@ -97,6 +100,12 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 		}
 	}
 
+	if lat.Valid {
+		s.Latitude = &lat.String
+	}
+	if lon.Valid {
+		s.Longitude = &lon.String
+	}
 	s.AvgRating = getAverageRating(ctx, r.DB, "ad_reviews", "ad_id", s.ID)
 
 	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
@@ -109,8 +118,8 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 func (r *AdRepository) UpdateAd(ctx context.Context, service models.Ad) (models.Ad, error) {
 	query := `
         UPDATE ad
-        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, category_id = ?, subcategory_id = ?, 
-            description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, updated_at = ?
+        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, category_id = ?, subcategory_id = ?,
+            description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, latitude = ?, longitude = ?, updated_at = ?
         WHERE id = ?
     `
 	imagesJSON, err := json.Marshal(service.Images)
@@ -121,7 +130,7 @@ func (r *AdRepository) UpdateAd(ctx context.Context, service models.Ad) (models.
 	service.UpdatedAt = &updatedAt
 	result, err := r.DB.ExecContext(ctx, query,
 		service.Name, service.Address, service.Price, service.UserID, imagesJSON,
-		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, service.UpdatedAt, service.ID,
+		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, service.Latitude, service.Longitude, service.UpdatedAt, service.ID,
 	)
 	if err != nil {
 		return models.Ad{}, err
@@ -179,7 +188,7 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, categor
                       u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
                       s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
                       CASE WHEN sf.ad_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked,
-                      s.status,  s.created_at, s.updated_at
+                      s.latitude, s.longitude, s.status,  s.created_at, s.updated_at
                FROM ad s
                LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
                JOIN users u ON s.user_id = u.id
@@ -254,10 +263,11 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, categor
 	for rows.Next() {
 		var s models.Ad
 		var imagesJSON []byte
+		var lat, lon sql.NullString
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
+			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &lat, &lon, &s.Status,
 			&s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
@@ -268,6 +278,12 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, categor
 			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
 		}
 
+		if lat.Valid {
+			s.Latitude = &lat.String
+		}
+		if lon.Valid {
+			s.Longitude = &lon.String
+		}
 		s.AvgRating = getAverageRating(ctx, r.DB, "ad_reviews", "ad_id", s.ID)
 
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
@@ -290,11 +306,11 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, categor
 
 func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.Ad, error) {
 	query := `
-                SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.created_at, s.updated_at
-		FROM ad s
-		JOIN users u ON s.user_id = u.id
-		WHERE user_id = ?
-	`
+                SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.latitude, s.longitude, s.status, s.created_at, s.updated_at
+                FROM ad s
+                JOIN users u ON s.user_id = u.id
+                WHERE user_id = ?
+        `
 
 	rows, err := r.DB.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -306,9 +322,10 @@ func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.
 	for rows.Next() {
 		var s models.Ad
 		var imagesJSON []byte
+		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -319,6 +336,12 @@ func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.
 			}
 		}
 
+		if lat.Valid {
+			s.Latitude = &lat.String
+		}
+		if lon.Valid {
+			s.Longitude = &lon.String
+		}
 		s.AvgRating = getAverageRating(ctx, r.DB, "ad_reviews", "ad_id", s.ID)
 
 		ads = append(ads, s)
@@ -403,7 +426,6 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
 
 			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon,
-
 		); err != nil {
 			return nil, err
 		}
@@ -558,7 +580,6 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
 
 			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon, &s.Liked, &s.Responded,
-
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -595,7 +616,7 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
                        s.description, s.avg_rating, s.top,
                        CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
                        CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
-                       s.status, s.created_at, s.updated_at
+                       s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                FROM ad s
                JOIN users u ON s.user_id = u.id
                JOIN categories c ON s.category_id = c.id
@@ -607,6 +628,7 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 
 	var s models.Ad
 	var imagesJSON []byte
+	var lat, lon sql.NullString
 
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, adID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
@@ -614,7 +636,7 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&s.Liked, &s.Responded, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+		&s.Liked, &s.Responded, &lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -630,6 +652,12 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 		}
 	}
 
+	if lat.Valid {
+		s.Latitude = &lat.String
+	}
+	if lon.Valid {
+		s.Longitude = &lon.String
+	}
 	s.AvgRating = getAverageRating(ctx, r.DB, "ad_reviews", "ad_id", s.ID)
 
 	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
