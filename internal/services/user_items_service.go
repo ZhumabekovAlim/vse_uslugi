@@ -26,3 +26,8 @@ func (s *UserItemsService) GetAdWorkAdRentAdByUserID(ctx context.Context, userID
 func (s *UserItemsService) GetOrderHistoryByUserID(ctx context.Context, userID int) ([]models.UserItem, error) {
 	return s.ItemsRepo.GetOrderHistoryByUserID(ctx, userID)
 }
+
+// GetActiveOrdersByUserID fetches active orders where the user is performer.
+func (s *UserItemsService) GetActiveOrdersByUserID(ctx context.Context, userID int) ([]models.UserItem, error) {
+	return s.ItemsRepo.GetActiveOrdersByUserID(ctx, userID)
+}

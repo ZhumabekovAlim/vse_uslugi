@@ -50,6 +50,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/user/posts/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetPostsByUserID))
 	mux.Get("/user/ads/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetAdsByUserID))
 	mux.Get("/user/orders/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetOrderHistoryByUserID))
+	mux.Get("/user/active_orders/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetActiveOrdersByUserID))
 
 	mux.Get("/ads", standardMiddleware.ThenFunc(app.adHandler.GetAds))
 
