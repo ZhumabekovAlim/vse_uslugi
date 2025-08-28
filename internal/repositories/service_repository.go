@@ -335,8 +335,8 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
 	query := `
       SELECT
-              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-              s.id, s.name, s.price, s.description
+              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+              s.id, s.name, s.price, s.description, s.latitude, s.longitude
       FROM service s
       JOIN users u ON s.user_id = u.id
       WHERE 1=1
@@ -397,11 +397,18 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 	var services []models.FilteredService
 	for rows.Next() {
 		var s models.FilteredService
+		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon,
 		); err != nil {
 			return nil, err
+		}
+		if lat.Valid {
+			s.ServiceLatitude = &lat.String
+		}
+		if lon.Valid {
+			s.ServiceLongitude = &lon.String
 		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
@@ -459,8 +466,8 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 
 	query := `
    SELECT DISTINCT
-          u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-          s.id, s.name, s.price, s.description,
+          u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+          s.id, s.name, s.price, s.description, s.latitude, s.longitude,
           CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
           CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded
    FROM service s
@@ -534,12 +541,19 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	var services []models.FilteredService
 	for rows.Next() {
 		var s models.FilteredService
+		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked, &s.Responded,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &s.Liked, &s.Responded,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		if lat.Valid {
+			s.ServiceLatitude = &lat.String
+		}
+		if lon.Valid {
+			s.ServiceLongitude = &lon.String
 		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {

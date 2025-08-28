@@ -328,8 +328,8 @@ func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]mo
 func (r *RentRepository) GetFilteredRentsPost(ctx context.Context, req models.FilterRentRequest) ([]models.FilteredRent, error) {
 	query := `
       SELECT
-              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-              s.id, s.name, s.price, s.description
+              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+              s.id, s.name, s.price, s.description, s.latitude, s.longitude
       FROM rent s
       JOIN users u ON s.user_id = u.id
       WHERE 1=1
@@ -392,7 +392,7 @@ func (r *RentRepository) GetFilteredRentsPost(ctx context.Context, req models.Fi
 		var s models.FilteredRent
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.ServiceLatitude, &s.ServiceLongitude,
 		); err != nil {
 			return nil, err
 		}
@@ -452,8 +452,8 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 
 	query := `
    SELECT DISTINCT
-           u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), u.review_rating,
-           s.id, s.name, s.price, s.description,
+           u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+           s.id, s.name, s.price, s.description, s.latitude, s.longitude,
            CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
            CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded
    FROM rent s
@@ -536,7 +536,7 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 		var s models.FilteredRent
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.Liked, &s.Responded,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.ServiceLatitude, &s.ServiceLongitude, &s.Liked, &s.Responded,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
