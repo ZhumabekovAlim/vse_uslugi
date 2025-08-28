@@ -70,7 +70,7 @@ func (h *UserItemsHandler) GetOrderHistoryByUserID(w http.ResponseWriter, r *htt
 	json.NewEncoder(w).Encode(items)
 }
 
-// GetActiveOrdersByUserID returns all active orders where the user is performer.
+// GetActiveOrdersByUserID returns all orders with status active, pending, or done where the user is performer.
 func (h *UserItemsHandler) GetActiveOrdersByUserID(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get(":user_id")
 	userID, err := strconv.Atoi(userIDStr)
