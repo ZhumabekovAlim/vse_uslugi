@@ -79,9 +79,10 @@ func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int
 
 	var s models.RentAd
 	var imagesJSON []byte
+	var lat, lon sql.NullString
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &s.Status, &s.RentType, &s.Deposit, &s.Latitude, &s.Longitude, &s.CreatedAt,
+		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
 		&s.UpdatedAt,
 	)
 
@@ -98,6 +99,12 @@ func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int
 		}
 	}
 
+	if lat.Valid {
+		s.Latitude = lat.String
+	}
+	if lon.Valid {
+		s.Longitude = lon.String
+	}
 	s.AvgRating = getAverageRating(ctx, r.DB, "rent_ad_reviews", "rent_ad_id", s.ID)
 
 	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
