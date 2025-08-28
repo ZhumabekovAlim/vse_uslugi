@@ -197,6 +197,7 @@ func (app *application) routes() http.Handler {
 	// Service Response
 	mux.Post("/responses", authMiddleware.ThenFunc(app.serviceResponseHandler.CreateServiceResponse))
 	mux.Get("/responses/:user_id", authMiddleware.ThenFunc(app.userResponsesHandler.GetResponsesByUserID))
+	mux.Get("/responses/item/:type/:item_id", authMiddleware.ThenFunc(app.responseUsersHandler.GetUsersByItemID))
 
 	// Work
 	mux.Post("/work", authMiddleware.ThenFunc(app.workHandler.CreateWork))

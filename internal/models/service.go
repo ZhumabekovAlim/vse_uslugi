@@ -82,6 +82,8 @@ type FilteredService struct {
 	ServiceName        string  `json:"service_name"`
 	ServicePrice       float64 `json:"service_price"`
 	ServiceDescription string  `json:"service_description"`
+	ServiceLatitude    *string `json:"latitude"`
+	ServiceLongitude   *string `json:"longitude"`
 	Liked              bool    `json:"liked"`
 	Responded          bool    `json:"is_responded"`
 }
