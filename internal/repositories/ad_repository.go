@@ -399,7 +399,9 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
+
 			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon,
+
 		); err != nil {
 			return nil, err
 		}
@@ -550,7 +552,9 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
+
 			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon, &s.Liked, &s.Responded,
+
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)

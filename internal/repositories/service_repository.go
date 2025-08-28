@@ -400,7 +400,9 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
+
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon,
+
 		); err != nil {
 			return nil, err
 		}
@@ -544,7 +546,9 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
+
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &s.Liked, &s.Responded,
+
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
