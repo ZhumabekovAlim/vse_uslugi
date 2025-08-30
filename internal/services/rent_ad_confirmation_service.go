@@ -13,8 +13,8 @@ func (s *RentAdConfirmationService) ConfirmRentAd(ctx context.Context, rentAdID,
 	return s.ConfirmationRepo.Confirm(ctx, rentAdID, performerID)
 }
 
-func (s *RentAdConfirmationService) CancelRentAd(ctx context.Context, rentAdID int) error {
-	return s.ConfirmationRepo.Cancel(ctx, rentAdID)
+func (s *RentAdConfirmationService) CancelRentAd(ctx context.Context, rentAdID, userID int) error {
+	return s.ConfirmationRepo.Cancel(ctx, rentAdID, userID)
 }
 
 func (s *RentAdConfirmationService) DoneRentAd(ctx context.Context, rentAdID int) error {

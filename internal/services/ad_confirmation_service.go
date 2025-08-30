@@ -13,8 +13,8 @@ func (s *AdConfirmationService) ConfirmAd(ctx context.Context, adID, performerID
 	return s.ConfirmationRepo.Confirm(ctx, adID, performerID)
 }
 
-func (s *AdConfirmationService) CancelAd(ctx context.Context, adID int) error {
-	return s.ConfirmationRepo.Cancel(ctx, adID)
+func (s *AdConfirmationService) CancelAd(ctx context.Context, adID, userID int) error {
+	return s.ConfirmationRepo.Cancel(ctx, adID, userID)
 }
 
 func (s *AdConfirmationService) DoneAd(ctx context.Context, adID int) error {

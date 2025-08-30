@@ -54,12 +54,25 @@ func (r *AdConfirmationRepository) Confirm(ctx context.Context, adID, performerI
 	return tx.Commit()
 }
 
-func (r *AdConfirmationRepository) Cancel(ctx context.Context, adID int) error {
+func (r *AdConfirmationRepository) Cancel(ctx context.Context, adID, userID int) error {
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+
+	var clientID, performerID int
+	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM ad_confirmations WHERE ad_id = ?`, adID).Scan(&clientID, &performerID); err != nil {
+		return err
+	}
+	if userID == clientID {
+		if _, err := tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, clientID); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining + 1 WHERE user_id = ?`, performerID); err != nil {
+			return err
+		}
+	}
 
 	if _, err := tx.ExecContext(ctx, `UPDATE ad SET status = 'active' WHERE id = ?`, adID); err != nil {
 		return err

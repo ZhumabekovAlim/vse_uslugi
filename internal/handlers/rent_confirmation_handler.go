@@ -35,7 +35,12 @@ func (h *RentConfirmationHandler) CancelRent(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.CancelRent(r.Context(), req.RentID); err != nil {
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if err := h.Service.CancelRent(r.Context(), req.RentID, userID); err != nil {
 		http.Error(w, "Could not cancel rent", http.StatusInternalServerError)
 		return
 	}

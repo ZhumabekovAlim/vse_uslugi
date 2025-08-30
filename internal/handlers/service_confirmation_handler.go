@@ -35,7 +35,12 @@ func (h *ServiceConfirmationHandler) CancelService(w http.ResponseWriter, r *htt
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.CancelService(r.Context(), req.ServiceID); err != nil {
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if err := h.Service.CancelService(r.Context(), req.ServiceID, userID); err != nil {
 		http.Error(w, "Could not cancel service", http.StatusInternalServerError)
 		return
 	}
