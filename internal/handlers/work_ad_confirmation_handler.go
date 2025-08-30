@@ -35,7 +35,12 @@ func (h *WorkAdConfirmationHandler) CancelWorkAd(w http.ResponseWriter, r *http.
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.CancelWorkAd(r.Context(), req.WorkAdID); err != nil {
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if err := h.Service.CancelWorkAd(r.Context(), req.WorkAdID, userID); err != nil {
 		http.Error(w, "Could not cancel work ad", http.StatusInternalServerError)
 		return
 	}

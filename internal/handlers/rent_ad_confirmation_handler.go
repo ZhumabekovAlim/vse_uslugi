@@ -35,7 +35,12 @@ func (h *RentAdConfirmationHandler) CancelRentAd(w http.ResponseWriter, r *http.
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.CancelRentAd(r.Context(), req.RentAdID); err != nil {
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if err := h.Service.CancelRentAd(r.Context(), req.RentAdID, userID); err != nil {
 		http.Error(w, "Could not cancel rent ad", http.StatusInternalServerError)
 		return
 	}

@@ -35,7 +35,12 @@ func (h *AdConfirmationHandler) CancelAd(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.CancelAd(r.Context(), req.AdID); err != nil {
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if err := h.Service.CancelAd(r.Context(), req.AdID, userID); err != nil {
 		http.Error(w, "Could not cancel ad", http.StatusInternalServerError)
 		return
 	}

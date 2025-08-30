@@ -54,12 +54,25 @@ func (r *WorkConfirmationRepository) Confirm(ctx context.Context, workID, perfor
 	return tx.Commit()
 }
 
-func (r *WorkConfirmationRepository) Cancel(ctx context.Context, workID int) error {
+func (r *WorkConfirmationRepository) Cancel(ctx context.Context, workID, userID int) error {
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+
+	var clientID, performerID int
+	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM work_confirmations WHERE work_id = ?`, workID).Scan(&clientID, &performerID); err != nil {
+		return err
+	}
+	if userID == clientID {
+		if _, err := tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, clientID); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining + 1 WHERE user_id = ?`, performerID); err != nil {
+			return err
+		}
+	}
 
 	if _, err := tx.ExecContext(ctx, `UPDATE work SET status = 'active' WHERE id = ?`, workID); err != nil {
 		return err

@@ -13,8 +13,8 @@ func (s *WorkConfirmationService) ConfirmWork(ctx context.Context, workID, perfo
 	return s.ConfirmationRepo.Confirm(ctx, workID, performerID)
 }
 
-func (s *WorkConfirmationService) CancelWork(ctx context.Context, workID int) error {
-	return s.ConfirmationRepo.Cancel(ctx, workID)
+func (s *WorkConfirmationService) CancelWork(ctx context.Context, workID, userID int) error {
+	return s.ConfirmationRepo.Cancel(ctx, workID, userID)
 }
 
 func (s *WorkConfirmationService) DoneWork(ctx context.Context, workID int) error {
