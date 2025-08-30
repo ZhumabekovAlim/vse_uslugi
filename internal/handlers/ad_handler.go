@@ -126,7 +126,20 @@ func (h *AdHandler) GetAd(w http.ResponseWriter, r *http.Request) {
 		Limit:         limit,
 	}
 
-	result, err := h.Service.GetFilteredAd(r.Context(), filter, 0)
+	cityID := 0
+	tokenString := r.Header.Get("Authorization")
+	if strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(signingKey), nil
+		})
+		if err == nil && token.Valid {
+			cityID = claims.CityID
+		}
+	}
+
+	result, err := h.Service.GetFilteredAd(r.Context(), filter, 0, cityID)
 	if err != nil {
 		log.Printf("GetServices error: %v", err)
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
@@ -202,7 +215,7 @@ func (h *AdHandler) GetAdSorted(w http.ResponseWriter, r *http.Request) {
 		Limit:      limit,
 	}
 
-	result, err := h.Service.GetFilteredAd(r.Context(), filter, userID)
+	result, err := h.Service.GetFilteredAd(r.Context(), filter, userID, 0)
 	if err != nil {
 		http.Error(w, "Failed to get services", http.StatusInternalServerError)
 		return

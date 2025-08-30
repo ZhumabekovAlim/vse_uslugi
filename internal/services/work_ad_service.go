@@ -30,7 +30,7 @@ func (s *WorkAdService) ArchiveWorkAd(ctx context.Context, id int) error {
 	return s.WorkAdRepo.UpdateStatus(ctx, id, "archive")
 }
 
-func (s *WorkAdService) GetFilteredWorksAd(ctx context.Context, filter models.WorkAdFilterRequest, userID int) (models.WorkAdListResponse, error) {
+func (s *WorkAdService) GetFilteredWorksAd(ctx context.Context, filter models.WorkAdFilterRequest, userID int, cityID int) (models.WorkAdListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
@@ -42,6 +42,7 @@ func (s *WorkAdService) GetFilteredWorksAd(ctx context.Context, filter models.Wo
 	worksad, minPrice, maxPrice, err := s.WorkAdRepo.GetWorksAdWithFilters(
 		ctx,
 		userID,
+		cityID,
 		filter.Categories,
 		filter.Subcategories,
 		filter.PriceFrom,

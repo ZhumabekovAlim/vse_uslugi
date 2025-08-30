@@ -74,6 +74,7 @@ type FilterWorkRequest struct {
 	AvgRatings     []int   `json:"avg_rating"`
 	Sorting        int     `json:"sorting"` // 1 - by reviews, 2 - price desc, 3 - price asc
 	UserID         int     `json:"user_id,omitempty"`
+	CityID         int     `json:"city_id,omitempty"`
 }
 
 type FilteredWork struct {

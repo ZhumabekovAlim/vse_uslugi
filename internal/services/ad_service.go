@@ -30,7 +30,7 @@ func (s *AdService) ArchiveAd(ctx context.Context, id int) error {
 	return s.AdRepo.UpdateStatus(ctx, id, "archive")
 }
 
-func (s *AdService) GetFilteredAd(ctx context.Context, filter models.AdFilterRequest, userID int) (models.AdListResponse, error) {
+func (s *AdService) GetFilteredAd(ctx context.Context, filter models.AdFilterRequest, userID int, cityID int) (models.AdListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
@@ -42,6 +42,7 @@ func (s *AdService) GetFilteredAd(ctx context.Context, filter models.AdFilterReq
 	ads, minPrice, maxPrice, err := s.AdRepo.GetAdWithFilters(
 		ctx,
 		userID,
+		cityID,
 		filter.Categories,
 		filter.Subcategories,
 		filter.PriceFrom,

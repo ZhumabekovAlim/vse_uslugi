@@ -53,7 +53,7 @@ func (s *WorkService) ArchiveWork(ctx context.Context, id int) error {
 	return s.WorkRepo.UpdateStatus(ctx, id, "archive")
 }
 
-func (s *WorkService) GetFilteredWorks(ctx context.Context, filter models.WorkFilterRequest, userID int) (models.WorkListResponse, error) {
+func (s *WorkService) GetFilteredWorks(ctx context.Context, filter models.WorkFilterRequest, userID int, cityID int) (models.WorkListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
@@ -65,6 +65,7 @@ func (s *WorkService) GetFilteredWorks(ctx context.Context, filter models.WorkFi
 	works, minPrice, maxPrice, err := s.WorkRepo.GetWorksWithFilters(
 		ctx,
 		userID,
+		cityID,
 		filter.Categories,
 		filter.Subcategories,
 		filter.PriceFrom,

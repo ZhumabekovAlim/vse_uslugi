@@ -168,7 +168,7 @@ func (r *ServiceRepository) UpdateStatus(ctx context.Context, id int, status str
 	}
 	return nil
 }
-func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Service, float64, float64, error) {
+func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Service, float64, float64, error) {
 	var (
 		services   []models.Service
 		params     []interface{}
@@ -189,6 +189,11 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 
       `
 	params = append(params, userID)
+
+	if cityID > 0 {
+		conditions = append(conditions, "s.city_id = ?")
+		params = append(params, cityID)
+	}
 
 	// Filters
 	if len(categories) > 0 {
@@ -360,6 +365,11 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 		args = append(args, req.PriceFrom, req.PriceTo)
 	}
 
+	if req.CityID > 0 {
+		query += " AND s.city_id = ?"
+		args = append(args, req.CityID)
+	}
+
 	// Category
 	if len(req.CategoryIDs) > 0 {
 		placeholders := strings.Repeat("?,", len(req.CategoryIDs))
@@ -497,6 +507,11 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
 		query += " AND s.price BETWEEN ? AND ?"
 		args = append(args, req.PriceFrom, req.PriceTo)
+	}
+
+	if req.CityID > 0 {
+		query += " AND s.city_id = ?"
+		args = append(args, req.CityID)
 	}
 
 	// Category filter

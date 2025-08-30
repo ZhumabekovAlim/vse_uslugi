@@ -172,7 +172,7 @@ func (r *WorkAdRepository) UpdateStatus(ctx context.Context, id int, status stri
 	}
 	return nil
 }
-func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.WorkAd, float64, float64, error) {
+func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.WorkAd, float64, float64, error) {
 	var (
 		works_ad   []models.WorkAd
 		params     []interface{}
@@ -188,6 +188,11 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 
        `
 	params = append(params, userID)
+
+	if cityID > 0 {
+		conditions = append(conditions, "s.city_id = ?")
+		params = append(params, cityID)
+	}
 
 	// Filters
 	if len(categories) > 0 {
@@ -344,6 +349,11 @@ func (r *WorkAdRepository) GetFilteredWorksAdPost(ctx context.Context, req model
 `
 	args := []interface{}{}
 
+	if req.CityID > 0 {
+		query += " AND s.city_id = ?"
+		args = append(args, req.CityID)
+	}
+
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
 		query += " AND s.price BETWEEN ? AND ?"
@@ -469,11 +479,16 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
    FROM work_ad s
    JOIN users u ON s.user_id = u.id
    LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
-   LEFT JOIN work_ad_responses sr ON sr.work_ad_id = s.id AND sr.user_id = ?
-   WHERE 1=1
+  LEFT JOIN work_ad_responses sr ON sr.work_ad_id = s.id AND sr.user_id = ?
+  WHERE 1=1
 `
 
 	args := []interface{}{userID, userID}
+
+	if req.CityID > 0 {
+		query += " AND s.city_id = ?"
+		args = append(args, req.CityID)
+	}
 
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {

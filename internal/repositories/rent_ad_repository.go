@@ -175,7 +175,7 @@ func (r *RentAdRepository) UpdateStatus(ctx context.Context, id int, status stri
 	}
 	return nil
 }
-func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.RentAd, float64, float64, error) {
+func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.RentAd, float64, float64, error) {
 	var (
 		rents      []models.RentAd
 		params     []interface{}
@@ -191,6 +191,11 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 
        `
 	params = append(params, userID)
+
+	if cityID > 0 {
+		conditions = append(conditions, "s.city_id = ?")
+		params = append(params, cityID)
+	}
 
 	// Filters
 	if len(categories) > 0 {
@@ -351,6 +356,11 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 		args = append(args, req.PriceFrom, req.PriceTo)
 	}
 
+	if req.CityID > 0 {
+		query += " AND s.city_id = ?"
+		args = append(args, req.CityID)
+	}
+
 	// Category
 	if len(req.CategoryIDs) > 0 {
 		placeholders := strings.Repeat("?,", len(req.CategoryIDs))
@@ -480,6 +490,11 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
 		query += " AND s.price BETWEEN ? AND ?"
 		args = append(args, req.PriceFrom, req.PriceTo)
+	}
+
+	if req.CityID > 0 {
+		query += " AND s.city_id = ?"
+		args = append(args, req.CityID)
 	}
 
 	// Category

@@ -30,7 +30,7 @@ func (s *RentAdService) ArchiveRentAd(ctx context.Context, id int) error {
 	return s.RentAdRepo.UpdateStatus(ctx, id, "archive")
 }
 
-func (s *RentAdService) GetFilteredRentsAd(ctx context.Context, filter models.RentAdFilterRequest, userID int) (models.RentAdListResponse, error) {
+func (s *RentAdService) GetFilteredRentsAd(ctx context.Context, filter models.RentAdFilterRequest, userID int, cityID int) (models.RentAdListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
@@ -42,6 +42,7 @@ func (s *RentAdService) GetFilteredRentsAd(ctx context.Context, filter models.Re
 	rents_ad, minPrice, maxPrice, err := s.RentAdRepo.GetRentsAdWithFilters(
 		ctx,
 		userID,
+		cityID,
 		filter.Categories,
 		filter.Subcategories,
 		filter.PriceFrom,
