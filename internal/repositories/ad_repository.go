@@ -176,7 +176,7 @@ func (r *AdRepository) UpdateStatus(ctx context.Context, id int, status string) 
 	}
 	return nil
 }
-func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Ad, float64, float64, error) {
+func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Ad, float64, float64, error) {
 	var (
 		ads        []models.Ad
 		params     []interface{}
@@ -196,6 +196,11 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, categor
 
        `
 	params = append(params, userID)
+
+	if cityID > 0 {
+		conditions = append(conditions, "s.city_id = ?")
+		params = append(params, cityID)
+	}
 
 	// Filters
 	if len(categories) > 0 {
@@ -373,6 +378,11 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 		args = append(args, req.PriceFrom, req.PriceTo)
 	}
 
+	if req.CityID > 0 {
+		query += " AND s.city_id = ?"
+		args = append(args, req.CityID)
+	}
+
 	// Category
 	if len(req.CategoryIDs) > 0 {
 		placeholders := strings.Repeat("?,", len(req.CategoryIDs))
@@ -510,6 +520,11 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
 		query += " AND s.price BETWEEN ? AND ?"
 		args = append(args, req.PriceFrom, req.PriceTo)
+	}
+
+	if req.CityID > 0 {
+		query += " AND s.city_id = ?"
+		args = append(args, req.CityID)
 	}
 
 	// Category

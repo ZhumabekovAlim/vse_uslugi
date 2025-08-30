@@ -29,6 +29,7 @@ type tokenClaims struct {
 	jwt.StandardClaims
 	UserID int    `json:"user_id"`
 	Role   string `json:"role"`
+	CityID int    `json:"city_id"`
 }
 type UserService struct {
 	UserRepo     *repositories.UserRepository
@@ -161,6 +162,11 @@ func (s *UserService) SignIn(ctx context.Context, name, phone, email, password s
 		return models.Tokens{}, errors.New("invalid password")
 	}
 
+	cityID := 0
+	if user.CityID != nil {
+		cityID = *user.CityID
+	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &tokenClaims{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(tokenTTL).Unix(),
@@ -168,6 +174,7 @@ func (s *UserService) SignIn(ctx context.Context, name, phone, email, password s
 		},
 		UserID: user.ID,
 		Role:   user.Role,
+		CityID: cityID,
 	})
 
 	accessToken, err := token.SignedString([]byte(signingKey))

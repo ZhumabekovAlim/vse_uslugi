@@ -175,7 +175,7 @@ func (r *WorkRepository) UpdateStatus(ctx context.Context, id int, status string
 	}
 	return nil
 }
-func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Work, float64, float64, error) {
+func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Work, float64, float64, error) {
 	var (
 		works      []models.Work
 		params     []interface{}
@@ -196,6 +196,11 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ca
 
        `
 	params = append(params, userID)
+
+	if cityID > 0 {
+		conditions = append(conditions, "s.city_id = ?")
+		params = append(params, cityID)
+	}
 
 	// Filters
 	if len(categories) > 0 {
@@ -354,6 +359,11 @@ func (r *WorkRepository) GetFilteredWorksPost(ctx context.Context, req models.Fi
 `
 	args := []interface{}{}
 
+	if req.CityID > 0 {
+		query += " AND s.city_id = ?"
+		args = append(args, req.CityID)
+	}
+
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
 		query += " AND s.price BETWEEN ? AND ?"
@@ -484,6 +494,11 @@ func (r *WorkRepository) GetFilteredWorksWithLikes(ctx context.Context, req mode
 `
 
 	args := []interface{}{userID, userID}
+
+	if req.CityID > 0 {
+		query += " AND s.city_id = ?"
+		args = append(args, req.CityID)
+	}
 
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {

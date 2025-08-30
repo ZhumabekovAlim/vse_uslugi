@@ -126,7 +126,20 @@ func (h *WorkHandler) GetWorks(w http.ResponseWriter, r *http.Request) {
 		Limit:         limit,
 	}
 
-	result, err := h.Service.GetFilteredWorks(r.Context(), filter, 0)
+	cityID := 0
+	tokenString := r.Header.Get("Authorization")
+	if strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(signingKey), nil
+		})
+		if err == nil && token.Valid {
+			cityID = claims.CityID
+		}
+	}
+
+	result, err := h.Service.GetFilteredWorks(r.Context(), filter, 0, cityID)
 	if err != nil {
 		log.Printf("GetServices error: %v", err)
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
@@ -201,8 +214,20 @@ func (h *WorkHandler) GetWorksSorted(w http.ResponseWriter, r *http.Request) {
 		Page:       page,
 		Limit:      limit,
 	}
+	cityID := 0
+	tokenString := r.Header.Get("Authorization")
+	if strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(signingKey), nil
+		})
+		if err == nil && token.Valid {
+			cityID = claims.CityID
+		}
+	}
 
-	result, err := h.Service.GetFilteredWorks(r.Context(), filter, userID)
+	result, err := h.Service.GetFilteredWorks(r.Context(), filter, userID, cityID)
 	if err != nil {
 		http.Error(w, "Failed to get services", http.StatusInternalServerError)
 		return
@@ -236,6 +261,19 @@ func (h *WorkHandler) GetFilteredWorksPost(w http.ResponseWriter, r *http.Reques
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
+	}
+	tokenString := r.Header.Get("Authorization")
+	if strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(signingKey), nil
+		})
+		if err == nil && token.Valid {
+			if req.CityID == 0 {
+				req.CityID = claims.CityID
+			}
+		}
 	}
 
 	works, err := h.Service.GetFilteredWorksPost(r.Context(), req)
@@ -505,6 +543,19 @@ func (h *WorkHandler) GetFilteredWorksWithLikes(w http.ResponseWriter, r *http.R
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
+	}
+	tokenString := r.Header.Get("Authorization")
+	if strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(signingKey), nil
+		})
+		if err == nil && token.Valid {
+			if req.CityID == 0 {
+				req.CityID = claims.CityID
+			}
+		}
 	}
 
 	works, err := h.Service.GetFilteredWorksWithLikes(r.Context(), req, userID)

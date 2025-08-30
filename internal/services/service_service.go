@@ -53,7 +53,7 @@ func (s *ServiceService) ArchiveService(ctx context.Context, id int) error {
 	return s.ServiceRepo.UpdateStatus(ctx, id, "archive")
 }
 
-func (s *ServiceService) GetFilteredServices(ctx context.Context, filter models.ServiceFilterRequest, userID int) (models.ServiceListResponse, error) {
+func (s *ServiceService) GetFilteredServices(ctx context.Context, filter models.ServiceFilterRequest, userID int, cityID int) (models.ServiceListResponse, error) {
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
@@ -65,6 +65,7 @@ func (s *ServiceService) GetFilteredServices(ctx context.Context, filter models.
 	services, minPrice, maxPrice, err := s.ServiceRepo.GetServicesWithFilters(
 		ctx,
 		userID,
+		cityID,
 		filter.Categories,
 		filter.Subcategories,
 		filter.PriceFrom,
