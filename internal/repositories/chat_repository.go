@@ -11,8 +11,20 @@ type ChatRepository struct {
 }
 
 func (r *ChatRepository) CreateChat(ctx context.Context, chat models.Chat) (int, error) {
-	query := `INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)`
-	result, err := r.Db.ExecContext(ctx, query, chat.User1ID, chat.User2ID)
+	// First, try to find existing chat between users
+	var existingID int
+	checkQuery := `SELECT id FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?) ORDER BY id ASC LIMIT 1`
+	err := r.Db.QueryRowContext(ctx, checkQuery, chat.User1ID, chat.User2ID, chat.User2ID, chat.User1ID).Scan(&existingID)
+	if err == nil {
+		return existingID, nil
+	}
+	if err != sql.ErrNoRows {
+		return 0, err
+	}
+
+	// Chat doesn't exist, create new one
+	insertQuery := `INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)`
+	result, err := r.Db.ExecContext(ctx, insertQuery, chat.User1ID, chat.User2ID)
 	if err != nil {
 		return 0, err
 	}

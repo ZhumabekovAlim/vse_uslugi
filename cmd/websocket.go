@@ -229,10 +229,11 @@ func writeClose(conn *websocket.Conn, code int, reason string) error {
 func getOrCreateChat(ctx context.Context, db *sql.DB, user1ID, user2ID int) (int, error) {
 	var chatID int
 	err := db.QueryRowContext(ctx, `
-		SELECT id FROM chats
-		WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)
-		LIMIT 1
-	`, user1ID, user2ID, user2ID, user1ID).Scan(&chatID)
+               SELECT id FROM chats
+               WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)
+               ORDER BY id ASC
+               LIMIT 1
+       `, user1ID, user2ID, user2ID, user1ID).Scan(&chatID)
 	if err == nil {
 		return chatID, nil
 	}
