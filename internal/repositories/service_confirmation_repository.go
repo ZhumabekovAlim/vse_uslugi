@@ -3,8 +3,13 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"naimuBack/internal/models"
 	"time"
+)
+
+var (
+	ErrServiceConfirmationNotFound = errors.New("service confirmation not found")
 )
 
 type ServiceConfirmationRepository struct {
@@ -63,6 +68,9 @@ func (r *ServiceConfirmationRepository) Cancel(ctx context.Context, serviceID, u
 
 	var clientID, performerID int
 	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM service_confirmations WHERE service_id = ?`, serviceID).Scan(&clientID, &performerID); err != nil {
+		if err == sql.ErrNoRows {
+			return ErrServiceConfirmationNotFound
+		}
 		return err
 	}
 	if userID == clientID {

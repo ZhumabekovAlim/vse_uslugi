@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
+	"naimuBack/internal/repositories"
 	"naimuBack/internal/services"
 )
 
@@ -41,6 +43,10 @@ func (h *ServiceConfirmationHandler) CancelService(w http.ResponseWriter, r *htt
 		return
 	}
 	if err := h.Service.CancelService(r.Context(), req.ServiceID, userID); err != nil {
+		if errors.Is(err, repositories.ErrServiceConfirmationNotFound) {
+			http.Error(w, "Service confirmation not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "Could not cancel service", http.StatusInternalServerError)
 		return
 	}
