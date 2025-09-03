@@ -20,7 +20,7 @@ type Config struct {
 func LoadConfig() Config {
 	var cfg Config
 
-	data, err := os.ReadFile("C:\\Users\\User\\Desktop\\NaimuBack-main\\config\\config_new.yaml")
+	data, err := os.ReadFile("/root/NaimuBack/vse_uslugi/config/config_new.yaml")
 	if err != nil {
 		log.Fatalf("Failed to read config file: %v", err)
 	}
