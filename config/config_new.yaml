@@ -3,4 +3,4 @@ server:
 
 database:
   driver: "mysql"
-  url: "admin:admin@tcp(localhost:3306)/naimudb?parseTime=true"
+  url: "root:nusa123@tcp(localhost:3306)/naimudb?parseTime=true"
