@@ -103,6 +103,9 @@ func pingLoopLocation(lm *LocationManager, conn *websocket.Conn, uid int) {
 func (app *application) handleLocationMessages(conn *websocket.Conn, userID int) {
 	defer func() {
 		app.locationManager.unregister <- unreg{userID: userID, conn: conn}
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		_ = app.locationRepo.ClearLocation(ctx, userID)
+		cancel()
 		_ = conn.Close()
 	}()
 

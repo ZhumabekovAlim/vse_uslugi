@@ -48,6 +48,24 @@ func (h *LocationHandler) GetLocation(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(loc)
 }
 
+
+// GoOffline clears location for a user and marks them offline.
+func (h *LocationHandler) GoOffline(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		UserID int `json:"user_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.GoOffline(r.Context(), payload.UserID); err != nil {
+		http.Error(w, "Failed to go offline", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+
 // GetExecutors returns online executors with active items filtered by request body.
 func (h *LocationHandler) GetExecutors(w http.ResponseWriter, r *http.Request) {
 	var filter models.ExecutorLocationFilter

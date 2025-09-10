@@ -52,6 +52,14 @@ func (r *LocationRepository) GetLocation(ctx context.Context, userID int) (model
 	return loc, err
 }
 
+// ClearLocation removes coordinates and marks user offline.
+func (r *LocationRepository) ClearLocation(ctx context.Context, userID int) error {
+	query := `UPDATE users SET latitude = NULL, longitude = NULL, is_online = 0, updated_at = ? WHERE id = ?`
+	_, err := r.DB.ExecContext(ctx, query, time.Now(), userID)
+	return err
+}
+
+
 // GetExecutors returns executors on line with active items filtered by parameters.
 func (r *LocationRepository) GetExecutors(ctx context.Context, f models.ExecutorLocationFilter) ([]models.ExecutorLocation, error) {
 	tables := []string{"service", "ad", "rent", "rent_ad", "work", "work_ad"}
@@ -66,10 +74,16 @@ func (r *LocationRepository) GetExecutors(ctx context.Context, f models.Executor
 		for rows.Next() {
 			var item models.ExecutorLocation
 			var latStr, lonStr sql.NullString
-			if err := rows.Scan(&item.UserID, &item.Name, &item.Surname, &latStr, &lonStr, &item.ItemID, &item.ItemName, &item.Price, &item.AvgRating); err != nil {
+
+			var avatar sql.NullString
+			if err := rows.Scan(&item.UserID, &item.Name, &item.Surname, &avatar, &latStr, &lonStr, &item.ItemID, &item.ItemName, &item.Description, &item.Price, &item.AvgRating); err != nil {
 				rows.Close()
 				return nil, err
 			}
+			if avatar.Valid {
+				item.Avatar = &avatar.String
+			}
+
 			if latStr.Valid {
 				if v, err2 := strconv.ParseFloat(latStr.String, 64); err2 == nil {
 					item.Latitude = &v
@@ -89,7 +103,9 @@ func (r *LocationRepository) GetExecutors(ctx context.Context, f models.Executor
 }
 
 func buildExecutorQuery(table string, f models.ExecutorLocationFilter) (string, []interface{}) {
-	base := fmt.Sprintf(`SELECT u.id, u.name, u.surname, u.latitude, u.longitude, s.id, s.name, s.price, s.avg_rating FROM %s s JOIN users u ON u.id = s.user_id`, table)
+
+	base := fmt.Sprintf(`SELECT u.id, u.name, u.surname, u.avatar_path, u.latitude, u.longitude, s.id, s.name, s.description, s.price, s.avg_rating FROM %s s JOIN users u ON u.id = s.user_id`, table)
+
 
 	var where []string
 	var args []interface{}

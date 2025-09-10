@@ -150,6 +150,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/ws/location", wsMiddleware.ThenFunc(app.LocationWebSocketHandler))
 
 	mux.Post("/location", authMiddleware.ThenFunc(app.locationHandler.UpdateLocation))
+	mux.Post("/location/offline", authMiddleware.ThenFunc(app.locationHandler.GoOffline))
 	mux.Get("/location/:user_id", authMiddleware.ThenFunc(app.locationHandler.GetLocation))
 	mux.Post("/executors/location", standardMiddleware.ThenFunc(app.locationHandler.GetExecutors))
 
