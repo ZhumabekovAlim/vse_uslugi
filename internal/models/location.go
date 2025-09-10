@@ -18,6 +18,7 @@ type ExecutorLocationFilter struct {
 
 // ExecutorLocation represents executor with current item and coordinates.
 type ExecutorLocation struct {
+
 	UserID      int      `json:"user_id"`
 	Name        string   `json:"name"`
 	Surname     string   `json:"surname"`
@@ -30,4 +31,5 @@ type ExecutorLocation struct {
 	Price       float64  `json:"price"`
 	AvgRating   float64  `json:"avg_rating"`
 	Type        string   `json:"type"`
+
 }

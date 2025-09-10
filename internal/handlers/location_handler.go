@@ -48,6 +48,7 @@ func (h *LocationHandler) GetLocation(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(loc)
 }
 
+
 // GoOffline clears location for a user and marks them offline.
 func (h *LocationHandler) GoOffline(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
@@ -63,6 +64,7 @@ func (h *LocationHandler) GoOffline(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
 
 // GetExecutors returns online executors with active items filtered by request body.
 func (h *LocationHandler) GetExecutors(w http.ResponseWriter, r *http.Request) {
