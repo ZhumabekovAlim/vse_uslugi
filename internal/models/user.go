@@ -22,6 +22,7 @@ type User struct {
 	Role         string     `json:"role,omitempty"`
 	Latitude     *string    `json:"latitude,omitempty"`
 	Longitude    *string    `json:"longitude,omitempty"`
+	IsOnline     bool       `json:"is_online"`
 	Skills       string     `json:"skills,omitempty"`
 	Categories   []Category `json:"categories,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`

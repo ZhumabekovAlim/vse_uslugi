@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"naimuBack/internal/models"
 	"net/http"
@@ -104,6 +103,9 @@ func pingLoopLocation(lm *LocationManager, conn *websocket.Conn, uid int) {
 func (app *application) handleLocationMessages(conn *websocket.Conn, userID int) {
 	defer func() {
 		app.locationManager.unregister <- unreg{userID: userID, conn: conn}
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		_ = app.locationRepo.ClearLocation(ctx, userID)
+		cancel()
 		_ = conn.Close()
 	}()
 
@@ -118,16 +120,16 @@ func (app *application) handleLocationMessages(conn *websocket.Conn, userID int)
 			return
 		}
 
-		latStr := fmt.Sprintf("%f", msg.Latitude)
-		lonStr := fmt.Sprintf("%f", msg.Longitude)
+		latStr := msg.Latitude
+		lonStr := msg.Longitude
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		_, err := app.userRepo.UpdateUser(ctx, models.User{ID: userID, Latitude: &latStr, Longitude: &lonStr})
+		err := app.locationRepo.SetLocation(ctx, models.Location{UserID: userID, Latitude: &latStr, Longitude: &lonStr})
 		cancel()
 		if err != nil {
 			log.Println("update location error:", err)
 			continue
 		}
 
-		app.locationManager.broadcast <- models.Location{UserID: userID, Latitude: msg.Latitude, Longitude: msg.Longitude}
+		app.locationManager.broadcast <- models.Location{UserID: userID, Latitude: &latStr, Longitude: &lonStr}
 	}
 }
