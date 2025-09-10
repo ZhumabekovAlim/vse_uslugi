@@ -66,7 +66,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
                       s.images, s.category_id, c.name, s.subcategory_id, sub.name,
                       s.description, s.avg_rating, s.top, s.liked,
                       CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
-                      s.status, s.created_at, s.updated_at
+                      s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                FROM service s
                JOIN users u ON s.user_id = u.id
                JOIN categories c ON s.category_id = c.id
@@ -77,12 +77,13 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 
 	var s models.Service
 	var imagesJSON []byte
+	var lat, lon sql.NullString
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName,
-		&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &s.Status,
-		&s.CreatedAt, &s.UpdatedAt,
+		&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded,
+		&lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -96,6 +97,13 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.Service{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
+	}
+
+	if lat.Valid {
+		s.Latitude = &lat.String
+	}
+	if lon.Valid {
+		s.Longitude = &lon.String
 	}
 
 	s.AvgRating = getAverageRating(ctx, r.DB, "reviews", "service_id", s.ID)
@@ -611,7 +619,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
                        s.description, s.avg_rating, s.top,
                        CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
                        CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
-                       s.status, s.created_at, s.updated_at
+                       s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                FROM service s
                JOIN users u ON s.user_id = u.id
                JOIN categories c ON s.category_id = c.id
@@ -623,6 +631,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 
 	var s models.Service
 	var imagesJSON []byte
+	var lat, lon sql.NullString
 
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, serviceID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
@@ -630,7 +639,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&s.Liked, &s.Responded, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+		&s.Liked, &s.Responded, &lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -644,6 +653,13 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.Service{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
+	}
+
+	if lat.Valid {
+		s.Latitude = &lat.String
+	}
+	if lon.Valid {
+		s.Longitude = &lon.String
 	}
 
 	s.AvgRating = getAverageRating(ctx, r.DB, "reviews", "service_id", s.ID)
