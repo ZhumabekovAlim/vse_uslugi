@@ -42,6 +42,7 @@ func main() {
 
 	app.wsManager = NewWebSocketManager()
 	app.locationManager = NewLocationManager()
+	app.locationHandler.Broadcast = app.locationManager.broadcast
 	go app.wsManager.Run(db)
 	go app.locationManager.Run()
 

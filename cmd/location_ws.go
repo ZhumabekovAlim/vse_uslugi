@@ -11,19 +11,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// LocationUpdate represents user's location data.
-type LocationUpdate struct {
-	UserID    int     `json:"user_id"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-}
-
 // LocationManager manages websocket connections for location sharing.
 type LocationManager struct {
 	clients    map[int]*websocket.Conn
 	register   chan Client
 	unregister chan unreg
-	broadcast  chan LocationUpdate
+	broadcast  chan models.Location
 }
 
 // NewLocationManager creates a new LocationManager instance.
@@ -32,7 +25,7 @@ func NewLocationManager() *LocationManager {
 		clients:    make(map[int]*websocket.Conn),
 		register:   make(chan Client),
 		unregister: make(chan unreg),
-		broadcast:  make(chan LocationUpdate),
+		broadcast:  make(chan models.Location),
 	}
 }
 
@@ -135,6 +128,6 @@ func (app *application) handleLocationMessages(conn *websocket.Conn, userID int)
 			continue
 		}
 
-		app.locationManager.broadcast <- LocationUpdate{UserID: userID, Latitude: msg.Latitude, Longitude: msg.Longitude}
+		app.locationManager.broadcast <- models.Location{UserID: userID, Latitude: msg.Latitude, Longitude: msg.Longitude}
 	}
 }

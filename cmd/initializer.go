@@ -44,6 +44,8 @@ type application struct {
 	cityRepo                   repositories.CityRepository
 	wsManager                  *WebSocketManager
 	locationManager            *LocationManager
+	locationHandler            *handlers.LocationHandler
+	locationRepo               *repositories.LocationRepository
 	chatHandler                *handlers.ChatHandler
 	messageHandler             *handlers.MessageHandler
 	db                         *sql.DB
@@ -153,6 +155,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	rentAdComplaintRepo := repositories.RentAdComplaintRepository{DB: db}
 	chatRepo := repositories.ChatRepository{Db: db}
 	messageRepo := repositories.MessageRepository{Db: db}
+	locationRepo := repositories.LocationRepository{DB: db}
 	serviceResponseRepo := repositories.ServiceResponseRepository{DB: db}
 	serviceConfirmationRepo := repositories.ServiceConfirmationRepository{DB: db}
 	userResponsesRepo := repositories.UserResponsesRepository{DB: db}
@@ -223,6 +226,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo, AdRepo: &adRepo, ChatRepo: &chatRepo, ConfirmationRepo: &adConfirmationRepo, MessageRepo: &messageRepo}
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
 	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
+	locationService := &services.LocationService{Repo: &locationRepo}
 
 	robokassaService := &services.RobokassaService{
 		MerchantLogin: "vse_uslugi",
@@ -287,6 +291,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
 	subscriptionHandler := &handlers.SubscriptionHandler{Service: subscriptionService}
 	robokassaHandler := handlers.NewRobokassaHandler(robokassaService, invoiceRepo)
+	locationHandler := &handlers.LocationHandler{Service: locationService}
 
 	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
 	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
@@ -360,6 +365,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		workConfirmationRepo:    &workConfirmationRepo,
 		rentConfirmationRepo:    &rentConfirmationRepo,
 		subscriptionRepo:        &subscriptionRepo,
+		locationRepo:            &locationRepo,
 
 		// WorkAd блок
 		workAdRepo:             &workAdRepo,
@@ -433,6 +439,8 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		// Чаты/сообщения
 		chatHandler:    chatHandler,
 		messageHandler: messageHandler,
+
+		locationHandler: locationHandler,
 
 		invoiceRepo: invoiceRepo,
 	}
