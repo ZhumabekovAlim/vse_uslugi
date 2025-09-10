@@ -18,6 +18,7 @@ import (
 	"naimuBack/internal/repositories"
 	"naimuBack/utils"
 	"net/http"
+	"net/smtp"
 	"net/url"
 	"os"
 	"strconv"
@@ -332,6 +333,50 @@ func (s *UserService) ChangeNumber(ctx context.Context, number string) (models.S
 	return models.SignUpResponse{
 		VerificationCode: code,
 	}, nil
+}
+
+func (s *UserService) sendEmailSMTP(toEmail, subject, body string) error {
+	host := os.Getenv("SMTP_HOST")
+	port := os.Getenv("SMTP_PORT")
+	username := os.Getenv("SMTP_USER")
+	password := os.Getenv("SMTP_PASS")
+
+	addr := fmt.Sprintf("%s:%s", host, port)
+	auth := smtp.PlainAuth("", username, password, host)
+
+	msg := []byte("To: " + toEmail + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"\r\n" + body + "\r\n")
+
+	return smtp.SendMail(addr, auth, username, []string{toEmail}, msg)
+}
+
+func (s *UserService) SendCodeToEmail(ctx context.Context, phone, email string) (models.SignUpResponse, error) {
+	existingUser, err := s.UserRepo.GetUserByEmail(ctx, email)
+	if err != nil {
+		return models.SignUpResponse{}, err
+	}
+	if existingUser.Email != "" {
+		return models.SignUpResponse{}, models.ErrDuplicateEmail
+	}
+
+	code := generateVerificationCode()
+	subject := "Код подтверждения регистрации"
+	body := fmt.Sprintf("Ваш код подтверждения: %s\n\nОт компании https://nusacorp.com/", code)
+
+	if err := s.sendEmailSMTP(email, subject, body); err != nil {
+		return models.SignUpResponse{}, fmt.Errorf("ошибка при отправке email: %v", err)
+	}
+
+	if err := s.UserRepo.ClearVerificationCode(ctx, phone); err != nil {
+		return models.SignUpResponse{}, err
+	}
+
+	if err := s.UserRepo.SaveVerificationCode(ctx, phone, code); err != nil {
+		return models.SignUpResponse{}, fmt.Errorf("не удалось сохранить код подтверждения: %v", err)
+	}
+
+	return models.SignUpResponse{VerificationCode: code}, nil
 }
 
 func (s *UserService) sendEmailMailgun(toEmail, subject, body string) error {

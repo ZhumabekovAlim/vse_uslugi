@@ -36,6 +36,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/user/sign_in", standardMiddleware.ThenFunc(app.userHandler.SignIn))             //РАБОТАЕТ
 	mux.Post("/user/change_number", standardMiddleware.ThenFunc(app.userHandler.ChangeNumber)) //РАБОТАЕТ
 	mux.Post("/user/change_email", standardMiddleware.ThenFunc(app.userHandler.ChangeEmail))   //РАБОТАЕТ
+	mux.Post("/user/send_email_code", standardMiddleware.ThenFunc(app.userHandler.SendCodeToEmail))
 	mux.Put("/user/:id/city", authMiddleware.ThenFunc(app.userHandler.ChangeCityForUser))
 	mux.Get("/docs/:filename", authMiddleware.ThenFunc(app.userHandler.ServeProofDocument))
 	mux.Post("/user/:id/avatar", authMiddleware.ThenFunc(app.userHandler.UploadAvatar))
