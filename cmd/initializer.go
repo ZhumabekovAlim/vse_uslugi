@@ -42,6 +42,7 @@ type application struct {
 	cityHandler                handlers.CityHandler
 	cityRepo                   repositories.CityRepository
 	wsManager                  *WebSocketManager
+	locationManager            *LocationManager
 	chatHandler                *handlers.ChatHandler
 	messageHandler             *handlers.MessageHandler
 	db                         *sql.DB

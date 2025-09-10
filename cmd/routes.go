@@ -145,6 +145,7 @@ func (app *application) routes() http.Handler {
 
 	// Chat
 	mux.Get("/ws", standardMiddleware.ThenFunc(app.WebSocketHandler))
+	mux.Get("/ws/location", standardMiddleware.ThenFunc(app.LocationWebSocketHandler))
 
 	mux.Post("/api/chats", authMiddleware.ThenFunc(app.chatHandler.CreateChat))
 	mux.Get("/api/chats/:id", authMiddleware.ThenFunc(app.chatHandler.GetChatByID))
