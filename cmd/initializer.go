@@ -14,6 +14,7 @@ import (
 	services "naimuBack/internal/services"
 	_ "naimuBack/utils"
 	"net/http"
+	"strings"
 )
 
 type application struct {
@@ -454,6 +455,10 @@ func openDB(dsn string) (*sql.DB, error) {
 
 func addSecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/ws") {
+			next.ServeHTTP(w, r)
+			return
+		}
 		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
 		w.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
 		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
