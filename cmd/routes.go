@@ -19,6 +19,8 @@ func (app *application) routes() http.Handler {
 	authMiddleware := standardMiddleware.Append(app.JWTMiddlewareWithRole("user"))
 	adminAuthMiddleware := standardMiddleware.Append(app.JWTMiddlewareWithRole("admin"))
 
+	wsMiddleware := alice.New(app.recoverPanic, app.logRequest)
+
 	mux := pat.New()
 
 	// mux.Get("/swagger/", httpSwagger.WrapHandler)
@@ -144,8 +146,8 @@ func (app *application) routes() http.Handler {
 	mux.Del("/city/:id", authMiddleware.ThenFunc(app.cityHandler.DeleteCity))
 
 	// Chat
-	mux.Get("/ws", standardMiddleware.ThenFunc(app.WebSocketHandler))
-	mux.Get("/ws/location", standardMiddleware.ThenFunc(app.LocationWebSocketHandler))
+	mux.Get("/ws", wsMiddleware.ThenFunc(app.WebSocketHandler))
+	mux.Get("/ws/location", wsMiddleware.ThenFunc(app.LocationWebSocketHandler))
 
 	mux.Post("/api/chats", authMiddleware.ThenFunc(app.chatHandler.CreateChat))
 	mux.Get("/api/chats/:id", authMiddleware.ThenFunc(app.chatHandler.GetChatByID))
