@@ -48,8 +48,21 @@ func main() {
 	fs := http.FileServer(http.Dir("./uploads"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
+	allowedOrigins := map[string]struct{}{
+		"http://localhost:3000": {},
+		"http://localhost:3001": {},
+		"http://localhost:5173": {},
+		"http://localhost:5174": {},
+	}
+
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001", "http://localhost:5173", "http://localhost:5174"},
+		AllowOriginRequestFunc: func(r *http.Request, origin string) bool {
+			if r.URL.Path == "/ws" || r.URL.Path == "/ws/location" {
+				return true
+			}
+			_, ok := allowedOrigins[origin]
+			return ok
+		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowCredentials: true,
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
