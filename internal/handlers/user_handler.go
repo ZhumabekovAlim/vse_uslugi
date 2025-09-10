@@ -361,6 +361,34 @@ func (h *UserHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+func (h *UserHandler) SendCodeToEmail(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Phone string `json:"phone"`
+		Email string `json:"email"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil || req.Phone == "" || req.Email == "" {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.Service.SendCodeToEmail(r.Context(), req.Phone, req.Email)
+	if err != nil {
+		if errors.Is(err, models.ErrDuplicateEmail) {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		log.Printf("SendCodeToEmail error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
 func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) {
 	// Extract user ID from URL (e.g. /users/5/city)
 	idStr := r.URL.Query().Get(":id")
