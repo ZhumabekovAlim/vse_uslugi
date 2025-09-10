@@ -47,3 +47,18 @@ func (h *LocationHandler) GetLocation(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = json.NewEncoder(w).Encode(loc)
 }
+
+// GetExecutors returns online executors with active items filtered by request body.
+func (h *LocationHandler) GetExecutors(w http.ResponseWriter, r *http.Request) {
+	var filter models.ExecutorLocationFilter
+	if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	execs, err := h.Service.GetExecutors(r.Context(), filter)
+	if err != nil {
+		http.Error(w, "Failed to get executors", http.StatusInternalServerError)
+		return
+	}
+	_ = json.NewEncoder(w).Encode(execs)
+}
