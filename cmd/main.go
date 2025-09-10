@@ -41,7 +41,9 @@ func main() {
 	app := initializeApp(db, errorLog, infoLog)
 
 	app.wsManager = NewWebSocketManager()
+	app.locationManager = NewLocationManager()
 	go app.wsManager.Run(db)
+	go app.locationManager.Run()
 
 	fs := http.FileServer(http.Dir("./uploads"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
