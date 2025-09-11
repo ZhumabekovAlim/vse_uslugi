@@ -26,8 +26,12 @@ func (s *WorkAdService) DeleteWorkAd(ctx context.Context, id int) error {
 	return s.WorkAdRepo.DeleteWorkAd(ctx, id)
 }
 
-func (s *WorkAdService) ArchiveWorkAd(ctx context.Context, id int) error {
-	return s.WorkAdRepo.UpdateStatus(ctx, id, "archive")
+func (s *WorkAdService) ArchiveWorkAd(ctx context.Context, id int, archive bool) error {
+	status := "archive"
+	if !archive {
+		status = "active"
+	}
+	return s.WorkAdRepo.UpdateStatus(ctx, id, status)
 }
 
 func (s *WorkAdService) GetFilteredWorksAd(ctx context.Context, filter models.WorkAdFilterRequest, userID int, cityID int) (models.WorkAdListResponse, error) {

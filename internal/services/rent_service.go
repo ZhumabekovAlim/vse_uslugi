@@ -49,8 +49,12 @@ func (s *RentService) DeleteRent(ctx context.Context, id int) error {
 	return s.RentRepo.DeleteRent(ctx, id)
 }
 
-func (s *RentService) ArchiveRent(ctx context.Context, id int) error {
-	return s.RentRepo.UpdateStatus(ctx, id, "archive")
+func (s *RentService) ArchiveRent(ctx context.Context, id int, archive bool) error {
+	status := "archive"
+	if !archive {
+		status = "active"
+	}
+	return s.RentRepo.UpdateStatus(ctx, id, status)
 }
 
 func (s *RentService) GetFilteredRents(ctx context.Context, filter models.RentFilterRequest, userID int, cityID int) (models.RentListResponse, error) {

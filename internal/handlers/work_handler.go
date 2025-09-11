@@ -89,13 +89,14 @@ func (h *WorkHandler) DeleteWork(w http.ResponseWriter, r *http.Request) {
 
 func (h *WorkHandler) ArchiveWork(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		WorkID int `json:"work_id"`
+		WorkID  int `json:"work_id"`
+		Archive int `json:"archive"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.ArchiveWork(r.Context(), req.WorkID); err != nil {
+	if err := h.Service.ArchiveWork(r.Context(), req.WorkID, req.Archive == 1); err != nil {
 		http.Error(w, "Failed to archive work", http.StatusInternalServerError)
 		return
 	}

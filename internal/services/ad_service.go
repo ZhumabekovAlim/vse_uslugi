@@ -26,8 +26,12 @@ func (s *AdService) DeleteAd(ctx context.Context, id int) error {
 	return s.AdRepo.DeleteAd(ctx, id)
 }
 
-func (s *AdService) ArchiveAd(ctx context.Context, id int) error {
-	return s.AdRepo.UpdateStatus(ctx, id, "archive")
+func (s *AdService) ArchiveAd(ctx context.Context, id int, archive bool) error {
+	status := "archive"
+	if !archive {
+		status = "active"
+	}
+	return s.AdRepo.UpdateStatus(ctx, id, status)
 }
 
 func (s *AdService) GetFilteredAd(ctx context.Context, filter models.AdFilterRequest, userID int, cityID int) (models.AdListResponse, error) {

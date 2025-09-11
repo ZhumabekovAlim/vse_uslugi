@@ -49,8 +49,12 @@ func (s *WorkService) DeleteWork(ctx context.Context, id int) error {
 	return s.WorkRepo.DeleteWork(ctx, id)
 }
 
-func (s *WorkService) ArchiveWork(ctx context.Context, id int) error {
-	return s.WorkRepo.UpdateStatus(ctx, id, "archive")
+func (s *WorkService) ArchiveWork(ctx context.Context, id int, archive bool) error {
+	status := "archive"
+	if !archive {
+		status = "active"
+	}
+	return s.WorkRepo.UpdateStatus(ctx, id, status)
 }
 
 func (s *WorkService) GetFilteredWorks(ctx context.Context, filter models.WorkFilterRequest, userID int, cityID int) (models.WorkListResponse, error) {

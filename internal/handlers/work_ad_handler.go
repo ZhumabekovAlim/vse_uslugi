@@ -90,12 +90,13 @@ func (h *WorkAdHandler) DeleteWorkAd(w http.ResponseWriter, r *http.Request) {
 func (h *WorkAdHandler) ArchiveWorkAd(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		WorkAdID int `json:"work_ad_id"`
+		Archive  int `json:"archive"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.ArchiveWorkAd(r.Context(), req.WorkAdID); err != nil {
+	if err := h.Service.ArchiveWorkAd(r.Context(), req.WorkAdID, req.Archive == 1); err != nil {
 		http.Error(w, "Failed to archive work ad", http.StatusInternalServerError)
 		return
 	}
