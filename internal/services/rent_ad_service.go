@@ -26,8 +26,12 @@ func (s *RentAdService) DeleteRentAd(ctx context.Context, id int) error {
 	return s.RentAdRepo.DeleteRentAd(ctx, id)
 }
 
-func (s *RentAdService) ArchiveRentAd(ctx context.Context, id int) error {
-	return s.RentAdRepo.UpdateStatus(ctx, id, "archive")
+func (s *RentAdService) ArchiveRentAd(ctx context.Context, id int, archive bool) error {
+	status := "archive"
+	if !archive {
+		status = "active"
+	}
+	return s.RentAdRepo.UpdateStatus(ctx, id, status)
 }
 
 func (s *RentAdService) GetFilteredRentsAd(ctx context.Context, filter models.RentAdFilterRequest, userID int, cityID int) (models.RentAdListResponse, error) {

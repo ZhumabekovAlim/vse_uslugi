@@ -89,13 +89,14 @@ func (h *AdHandler) DeleteAd(w http.ResponseWriter, r *http.Request) {
 
 func (h *AdHandler) ArchiveAd(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		AdID int `json:"ad_id"`
+		AdID    int `json:"ad_id"`
+		Archive int `json:"archive"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.ArchiveAd(r.Context(), req.AdID); err != nil {
+	if err := h.Service.ArchiveAd(r.Context(), req.AdID, req.Archive == 1); err != nil {
 		http.Error(w, "Failed to archive ad", http.StatusInternalServerError)
 		return
 	}

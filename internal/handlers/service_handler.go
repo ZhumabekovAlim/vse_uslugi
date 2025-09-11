@@ -90,12 +90,13 @@ func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 func (h *ServiceHandler) ArchiveService(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ServiceID int `json:"service_id"`
+		Archive   int `json:"archive"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.ArchiveService(r.Context(), req.ServiceID); err != nil {
+	if err := h.Service.ArchiveService(r.Context(), req.ServiceID, req.Archive == 1); err != nil {
 		http.Error(w, "Failed to archive service", http.StatusInternalServerError)
 		return
 	}

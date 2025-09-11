@@ -49,8 +49,12 @@ func (s *ServiceService) DeleteService(ctx context.Context, id int) error {
 	return s.ServiceRepo.DeleteService(ctx, id)
 }
 
-func (s *ServiceService) ArchiveService(ctx context.Context, id int) error {
-	return s.ServiceRepo.UpdateStatus(ctx, id, "archive")
+func (s *ServiceService) ArchiveService(ctx context.Context, id int, archive bool) error {
+	status := "archive"
+	if !archive {
+		status = "active"
+	}
+	return s.ServiceRepo.UpdateStatus(ctx, id, status)
 }
 
 func (s *ServiceService) GetFilteredServices(ctx context.Context, filter models.ServiceFilterRequest, userID int, cityID int) (models.ServiceListResponse, error) {

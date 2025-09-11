@@ -89,13 +89,14 @@ func (h *RentHandler) DeleteRent(w http.ResponseWriter, r *http.Request) {
 
 func (h *RentHandler) ArchiveRent(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		RentID int `json:"rent_id"`
+		RentID  int `json:"rent_id"`
+		Archive int `json:"archive"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.ArchiveRent(r.Context(), req.RentID); err != nil {
+	if err := h.Service.ArchiveRent(r.Context(), req.RentID, req.Archive == 1); err != nil {
 		http.Error(w, "Failed to archive rent", http.StatusInternalServerError)
 		return
 	}
