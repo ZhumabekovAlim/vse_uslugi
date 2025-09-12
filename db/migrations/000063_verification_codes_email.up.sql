@@ -1,0 +1,3 @@
+ALTER TABLE verification_codes
+    MODIFY phone VARCHAR(20) NULL,
+    ADD COLUMN email VARCHAR(255) DEFAULT NULL AFTER phone;
