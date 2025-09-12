@@ -335,6 +335,12 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.Top = r.FormValue("top")
 	service.Status = r.FormValue("status")
+	if v := r.FormValue("latitude"); v != "" {
+		service.Latitude = &v
+	}
+	if v := r.FormValue("longitude"); v != "" {
+		service.Longitude = &v
+	}
 	service.CreatedAt = time.Now()
 
 	// Сохраняем изображения
@@ -457,6 +463,14 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, ok := r.MultipartForm.Value["status"]; ok {
 		service.Status = r.FormValue("status")
+	}
+	if v, ok := r.MultipartForm.Value["latitude"]; ok {
+		lat := v[0]
+		service.Latitude = &lat
+	}
+	if v, ok := r.MultipartForm.Value["longitude"]; ok {
+		lon := v[0]
+		service.Longitude = &lon
 	}
 
 	saveDir := "cmd/uploads/services"
