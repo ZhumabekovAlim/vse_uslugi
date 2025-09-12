@@ -411,23 +411,57 @@ func (h *AdHandler) UpdateAd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var service models.Ad
-	service.ID = id
-	service.Name = r.FormValue("name")
-	service.Address = r.FormValue("address")
-	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
-	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
-	service.Description = r.FormValue("description")
-	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
-	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
-	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
-	service.Top = r.FormValue("top")
-	service.Liked = r.FormValue("liked") == "true"
-	service.Status = r.FormValue("status")
-	now := time.Now()
-	service.UpdatedAt = &now
+	existingService, err := h.Service.GetAdByID(r.Context(), id, 0)
+	if err != nil {
+		http.Error(w, "Service not found", http.StatusNotFound)
+		return
+	}
 
-	// Обработка изображений
+	service := existingService
+
+	if _, ok := r.MultipartForm.Value["name"]; ok {
+		service.Name = r.FormValue("name")
+	}
+	if _, ok := r.MultipartForm.Value["address"]; ok {
+		service.Address = r.FormValue("address")
+	}
+	if v, ok := r.MultipartForm.Value["price"]; ok {
+		service.Price, _ = strconv.ParseFloat(v[0], 64)
+	}
+	if v, ok := r.MultipartForm.Value["user_id"]; ok {
+		service.UserID, _ = strconv.Atoi(v[0])
+	}
+	if _, ok := r.MultipartForm.Value["description"]; ok {
+		service.Description = r.FormValue("description")
+	}
+	if v, ok := r.MultipartForm.Value["category_id"]; ok {
+		service.CategoryID, _ = strconv.Atoi(v[0])
+	}
+	if v, ok := r.MultipartForm.Value["subcategory_id"]; ok {
+		service.SubcategoryID, _ = strconv.Atoi(v[0])
+	}
+	if v, ok := r.MultipartForm.Value["avg_rating"]; ok {
+		service.AvgRating, _ = strconv.ParseFloat(v[0], 64)
+	}
+	if _, ok := r.MultipartForm.Value["top"]; ok {
+		service.Top = r.FormValue("top")
+	}
+	if _, ok := r.MultipartForm.Value["liked"]; ok {
+		service.Liked = r.FormValue("liked") == "true"
+	}
+	if _, ok := r.MultipartForm.Value["status"]; ok {
+		service.Status = r.FormValue("status")
+	}
+
+	if v, ok := r.MultipartForm.Value["latitude"]; ok {
+		lat := v[0]
+		service.Latitude = &lat
+	}
+	if v, ok := r.MultipartForm.Value["longitude"]; ok {
+		lon := v[0]
+		service.Longitude = &lon
+	}
+
 	saveDir := "cmd/uploads/ad"
 	err = os.MkdirAll(saveDir, 0755)
 	if err != nil {
@@ -435,43 +469,45 @@ func (h *AdHandler) UpdateAd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	files := r.MultipartForm.File["images"]
-	var imageInfos []models.ImageAd
+	if files, ok := r.MultipartForm.File["images"]; ok && len(files) > 0 {
+		var imageInfos []models.ImageAd
+		for _, fileHeader := range files {
+			file, err := fileHeader.Open()
+			if err != nil {
+				http.Error(w, "Failed to open image", http.StatusInternalServerError)
+				return
+			}
+			defer file.Close()
 
-	for _, fileHeader := range files {
-		file, err := fileHeader.Open()
-		if err != nil {
-			http.Error(w, "Failed to open image", http.StatusInternalServerError)
-			return
+			timestamp := time.Now().UnixNano()
+			ext := filepath.Ext(fileHeader.Filename)
+			imageName := fmt.Sprintf("ad_image_%d%s", timestamp, ext)
+			savePath := filepath.Join(saveDir, imageName)
+			publicURL := fmt.Sprintf("/images/ad/%s", imageName)
+
+			dst, err := os.Create(savePath)
+			if err != nil {
+				http.Error(w, "Cannot save image", http.StatusInternalServerError)
+				return
+			}
+			defer dst.Close()
+
+			if _, err := io.Copy(dst, file); err != nil {
+				http.Error(w, "Failed to write image", http.StatusInternalServerError)
+				return
+			}
+
+			imageInfos = append(imageInfos, models.ImageAd{
+				Name: fileHeader.Filename,
+				Path: publicURL,
+				Type: fileHeader.Header.Get("Content-Type"),
+			})
 		}
-		defer file.Close()
-
-		timestamp := time.Now().UnixNano()
-		ext := filepath.Ext(fileHeader.Filename)
-		imageName := fmt.Sprintf("ad_image_%d%s", timestamp, ext)
-		savePath := filepath.Join(saveDir, imageName)
-		publicURL := fmt.Sprintf("/images/ad/%s", imageName)
-
-		dst, err := os.Create(savePath)
-		if err != nil {
-			http.Error(w, "Cannot save image", http.StatusInternalServerError)
-			return
-		}
-		defer dst.Close()
-
-		if _, err := io.Copy(dst, file); err != nil {
-			http.Error(w, "Failed to write image", http.StatusInternalServerError)
-			return
-		}
-
-		imageInfos = append(imageInfos, models.ImageAd{
-			Name: fileHeader.Filename,
-			Path: publicURL,
-			Type: fileHeader.Header.Get("Content-Type"),
-		})
+		service.Images = imageInfos
 	}
 
-	service.Images = imageInfos
+	now := time.Now()
+	service.UpdatedAt = &now
 
 	updatedService, err := h.Service.UpdateAd(r.Context(), service)
 	if err != nil {
