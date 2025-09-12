@@ -49,6 +49,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/subscription/:user_id", authMiddleware.ThenFunc(app.subscriptionHandler.GetSubscription))
 	mux.Post("/robokassa/pay", standardMiddleware.ThenFunc(app.robokassaHandler.CreatePayment))
 	mux.Post("/robokassa/result", standardMiddleware.ThenFunc(app.robokassaHandler.Result))
+	mux.Get("/robokassa/history/:user_id", authMiddleware.ThenFunc(app.robokassaHandler.GetHistory))
 
 	mux.Get("/user/posts/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetPostsByUserID))
 	mux.Get("/user/ads/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetAdsByUserID))
