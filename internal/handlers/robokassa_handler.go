@@ -24,6 +24,7 @@ func (h *RobokassaHandler) CreatePayment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var req struct {
+		UserID      int     `json:"user_id"`
 		Amount      float64 `json:"amount"`
 		Description string  `json:"description"`
 	}
@@ -32,7 +33,7 @@ func (h *RobokassaHandler) CreatePayment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	invID, err := h.InvoiceRepo.CreateInvoice(r.Context(), req.Amount, req.Description)
+	invID, err := h.InvoiceRepo.CreateInvoice(r.Context(), req.UserID, req.Amount, req.Description)
 	if err != nil {
 		http.Error(w, "create invoice: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -75,4 +76,24 @@ func (h *RobokassaHandler) Result(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = w.Write([]byte("OK" + invID))
+}
+
+func (h *RobokassaHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
+	if h.InvoiceRepo == nil {
+		http.Error(w, "robokassa not initialized", http.StatusInternalServerError)
+		return
+	}
+	userIDStr := r.URL.Query().Get(":user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "invalid user_id", http.StatusBadRequest)
+		return
+	}
+	invoices, err := h.InvoiceRepo.GetByUser(r.Context(), userID)
+	if err != nil {
+		http.Error(w, "get invoices: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(invoices)
 }
