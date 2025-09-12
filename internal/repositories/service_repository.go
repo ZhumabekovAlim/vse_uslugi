@@ -23,9 +23,9 @@ type ServiceRepository struct {
 
 func (r *ServiceRepository) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
-        INSERT INTO service (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`
+        INSERT INTO service (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, status, latitude, longitude, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `
 	// Сохраняем images как JSON
 	imagesJSON, err := json.Marshal(service.Images)
 	if err != nil {
@@ -45,6 +45,8 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		service.Top,
 		service.Liked,
 		service.Status,
+		service.Latitude,
+		service.Longitude,
 		service.CreatedAt,
 	)
 	if err != nil {
@@ -118,8 +120,8 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
         UPDATE service
-        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, category_id = ?, subcategory_id = ?, 
-            description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, updated_at = ?
+        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, category_id = ?, subcategory_id = ?,
+            description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, latitude = ?, longitude = ?, updated_at = ?
         WHERE id = ?
     `
 	imagesJSON, err := json.Marshal(service.Images)
@@ -130,7 +132,7 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
 	service.UpdatedAt = &updatedAt
 	result, err := r.DB.ExecContext(ctx, query,
 		service.Name, service.Address, service.Price, service.UserID, imagesJSON,
-		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, service.UpdatedAt, service.ID,
+		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, service.Latitude, service.Longitude, service.UpdatedAt, service.ID,
 	)
 	if err != nil {
 		return models.Service{}, err
@@ -313,10 +315,10 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 
 func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
 	query := `
-               SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.created_at, s.updated_at
-               FROM service s
-               JOIN users u ON s.user_id = u.id
-               WHERE user_id = ?
+              SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
+              FROM service s
+              JOIN users u ON s.user_id = u.id
+              WHERE user_id = ?
        `
 
 	rows, err := r.DB.QueryContext(ctx, query, userID)
@@ -329,9 +331,10 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 	for rows.Next() {
 		var s models.Service
 		var imagesJSON []byte
+		var lat, lon sql.NullString
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -340,6 +343,13 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 			if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 				return nil, fmt.Errorf("json decode error: %w", err)
 			}
+		}
+
+		if lat.Valid {
+			s.Latitude = &lat.String
+		}
+		if lon.Valid {
+			s.Longitude = &lon.String
 		}
 
 		s.AvgRating = getAverageRating(ctx, r.DB, "reviews", "service_id", s.ID)
@@ -456,7 +466,7 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
                 s.id, s.name, s.address, s.price, s.user_id,
                 u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
                 s.images, s.category_id, s.subcategory_id, s.description,
-                s.avg_rating, s.top, s.liked, s.status,
+                s.avg_rating, s.top, s.liked, s.status, s.latitude, s.longitude,
                 s.created_at, s.updated_at
         FROM service s
         JOIN users u ON s.user_id = u.id
@@ -472,11 +482,12 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 	for rows.Next() {
 		var s models.Service
 		var imagesJSON []byte
+		var lat, lon sql.NullString
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID,
-			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
+			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &lat, &lon,
 			&s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
@@ -484,6 +495,12 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("json decode error: %w", err)
+		}
+		if lat.Valid {
+			s.Latitude = &lat.String
+		}
+		if lon.Valid {
+			s.Longitude = &lon.String
 		}
 		s.AvgRating = getAverageRating(ctx, r.DB, "reviews", "service_id", s.ID)
 		services = append(services, s)
