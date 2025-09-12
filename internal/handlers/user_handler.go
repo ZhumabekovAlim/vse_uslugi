@@ -363,17 +363,15 @@ func (h *UserHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) SendCodeToEmail(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Phone string `json:"phone"`
 		Email string `json:"email"`
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil || req.Phone == "" || req.Email == "" {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	resp, err := h.Service.SendCodeToEmail(r.Context(), req.Phone, req.Email)
+	resp, err := h.Service.SendCodeToEmail(r.Context(), req.Email)
 	if err != nil {
 		if errors.Is(err, models.ErrDuplicateEmail) {
 			http.Error(w, err.Error(), http.StatusConflict)

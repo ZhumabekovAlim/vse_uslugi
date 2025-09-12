@@ -120,7 +120,7 @@ func (s *UserService) sendSMS(apiKey, phone, message string) error {
 
 func (s *UserService) SignUp(ctx context.Context, user models.User, inputCode string) (models.SignUpResponse, error) {
 	// 1. Получаем ожидаемый код из базы
-	codeFromDB, err := s.UserRepo.GetVerificationCodeByPhone(ctx, user.Phone)
+	codeFromDB, err := s.UserRepo.GetVerificationCodeByEmail(ctx, user.Email)
 	if err != nil {
 		return models.SignUpResponse{}, err
 	}
@@ -145,7 +145,7 @@ func (s *UserService) SignUp(ctx context.Context, user models.User, inputCode st
 	}
 
 	// 5. Можно очистить использованный код, если хочешь
-	_ = s.UserRepo.ClearVerificationCode(ctx, user.Phone)
+	_ = s.UserRepo.ClearVerificationCodeByEmail(ctx, user.Email)
 
 	return models.SignUpResponse{User: newUser}, nil
 }
@@ -351,7 +351,7 @@ func (s *UserService) sendEmailSMTP(toEmail, subject, body string) error {
 	return smtp.SendMail(addr, auth, username, []string{toEmail}, msg)
 }
 
-func (s *UserService) SendCodeToEmail(ctx context.Context, phone, email string) (models.SignUpResponse, error) {
+func (s *UserService) SendCodeToEmail(ctx context.Context, email string) (models.SignUpResponse, error) {
 	existingUser, err := s.UserRepo.GetUserByEmail(ctx, email)
 	if err != nil {
 		return models.SignUpResponse{}, err
@@ -368,11 +368,11 @@ func (s *UserService) SendCodeToEmail(ctx context.Context, phone, email string) 
 		return models.SignUpResponse{}, fmt.Errorf("ошибка при отправке email: %v", err)
 	}
 
-	if err := s.UserRepo.ClearVerificationCode(ctx, phone); err != nil {
+	if err := s.UserRepo.ClearVerificationCodeByEmail(ctx, email); err != nil {
 		return models.SignUpResponse{}, err
 	}
 
-	if err := s.UserRepo.SaveVerificationCode(ctx, phone, code); err != nil {
+	if err := s.UserRepo.SaveEmailVerificationCode(ctx, email, code); err != nil {
 		return models.SignUpResponse{}, fmt.Errorf("не удалось сохранить код подтверждения: %v", err)
 	}
 
