@@ -491,6 +491,31 @@ func (r *UserRepository) ClearVerificationCode(ctx context.Context, phone string
 	return err
 }
 
+func (r *UserRepository) SaveEmailVerificationCode(ctx context.Context, email, code string) error {
+	_, err := r.DB.ExecContext(ctx,
+		`INSERT INTO verification_codes (email, code, created_at) VALUES (?, ?, NOW())`,
+		email, code,
+	)
+	return err
+}
+
+func (r *UserRepository) GetVerificationCodeByEmail(ctx context.Context, email string) (string, error) {
+	var code string
+	err := r.DB.QueryRowContext(ctx, `SELECT code FROM verification_codes WHERE email = ?`, email).Scan(&code)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", models.ErrInvalidVerificationCode
+		}
+		return "", err
+	}
+	return code, nil
+}
+
+func (r *UserRepository) ClearVerificationCodeByEmail(ctx context.Context, email string) error {
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM verification_codes WHERE email = ?`, email)
+	return err
+}
+
 func (r *UserRepository) SaveResetCode(ctx context.Context, email, code string) error {
 	query := `UPDATE users SET reset_code = ? WHERE email = ?`
 	_, err := r.DB.ExecContext(ctx, query, code, email)
