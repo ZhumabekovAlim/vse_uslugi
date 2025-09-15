@@ -14,7 +14,7 @@ type WorkAd struct {
 		ID           int     `json:"id"`
 		Name         string  `json:"name"`
 		Surname      string  `json:"surname"`
-		Phone        string  `json:"phone"`
+		Phone        string  `json:"-"`
 		ReviewRating float64 `json:"review_rating"`
 		ReviewsCount int     `json:"reviews_count"`
 		AvatarPath   *string `json:"avatar_path,omitempty"`
@@ -82,7 +82,7 @@ type FilteredWorkAd struct {
 	UserID            int     `json:"user_id"`
 	UserName          string  `json:"user_name"`
 	UserSurname       string  `json:"user_surname"`
-	UserPhone         string  `json:"user_phone"`
+	UserPhone         string  `json:"-"`
 	UserAvatarPath    *string `json:"user_avatar_path,omitempty"`
 	UserRating        float64 `json:"user_rating"`
 	UserReviewsCount  int     `json:"user_reviews_count"`
