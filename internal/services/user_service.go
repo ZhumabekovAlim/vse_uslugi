@@ -351,13 +351,13 @@ func (s *UserService) sendEmailSMTP(toEmail, subject, body string) error {
 	return smtp.SendMail(addr, auth, username, []string{toEmail}, msg)
 }
 
-func (s *UserService) SendCodeToEmail(ctx context.Context, email string) (models.SignUpResponse, error) {
+func (s *UserService) SendCodeToEmail(ctx context.Context, email string) error {
 	existingUser, err := s.UserRepo.GetUserByEmail(ctx, email)
 	if err != nil {
-		return models.SignUpResponse{}, err
+		return err
 	}
 	if existingUser.Email != "" {
-		return models.SignUpResponse{}, models.ErrDuplicateEmail
+		return models.ErrDuplicateEmail
 	}
 
 	code := generateVerificationCode()
@@ -365,18 +365,18 @@ func (s *UserService) SendCodeToEmail(ctx context.Context, email string) (models
 	body := fmt.Sprintf("Ваш код подтверждения: %s\n\nОт компании https://nusacorp.com/", code)
 
 	if err := s.sendEmailSMTP(email, subject, body); err != nil {
-		return models.SignUpResponse{}, fmt.Errorf("ошибка при отправке email: %v", err)
+		return fmt.Errorf("ошибка при отправке email: %v", err)
 	}
 
 	if err := s.UserRepo.ClearVerificationCodeByEmail(ctx, email); err != nil {
-		return models.SignUpResponse{}, err
+		return err
 	}
 
 	if err := s.UserRepo.SaveEmailVerificationCode(ctx, email, code); err != nil {
-		return models.SignUpResponse{}, fmt.Errorf("не удалось сохранить код подтверждения: %v", err)
+		return fmt.Errorf("не удалось сохранить код подтверждения: %v", err)
 	}
 
-	return models.SignUpResponse{VerificationCode: code}, nil
+	return nil
 }
 
 func (s *UserService) sendEmailMailgun(toEmail, subject, body string) error {

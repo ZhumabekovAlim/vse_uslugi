@@ -371,7 +371,7 @@ func (h *UserHandler) SendCodeToEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.Service.SendCodeToEmail(r.Context(), req.Email)
+	err := h.Service.SendCodeToEmail(r.Context(), req.Email)
 	if err != nil {
 		if errors.Is(err, models.ErrDuplicateEmail) {
 			http.Error(w, err.Error(), http.StatusConflict)
@@ -384,7 +384,7 @@ func (h *UserHandler) SendCodeToEmail(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
+	json.NewEncoder(w).Encode(map[string]string{"message": "verification code sent"})
 }
 
 func (h *UserHandler) ChangeCityForUser(w http.ResponseWriter, r *http.Request) {
