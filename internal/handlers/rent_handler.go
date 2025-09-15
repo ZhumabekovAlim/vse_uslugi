@@ -127,7 +127,7 @@ func (h *RentHandler) GetRents(w http.ResponseWriter, r *http.Request) {
 		Limit:         limit,
 	}
 
-	cityID := 0
+	cityID, _ := strconv.Atoi(r.URL.Query().Get("city_id"))
 	tokenString := r.Header.Get("Authorization")
 	if strings.HasPrefix(tokenString, "Bearer ") {
 		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
@@ -135,7 +135,7 @@ func (h *RentHandler) GetRents(w http.ResponseWriter, r *http.Request) {
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte(signingKey), nil
 		})
-		if err == nil && token.Valid {
+		if err == nil && token.Valid && cityID == 0 {
 			cityID = claims.CityID
 		}
 	}
@@ -250,6 +250,19 @@ func (h *RentHandler) GetFilteredRentsPost(w http.ResponseWriter, r *http.Reques
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
+	}
+	tokenString := r.Header.Get("Authorization")
+	if strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(signingKey), nil
+		})
+		if err == nil && token.Valid {
+			if req.CityID == 0 {
+				req.CityID = claims.CityID
+			}
+		}
 	}
 
 	rents, err := h.Service.GetFilteredRentsPost(r.Context(), req)
@@ -550,6 +563,19 @@ func (h *RentHandler) GetFilteredRentsWithLikes(w http.ResponseWriter, r *http.R
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
+	}
+	tokenString := r.Header.Get("Authorization")
+	if strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(signingKey), nil
+		})
+		if err == nil && token.Valid {
+			if req.CityID == 0 {
+				req.CityID = claims.CityID
+			}
+		}
 	}
 
 	rents, err := h.Service.GetFilteredRentsWithLikes(r.Context(), req, userID)

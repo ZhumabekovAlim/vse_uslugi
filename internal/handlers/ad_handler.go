@@ -127,7 +127,7 @@ func (h *AdHandler) GetAd(w http.ResponseWriter, r *http.Request) {
 		Limit:         limit,
 	}
 
-	cityID := 0
+	cityID, _ := strconv.Atoi(r.URL.Query().Get("city_id"))
 	tokenString := r.Header.Get("Authorization")
 	if strings.HasPrefix(tokenString, "Bearer ") {
 		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
@@ -135,7 +135,7 @@ func (h *AdHandler) GetAd(w http.ResponseWriter, r *http.Request) {
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte(signingKey), nil
 		})
-		if err == nil && token.Valid {
+		if err == nil && token.Valid && cityID == 0 {
 			cityID = claims.CityID
 		}
 	}
@@ -250,6 +250,19 @@ func (h *AdHandler) GetFilteredAdPost(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
+	}
+	tokenString := r.Header.Get("Authorization")
+	if strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(signingKey), nil
+		})
+		if err == nil && token.Valid {
+			if req.CityID == 0 {
+				req.CityID = claims.CityID
+			}
+		}
 	}
 
 	ads, err := h.Service.GetFilteredAdPost(r.Context(), req)
@@ -531,6 +544,19 @@ func (h *AdHandler) GetFilteredAdWithLikes(w http.ResponseWriter, r *http.Reques
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
+	}
+	tokenString := r.Header.Get("Authorization")
+	if strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(signingKey), nil
+		})
+		if err == nil && token.Valid {
+			if req.CityID == 0 {
+				req.CityID = claims.CityID
+			}
+		}
 	}
 
 	ads, err := h.Service.GetFilteredAdWithLikes(r.Context(), req, userID)
