@@ -6,6 +6,7 @@ type ChatUser struct {
 	Name         string  `json:"name"`
 	Surname      string  `json:"surname"`
 	AvatarPath   string  `json:"avatar_path"`
+	Phone        string  `json:"phone,omitempty"`
 	Price        float64 `json:"price"`
 	ChatID       int     `json:"chat_id"`
 	ReviewRating float64 `json:"review_rating"`
