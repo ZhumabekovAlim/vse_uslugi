@@ -41,3 +41,8 @@ func (r *WorkAdResponseRepository) CreateWorkAdResponse(ctx context.Context, res
 
 	return resp, nil
 }
+
+func (r *WorkAdResponseRepository) DeleteResponse(ctx context.Context, id int) error {
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM work_ad_responses WHERE id = ?`, id)
+	return err
+}

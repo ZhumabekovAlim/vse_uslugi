@@ -31,6 +31,7 @@ var (
 	ErrReviewNotFound         = errors.New("review not found")
 	ErrSubcategoryNotFound    = errors.New("subcategory not found")
 	ErrAlreadyResponded       = errors.New("user already responded")
+	ErrNoRemainingResponses   = errors.New("no remaining responses")
 )
 
 var ErrInvalidVerificationCode = errors.New("invalid verification code")
