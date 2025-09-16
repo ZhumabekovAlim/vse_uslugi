@@ -9,3 +9,5 @@ CREATE TABLE IF NOT EXISTS subscription_slots (
     updated_at TIMESTAMP NULL DEFAULT NULL,
     INDEX idx_subscription_slots_user (user_id)
 );
+
+use naimudb;

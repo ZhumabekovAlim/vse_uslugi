@@ -85,7 +85,9 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
+
 		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &lat, &lon, &s.Status,
+
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 
@@ -191,7 +193,9 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
             SELECT s.id, s.name, s.address, s.price, s.user_id,
                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                       s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
+
                      CASE WHEN sf.ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+
                       s.latitude, s.longitude, s.status,  s.created_at, s.updated_at
                FROM ad s
                LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
@@ -277,7 +281,9 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
+
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &lat, &lon, &s.Status,
+
 			&s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {

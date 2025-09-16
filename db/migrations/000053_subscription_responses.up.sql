@@ -11,3 +11,5 @@ CREATE TABLE IF NOT EXISTS subscription_responses (
     updated_at TIMESTAMP NULL DEFAULT NULL,
     INDEX idx_subscription_responses_user (user_id)
 );
+
+use naimudb;

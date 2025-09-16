@@ -14,7 +14,7 @@ type Service struct {
 		ID           int     `json:"id"`
 		Name         string  `json:"name"`
 		Surname      string  `json:"surname"`
-		Phone        string  `json:"-"`
+		Phone        string  `json:"phone"`
 		ReviewRating float64 `json:"review_rating"`
 		ReviewsCount int     `json:"reviews_count"`
 		AvatarPath   *string `json:"avatar_path,omitempty"`
@@ -75,7 +75,7 @@ type FilteredService struct {
 	UserID             int     `json:"user_id"`
 	UserName           string  `json:"user_name"`
 	UserSurname        string  `json:"user_surname"`
-	UserPhone          string  `json:"-"`
+	UserPhone          string  `json:"user_phone"`
 	UserAvatarPath     *string `json:"user_avatar_path,omitempty"`
 	UserRating         float64 `json:"user_rating"`
 	UserReviewsCount   int     `json:"user_reviews_count"`
