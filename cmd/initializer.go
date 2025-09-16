@@ -229,7 +229,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	locationService := &services.LocationService{Repo: &locationRepo}
 
 	robokassaService := &services.RobokassaService{
-		MerchantLogin: "vse_uslugi",
+		MerchantLogin: "barlyqqyzmet",
 		Password1:     "dbYT25v0OZnV0dlh6Udg",
 		Password2:     "eckq4z0RvJ7pYJ1WS2vA",
 		TestPassword1: "iPyU7kCQhBz62pAA86wN",
