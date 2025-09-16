@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -66,6 +67,7 @@ func (h *RobokassaHandler) Result(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("IsTest") == "" && h.Service.IsTest {
 		isTest = true
 	}
+	fmt.Println("robokassa result:", outSum, invID, signature, isTest)
 	if !h.Service.VerifyResult(outSum, invID, signature, isTest) {
 		http.Error(w, "invalid signature", http.StatusBadRequest)
 		return
