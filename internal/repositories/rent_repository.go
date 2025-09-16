@@ -66,8 +66,8 @@ func (r *RentRepository) CreateRent(ctx context.Context, rent models.Rent) (mode
 
 func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (models.Rent, error) {
 	query := `
-               SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
-                      CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
+             SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
+                      CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                       w.status, w.rent_type, w.deposit, w.latitude, w.longitude, w.created_at, w.updated_at
                 FROM rent w
                 JOIN users u ON w.user_id = u.id
@@ -80,9 +80,11 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 	var s models.Rent
 	var imagesJSON []byte
 	var lat, lon sql.NullString
+	var respondedStr string
+
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
-		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
+		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
+		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
 		&s.UpdatedAt,
 	)
 
@@ -98,6 +100,8 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 			return models.Rent{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
 	}
+
+	s.Responded = respondedStr == "1"
 
 	if lat.Valid {
 		s.Latitude = lat.String
@@ -183,7 +187,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 	)
 
 	baseQuery := `
-               SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.rent_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+           SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.rent_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
                FROM rent s
                LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
                JOIN users u ON s.user_id = u.id
@@ -264,9 +268,10 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 		var s models.Rent
 		var imagesJSON []byte
 		var lat, lon sql.NullString
+		var likedStr string
 		err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
+			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
@@ -282,6 +287,8 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
 		}
+
+		s.Liked = likedStr == "1"
 
 		s.AvgRating = getAverageRating(ctx, r.DB, "rent_reviews", "rent_id", s.ID)
 
@@ -304,7 +311,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 
 func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]models.Rent, error) {
 	query := `
-                SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+               SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM rent s
                 JOIN users u ON s.user_id = u.id
                 WHERE user_id = ?
@@ -322,7 +329,7 @@ func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]mo
 		var imagesJSON []byte
 		var lat, lon sql.NullString
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON,
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON,
 			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -354,9 +361,9 @@ func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]mo
 
 func (r *RentRepository) GetFilteredRentsPost(ctx context.Context, req models.FilterRentRequest) ([]models.FilteredRent, error) {
 	query := `
-      SELECT
+       SELECT
 
-              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+               u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
               s.id, s.name, s.price, s.description, s.latitude, s.longitude
       FROM rent s
@@ -426,7 +433,7 @@ func (r *RentRepository) GetFilteredRentsPost(ctx context.Context, req models.Fi
 		var s models.FilteredRent
 		var lat, lon sql.NullString
 		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon,
 		); err != nil {
 			return nil, err
@@ -451,7 +458,7 @@ func (r *RentRepository) FetchByStatusAndUserID(ctx context.Context, userID int,
 	query := `
         SELECT
                 s.id, s.name, s.address, s.price, s.user_id,
-                u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+                u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                 s.images, s.category_id, s.subcategory_id, s.description,
                 s.avg_rating, s.top, s.liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude,
                 s.created_at, s.updated_at
@@ -472,7 +479,7 @@ func (r *RentRepository) FetchByStatusAndUserID(ctx context.Context, userID int,
 		var lat, lon sql.NullString
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID,
 			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
 			&s.UpdatedAt,
@@ -499,13 +506,13 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-   SELECT DISTINCT
+    SELECT DISTINCT
 
-           u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+           u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
            s.id, s.name, s.price, s.description, s.latitude, s.longitude,
-           CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
-           CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded
+           CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+           CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
    FROM rent s
    JOIN users u ON s.user_id = u.id
    LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
@@ -590,9 +597,10 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 	for rows.Next() {
 		var s models.FilteredRent
 		var lat, lon sql.NullString
+		var likedStr, respondedStr string
 		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &s.Liked, &s.Responded,
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -603,6 +611,8 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 		if lon.Valid {
 			s.ServiceLongitude = lon.String
 		}
+		s.Liked = likedStr == "1"
+		s.Responded = respondedStr == "1"
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
 			s.UserReviewsCount = count
@@ -621,14 +631,14 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 
 func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID int, userID int) (models.Rent, error) {
 	query := `
-               SELECT
-                       s.id, s.name, s.address, s.price, s.user_id,
-                       u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+            SELECT
+                    s.id, s.name, s.address, s.price, s.user_id,
+                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                        s.images, s.category_id, c.name,
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
-                       CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
-                       CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
+                       CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+                       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                        s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
                FROM rent s
                JOIN users u ON s.user_id = u.id
@@ -643,13 +653,15 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
 	var imagesJSON []byte
 	var lat, lon sql.NullString
 
+	var likedStr, respondedStr string
+
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, rentID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&s.Liked, &s.Responded, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
+		&likedStr, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -671,6 +683,9 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
 	if lon.Valid {
 		s.Longitude = lon.String
 	}
+	s.Liked = likedStr == "1"
+	s.Responded = respondedStr == "1"
+
 	s.AvgRating = getAverageRating(ctx, r.DB, "rent_reviews", "rent_id", s.ID)
 
 	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
