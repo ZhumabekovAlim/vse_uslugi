@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -78,14 +79,19 @@ func (h *RobokassaHandler) Result(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid signature", http.StatusBadRequest)
 		return
 	}
+	ok, mode := h.Service.VerifyResultEither(outSum, invID, signature)
+	if !ok {
+		http.Error(w, "invalid signature", http.StatusBadRequest)
+		return
+	}
+	log.Printf("[RK] signature OK (mode=%s), InvId=%s, OutSum=%s", mode, invID, outSum)
+
+	// далее помечаем платеж оплаченным
 	id, _ := strconv.Atoi(invID)
 	if err := h.InvoiceRepo.MarkPaid(r.Context(), id); err != nil {
 		http.Error(w, "mark paid: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("OK" + invID))
 }
 
