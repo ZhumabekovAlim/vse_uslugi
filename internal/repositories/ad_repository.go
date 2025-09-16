@@ -67,7 +67,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                       s.images, s.category_id, c.name, s.subcategory_id, sub.name,
                       s.description, s.avg_rating, s.top, s.liked,
-                      CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
+                      CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                       s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                FROM ad s
                JOIN users u ON s.user_id = u.id
@@ -80,10 +80,14 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	var s models.Ad
 	var imagesJSON []byte
 	var lat, lon sql.NullString
+	var respondedStr string
+
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &lat, &lon, &s.Status,
+
+		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &lat, &lon, &s.Status,
+
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 
@@ -99,6 +103,8 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 			return models.Ad{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
 	}
+
+	s.Responded = respondedStr == "1"
 
 	if lat.Valid {
 		s.Latitude = &lat.String
@@ -187,7 +193,9 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
             SELECT s.id, s.name, s.address, s.price, s.user_id,
                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                       s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
-                     CASE WHEN sf.ad_id IS NOT NULL THEN true ELSE false END AS liked,
+
+                     CASE WHEN sf.ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+
                       s.latitude, s.longitude, s.status,  s.created_at, s.updated_at
                FROM ad s
                LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
@@ -269,10 +277,13 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		var s models.Ad
 		var imagesJSON []byte
 		var lat, lon sql.NullString
+		var likedStr string
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &lat, &lon, &s.Status,
+
+			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &lat, &lon, &s.Status,
+
 			&s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
@@ -289,6 +300,8 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		if lon.Valid {
 			s.Longitude = &lon.String
 		}
+		s.Liked = likedStr == "1"
+
 		s.AvgRating = getAverageRating(ctx, r.DB, "ad_reviews", "ad_id", s.ID)
 
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
@@ -505,8 +518,8 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
            u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
            s.id, s.name, s.price, s.description, s.latitude, s.longitude,
-           CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
-           CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded
+           CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+           CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
    FROM ad s
    JOIN users u ON s.user_id = u.id
    LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
@@ -591,10 +604,11 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 	for rows.Next() {
 		var s models.FilteredAd
 		var lat, lon sql.NullString
+		var likedStr, respondedStr string
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon, &s.Liked, &s.Responded,
+			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -605,6 +619,8 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 		if lon.Valid {
 			s.AdLongitude = &lon.String
 		}
+		s.Liked = likedStr == "1"
+		s.Responded = respondedStr == "1"
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
 			s.UserReviewsCount = count
@@ -629,8 +645,8 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
                        s.images, s.category_id, c.name,
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
-                       CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
-                       CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
+                       CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+                       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                        s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                FROM ad s
                JOIN users u ON s.user_id = u.id
@@ -645,13 +661,15 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 	var imagesJSON []byte
 	var lat, lon sql.NullString
 
+	var likedStr, respondedStr string
+
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, adID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&s.Liked, &s.Responded, &lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+		&likedStr, &respondedStr, &lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -673,6 +691,9 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 	if lon.Valid {
 		s.Longitude = &lon.String
 	}
+	s.Liked = likedStr == "1"
+	s.Responded = respondedStr == "1"
+
 	s.AvgRating = getAverageRating(ctx, r.DB, "ad_reviews", "ad_id", s.ID)
 
 	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)

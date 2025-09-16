@@ -72,7 +72,7 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
           SELECT w.id, w.name, w.address, w.price, w.user_id,
                  u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                     w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
-                    CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
+                    CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                     w.status, w.work_experience, w.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
               FROM work w
               JOIN users u ON w.user_id = u.id
@@ -85,10 +85,14 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
 
 	var s models.Work
 	var imagesJSON []byte
+	var respondedStr string
+
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+
+		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+
 		&s.UpdatedAt,
 	)
 
@@ -104,6 +108,8 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
 			return models.Work{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
 	}
+
+	s.Responded = respondedStr == "1"
 
 	s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
 
@@ -186,7 +192,9 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
                SELECT s.id, s.name, s.address, s.price, s.user_id,
                       u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                       s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
-                     CASE WHEN sf.work_id IS NOT NULL THEN true ELSE false END AS liked,
+
+                     CASE WHEN sf.work_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+
                      s.status, s.work_experience, s.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
               FROM work s
               LEFT JOIN work_favorites sf ON sf.work_id = s.id AND sf.user_id = ?
@@ -268,10 +276,13 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
 	for rows.Next() {
 		var s models.Work
 		var imagesJSON []byte
+		var likedStr string
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+
+			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+
 			&s.UpdatedAt,
 		)
 		if err != nil {
@@ -281,6 +292,8 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
 		}
+
+		s.Liked = likedStr == "1"
 
 		s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
 
@@ -484,8 +497,8 @@ func (r *WorkRepository) GetFilteredWorksWithLikes(ctx context.Context, req mode
            u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
            s.id, s.name, s.price, s.description, s.latitude, s.longitude,
-           CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
-           CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded
+           CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+           CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
    FROM work s
    JOIN users u ON s.user_id = u.id
    LEFT JOIN work_favorites sf ON sf.work_id = s.id AND sf.user_id = ?
@@ -569,13 +582,18 @@ func (r *WorkRepository) GetFilteredWorksWithLikes(ctx context.Context, req mode
 	var works []models.FilteredWork
 	for rows.Next() {
 		var s models.FilteredWork
+		var likedStr, respondedStr string
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.ServiceLatitude, &s.ServiceLongitude, &s.Liked, &s.Responded,
+
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &s.ServiceLatitude, &s.ServiceLongitude, &likedStr, &respondedStr,
+
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
+		s.Liked = likedStr == "1"
+		s.Responded = respondedStr == "1"
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
 			s.UserReviewsCount = count
@@ -600,8 +618,8 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
                        s.images, s.category_id, c.name,
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
-              CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
-              CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
+              CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+              CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
               s.status, s.work_experience, s.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
                FROM work s
                JOIN users u ON s.user_id = u.id
@@ -616,13 +634,15 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
 	var s models.Work
 	var imagesJSON []byte
 
+	var likedStr, respondedStr string
+
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, workID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&s.Liked, &s.Responded, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
+		&likedStr, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -637,6 +657,9 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
 			return models.Work{}, fmt.Errorf("failed to decode images json: %w", err)
 		}
 	}
+
+	s.Liked = likedStr == "1"
+	s.Responded = respondedStr == "1"
 
 	s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
 
