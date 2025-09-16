@@ -207,7 +207,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	params = append(params, userID)
 
 	if cityID > 0 {
-		conditions = append(conditions, "s.city_id = ?")
+		conditions = append(conditions, "u.city_id = ?")
 		params = append(params, cityID)
 	}
 
@@ -395,7 +395,7 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 	}
 
 	if req.CityID > 0 {
-		query += " AND s.city_id = ?"
+		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
 	}
 
@@ -546,7 +546,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	}
 
 	if req.CityID > 0 {
-		query += " AND s.city_id = ?"
+		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
 	}
 

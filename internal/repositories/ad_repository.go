@@ -206,7 +206,7 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 	params = append(params, userID)
 
 	if cityID > 0 {
-		conditions = append(conditions, "s.city_id = ?")
+		conditions = append(conditions, "u.city_id = ?")
 		params = append(params, cityID)
 	}
 
@@ -392,7 +392,7 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 	}
 
 	if req.CityID > 0 {
-		query += " AND s.city_id = ?"
+		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
 	}
 
@@ -536,7 +536,7 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 	}
 
 	if req.CityID > 0 {
-		query += " AND s.city_id = ?"
+		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
 	}
 
