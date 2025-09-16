@@ -183,7 +183,9 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 	)
 
 	baseQuery := `
+
            SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.rent_id IS NOT NULL THEN true ELSE false END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+
                FROM rent s
                LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
                JOIN users u ON s.user_id = u.id

@@ -180,7 +180,9 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 	)
 
 	baseQuery := `
+
        SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.work_ad_id IS NOT NULL THEN true ELSE false END AS liked, s.status, s.work_experience, s.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
+
                FROM work_ad s
                LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
                JOIN users u ON s.user_id = u.id
