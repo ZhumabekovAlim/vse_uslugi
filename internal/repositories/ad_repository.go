@@ -187,7 +187,7 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
                SELECT s.id, s.name, s.address, s.price, s.user_id,
                       u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
                       s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
-                      CASE WHEN sf.ad_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked,
+                     CASE WHEN sf.ad_id IS NOT NULL THEN true ELSE false END AS liked,
                       s.latitude, s.longitude, s.status,  s.created_at, s.updated_at
                FROM ad s
                LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
