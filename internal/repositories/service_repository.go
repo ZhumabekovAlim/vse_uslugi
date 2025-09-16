@@ -190,7 +190,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
                      u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
                      s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
                      s.latitude, s.longitude,
-                     CASE WHEN sf.service_id IS NOT NULL THEN 'true' ELSE 'false' END AS liked,
+             CASE WHEN sf.service_id IS NOT NULL THEN true ELSE false END AS liked,
                      s.status,  s.created_at, s.updated_at
               FROM service s
               LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
