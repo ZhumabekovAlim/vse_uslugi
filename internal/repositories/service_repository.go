@@ -63,8 +63,8 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 
 func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID int) (models.Service, error) {
 	query := `
-               SELECT s.id, s.name, s.address, s.price, s.user_id,
-                      u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+             SELECT s.id, s.name, s.address, s.price, s.user_id,
+                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                       s.images, s.category_id, c.name, s.subcategory_id, sub.name,
                       s.description, s.avg_rating, s.top, s.liked,
                       CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
@@ -82,7 +82,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 	var lat, lon sql.NullString
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded,
 		&lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
@@ -186,8 +186,8 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	)
 
 	baseQuery := `
-              SELECT s.id, s.name, s.address, s.price, s.user_id,
-                     u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+           SELECT s.id, s.name, s.address, s.price, s.user_id,
+                  u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                      s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
                      s.latitude, s.longitude,
              CASE WHEN sf.service_id IS NOT NULL THEN true ELSE false END AS liked,
@@ -274,7 +274,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 		var lat, lon sql.NullString
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &lat, &lon, &s.Liked, &s.Status,
 			&s.CreatedAt, &s.UpdatedAt,
 		)
@@ -315,7 +315,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 
 func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
 	query := `
-              SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
+           SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
               FROM service s
               JOIN users u ON s.user_id = u.id
               WHERE user_id = ?
@@ -333,7 +333,7 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 		var imagesJSON []byte
 		var lat, lon sql.NullString
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON,
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON,
 			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -366,9 +366,9 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 
 func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
 	query := `
-      SELECT
+       SELECT
 
-              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+               u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
               s.id, s.name, s.price, s.description, s.latitude, s.longitude
       FROM service s
@@ -438,7 +438,7 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 		var s models.FilteredService
 		var lat, lon sql.NullString
 		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon,
 		); err != nil {
@@ -462,9 +462,9 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 
 func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID int, status string) ([]models.Service, error) {
 	query := `
-        SELECT
-                s.id, s.name, s.address, s.price, s.user_id,
-                u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+     SELECT
+             s.id, s.name, s.address, s.price, s.user_id,
+             u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                 s.images, s.category_id, s.subcategory_id, s.description,
                 s.avg_rating, s.top, s.liked, s.status, s.latitude, s.longitude,
                 s.created_at, s.updated_at
@@ -485,7 +485,7 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 		var lat, lon sql.NullString
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID,
 			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &lat, &lon,
 			&s.CreatedAt, &s.UpdatedAt,
@@ -512,9 +512,9 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-   SELECT DISTINCT
+    SELECT DISTINCT
 
-          u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+           u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
           s.id, s.name, s.price, s.description, s.latitude, s.longitude,
           CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
@@ -597,7 +597,7 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		var s models.FilteredService
 		var lat, lon sql.NullString
 		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &s.Liked, &s.Responded,
 		); err != nil {
@@ -628,9 +628,9 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 
 func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, serviceID int, userID int) (models.Service, error) {
 	query := `
-               SELECT
-                       s.id, s.name, s.address, s.price, s.user_id,
-                       u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+            SELECT
+                    s.id, s.name, s.address, s.price, s.user_id,
+                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                        s.images, s.category_id, c.name,
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
@@ -652,7 +652,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, serviceID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,

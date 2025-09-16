@@ -63,8 +63,8 @@ func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, e
 
 func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (models.Ad, error) {
 	query := `
-               SELECT s.id, s.name, s.address, s.price, s.user_id,
-                      u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+             SELECT s.id, s.name, s.address, s.price, s.user_id,
+                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                       s.images, s.category_id, c.name, s.subcategory_id, sub.name,
                       s.description, s.avg_rating, s.top, s.liked,
                       CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS responded,
@@ -82,7 +82,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	var lat, lon sql.NullString
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Responded, &lat, &lon, &s.Status,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
@@ -184,8 +184,8 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 	)
 
 	baseQuery := `
-               SELECT s.id, s.name, s.address, s.price, s.user_id,
-                      u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+            SELECT s.id, s.name, s.address, s.price, s.user_id,
+                   u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                       s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
                      CASE WHEN sf.ad_id IS NOT NULL THEN true ELSE false END AS liked,
                       s.latitude, s.longitude, s.status,  s.created_at, s.updated_at
@@ -271,7 +271,7 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		var lat, lon sql.NullString
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &lat, &lon, &s.Status,
 			&s.CreatedAt, &s.UpdatedAt,
 		)
@@ -361,9 +361,9 @@ func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.
 
 func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterAdRequest) ([]models.FilteredAd, error) {
 	query := `
-      SELECT
+       SELECT
 
-              u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+               u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
               s.id, s.name, s.price, s.description, s.latitude, s.longitude
       FROM ad s
@@ -433,7 +433,7 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 		var s models.FilteredAd
 		var lat, lon sql.NullString
 		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
 			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon,
 		); err != nil {
@@ -459,7 +459,7 @@ func (r *AdRepository) FetchAdByStatusAndUserID(ctx context.Context, userID int,
 	query := `
         SELECT
                 s.id, s.name, s.address, s.price, s.user_id,
-                u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+                u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                 s.images, s.category_id, s.subcategory_id, s.description,
                 s.avg_rating, s.top, s.liked, s.status,
                 s.created_at, s.updated_at
@@ -479,7 +479,7 @@ func (r *AdRepository) FetchAdByStatusAndUserID(ctx context.Context, userID int,
 		var imagesJSON []byte
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID,
 			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
 			&s.CreatedAt, &s.UpdatedAt,
@@ -500,9 +500,9 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-   SELECT DISTINCT
+    SELECT DISTINCT
 
-           u.id, u.name, u.surname, u.phone, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+           u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
            s.id, s.name, s.price, s.description, s.latitude, s.longitude,
            CASE WHEN sf.id IS NOT NULL THEN true ELSE false END AS liked,
@@ -592,7 +592,7 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 		var s models.FilteredAd
 		var lat, lon sql.NullString
 		if err := rows.Scan(
-			&s.UserID, &s.UserName, &s.UserSurname, &s.UserPhone, &s.UserAvatarPath, &s.UserRating,
+			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
 			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon, &s.Liked, &s.Responded,
 		); err != nil {
@@ -623,9 +623,9 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 
 func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userID int) (models.Ad, error) {
 	query := `
-               SELECT
-                       s.id, s.name, s.address, s.price, s.user_id,
-                       u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+            SELECT
+                    s.id, s.name, s.address, s.price, s.user_id,
+                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                        s.images, s.category_id, c.name,
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
@@ -647,7 +647,7 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, adID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.Phone, &s.User.ReviewRating, &s.User.AvatarPath,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
@@ -689,7 +689,7 @@ func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]m
                s.category_id, c.name as category_name, s.subcategory_id, sub.name as subcategory_name,
                0 as views_count,
                (SELECT COUNT(*) FROM service_responses sr WHERE sr.service_id = s.id) as responses_count,
-               u.id as author_id, u.name as author_name, u.review_rating as author_rating, u.phone as author_phone,
+               u.id as author_id, u.name as author_name, u.review_rating as author_rating,
                '' as author_chat_link,
                NULL as work_scope, NULL as deposit_required, NULL as rental_terms,
                NULL as employment_type, NULL as salary_from, NULL as salary_to
@@ -704,7 +704,7 @@ func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]m
                r.category_id, rc.name as category_name, r.subcategory_id, rsub.name as subcategory_name,
                0 as views_count,
                (SELECT COUNT(*) FROM rent_ad_responses rr WHERE rr.rent_ad_id = r.id) as responses_count,
-               u.id as author_id, u.name as author_name, u.review_rating as author_rating, u.phone as author_phone,
+               u.id as author_id, u.name as author_name, u.review_rating as author_rating,
                '' as author_chat_link,
                NULL as work_scope, r.deposit as deposit_required, r.rent_type as rental_terms,
                NULL as employment_type, NULL as salary_from, NULL as salary_to
@@ -719,7 +719,7 @@ func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]m
                w.category_id, c.name as category_name, w.subcategory_id, sub.name as subcategory_name,
                0 as views_count,
                (SELECT COUNT(*) FROM work_ad_responses wr WHERE wr.work_ad_id = w.id) as responses_count,
-               u.id as author_id, u.name as author_name, u.review_rating as author_rating, u.phone as author_phone,
+               u.id as author_id, u.name as author_name, u.review_rating as author_rating,
                '' as author_chat_link,
                NULL as work_scope, NULL as deposit_required, NULL as rental_terms,
                w.schedule as employment_type, NULL as salary_from, NULL as salary_to
@@ -810,7 +810,6 @@ func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]m
 			&item.Author.ID,
 			&item.Author.Name,
 			&authorRating,
-			&item.Author.Phone,
 			&authorChat,
 			&workScope,
 			&depositReq,
