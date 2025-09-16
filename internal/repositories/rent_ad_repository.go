@@ -203,7 +203,7 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 	params = append(params, userID)
 
 	if cityID > 0 {
-		conditions = append(conditions, "s.city_id = ?")
+		conditions = append(conditions, "u.city_id = ?")
 		params = append(params, cityID)
 	}
 
@@ -278,7 +278,6 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.RentType, &s.Deposit, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
-
 		)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
@@ -372,7 +371,7 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 	}
 
 	if req.CityID > 0 {
-		query += " AND s.city_id = ?"
+		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
 	}
 
@@ -508,7 +507,7 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 	}
 
 	if req.CityID > 0 {
-		query += " AND s.city_id = ?"
+		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
 	}
 
@@ -580,7 +579,6 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
 			&s.RentAdID, &s.RentAdName, &s.RentAdPrice, &s.RentAdDescription, &s.RentAdLatitude, &s.RentAdLongitude, &likedStr, &respondedStr,
-
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
