@@ -50,3 +50,23 @@ func (r *SubscriptionRepository) HasActiveSubscription(ctx context.Context, user
 	}
 	return count > 0, nil
 }
+
+func (r *SubscriptionRepository) ConsumeResponse(ctx context.Context, userID int) error {
+	res, err := r.DB.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, userID)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return models.ErrNoRemainingResponses
+	}
+	return nil
+}
+
+func (r *SubscriptionRepository) RestoreResponse(ctx context.Context, userID int) error {
+	_, err := r.DB.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining + 1 WHERE user_id = ?`, userID)
+	return err
+}

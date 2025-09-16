@@ -41,3 +41,8 @@ func (r *RentAdResponseRepository) CreateRentAdResponse(ctx context.Context, res
 
 	return resp, nil
 }
+
+func (r *RentAdResponseRepository) DeleteResponse(ctx context.Context, id int) error {
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM rent_ad_responses WHERE id = ?`, id)
+	return err
+}

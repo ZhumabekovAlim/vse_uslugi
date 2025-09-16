@@ -13,6 +13,7 @@ type WorkAdResponseService struct {
 	ChatRepo           *repositories.ChatRepository
 	ConfirmationRepo   *repositories.WorkAdConfirmationRepository
 	MessageRepo        *repositories.MessageRepository
+	SubscriptionRepo   *repositories.SubscriptionRepository
 }
 
 func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp models.WorkAdResponses) (models.WorkAdResponses, error) {
@@ -21,14 +22,26 @@ func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp m
 		return resp, err
 	}
 
+	if err := s.SubscriptionRepo.ConsumeResponse(ctx, resp.UserID); err != nil {
+		_ = s.WorkAdResponseRepo.DeleteResponse(ctx, resp.ID)
+		return models.WorkAdResponses{}, err
+	}
+
+	rollback := func() {
+		_ = s.SubscriptionRepo.RestoreResponse(ctx, resp.UserID)
+		_ = s.WorkAdResponseRepo.DeleteResponse(ctx, resp.ID)
+	}
+
 	work, err := s.WorkAdRepo.GetWorkAdByID(ctx, resp.WorkAdID, 0)
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.WorkAdResponses{}, err
 	}
 
 	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: work.UserID, User2ID: resp.UserID})
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.WorkAdResponses{}, err
 	}
 
 	resp.ChatID = chatID
@@ -42,7 +55,8 @@ func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp m
 		PerformerID: resp.UserID,
 	})
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.WorkAdResponses{}, err
 	}
 
 	text := fmt.Sprintf("Здравствуйте! Предлагаю цену %v. %s", resp.Price, resp.Description)
@@ -52,7 +66,8 @@ func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp m
 		Text:       text,
 		ChatID:     chatID,
 	}); err != nil {
-		return resp, err
+		rollback()
+		return models.WorkAdResponses{}, err
 	}
 
 	return resp, nil

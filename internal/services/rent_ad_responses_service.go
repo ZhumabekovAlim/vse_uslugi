@@ -13,6 +13,7 @@ type RentAdResponseService struct {
 	ChatRepo           *repositories.ChatRepository
 	ConfirmationRepo   *repositories.RentAdConfirmationRepository
 	MessageRepo        *repositories.MessageRepository
+	SubscriptionRepo   *repositories.SubscriptionRepository
 }
 
 func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp models.RentAdResponses) (models.RentAdResponses, error) {
@@ -21,14 +22,26 @@ func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp m
 		return resp, err
 	}
 
+	if err := s.SubscriptionRepo.ConsumeResponse(ctx, resp.UserID); err != nil {
+		_ = s.RentAdResponseRepo.DeleteResponse(ctx, resp.ID)
+		return models.RentAdResponses{}, err
+	}
+
+	rollback := func() {
+		_ = s.SubscriptionRepo.RestoreResponse(ctx, resp.UserID)
+		_ = s.RentAdResponseRepo.DeleteResponse(ctx, resp.ID)
+	}
+
 	rent, err := s.RentAdRepo.GetRentAdByID(ctx, resp.RentAdID, 0)
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.RentAdResponses{}, err
 	}
 
 	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: rent.UserID, User2ID: resp.UserID})
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.RentAdResponses{}, err
 	}
 
 	resp.ChatID = chatID
@@ -42,7 +55,8 @@ func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp m
 		PerformerID: resp.UserID,
 	})
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.RentAdResponses{}, err
 	}
 
 	text := fmt.Sprintf("Здравствуйте! Предлагаю цену %v. %s", resp.Price, resp.Description)
@@ -53,7 +67,8 @@ func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp m
 
 		ChatID: chatID,
 	}); err != nil {
-		return resp, err
+		rollback()
+		return models.RentAdResponses{}, err
 	}
 
 	return resp, nil
