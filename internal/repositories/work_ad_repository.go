@@ -71,14 +71,14 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int
 	query := `
              SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
 
-                      CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+                     CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
 
-                      w.status, w.work_experience, w.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
+                     w.status, w.work_experience, u.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
                 FROM work_ad w
                 JOIN users u ON w.user_id = u.id
                 JOIN work_categories c ON w.category_id = c.id
                 JOIN work_subcategories sub ON w.subcategory_id = sub.id
-               JOIN cities city ON w.city_id = city.id
+               JOIN cities city ON u.city_id = city.id
                LEFT JOIN work_ad_responses sr ON sr.work_ad_id = w.id AND sr.user_id = ?
                 WHERE w.id = ?
        `
@@ -189,7 +189,7 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 
 	baseQuery := `
 
-       SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.work_ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, s.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
+       SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.work_ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
 
                FROM work_ad s
                LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
@@ -200,7 +200,7 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 	params = append(params, userID)
 
 	if cityID > 0 {
-		conditions = append(conditions, "s.city_id = ?")
+		conditions = append(conditions, "u.city_id = ?")
 		params = append(params, cityID)
 	}
 
@@ -309,11 +309,11 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 
 func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) ([]models.WorkAd, error) {
 	query := `
-                SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.work_experience, s.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
-		FROM work_ad s
-		JOIN users u ON s.user_id = u.id
-		WHERE user_id = ?
-	`
+                SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
+                FROM work_ad s
+                JOIN users u ON s.user_id = u.id
+                WHERE user_id = ?
+       `
 
 	rows, err := r.DB.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -365,7 +365,7 @@ func (r *WorkAdRepository) GetFilteredWorksAdPost(ctx context.Context, req model
 	args := []interface{}{}
 
 	if req.CityID > 0 {
-		query += " AND s.city_id = ?"
+		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
 	}
 
@@ -445,7 +445,7 @@ func (r *WorkAdRepository) FetchByStatusAndUserID(ctx context.Context, userID in
                 s.id, s.name, s.address, s.price, s.user_id,
                 u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                 s.images, s.category_id, s.subcategory_id, s.description,
-                s.avg_rating, s.top, s.liked, s.status, s.work_experience, s.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude,
+                s.avg_rating, s.top, s.liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude,
                 s.created_at, s.updated_at
 	FROM work_ad s
 	JOIN users u ON s.user_id = u.id
@@ -501,7 +501,7 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 	args := []interface{}{userID, userID}
 
 	if req.CityID > 0 {
-		query += " AND s.city_id = ?"
+		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
 	}
 
@@ -579,7 +579,6 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
 			&s.WorkAdID, &s.WorkAdName, &s.WorkAdPrice, &s.WorkAdDescription, &s.WorkAdLatitude, &s.WorkAdLongitude, &likedStr, &respondedStr,
-
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -612,12 +611,12 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
                        s.description, s.avg_rating, s.top,
               CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
               CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-              s.status, s.work_experience, s.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
+              s.status, s.work_experience, u.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM work_ad s
                 JOIN users u ON s.user_id = u.id
                 JOIN work_categories c ON s.category_id = c.id
                 JOIN work_subcategories sub ON s.subcategory_id = sub.id
-                JOIN cities city ON s.city_id = city.id
+                JOIN cities city ON u.city_id = city.id
                 LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
                 LEFT JOIN work_ad_responses sr ON sr.work_ad_id = s.id AND sr.user_id = ?
                 WHERE s.id = ?

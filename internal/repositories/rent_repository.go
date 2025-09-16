@@ -203,7 +203,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 	params = append(params, userID)
 
 	if cityID > 0 {
-		conditions = append(conditions, "s.city_id = ?")
+		conditions = append(conditions, "u.city_id = ?")
 		params = append(params, cityID)
 	}
 
@@ -279,7 +279,6 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
 			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
-
 		)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
@@ -387,7 +386,7 @@ func (r *RentRepository) GetFilteredRentsPost(ctx context.Context, req models.Fi
 	}
 
 	if req.CityID > 0 {
-		query += " AND s.city_id = ?"
+		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
 	}
 
@@ -537,7 +536,7 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 	}
 
 	if req.CityID > 0 {
-		query += " AND s.city_id = ?"
+		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
 	}
 
@@ -610,7 +609,6 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &likedStr, &respondedStr,
-
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
