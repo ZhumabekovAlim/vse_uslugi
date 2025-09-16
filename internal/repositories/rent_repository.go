@@ -608,7 +608,7 @@ func (r *RentRepository) GetFilteredRentsWithLikes(ctx context.Context, req mode
 		var likedStr, respondedStr string
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
-=
+
 			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &likedStr, &respondedStr,
 
 		); err != nil {
