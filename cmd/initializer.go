@@ -230,10 +230,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 
 	robokassaService := &services.RobokassaService{
 		MerchantLogin: "vse_uslugi",
-		Password1:     "RB90Ht47aeUJmx1ojoPU",
-		Password2:     "m69yTN6tgNO5QvSyozX5",
-		TestPassword1: "bkn6BiMUY9N9H2dhE9lu",
-		TestPassword2: "bkn6BiMUY9N9H2dhE9lu",
+		Password1:     "dbYT25v0OZnV0dlh6Udg",
+		Password2:     "eckq4z0RvJ7pYJ1WS2vA",
+		TestPassword1: "iPyU7kCQhBz62pAA86wN",
+		TestPassword2: "adHE6yx9WO3YY5xOeQE7",
 		BaseURL:       "https://auth.robokassa.kz/Merchant/Index.aspx",
 		IsTest:        true,
 	}
