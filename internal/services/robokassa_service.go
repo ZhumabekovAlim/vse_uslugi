@@ -30,7 +30,7 @@ func (s *RobokassaService) pass1() string {
 	}
 	return s.Password1
 }
-func (s *RobokassaService) pass2(isTest bool) string {
+func (s *RobokassaService) Pass2(isTest bool) string {
 	if isTest && s.TestPassword2 != "" {
 		return s.TestPassword2
 	}
@@ -63,7 +63,7 @@ func (s *RobokassaService) GeneratePayURL(invID int, outSum float64, description
 // Лучше читать IsTest из входящих параметров и выбирать пароль динамически.
 func (s *RobokassaService) VerifyResult(outSum, invID, signature string, isTest bool) bool {
 	// подпись: md5(OutSum:InvId:Password2)
-	raw := fmt.Sprintf("%s:%s:%s", outSum, invID, s.pass2(isTest))
+	raw := fmt.Sprintf("%s:%s:%s", outSum, invID, s.Pass2(isTest))
 	expected := fmt.Sprintf("%x", md5.Sum([]byte(raw)))
 	return strings.EqualFold(expected, signature)
 }

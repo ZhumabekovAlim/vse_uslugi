@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"naimuBack/internal/repositories"
 	"naimuBack/internal/services"
@@ -67,7 +69,11 @@ func (h *RobokassaHandler) Result(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("IsTest") == "" && h.Service.IsTest {
 		isTest = true
 	}
-	fmt.Println("robokassa result:", outSum, invID, signature, isTest)
+	expectedRaw := fmt.Sprintf("%s:%s:%s", outSum, invID, h.Service.Pass2(isTest))
+	expectedSig := fmt.Sprintf("%x", md5.Sum([]byte(expectedRaw)))
+	fmt.Println("[ROBOKASSA RESULT] raw:", expectedRaw)
+	fmt.Println("[ROBOKASSA RESULT] expected:", strings.ToUpper(expectedSig), "got:", strings.ToUpper(signature))
+
 	if !h.Service.VerifyResult(outSum, invID, signature, isTest) {
 		http.Error(w, "invalid signature", http.StatusBadRequest)
 		return
@@ -77,6 +83,9 @@ func (h *RobokassaHandler) Result(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "mark paid: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("OK" + invID))
 }
 
