@@ -437,6 +437,11 @@ func (h *UserHandler) CheckUserDuplicate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if strings.TrimSpace(req.Email) == "" {
+		http.Error(w, "email обязателен", http.StatusBadRequest)
+		return
+	}
+
 	duplicate, err := h.Service.CheckUserDuplicate(r.Context(), req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -448,7 +453,7 @@ func (h *UserHandler) CheckUserDuplicate(w http.ResponseWriter, r *http.Request)
 	if duplicate {
 		resp["message"] = "номер телефона или email уже зарегистрирован"
 	} else {
-		resp["message"] = "Код отправлен на номер"
+		resp["message"] = "Код отправлен на email"
 	}
 	json.NewEncoder(w).Encode(resp)
 }

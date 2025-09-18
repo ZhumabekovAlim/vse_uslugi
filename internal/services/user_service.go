@@ -448,6 +448,10 @@ func (s *UserService) UpdateToWorker(ctx context.Context, user models.User) (mod
 }
 
 func (s *UserService) CheckUserDuplicate(ctx context.Context, req models.User) (bool, error) {
+	if strings.TrimSpace(req.Email) == "" {
+		return false, fmt.Errorf("email is required for verification")
+	}
+
 	taken, err := s.UserRepo.IsPhoneOrEmailTaken(ctx, req.Phone, req.Email)
 	if err != nil {
 		return false, err
@@ -456,16 +460,19 @@ func (s *UserService) CheckUserDuplicate(ctx context.Context, req models.User) (
 		return true, nil
 	}
 
-	// Генерация и отправка кода
-	code := generateVerificationCode() // например, "123456"
-	message := fmt.Sprintf("Ваш код подтверждения: %s. Компания https://nusacorp.com/", code)
-	apiKey := "kzfaad0a91a4b498db593b78414dfdaa2c213b8b8996afa325a223543481efeb11dd11"
+	code := generateVerificationCode()
+	subject := "Код подтверждения регистрации"
+	body := fmt.Sprintf("Ваш код подтверждения: %s\n\nОт компании https://nusacorp.com/", code)
 
-	if err := s.sendSMS(apiKey, req.Phone, message); err != nil {
-		return false, fmt.Errorf("не удалось отправить SMS: %v", err)
+	if err := s.sendEmailSMTP(req.Email, subject, body); err != nil {
+		return false, fmt.Errorf("не удалось отправить email: %v", err)
 	}
 
-	if err := s.UserRepo.SaveVerificationCode(ctx, req.Phone, code); err != nil {
+	if err := s.UserRepo.ClearVerificationCodeByEmail(ctx, req.Email); err != nil {
+		return false, err
+	}
+
+	if err := s.UserRepo.SaveEmailVerificationCode(ctx, req.Email, code); err != nil {
 		return false, fmt.Errorf("не удалось сохранить код подтверждения: %v", err)
 	}
 
