@@ -475,6 +475,27 @@ func (h *AdHandler) UpdateAd(w http.ResponseWriter, r *http.Request) {
 		service.Longitude = &lon
 	}
 
+	images := service.Images
+
+	if parsedImages, ok, err := gatherImagesFromForm[models.ImageAd](r.MultipartForm, "images", "images[]"); err != nil {
+		http.Error(w, "Invalid images payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		images = parsedImages
+	} else if parsedExisting, okExisting, err := gatherImagesFromForm[models.ImageAd](r.MultipartForm, "existing_images", "existing_images[]"); err != nil {
+		http.Error(w, "Invalid images payload", http.StatusBadRequest)
+		return
+	} else if okExisting {
+		images = parsedExisting
+	}
+
+	if parsedLinks, ok, err := gatherImagesFromForm[models.ImageAd](r.MultipartForm, "image_links", "image_links[]"); err != nil {
+		http.Error(w, "Invalid image links payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		images = append(images, parsedLinks...)
+	}
+
 	saveDir := "cmd/uploads/ad"
 	err = os.MkdirAll(saveDir, 0755)
 	if err != nil {
@@ -482,9 +503,10 @@ func (h *AdHandler) UpdateAd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if files, ok := r.MultipartForm.File["images"]; ok && len(files) > 0 {
-		var imageInfos []models.ImageAd
-		for _, fileHeader := range files {
+	fileHeaders := collectImageFiles(r.MultipartForm, "images", "images[]")
+	if len(fileHeaders) > 0 {
+		var uploaded []models.ImageAd
+		for _, fileHeader := range fileHeaders {
 			file, err := fileHeader.Open()
 			if err != nil {
 				http.Error(w, "Failed to open image", http.StatusInternalServerError)
@@ -510,14 +532,16 @@ func (h *AdHandler) UpdateAd(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			imageInfos = append(imageInfos, models.ImageAd{
+			uploaded = append(uploaded, models.ImageAd{
 				Name: fileHeader.Filename,
 				Path: publicURL,
 				Type: fileHeader.Header.Get("Content-Type"),
 			})
 		}
-		service.Images = imageInfos
+		images = append(images, uploaded...)
 	}
+
+	service.Images = images
 
 	now := time.Now()
 	service.UpdatedAt = &now
