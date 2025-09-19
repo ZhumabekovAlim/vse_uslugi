@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"mime/multipart"
+	"strconv"
 	"strings"
 
 	"naimuBack/internal/models"
@@ -51,6 +51,10 @@ func gatherImagesFromForm[T imagePayload](form *multipart.Form, keys ...string) 
 		return nil, false, err
 	}
 
+	if len(images) == 0 {
+		return nil, false, nil
+	}
+
 	return images, true, nil
 }
 
@@ -65,24 +69,44 @@ func parseImagesFromValues[T imagePayload](values []string) ([]T, error) {
 
 		if strings.HasPrefix(raw, "[") {
 			var arr []T
-			if err := json.Unmarshal([]byte(raw), &arr); err != nil {
-				return nil, fmt.Errorf("failed to decode image array: %w", err)
+			if err := json.Unmarshal([]byte(raw), &arr); err == nil {
+				for i := range arr {
+					normalizeImage(&arr[i])
+				}
+				result = append(result, arr...)
+				continue
 			}
-			for i := range arr {
-				normalizeImage(&arr[i])
+
+			var links []string
+			if err := json.Unmarshal([]byte(raw), &links); err == nil {
+				for _, link := range links {
+					link = strings.TrimSpace(link)
+					if link == "" {
+						continue
+					}
+					result = append(result, newLinkImage[T](link))
+				}
+				continue
 			}
-			result = append(result, arr...)
+
 			continue
 		}
 
 		if strings.HasPrefix(raw, "{") {
 			var item T
-			if err := json.Unmarshal([]byte(raw), &item); err != nil {
-				return nil, fmt.Errorf("failed to decode image object: %w", err)
+			if err := json.Unmarshal([]byte(raw), &item); err == nil {
+				normalizeImage(&item)
+				result = append(result, item)
+				continue
 			}
-			normalizeImage(&item)
-			result = append(result, item)
+
 			continue
+		}
+
+		if strings.HasPrefix(raw, "\"") && strings.HasSuffix(raw, "\"") {
+			if unquoted, err := strconv.Unquote(raw); err == nil {
+				raw = unquoted
+			}
 		}
 
 		img := newLinkImage[T](raw)
