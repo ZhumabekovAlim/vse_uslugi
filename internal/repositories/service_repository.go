@@ -23,11 +23,16 @@ type ServiceRepository struct {
 
 func (r *ServiceRepository) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
-        INSERT INTO service (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, status, latitude, longitude, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO service (name, address, price, user_id, images, videos, category_id, subcategory_id, description, avg_rating, top, liked, status, latitude, longitude, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `
 	// Сохраняем images как JSON
 	imagesJSON, err := json.Marshal(service.Images)
+	if err != nil {
+		return models.Service{}, err
+	}
+
+	videosJSON, err := json.Marshal(service.Videos)
 	if err != nil {
 		return models.Service{}, err
 	}
@@ -38,6 +43,7 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		service.Price,
 		service.UserID,
 		string(imagesJSON),
+		string(videosJSON),
 		service.CategoryID,
 		service.SubcategoryID,
 		service.Description,
@@ -65,7 +71,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 	query := `
              SELECT s.id, s.name, s.address, s.price, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                      s.images, s.category_id, c.name, s.subcategory_id, sub.name,
+                      s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name,
                       s.description, s.avg_rating, s.top, s.liked,
                       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                       s.latitude, s.longitude, s.status, s.created_at, s.updated_at
@@ -79,13 +85,14 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 
 	var s models.Service
 	var imagesJSON []byte
+	var videosJSON []byte
 	var lat, lon sql.NullString
 	var respondedStr string
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr,
 		&lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
@@ -100,6 +107,12 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 	if len(imagesJSON) > 0 {
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.Service{}, fmt.Errorf("failed to decode images json: %w", err)
+		}
+	}
+
+	if len(videosJSON) > 0 {
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return models.Service{}, fmt.Errorf("failed to decode videos json: %w", err)
 		}
 	}
 
@@ -124,7 +137,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
         UPDATE service
-        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, category_id = ?, subcategory_id = ?,
+        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
             description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, latitude = ?, longitude = ?, updated_at = ?
         WHERE id = ?
     `
@@ -132,10 +145,14 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
 	if err != nil {
 		return models.Service{}, fmt.Errorf("failed to marshal images: %w", err)
 	}
+	videosJSON, err := json.Marshal(service.Videos)
+	if err != nil {
+		return models.Service{}, fmt.Errorf("failed to marshal videos: %w", err)
+	}
 	updatedAt := time.Now()
 	service.UpdatedAt = &updatedAt
 	result, err := r.DB.ExecContext(ctx, query,
-		service.Name, service.Address, service.Price, service.UserID, imagesJSON,
+		service.Name, service.Address, service.Price, service.UserID, imagesJSON, videosJSON,
 		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, service.Latitude, service.Longitude, service.UpdatedAt, service.ID,
 	)
 	if err != nil {
@@ -192,7 +209,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	baseQuery := `
            SELECT s.id, s.name, s.address, s.price, s.user_id,
                   u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                     s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
+                     s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
                      s.latitude, s.longitude,
 
              CASE WHEN sf.service_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -277,13 +294,14 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	for rows.Next() {
 		var s models.Service
 		var imagesJSON []byte
+		var videosJSON []byte
 		var lat, lon sql.NullString
 		var likedStr string
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &lat, &lon, &likedStr, &s.Status,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &lat, &lon, &likedStr, &s.Status,
 
 			&s.CreatedAt, &s.UpdatedAt,
 		)
@@ -300,6 +318,12 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
+		}
+
+		if len(videosJSON) > 0 {
+			if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+				return nil, 0, 0, fmt.Errorf("json decode videos error: %w", err)
+			}
 		}
 
 		s.Liked = likedStr == "1"
@@ -326,7 +350,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 
 func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
 	query := `
-           SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
+           SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
               FROM service s
               JOIN users u ON s.user_id = u.id
               WHERE user_id = ?
@@ -342,9 +366,10 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 	for rows.Next() {
 		var s models.Service
 		var imagesJSON []byte
+		var videosJSON []byte
 		var lat, lon sql.NullString
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON,
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
 			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -352,6 +377,12 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 
 		if len(imagesJSON) > 0 {
 			if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+				return nil, fmt.Errorf("json decode error: %w", err)
+			}
+		}
+
+		if len(videosJSON) > 0 {
+			if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
 				return nil, fmt.Errorf("json decode error: %w", err)
 			}
 		}
@@ -476,7 +507,7 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
      SELECT
              s.id, s.name, s.address, s.price, s.user_id,
              u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                s.images, s.category_id, s.subcategory_id, s.description,
+                s.images, s.videos, s.category_id, s.subcategory_id, s.description,
                 s.avg_rating, s.top, s.liked, s.status, s.latitude, s.longitude,
                 s.created_at, s.updated_at
         FROM service s
@@ -493,11 +524,12 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 	for rows.Next() {
 		var s models.Service
 		var imagesJSON []byte
+		var videosJSON []byte
 		var lat, lon sql.NullString
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID,
 			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &lat, &lon,
 			&s.CreatedAt, &s.UpdatedAt,
 		)
@@ -506,6 +538,11 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("json decode error: %w", err)
+		}
+		if len(videosJSON) > 0 {
+			if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+				return nil, fmt.Errorf("json decode error: %w", err)
+			}
 		}
 		if lat.Valid {
 			s.Latitude = &lat.String
@@ -645,7 +682,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
             SELECT
                     s.id, s.name, s.address, s.price, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                       s.images, s.category_id, c.name,
+                       s.images, s.videos, s.category_id, c.name,
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
                        CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -662,6 +699,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 
 	var s models.Service
 	var imagesJSON []byte
+	var videosJSON []byte
 	var lat, lon sql.NullString
 
 	var likedStr, respondedStr string
@@ -669,7 +707,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, serviceID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
 		&likedStr, &respondedStr, &lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
@@ -685,6 +723,12 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 	if len(imagesJSON) > 0 {
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.Service{}, fmt.Errorf("failed to decode images json: %w", err)
+		}
+	}
+
+	if len(videosJSON) > 0 {
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return models.Service{}, fmt.Errorf("failed to decode videos json: %w", err)
 		}
 	}
 

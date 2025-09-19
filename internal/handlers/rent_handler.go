@@ -330,6 +330,39 @@ func (h *RentHandler) ServeRentsImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, imagePath)
 }
 
+func (h *RentHandler) ServeRentVideo(w http.ResponseWriter, r *http.Request) {
+	filename := r.URL.Query().Get(":filename")
+	if filename == "" {
+		http.Error(w, "filename is required", http.StatusBadRequest)
+		return
+	}
+
+	videoPath := filepath.Join("cmd/uploads/rents/videos", filename)
+
+	if _, err := os.Stat(videoPath); os.IsNotExist(err) {
+		http.Error(w, "video not found", http.StatusNotFound)
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(videoPath))
+	var contentType string
+	switch ext {
+	case ".mp4":
+		contentType = "video/mp4"
+	case ".mov":
+		contentType = "video/quicktime"
+	case ".webm":
+		contentType = "video/webm"
+	case ".mkv":
+		contentType = "video/x-matroska"
+	default:
+		contentType = "application/octet-stream"
+	}
+
+	w.Header().Set("Content-Type", contentType)
+	http.ServeFile(w, r, videoPath)
+}
+
 func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(32 << 20) // 32MB
 	if err != nil {
@@ -398,6 +431,57 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	service.Images = imageInfosRent
+
+	videoDir := "cmd/uploads/rents/videos"
+	if err := os.MkdirAll(videoDir, 0755); err != nil {
+		http.Error(w, "Failed to create video directory", http.StatusInternalServerError)
+		return
+	}
+
+	videoHeaders := collectImageFiles(r.MultipartForm, "videos", "videos[]")
+	var videoInfos []models.Video
+
+	for _, fileHeader := range videoHeaders {
+		file, err := fileHeader.Open()
+		if err != nil {
+			http.Error(w, "Failed to open video", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+
+		timestamp := time.Now().UnixNano()
+		ext := filepath.Ext(fileHeader.Filename)
+		videoName := fmt.Sprintf("rent_video_%d%s", timestamp, ext)
+		savePath := filepath.Join(videoDir, videoName)
+		publicURL := fmt.Sprintf("/videos/rents/%s", videoName)
+
+		dst, err := os.Create(savePath)
+		if err != nil {
+			http.Error(w, "Cannot save video", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, file); err != nil {
+			http.Error(w, "Failed to write video", http.StatusInternalServerError)
+			return
+		}
+
+		videoInfos = append(videoInfos, models.Video{
+			Name: fileHeader.Filename,
+			Path: publicURL,
+			Type: fileHeader.Header.Get("Content-Type"),
+		})
+	}
+
+	if parsedLinks, ok, err := gatherImagesFromForm[models.Video](r.MultipartForm, "video_links", "video_links[]"); err != nil {
+		http.Error(w, "Invalid video links payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		videoInfos = append(videoInfos, parsedLinks...)
+	}
+
+	service.Videos = videoInfos
 
 	createdService, err := h.Service.CreateRent(r.Context(), service)
 	if err != nil {
@@ -555,6 +639,73 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	service.Images = images
+
+	videos := service.Videos
+
+	if parsedVideos, ok, err := gatherImagesFromForm[models.Video](r.MultipartForm, "videos", "videos[]"); err != nil {
+		http.Error(w, "Invalid videos payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		videos = parsedVideos
+	} else if parsedExisting, okExisting, err := gatherImagesFromForm[models.Video](r.MultipartForm, "existing_videos", "existing_videos[]"); err != nil {
+		http.Error(w, "Invalid videos payload", http.StatusBadRequest)
+		return
+	} else if okExisting {
+		videos = parsedExisting
+	}
+
+	if parsedLinks, ok, err := gatherImagesFromForm[models.Video](r.MultipartForm, "video_links", "video_links[]"); err != nil {
+		http.Error(w, "Invalid video links payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		videos = append(videos, parsedLinks...)
+	}
+
+	videoDir := "cmd/uploads/rents/videos"
+	if err := os.MkdirAll(videoDir, 0755); err != nil {
+		http.Error(w, "Failed to create video directory", http.StatusInternalServerError)
+		return
+	}
+
+	videoHeaders := collectImageFiles(r.MultipartForm, "videos", "videos[]")
+	if len(videoHeaders) > 0 {
+		var uploaded []models.Video
+		for _, fileHeader := range videoHeaders {
+			file, err := fileHeader.Open()
+			if err != nil {
+				http.Error(w, "Failed to open video", http.StatusInternalServerError)
+				return
+			}
+			defer file.Close()
+
+			timestamp := time.Now().UnixNano()
+			ext := filepath.Ext(fileHeader.Filename)
+			videoName := fmt.Sprintf("rent_video_%d%s", timestamp, ext)
+			savePath := filepath.Join(videoDir, videoName)
+			publicURL := fmt.Sprintf("/videos/rents/%s", videoName)
+
+			dst, err := os.Create(savePath)
+			if err != nil {
+				http.Error(w, "Cannot save video", http.StatusInternalServerError)
+				return
+			}
+			defer dst.Close()
+
+			if _, err := io.Copy(dst, file); err != nil {
+				http.Error(w, "Failed to write video", http.StatusInternalServerError)
+				return
+			}
+
+			uploaded = append(uploaded, models.Video{
+				Name: fileHeader.Filename,
+				Path: publicURL,
+				Type: fileHeader.Header.Get("Content-Type"),
+			})
+		}
+		videos = append(videos, uploaded...)
+	}
+
+	service.Videos = videos
 
 	now := time.Now()
 	service.UpdatedAt = &now

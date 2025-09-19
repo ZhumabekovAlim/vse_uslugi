@@ -23,12 +23,17 @@ type RentRepository struct {
 
 func (r *RentRepository) CreateRent(ctx context.Context, rent models.Rent) (models.Rent, error) {
 	query := `
-        INSERT INTO rent (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, status, rent_type, deposit, latitude, longitude, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO rent (name, address, price, user_id, images, videos, category_id, subcategory_id, description, avg_rating, top, liked, status, rent_type, deposit, latitude, longitude, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 
 	// Сохраняем images как JSON
 	imagesJSON, err := json.Marshal(rent.Images)
+	if err != nil {
+		return models.Rent{}, err
+	}
+
+	videosJSON, err := json.Marshal(rent.Videos)
 	if err != nil {
 		return models.Rent{}, err
 	}
@@ -39,6 +44,7 @@ func (r *RentRepository) CreateRent(ctx context.Context, rent models.Rent) (mode
 		rent.Price,
 		rent.UserID,
 		string(imagesJSON),
+		string(videosJSON),
 		rent.CategoryID,
 		rent.SubcategoryID,
 		rent.Description,
@@ -66,7 +72,7 @@ func (r *RentRepository) CreateRent(ctx context.Context, rent models.Rent) (mode
 
 func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (models.Rent, error) {
 	query := `
-             SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
+             SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
 
                       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
 
@@ -81,13 +87,14 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 
 	var s models.Rent
 	var imagesJSON []byte
+	var videosJSON []byte
 	var lat, lon sql.NullString
 	var respondedStr string
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
 
 		&s.UpdatedAt,
 	)
@@ -102,6 +109,12 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 	if len(imagesJSON) > 0 {
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.Rent{}, fmt.Errorf("failed to decode images json: %w", err)
+		}
+	}
+
+	if len(videosJSON) > 0 {
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return models.Rent{}, fmt.Errorf("failed to decode videos json: %w", err)
 		}
 	}
 
@@ -125,7 +138,7 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 func (r *RentRepository) UpdateRent(ctx context.Context, work models.Rent) (models.Rent, error) {
 	query := `
         UPDATE rent
-        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, category_id = ?, subcategory_id = ?, 
+        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
             description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, rent_type = ?, deposit = ?, latitude = ?, longitude = ?, updated_at = ?
         WHERE id = ?
     `
@@ -133,10 +146,14 @@ func (r *RentRepository) UpdateRent(ctx context.Context, work models.Rent) (mode
 	if err != nil {
 		return models.Rent{}, fmt.Errorf("failed to marshal images: %w", err)
 	}
+	videosJSON, err := json.Marshal(work.Videos)
+	if err != nil {
+		return models.Rent{}, fmt.Errorf("failed to marshal videos: %w", err)
+	}
 	updatedAt := time.Now()
 	work.UpdatedAt = &updatedAt
 	result, err := r.DB.ExecContext(ctx, query,
-		work.Name, work.Address, work.Price, work.UserID, imagesJSON,
+		work.Name, work.Address, work.Price, work.UserID, imagesJSON, videosJSON,
 		work.CategoryID, work.SubcategoryID, work.Description, work.AvgRating, work.Top, work.Liked, work.Status, work.RentType, work.Deposit, work.Latitude, work.Longitude, work.UpdatedAt, work.ID,
 	)
 	if err != nil {
@@ -192,7 +209,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 
 	baseQuery := `
 
-           SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.rent_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+               SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.rent_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
 
                FROM rent s
                LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
@@ -273,12 +290,13 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 	for rows.Next() {
 		var s models.Rent
 		var imagesJSON []byte
+		var videosJSON []byte
 		var lat, lon sql.NullString
 		var likedStr string
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
@@ -293,6 +311,12 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
+		}
+
+		if len(videosJSON) > 0 {
+			if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+				return nil, 0, 0, fmt.Errorf("json decode videos error: %w", err)
+			}
 		}
 
 		s.Liked = likedStr == "1"
@@ -318,7 +342,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 
 func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]models.Rent, error) {
 	query := `
-               SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+               SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM rent s
                 JOIN users u ON s.user_id = u.id
                 WHERE user_id = ?
@@ -334,9 +358,10 @@ func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]mo
 	for rows.Next() {
 		var s models.Rent
 		var imagesJSON []byte
+		var videosJSON []byte
 		var lat, lon sql.NullString
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON,
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
 			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -351,6 +376,12 @@ func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]mo
 		if len(imagesJSON) > 0 {
 			if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 				return nil, fmt.Errorf("json decode error: %w", err)
+			}
+		}
+
+		if len(videosJSON) > 0 {
+			if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+				return nil, fmt.Errorf("json decode videos error: %w", err)
 			}
 		}
 
@@ -466,7 +497,7 @@ func (r *RentRepository) FetchByStatusAndUserID(ctx context.Context, userID int,
         SELECT
                 s.id, s.name, s.address, s.price, s.user_id,
                 u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                s.images, s.category_id, s.subcategory_id, s.description,
+                s.images, s.videos, s.category_id, s.subcategory_id, s.description,
                 s.avg_rating, s.top, s.liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude,
                 s.created_at, s.updated_at
         FROM rent s
@@ -483,11 +514,12 @@ func (r *RentRepository) FetchByStatusAndUserID(ctx context.Context, userID int,
 	for rows.Next() {
 		var s models.Rent
 		var imagesJSON []byte
+		var videosJSON []byte
 		var lat, lon sql.NullString
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID,
 			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
 			&s.UpdatedAt,
 		)
@@ -502,6 +534,11 @@ func (r *RentRepository) FetchByStatusAndUserID(ctx context.Context, userID int,
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("json decode error: %w", err)
+		}
+		if len(videosJSON) > 0 {
+			if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+				return nil, fmt.Errorf("json decode videos error: %w", err)
+			}
 		}
 		s.AvgRating = getAverageRating(ctx, r.DB, "rent_reviews", "rent_id", s.ID)
 		rents = append(rents, s)
@@ -642,7 +679,7 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
             SELECT
                     s.id, s.name, s.address, s.price, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                       s.images, s.category_id, c.name,
+                    s.images, s.videos, s.category_id, c.name,
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
                        CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -659,6 +696,7 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
 
 	var s models.Rent
 	var imagesJSON []byte
+	var videosJSON []byte
 	var lat, lon sql.NullString
 
 	var likedStr, respondedStr string
@@ -666,7 +704,7 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, rentID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
 		&likedStr, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
@@ -682,6 +720,12 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
 	if len(imagesJSON) > 0 {
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.Rent{}, fmt.Errorf("failed to decode images json: %w", err)
+		}
+	}
+
+	if len(videosJSON) > 0 {
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return models.Rent{}, fmt.Errorf("failed to decode videos json: %w", err)
 		}
 	}
 
