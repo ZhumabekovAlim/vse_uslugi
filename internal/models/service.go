@@ -20,6 +20,7 @@ type Service struct {
 		AvatarPath   *string `json:"avatar_path,omitempty"`
 	} `json:"user"`
 	Images          []Image    `json:"images"`
+	Videos          []Video    `json:"videos"`
 	CategoryID      int        `json:"category_id, omitempty"`
 	SubcategoryID   int        `json:"subcategory_id, omitempty"`
 	Description     string     `json:"description"`
@@ -38,6 +39,12 @@ type Service struct {
 }
 
 type Image struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+	Type string `json:"type"`
+}
+
+type Video struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
 	Type string `json:"type"`

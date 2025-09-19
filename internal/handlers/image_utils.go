@@ -11,7 +11,7 @@ import (
 
 // imagePayload объединяет все типы изображений, используемых в сущностях.
 type imagePayload interface {
-	models.Image | models.ImageAd | models.ImageRent | models.ImageRentAd | models.ImageWork | models.ImageWorkAd
+	models.Image | models.ImageAd | models.ImageRent | models.ImageRentAd | models.ImageWork | models.ImageWorkAd | models.Video
 }
 
 // collectImageFiles собирает все файлы по указанным ключам формы.
@@ -118,6 +118,10 @@ func normalizeImage[T imagePayload](img *T) {
 		if v.Name == "" {
 			v.Name = v.Path
 		}
+	case *models.Video:
+		if v.Name == "" {
+			v.Name = v.Path
+		}
 	}
 }
 
@@ -146,6 +150,10 @@ func newLinkImage[T imagePayload](path string) T {
 		v.Path = path
 		v.Type = "link"
 	case *models.ImageWorkAd:
+		v.Name = path
+		v.Path = path
+		v.Type = "link"
+	case *models.Video:
 		v.Name = path
 		v.Path = path
 		v.Type = "link"

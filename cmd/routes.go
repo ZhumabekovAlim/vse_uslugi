@@ -73,6 +73,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/service/cancel", authMiddleware.ThenFunc(app.serviceConfirmationHandler.CancelService))
 	mux.Post("/service/done", authMiddleware.ThenFunc(app.serviceConfirmationHandler.DoneService))
 	mux.Get("/images/services/:filename", http.HandlerFunc(app.serviceHandler.ServeServiceImage))
+	mux.Get("/videos/services/:filename", http.HandlerFunc(app.serviceHandler.ServeServiceVideo))
 	mux.Post("/service/filtered/:user_id", authMiddleware.ThenFunc(app.serviceHandler.GetFilteredServicesWithLikes))
 	mux.Get("/service/service_id/:service_id/user/:user_id", standardMiddleware.ThenFunc(app.serviceHandler.GetServiceByServiceIDAndUserID))
 
