@@ -413,10 +413,24 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	files := r.MultipartForm.File["images"]
+	imageHeaders := collectImageFiles(r.MultipartForm, "images", "images[]")
 	var imageInfos []models.Image
 
-	for _, fileHeader := range files {
+	if parsedImages, ok, err := gatherImagesFromForm[models.Image](r.MultipartForm, "images", "images[]"); err != nil {
+		http.Error(w, "Invalid images payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		imageInfos = append(imageInfos, parsedImages...)
+	}
+
+	if parsedLinks, ok, err := gatherImagesFromForm[models.Image](r.MultipartForm, "image_links", "image_links[]"); err != nil {
+		http.Error(w, "Invalid image links payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		imageInfos = append(imageInfos, parsedLinks...)
+	}
+
+	for _, fileHeader := range imageHeaders {
 		file, err := fileHeader.Open()
 		if err != nil {
 			http.Error(w, "Failed to open image", http.StatusInternalServerError)
@@ -459,6 +473,13 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 
 	videoHeaders := collectImageFiles(r.MultipartForm, "videos", "videos[]")
 	var videoInfos []models.Video
+
+	if parsedVideos, ok, err := gatherImagesFromForm[models.Video](r.MultipartForm, "videos", "videos[]"); err != nil {
+		http.Error(w, "Invalid videos payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		videoInfos = append(videoInfos, parsedVideos...)
+	}
 
 	for _, fileHeader := range videoHeaders {
 		file, err := fileHeader.Open()
