@@ -1,0 +1,2 @@
+ALTER TABLE ad
+    DROP COLUMN videos;
