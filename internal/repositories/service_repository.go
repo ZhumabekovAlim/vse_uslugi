@@ -408,14 +408,15 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 
 func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
 	query := `
-       SELECT
+SELECT
 
-               u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+        u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-              s.id, s.name, s.price, s.description, s.latitude, s.longitude
-      FROM service s
-      JOIN users u ON s.user_id = u.id
-      WHERE 1=1
+       s.id, s.name, s.price, s.description, s.latitude, s.longitude,
+       COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos
+FROM service s
+JOIN users u ON s.user_id = u.id
+WHERE 1=1
 `
 	args := []interface{}{}
 
@@ -479,10 +480,11 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 	for rows.Next() {
 		var s models.FilteredService
 		var lat, lon sql.NullString
+		var imagesJSON, videosJSON []byte
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON,
 		); err != nil {
 			return nil, err
 		}
@@ -491,6 +493,12 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 		}
 		if lon.Valid {
 			s.ServiceLongitude = &lon.String
+		}
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return nil, fmt.Errorf("failed to decode images json: %w", err)
+		}
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return nil, fmt.Errorf("failed to decode videos json: %w", err)
 		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
@@ -560,18 +568,19 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-    SELECT DISTINCT
+SELECT DISTINCT
 
-           u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+       u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-          s.id, s.name, s.price, s.description, s.latitude, s.longitude,
-          CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
-          CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
-   FROM service s
-   JOIN users u ON s.user_id = u.id
-   LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
-   LEFT JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = ?
-   WHERE 1=1
+      s.id, s.name, s.price, s.description, s.latitude, s.longitude,
+      COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
+      CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+      CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
+FROM service s
+JOIN users u ON s.user_id = u.id
+LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+LEFT JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = ?
+WHERE 1=1
 `
 
 	args := []interface{}{userID, userID}
@@ -644,11 +653,12 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	for rows.Next() {
 		var s models.FilteredService
 		var lat, lon sql.NullString
+		var imagesJSON, videosJSON []byte
 		var likedStr, respondedStr string
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &likedStr, &respondedStr,
+			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -658,6 +668,12 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 		}
 		if lon.Valid {
 			s.ServiceLongitude = &lon.String
+		}
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return nil, fmt.Errorf("failed to decode images json: %w", err)
+		}
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return nil, fmt.Errorf("failed to decode videos json: %w", err)
 		}
 		s.Liked = likedStr == "1"
 		s.Responded = respondedStr == "1"
