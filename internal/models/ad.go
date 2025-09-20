@@ -20,6 +20,7 @@ type Ad struct {
 		AvatarPath   *string `json:"avatar_path,omitempty"`
 	} `json:"user"`
 	Images          []ImageAd  `json:"images"`
+	Videos          []Video    `json:"videos"`
 	CategoryID      int        `json:"category_id, omitempty"`
 	SubcategoryID   int        `json:"subcategory_id, omitempty"`
 	Description     string     `json:"description"`
