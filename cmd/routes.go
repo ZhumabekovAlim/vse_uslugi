@@ -355,6 +355,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/rent_ad/cancel", authMiddleware.ThenFunc(app.rentAdConfirmationHandler.CancelRentAd))
 	mux.Post("/rent_ad/done", authMiddleware.ThenFunc(app.rentAdConfirmationHandler.DoneRentAd))
 	mux.Get("/images/rents/:filename", http.HandlerFunc(app.rentAdHandler.ServeRentsAdImage))
+	mux.Get("/videos/rent_ad/:filename", http.HandlerFunc(app.rentAdHandler.ServeRentAdVideo))
 	mux.Post("/rent_ad/filtered/:user_id", authMiddleware.ThenFunc(app.rentAdHandler.GetFilteredRentsAdWithLikes))
 	mux.Get("/rent_ad/rent_ad_id/:rent_ad_id/user/:user_id", standardMiddleware.ThenFunc(app.rentAdHandler.GetRentAdByRentIDAndUserID))
 
