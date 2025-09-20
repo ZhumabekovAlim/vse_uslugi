@@ -456,6 +456,13 @@ func (h *WorkHandler) CreateWork(w http.ResponseWriter, r *http.Request) {
 	videoHeaders := collectImageFiles(r.MultipartForm, "videos", "videos[]")
 	var videoInfos []models.Video
 
+	if parsedVideos, ok, err := gatherImagesFromForm[models.Video](r.MultipartForm, "videos", "videos[]"); err != nil {
+		http.Error(w, "Invalid videos payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		videoInfos = append(videoInfos, parsedVideos...)
+	}
+
 	for _, fileHeader := range videoHeaders {
 		file, err := fileHeader.Open()
 		if err != nil {
