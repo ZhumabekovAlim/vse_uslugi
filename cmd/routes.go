@@ -323,6 +323,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/work_ad/cancel", authMiddleware.ThenFunc(app.workAdConfirmationHandler.CancelWorkAd))
 	mux.Post("/work_ad/done", authMiddleware.ThenFunc(app.workAdConfirmationHandler.DoneWorkAd))
 	mux.Get("/images/work_ad/:filename", http.HandlerFunc(app.workAdHandler.ServeWorkAdImage))
+	mux.Get("/videos/work_ad/:filename", http.HandlerFunc(app.workAdHandler.ServeWorkAdVideo))
 	mux.Post("/work_ad/filtered/:user_id", authMiddleware.ThenFunc(app.workAdHandler.GetFilteredWorksAdWithLikes))
 	mux.Get("/work_ad/work_ad_id/:work_ad_id/user/:user_id", standardMiddleware.ThenFunc(app.workAdHandler.GetWorkAdByWorkIDAndUserID))
 
