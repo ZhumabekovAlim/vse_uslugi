@@ -23,12 +23,16 @@ type WorkAdRepository struct {
 
 func (r *WorkAdRepository) CreateWorkAd(ctx context.Context, work models.WorkAd) (models.WorkAd, error) {
 	query := `
-        INSERT INTO work_ad (name, address, price, user_id, images, category_id, subcategory_id, description, avg_rating, top, liked, status, work_experience, city_id, schedule, distance_work, payment_period, latitude, longitude, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO work_ad (name, address, price, user_id, images, videos, category_id, subcategory_id, description, avg_rating, top, liked, status, work_experience, city_id, schedule, distance_work, payment_period, latitude, longitude, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 
-	// Сохраняем images как JSON
 	imagesJSON, err := json.Marshal(work.Images)
+	if err != nil {
+		return models.WorkAd{}, err
+	}
+
+	videosJSON, err := json.Marshal(work.Videos)
 	if err != nil {
 		return models.WorkAd{}, err
 	}
@@ -39,6 +43,7 @@ func (r *WorkAdRepository) CreateWorkAd(ctx context.Context, work models.WorkAd)
 		work.Price,
 		work.UserID,
 		string(imagesJSON),
+		string(videosJSON),
 		work.CategoryID,
 		work.SubcategoryID,
 		work.Description,
@@ -69,7 +74,7 @@ func (r *WorkAdRepository) CreateWorkAd(ctx context.Context, work models.WorkAd)
 
 func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int) (models.WorkAd, error) {
 	query := `
-             SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
+             SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
 
                      CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
 
@@ -85,12 +90,13 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int
 
 	var s models.WorkAd
 	var imagesJSON []byte
+	var videosJSON []byte
 	var respondedStr string
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-		&imagesJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
 
 		&s.UpdatedAt,
 	)
@@ -108,6 +114,12 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int
 		}
 	}
 
+	if len(videosJSON) > 0 {
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return models.WorkAd{}, fmt.Errorf("failed to decode videos json: %w", err)
+		}
+	}
+
 	s.Responded = respondedStr == "1"
 
 	s.AvgRating = getAverageRating(ctx, r.DB, "work_ad_reviews", "work_ad_id", s.ID)
@@ -122,7 +134,7 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int
 func (r *WorkAdRepository) UpdateWorkAd(ctx context.Context, work models.WorkAd) (models.WorkAd, error) {
 	query := `
         UPDATE work_ad
-        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, category_id = ?, subcategory_id = ?, 
+        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
             description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, work_experience = ?, city_id = ?, schedule = ?, distance_work = ?, payment_period = ?, latitude = ?, longitude = ?, updated_at = ?
         WHERE id = ?
     `
@@ -130,10 +142,15 @@ func (r *WorkAdRepository) UpdateWorkAd(ctx context.Context, work models.WorkAd)
 	if err != nil {
 		return models.WorkAd{}, fmt.Errorf("failed to marshal images: %w", err)
 	}
+
+	videosJSON, err := json.Marshal(work.Videos)
+	if err != nil {
+		return models.WorkAd{}, fmt.Errorf("failed to marshal videos: %w", err)
+	}
 	updatedAt := time.Now()
 	work.UpdatedAt = &updatedAt
 	result, err := r.DB.ExecContext(ctx, query,
-		work.Name, work.Address, work.Price, work.UserID, imagesJSON,
+		work.Name, work.Address, work.Price, work.UserID, imagesJSON, videosJSON,
 		work.CategoryID, work.SubcategoryID, work.Description, work.AvgRating, work.Top, work.Liked, work.Status, work.WorkExperience, work.CityID, work.Schedule, work.DistanceWork, work.PaymentPeriod, work.Latitude, work.Longitude, work.UpdatedAt, work.ID,
 	)
 	if err != nil {
@@ -189,7 +206,7 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 
 	baseQuery := `
 
-       SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.work_ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
+       SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.work_ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
 
                FROM work_ad s
                LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
@@ -270,11 +287,12 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 	for rows.Next() {
 		var s models.WorkAd
 		var imagesJSON []byte
+		var videosJSON []byte
 		var likedStr string
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
 
 			&s.UpdatedAt,
 		)
@@ -284,6 +302,12 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
+		}
+
+		if len(videosJSON) > 0 {
+			if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+				return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
+			}
 		}
 
 		s.Liked = likedStr == "1"
@@ -309,7 +333,7 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 
 func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) ([]models.WorkAd, error) {
 	query := `
-                SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
+                SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM work_ad s
                 JOIN users u ON s.user_id = u.id
                 WHERE user_id = ?
@@ -325,8 +349,9 @@ func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) (
 	for rows.Next() {
 		var s models.WorkAd
 		var imagesJSON []byte
+		var videosJSON []byte
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON,
+			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
 			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
 			&s.UpdatedAt,
 		); err != nil {
@@ -335,6 +360,12 @@ func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) (
 
 		if len(imagesJSON) > 0 {
 			if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+				return nil, fmt.Errorf("json decode error: %w", err)
+			}
+		}
+
+		if len(videosJSON) > 0 {
+			if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
 				return nil, fmt.Errorf("json decode error: %w", err)
 			}
 		}
@@ -444,12 +475,12 @@ func (r *WorkAdRepository) FetchByStatusAndUserID(ctx context.Context, userID in
         SELECT
                 s.id, s.name, s.address, s.price, s.user_id,
                 u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                s.images, s.category_id, s.subcategory_id, s.description,
+                s.images, s.videos, s.category_id, s.subcategory_id, s.description,
                 s.avg_rating, s.top, s.liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude,
                 s.created_at, s.updated_at
-	FROM work_ad s
-	JOIN users u ON s.user_id = u.id
-	WHERE s.status = ? AND s.user_id = ?`
+        FROM work_ad s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.status = ? AND s.user_id = ?`
 
 	rows, err := r.DB.QueryContext(ctx, query, status, userID)
 	if err != nil {
@@ -461,10 +492,11 @@ func (r *WorkAdRepository) FetchByStatusAndUserID(ctx context.Context, userID in
 	for rows.Next() {
 		var s models.WorkAd
 		var imagesJSON []byte
+		var videosJSON []byte
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-			&imagesJSON, &s.CategoryID, &s.SubcategoryID,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID,
 			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude,
 			&s.CreatedAt, &s.UpdatedAt,
 		)
@@ -473,6 +505,11 @@ func (r *WorkAdRepository) FetchByStatusAndUserID(ctx context.Context, userID in
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("json decode error: %w", err)
+		}
+		if len(videosJSON) > 0 {
+			if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+				return nil, fmt.Errorf("json decode error: %w", err)
+			}
 		}
 		s.AvgRating = getAverageRating(ctx, r.DB, "work_ad_reviews", "work_ad_id", s.ID)
 		works = append(works, s)
@@ -606,7 +643,7 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
             SELECT
                     s.id, s.name, s.address, s.price, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                       s.images, s.category_id, c.name,
+                       s.images, s.videos, s.category_id, c.name,
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
               CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -624,13 +661,14 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 
 	var s models.WorkAd
 	var imagesJSON []byte
+	var videosJSON []byte
 
 	var likedStr, respondedStr string
 
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, workadID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &s.CategoryID, &s.CategoryName,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
 		&likedStr, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
@@ -646,6 +684,12 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 	if len(imagesJSON) > 0 {
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.WorkAd{}, fmt.Errorf("failed to decode images json: %w", err)
+		}
+	}
+
+	if len(videosJSON) > 0 {
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return models.WorkAd{}, fmt.Errorf("failed to decode videos json: %w", err)
 		}
 	}
 
