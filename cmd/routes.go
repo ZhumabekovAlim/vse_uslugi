@@ -290,6 +290,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/ad/cancel", authMiddleware.ThenFunc(app.adConfirmationHandler.CancelAd))
 	mux.Post("/ad/done", authMiddleware.ThenFunc(app.adConfirmationHandler.DoneAd))
 	mux.Get("/images/ad/:filename", http.HandlerFunc(app.adHandler.ServeAdImage))
+	mux.Get("/videos/ad/:filename", http.HandlerFunc(app.adHandler.ServeAdVideo))
 	mux.Post("/ad/filtered/:user_id", authMiddleware.ThenFunc(app.adHandler.GetFilteredAdWithLikes))
 	mux.Get("/ad/ad_id/:ad_id/user/:user_id", standardMiddleware.ThenFunc(app.adHandler.GetAdByAdIDAndUserID))
 
