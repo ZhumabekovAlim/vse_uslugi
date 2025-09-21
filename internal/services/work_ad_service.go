@@ -7,10 +7,18 @@ import (
 )
 
 type WorkAdService struct {
-	WorkAdRepo *repositories.WorkAdRepository
+	WorkAdRepo       *repositories.WorkAdRepository
+	SubscriptionRepo *repositories.SubscriptionRepository
 }
 
 func (s *WorkAdService) CreateWorkAd(ctx context.Context, work models.WorkAd) (models.WorkAd, error) {
+	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+	if err != nil {
+		return models.WorkAd{}, err
+	}
+	if !has {
+		return models.WorkAd{}, ErrNoActiveSubscription
+	}
 	return s.WorkAdRepo.CreateWorkAd(ctx, work)
 }
 
@@ -19,6 +27,21 @@ func (s *WorkAdService) GetWorkAdByID(ctx context.Context, id int, userID int) (
 }
 
 func (s *WorkAdService) UpdateWorkAd(ctx context.Context, work models.WorkAd) (models.WorkAd, error) {
+	if work.Status == "active" {
+		existing, err := s.WorkAdRepo.GetWorkAdByID(ctx, work.ID, 0)
+		if err != nil {
+			return models.WorkAd{}, err
+		}
+		if existing.Status != "active" {
+			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+			if err != nil {
+				return models.WorkAd{}, err
+			}
+			if !has {
+				return models.WorkAd{}, ErrNoActiveSubscription
+			}
+		}
+	}
 	return s.WorkAdRepo.UpdateWorkAd(ctx, work)
 }
 

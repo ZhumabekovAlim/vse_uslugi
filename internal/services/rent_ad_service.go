@@ -7,10 +7,18 @@ import (
 )
 
 type RentAdService struct {
-	RentAdRepo *repositories.RentAdRepository
+	RentAdRepo       *repositories.RentAdRepository
+	SubscriptionRepo *repositories.SubscriptionRepository
 }
 
 func (s *RentAdService) CreateRentAd(ctx context.Context, work models.RentAd) (models.RentAd, error) {
+	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+	if err != nil {
+		return models.RentAd{}, err
+	}
+	if !has {
+		return models.RentAd{}, ErrNoActiveSubscription
+	}
 	return s.RentAdRepo.CreateRentAd(ctx, work)
 }
 
@@ -19,6 +27,21 @@ func (s *RentAdService) GetRentAdByID(ctx context.Context, id int, userID int) (
 }
 
 func (s *RentAdService) UpdateRentAd(ctx context.Context, work models.RentAd) (models.RentAd, error) {
+	if work.Status == "active" {
+		existing, err := s.RentAdRepo.GetRentAdByID(ctx, work.ID, 0)
+		if err != nil {
+			return models.RentAd{}, err
+		}
+		if existing.Status != "active" {
+			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+			if err != nil {
+				return models.RentAd{}, err
+			}
+			if !has {
+				return models.RentAd{}, ErrNoActiveSubscription
+			}
+		}
+	}
 	return s.RentAdRepo.UpdateRentAd(ctx, work)
 }
 

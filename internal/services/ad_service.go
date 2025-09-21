@@ -7,10 +7,18 @@ import (
 )
 
 type AdService struct {
-	AdRepo *repositories.AdRepository
+	AdRepo           *repositories.AdRepository
+	SubscriptionRepo *repositories.SubscriptionRepository
 }
 
 func (s *AdService) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, error) {
+	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, ad.UserID)
+	if err != nil {
+		return models.Ad{}, err
+	}
+	if !has {
+		return models.Ad{}, ErrNoActiveSubscription
+	}
 	return s.AdRepo.CreateAd(ctx, ad)
 }
 
@@ -19,6 +27,21 @@ func (s *AdService) GetAdByID(ctx context.Context, id int, userID int) (models.A
 }
 
 func (s *AdService) UpdateAd(ctx context.Context, service models.Ad) (models.Ad, error) {
+	if service.Status == "active" {
+		existing, err := s.AdRepo.GetAdByID(ctx, service.ID, 0)
+		if err != nil {
+			return models.Ad{}, err
+		}
+		if existing.Status != "active" {
+			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, service.UserID)
+			if err != nil {
+				return models.Ad{}, err
+			}
+			if !has {
+				return models.Ad{}, ErrNoActiveSubscription
+			}
+		}
+	}
 	return s.AdRepo.UpdateAd(ctx, service)
 }
 
