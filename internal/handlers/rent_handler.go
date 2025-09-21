@@ -374,7 +374,23 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 	service.Name = r.FormValue("name")
 	service.Address = r.FormValue("address")
 	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
-	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
+	if userIDStr := r.FormValue("user_id"); userIDStr != "" {
+		userID, err := strconv.Atoi(userIDStr)
+		if err != nil {
+			http.Error(w, "Invalid user_id", http.StatusBadRequest)
+			return
+		}
+		service.UserID = userID
+	}
+	if service.UserID == 0 {
+		if ctxUserID, ok := r.Context().Value("user_id").(int); ok && ctxUserID != 0 {
+			service.UserID = ctxUserID
+		}
+	}
+	if service.UserID == 0 {
+		http.Error(w, "Missing user_id", http.StatusBadRequest)
+		return
+	}
 	service.Description = r.FormValue("description")
 	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))

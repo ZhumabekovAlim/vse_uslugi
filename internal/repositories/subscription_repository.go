@@ -34,21 +34,36 @@ func (r *SubscriptionRepository) CountActiveExecutorListings(ctx context.Context
 	query := `
         SELECT
             (SELECT COUNT(*) FROM service WHERE user_id = ? AND status = 'active') +
+            (SELECT COUNT(*) FROM work WHERE user_id = ? AND status = 'active') +
             (SELECT COUNT(*) FROM work_ad WHERE user_id = ? AND status = 'active') +
+            (SELECT COUNT(*) FROM rent WHERE user_id = ? AND status = 'active') +
             (SELECT COUNT(*) FROM rent_ad WHERE user_id = ? AND status = 'active')
     `
 	var count int
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, userID).Scan(&count)
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, userID, userID, userID).Scan(&count)
 	return count, err
 }
 
 func (r *SubscriptionRepository) HasActiveSubscription(ctx context.Context, userID int) (bool, error) {
-	query := `SELECT COUNT(*) FROM subscription_slots WHERE user_id = ? AND status = 'active'`
-	var count int
-	if err := r.DB.QueryRowContext(ctx, query, userID).Scan(&count); err != nil {
+	query := `SELECT slots FROM subscription_slots WHERE user_id = ? AND status IN ('active', 'grace', 'trial')`
+	var slots int
+	err := r.DB.QueryRowContext(ctx, query, userID).Scan(&slots)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
 		return false, err
 	}
-	return count > 0, nil
+	if slots <= 0 {
+		return false, nil
+	}
+
+	activeCount, err := r.CountActiveExecutorListings(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+
+	return activeCount < slots, nil
 }
 
 func (r *SubscriptionRepository) ConsumeResponse(ctx context.Context, userID int) error {
