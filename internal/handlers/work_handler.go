@@ -150,6 +150,10 @@ func (h *WorkHandler) GetWorks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
+
+func (h *WorkHandler) GetWorksAdmin(w http.ResponseWriter, r *http.Request) {
+	h.GetWorks(w, r)
+}
 func parseIntArrayWork(input string) []int {
 	if input == "" {
 		return nil

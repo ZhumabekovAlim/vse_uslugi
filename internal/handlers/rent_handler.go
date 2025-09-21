@@ -150,6 +150,10 @@ func (h *RentHandler) GetRents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
+
+func (h *RentHandler) GetRentsAdmin(w http.ResponseWriter, r *http.Request) {
+	h.GetRents(w, r)
+}
 func parseIntArrayRent(input string) []int {
 	if input == "" {
 		return nil

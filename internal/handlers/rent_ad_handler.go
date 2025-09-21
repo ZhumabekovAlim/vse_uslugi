@@ -150,6 +150,10 @@ func (h *RentAdHandler) GetRentsAd(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
+
+func (h *RentAdHandler) GetRentsAdAdmin(w http.ResponseWriter, r *http.Request) {
+	h.GetRentsAd(w, r)
+}
 func parseIntArrayRentAd(input string) []int {
 	if input == "" {
 		return nil

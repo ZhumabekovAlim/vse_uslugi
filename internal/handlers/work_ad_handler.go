@@ -150,6 +150,10 @@ func (h *WorkAdHandler) GetWorksAd(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
+
+func (h *WorkAdHandler) GetWorksAdAdmin(w http.ResponseWriter, r *http.Request) {
+	h.GetWorksAd(w, r)
+}
 func parseIntArrayWorkAd(input string) []int {
 	if input == "" {
 		return nil
