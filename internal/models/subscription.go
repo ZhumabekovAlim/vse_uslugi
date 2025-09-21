@@ -44,3 +44,13 @@ type SubscriptionProfile struct {
 	GraceUntil    *time.Time `json:"grace_until,omitempty"`
 	BillingNotice *string    `json:"billing_notice,omitempty"`
 }
+
+// SubscriptionSummary represents a lightweight subscription snapshot for the
+// profile page.
+type SubscriptionSummary struct {
+	ActivePaidListings int        `json:"active_paid_listings"`
+	PurchasedListings  int        `json:"purchased_listings"`
+	ResponsesCount     int        `json:"responses_count"`
+	RenewDate          *time.Time `json:"renew_date,omitempty"`
+	MonthlyPayment     int        `json:"monthly_payment"`
+}

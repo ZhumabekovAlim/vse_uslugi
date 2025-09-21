@@ -47,6 +47,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/user/verify_reset_code", authMiddleware.ThenFunc(app.userHandler.VerifyResetCode))
 	mux.Post("/user/reset_password", authMiddleware.ThenFunc(app.userHandler.ResetPassword))
 	mux.Get("/subscription/:user_id", authMiddleware.ThenFunc(app.subscriptionHandler.GetSubscription))
+	mux.Get("/subscriptions", authMiddleware.ThenFunc(app.subscriptionHandler.GetSubscriptions))
 	mux.Post("/robokassa/pay", standardMiddleware.ThenFunc(app.robokassaHandler.CreatePayment))
 	mux.Post("/robokassa/result", standardMiddleware.ThenFunc(app.robokassaHandler.Result))
 	mux.Get("/robokassa/history/:user_id", authMiddleware.ThenFunc(app.robokassaHandler.GetHistory))
