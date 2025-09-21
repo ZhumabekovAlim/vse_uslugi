@@ -46,13 +46,9 @@ func (r *SubscriptionRepository) CountActiveExecutorListings(ctx context.Context
 }
 
 func (r *SubscriptionRepository) HasActiveSubscription(ctx context.Context, userID int) (bool, error) {
-	query := `SELECT slots FROM subscription_slots WHERE user_id = ? AND status IN ('active', 'grace', 'trial')`
-	var slots int
-	err := r.DB.QueryRowContext(ctx, query, userID).Scan(&slots)
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
-	if err != nil {
+	query := `SELECT COALESCE(SUM(slots), 0) FROM subscription_slots WHERE user_id = ? AND status IN ('active', 'grace', 'trial')`
+	var slots int64
+	if err := r.DB.QueryRowContext(ctx, query, userID).Scan(&slots); err != nil {
 		return false, err
 	}
 	if slots <= 0 {
@@ -64,7 +60,7 @@ func (r *SubscriptionRepository) HasActiveSubscription(ctx context.Context, user
 		return false, err
 	}
 
-	return activeCount < slots, nil
+	return activeCount < int(slots), nil
 }
 
 func (r *SubscriptionRepository) ConsumeResponse(ctx context.Context, userID int) error {
