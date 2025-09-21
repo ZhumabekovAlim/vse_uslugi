@@ -32,15 +32,16 @@ func (r *SubscriptionRepository) GetResponses(ctx context.Context, userID int) (
 
 func (r *SubscriptionRepository) CountActiveExecutorListings(ctx context.Context, userID int) (int, error) {
 	query := `
-        SELECT
-            (SELECT COUNT(*) FROM service WHERE user_id = ? AND status = 'active') +
-            (SELECT COUNT(*) FROM work WHERE user_id = ? AND status = 'active') +
-            (SELECT COUNT(*) FROM work_ad WHERE user_id = ? AND status = 'active') +
-            (SELECT COUNT(*) FROM rent WHERE user_id = ? AND status = 'active') +
-            (SELECT COUNT(*) FROM rent_ad WHERE user_id = ? AND status = 'active')
-    `
+    SELECT
+        (SELECT COUNT(*) FROM service WHERE user_id = ? AND status IN ('active', 'pending')) +
+        (SELECT COUNT(*) FROM ad WHERE user_id = ? AND status IN ('active', 'pending')) +
+        (SELECT COUNT(*) FROM work WHERE user_id = ? AND status IN ('active', 'pending')) +
+        (SELECT COUNT(*) FROM work_ad WHERE user_id = ? AND status IN ('active', 'pending')) +
+        (SELECT COUNT(*) FROM rent WHERE user_id = ? AND status IN ('active', 'pending')) +
+        (SELECT COUNT(*) FROM rent_ad WHERE user_id = ? AND status IN ('active', 'pending'))
+`
 	var count int
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, userID, userID, userID).Scan(&count)
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, userID, userID, userID, userID).Scan(&count)
 	return count, err
 }
 

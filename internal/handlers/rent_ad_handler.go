@@ -381,7 +381,7 @@ func (h *RentAdHandler) CreateRentAd(w http.ResponseWriter, r *http.Request) {
 	service.Latitude = r.FormValue("latitude")
 	service.Longitude = r.FormValue("longitude")
 	service.Top = r.FormValue("top")
-	service.Status = r.FormValue("status")
+	service.Status = normalizeListingStatus(r.FormValue("status"))
 	service.CreatedAt = time.Now()
 
 	// Сохраняем изображения
@@ -567,7 +567,7 @@ func (h *RentAdHandler) UpdateRentAd(w http.ResponseWriter, r *http.Request) {
 		service.Liked = r.FormValue("liked") == "true"
 	}
 	if _, ok := r.MultipartForm.Value["status"]; ok {
-		service.Status = r.FormValue("status")
+		service.Status = normalizeListingStatus(r.FormValue("status"))
 	}
 
 	images := service.Images

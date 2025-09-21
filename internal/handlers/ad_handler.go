@@ -377,7 +377,7 @@ func (h *AdHandler) CreateAd(w http.ResponseWriter, r *http.Request) {
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.Top = r.FormValue("top")
-	service.Status = r.FormValue("status")
+	service.Status = normalizeListingStatus(r.FormValue("status"))
 	service.CreatedAt = time.Now()
 
 	// Сохраняем изображения
@@ -551,7 +551,7 @@ func (h *AdHandler) UpdateAd(w http.ResponseWriter, r *http.Request) {
 		service.Liked = r.FormValue("liked") == "true"
 	}
 	if _, ok := r.MultipartForm.Value["status"]; ok {
-		service.Status = r.FormValue("status")
+		service.Status = normalizeListingStatus(r.FormValue("status"))
 	}
 
 	if v, ok := r.MultipartForm.Value["latitude"]; ok {
