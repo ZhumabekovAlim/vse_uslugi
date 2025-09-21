@@ -34,6 +34,8 @@ func (s *SubscriptionService) GetProfile(ctx context.Context, userID int) (model
 	}
 	profile.Status.Slots = slots.Status
 	profile.Status.Responses = responses.Status
-	profile.RenewsAt = &slots.RenewsAt
+	if !slots.RenewsAt.IsZero() {
+		profile.RenewsAt = &slots.RenewsAt
+	}
 	return profile, nil
 }
