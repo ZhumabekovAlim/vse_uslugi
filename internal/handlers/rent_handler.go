@@ -508,7 +508,7 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 
 	createdService, err := h.Service.CreateRent(r.Context(), service)
 	if err != nil {
-		if errors.Is(err, services.ErrNoActiveSubscription) {
+		if errors.Is(err, services.ErrNoActiveSubscriptionRent) {
 
 			http.Error(w, err.Error(), http.StatusForbidden)
 

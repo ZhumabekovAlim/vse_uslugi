@@ -17,7 +17,7 @@ func (s *RentService) CreateRent(ctx context.Context, work models.Rent) (models.
 		return models.Rent{}, err
 	}
 	if !has {
-		return models.Rent{}, ErrNoActiveSubscription
+		return models.Rent{}, ErrNoActiveSubscriptionRent
 	}
 	return s.RentRepo.CreateRent(ctx, work)
 }

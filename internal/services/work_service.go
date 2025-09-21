@@ -17,7 +17,7 @@ func (s *WorkService) CreateWork(ctx context.Context, work models.Work) (models.
 		return models.Work{}, err
 	}
 	if !has {
-		return models.Work{}, ErrNoActiveSubscription
+		return models.Work{}, ErrNoActiveSubscriptionWork
 	}
 	return s.WorkRepo.CreateWork(ctx, work)
 }
