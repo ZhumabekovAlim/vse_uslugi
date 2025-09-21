@@ -12,7 +12,7 @@ type WorkService struct {
 }
 
 func (s *WorkService) CreateWork(ctx context.Context, work models.Work) (models.Work, error) {
-	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+	has, err := s.SubscriptionRepo.HasActiveSubscriptionPlan(ctx, work.UserID)
 	if err != nil {
 		return models.Work{}, err
 	}
@@ -33,7 +33,7 @@ func (s *WorkService) UpdateWork(ctx context.Context, work models.Work) (models.
 			return models.Work{}, err
 		}
 		if existing.Status != "active" {
-			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+			has, err := s.SubscriptionRepo.HasActiveSubscriptionPlan(ctx, work.UserID)
 			if err != nil {
 				return models.Work{}, err
 			}
