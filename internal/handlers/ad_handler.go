@@ -371,13 +371,29 @@ func (h *AdHandler) CreateAd(w http.ResponseWriter, r *http.Request) {
 	service.Name = r.FormValue("name")
 	service.Address = r.FormValue("address")
 	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
-	service.UserID, _ = strconv.Atoi(r.FormValue("user_id"))
+	if userIDStr := r.FormValue("user_id"); userIDStr != "" {
+		userID, err := strconv.Atoi(userIDStr)
+		if err != nil {
+			http.Error(w, "Invalid user_id", http.StatusBadRequest)
+			return
+		}
+		service.UserID = userID
+	}
+	if service.UserID == 0 {
+		if ctxUserID, ok := r.Context().Value("user_id").(int); ok && ctxUserID != 0 {
+			service.UserID = ctxUserID
+		}
+	}
+	if service.UserID == 0 {
+		http.Error(w, "Missing user_id", http.StatusBadRequest)
+		return
+	}
 	service.Description = r.FormValue("description")
 	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.Top = r.FormValue("top")
-	service.Status = r.FormValue("status")
+	service.Status = normalizeListingStatus(r.FormValue("status"))
 	service.CreatedAt = time.Now()
 
 	// Сохраняем изображения
@@ -485,6 +501,10 @@ func (h *AdHandler) CreateAd(w http.ResponseWriter, r *http.Request) {
 
 	createdService, err := h.Service.CreateAd(r.Context(), service)
 	if err != nil {
+		if errors.Is(err, services.ErrNoActiveSubscription) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		log.Printf("Failed to create service: %v", err)
 		http.Error(w, "Failed to create service", http.StatusInternalServerError)
 		return
@@ -551,7 +571,7 @@ func (h *AdHandler) UpdateAd(w http.ResponseWriter, r *http.Request) {
 		service.Liked = r.FormValue("liked") == "true"
 	}
 	if _, ok := r.MultipartForm.Value["status"]; ok {
-		service.Status = r.FormValue("status")
+		service.Status = normalizeListingStatus(r.FormValue("status"))
 	}
 
 	if v, ok := r.MultipartForm.Value["latitude"]; ok {
@@ -703,6 +723,10 @@ func (h *AdHandler) UpdateAd(w http.ResponseWriter, r *http.Request) {
 
 	updatedService, err := h.Service.UpdateAd(r.Context(), service)
 	if err != nil {
+		if errors.Is(err, services.ErrNoActiveSubscription) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		log.Printf("Failed to update service: %v", err)
 		http.Error(w, "Failed to update service", http.StatusInternalServerError)
 		return
