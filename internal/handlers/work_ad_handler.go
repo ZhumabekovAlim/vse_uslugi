@@ -393,7 +393,7 @@ func (h *WorkAdHandler) CreateWorkAd(w http.ResponseWriter, r *http.Request) {
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.Top = r.FormValue("top")
-	service.Status = r.FormValue("status")
+	service.Status = normalizeListingStatus(r.FormValue("status"))
 	service.WorkExperience = r.FormValue("work_experience")
 	service.CityID, _ = strconv.Atoi(r.FormValue("city_id"))
 	service.Schedule = r.FormValue("schedule")
@@ -574,7 +574,7 @@ func (h *WorkAdHandler) UpdateWorkAd(w http.ResponseWriter, r *http.Request) {
 		service.Liked = r.FormValue("liked") == "true"
 	}
 	if _, ok := r.MultipartForm.Value["status"]; ok {
-		service.Status = r.FormValue("status")
+		service.Status = normalizeListingStatus(r.FormValue("status"))
 	}
 	if _, ok := r.MultipartForm.Value["work_experience"]; ok {
 		service.WorkExperience = r.FormValue("work_experience")
