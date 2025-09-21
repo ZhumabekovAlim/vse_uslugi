@@ -12,7 +12,7 @@ type RentService struct {
 }
 
 func (s *RentService) CreateRent(ctx context.Context, work models.Rent) (models.Rent, error) {
-	has, err := s.SubscriptionRepo.HasActiveSubscriptionPlan(ctx, work.UserID)
+	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
 	if err != nil {
 		return models.Rent{}, err
 	}
