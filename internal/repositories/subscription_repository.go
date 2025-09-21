@@ -63,6 +63,20 @@ func (r *SubscriptionRepository) HasActiveSubscription(ctx context.Context, user
 	return activeCount < int(slots), nil
 }
 
+// HasActiveSubscriptionPlan checks that the user has at least one active
+// subscription slot regardless of the number of currently published listings.
+// Some listing types (e.g. work and rent) should only ensure the presence of an
+// active plan without verifying available slot balance.
+func (r *SubscriptionRepository) HasActiveSubscriptionPlan(ctx context.Context, userID int) (bool, error) {
+	query := `SELECT COALESCE(SUM(slots), 0) FROM subscription_slots WHERE user_id = ? AND status IN ('active', 'grace', 'trial')`
+	var slots int64
+	if err := r.DB.QueryRowContext(ctx, query, userID).Scan(&slots); err != nil {
+		return false, err
+	}
+
+	return slots > 0, nil
+}
+
 func (r *SubscriptionRepository) ConsumeResponse(ctx context.Context, userID int) error {
 	res, err := r.DB.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, userID)
 	if err != nil {
