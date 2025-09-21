@@ -150,6 +150,10 @@ func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
+
+func (h *ServiceHandler) GetServicesAdmin(w http.ResponseWriter, r *http.Request) {
+	h.GetServices(w, r)
+}
 func parseIntArray(input string) []int {
 	if input == "" {
 		return nil

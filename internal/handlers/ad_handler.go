@@ -150,6 +150,10 @@ func (h *AdHandler) GetAd(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
+
+func (h *AdHandler) GetAdAdmin(w http.ResponseWriter, r *http.Request) {
+	h.GetAd(w, r)
+}
 func parseIntArrayAd(input string) []int {
 	if input == "" {
 		return nil
