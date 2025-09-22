@@ -119,15 +119,9 @@ func (s *UserService) sendSMS(apiKey, phone, message string) error {
 }
 
 func (s *UserService) SignUp(ctx context.Context, user models.User, inputCode string) (models.SignUpResponse, error) {
-	// 1. Получаем ожидаемый код из базы
-	codeFromDB, err := s.UserRepo.GetVerificationCodeByEmail(ctx, user.Email)
-	if err != nil {
+	// 1. Проверяем код подтверждения
+	if err := s.CheckVerificationCode(ctx, user.Email, inputCode); err != nil {
 		return models.SignUpResponse{}, err
-	}
-
-	// 2. Сравниваем коды
-	if inputCode != codeFromDB {
-		return models.SignUpResponse{}, models.ErrInvalidVerificationCode
 	}
 
 	// 3. Хешируем пароль
@@ -148,6 +142,19 @@ func (s *UserService) SignUp(ctx context.Context, user models.User, inputCode st
 	_ = s.UserRepo.ClearVerificationCodeByEmail(ctx, user.Email)
 
 	return models.SignUpResponse{User: newUser}, nil
+}
+
+func (s *UserService) CheckVerificationCode(ctx context.Context, email, inputCode string) error {
+	codeFromDB, err := s.UserRepo.GetVerificationCodeByEmail(ctx, email)
+	if err != nil {
+		return err
+	}
+
+	if inputCode != codeFromDB {
+		return models.ErrInvalidVerificationCode
+	}
+
+	return nil
 }
 
 func (s *UserService) SignIn(ctx context.Context, name, phone, email, password string) (models.Tokens, error) {
