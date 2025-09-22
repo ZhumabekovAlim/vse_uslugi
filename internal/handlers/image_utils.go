@@ -76,6 +76,7 @@ func gatherStringsFromForm(form *multipart.Form, keys ...string) ([]string, bool
 		return nil, false, nil
 	}
 
+
 	result := parseStringList(rawValues)
 	if len(result) == 0 {
 		return nil, false, nil
@@ -243,6 +244,7 @@ func normalizeRawString(raw string) []string {
 	}
 
 	return []string{raw}
+
 }
 
 func parseImagesFromValues[T imagePayload](values []string) ([]T, error) {
