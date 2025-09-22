@@ -58,6 +58,65 @@ func gatherImagesFromForm[T imagePayload](form *multipart.Form, keys ...string) 
 	return images, true, nil
 }
 
+// gatherStringsFromForm reads textual payloads from multipart values and normalizes them into a slice of strings.
+// The helper understands JSON arrays of strings as well as repeated individual values.
+func gatherStringsFromForm(form *multipart.Form, keys ...string) ([]string, bool, error) {
+	if form == nil {
+		return nil, false, nil
+	}
+
+	var rawValues []string
+	for _, key := range keys {
+		if values, ok := form.Value[key]; ok {
+			rawValues = append(rawValues, values...)
+		}
+	}
+	if len(rawValues) == 0 {
+		return nil, false, nil
+	}
+
+	var result []string
+	for _, raw := range rawValues {
+		raw = strings.TrimSpace(raw)
+		if raw == "" || raw == "null" || raw == "undefined" {
+			continue
+		}
+
+		if strings.HasPrefix(raw, "[") {
+			var arr []string
+			if err := json.Unmarshal([]byte(raw), &arr); err == nil {
+				for _, item := range arr {
+					item = strings.TrimSpace(item)
+					if item == "" || item == "null" || item == "undefined" {
+						continue
+					}
+					result = append(result, item)
+				}
+				continue
+			}
+		}
+
+		if strings.HasPrefix(raw, "\"") && strings.HasSuffix(raw, "\"") {
+			if unquoted, err := strconv.Unquote(raw); err == nil {
+				raw = unquoted
+			}
+		}
+
+		raw = strings.TrimSpace(raw)
+		if raw == "" || raw == "null" || raw == "undefined" {
+			continue
+		}
+
+		result = append(result, raw)
+	}
+
+	if len(result) == 0 {
+		return nil, false, nil
+	}
+
+	return result, true, nil
+}
+
 func parseImagesFromValues[T imagePayload](values []string) ([]T, error) {
 	var result []T
 

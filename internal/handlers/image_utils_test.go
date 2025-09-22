@@ -65,3 +65,44 @@ func TestGatherImagesFromFormInvalidValuesIgnored(t *testing.T) {
 		t.Fatalf("expected zero videos, got %d", len(videos))
 	}
 }
+
+func TestGatherStringsFromForm(t *testing.T) {
+	form := &multipart.Form{
+		Value: map[string][]string{
+			"delete_images": []string{"[\"/a.jpg\", \"\", \"null\"]", "/b.jpg"},
+		},
+	}
+
+	values, ok, err := gatherStringsFromForm(form, "delete_images")
+	if err != nil {
+		t.Fatalf("gatherStringsFromForm returned error: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected ok=true when valid values present")
+	}
+	if len(values) != 2 {
+		t.Fatalf("expected 2 values, got %d", len(values))
+	}
+	if values[0] != "/a.jpg" || values[1] != "/b.jpg" {
+		t.Fatalf("unexpected values: %#v", values)
+	}
+}
+
+func TestGatherStringsFromFormEmpty(t *testing.T) {
+	form := &multipart.Form{
+		Value: map[string][]string{
+			"delete_images": []string{"", "null", "undefined"},
+		},
+	}
+
+	values, ok, err := gatherStringsFromForm(form, "delete_images")
+	if err != nil {
+		t.Fatalf("gatherStringsFromForm returned error: %v", err)
+	}
+	if ok {
+		t.Fatalf("expected ok=false when no valid values present")
+	}
+	if len(values) != 0 {
+		t.Fatalf("expected zero values, got %d", len(values))
+	}
+}
