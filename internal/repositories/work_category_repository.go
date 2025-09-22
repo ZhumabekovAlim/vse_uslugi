@@ -74,22 +74,27 @@ func (r *WorkCategoryRepository) UpdateCategory(ctx context.Context, category mo
 
 	// Получаем обратно обновлённые данные
 	row := tx.QueryRowContext(ctx, `
-		SELECT id, name, image_path, created_at, updated_at
-		FROM work_categories
-		WHERE id = ?
-	`, category.ID)
+                SELECT id, name, image_path, created_at, updated_at
+                FROM work_categories
+                WHERE id = ?
+        `, category.ID)
 
 	var updated models.WorkCategory
+	var imagePath sql.NullString
 	err = row.Scan(
 		&updated.ID,
 		&updated.Name,
-		&updated.ImagePath,
+		&imagePath,
 		&updated.CreatedAt,
 		&updated.UpdatedAt,
 	)
 	if err != nil {
 		tx.Rollback()
 		return models.WorkCategory{}, err
+	}
+
+	if imagePath.Valid {
+		updated.ImagePath = imagePath.String
 	}
 
 	// Подтягиваем min_price
@@ -153,9 +158,14 @@ func (r *WorkCategoryRepository) GetAllCategories(ctx context.Context) ([]models
 
 	for rows.Next() {
 		var category models.WorkCategory
-		err := rows.Scan(&category.ID, &category.Name, &category.ImagePath, &category.CreatedAt, &category.UpdatedAt)
+		var imagePath sql.NullString
+		err := rows.Scan(&category.ID, &category.Name, &imagePath, &category.CreatedAt, &category.UpdatedAt)
 		if err != nil {
 			return nil, err
+		}
+
+		if imagePath.Valid {
+			category.ImagePath = imagePath.String
 		}
 
 		priceQuery := `SELECT MIN(price) FROM work WHERE category_id = ?`
@@ -196,10 +206,11 @@ func (r *WorkCategoryRepository) GetCategoryByID(ctx context.Context, id int) (m
 		FROM work_categories
 		WHERE id = ?
 	`
+	var imagePath sql.NullString
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
 		&category.ID,
 		&category.Name,
-		&category.ImagePath,
+		&imagePath,
 		&category.CreatedAt,
 		&category.UpdatedAt,
 	)
@@ -211,6 +222,10 @@ func (r *WorkCategoryRepository) GetCategoryByID(ctx context.Context, id int) (m
 			return models.WorkCategory{}, nil
 		}
 		return models.WorkCategory{}, err
+	}
+
+	if imagePath.Valid {
+		category.ImagePath = imagePath.String
 	}
 
 	// Загружаем связанные субкатегории через category_subcategory
