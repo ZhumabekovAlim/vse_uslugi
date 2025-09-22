@@ -232,6 +232,37 @@ func (h *UserHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+func (h *UserHandler) CheckVerificationCode(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email            string `json:"email"`
+		VerificationCode string `json:"verification_code"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.VerificationCode) == "" {
+		http.Error(w, "email и verification_code обязательны", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Service.CheckVerificationCode(r.Context(), req.Email, req.VerificationCode); err != nil {
+		if errors.Is(err, models.ErrInvalidVerificationCode) {
+			http.Error(w, "Неверный код подтверждения", http.StatusUnauthorized)
+			return
+		}
+		log.Printf("CheckVerificationCode error: %v", err)
+		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message":"Код подтвержден"}`))
+}
+
 func (h *UserHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 	var req models.SignInRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
