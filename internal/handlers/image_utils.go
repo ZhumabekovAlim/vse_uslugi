@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"io"
 	"mime/multipart"
 	"strconv"
 	"strings"
@@ -75,46 +76,175 @@ func gatherStringsFromForm(form *multipart.Form, keys ...string) ([]string, bool
 		return nil, false, nil
 	}
 
-	var result []string
-	for _, raw := range rawValues {
-		raw = strings.TrimSpace(raw)
-		if raw == "" || raw == "null" || raw == "undefined" {
-			continue
-		}
 
-		if strings.HasPrefix(raw, "[") {
-			var arr []string
-			if err := json.Unmarshal([]byte(raw), &arr); err == nil {
-				for _, item := range arr {
-					item = strings.TrimSpace(item)
-					if item == "" || item == "null" || item == "undefined" {
-						continue
-					}
-					result = append(result, item)
-				}
-				continue
-			}
-		}
-
-		if strings.HasPrefix(raw, "\"") && strings.HasSuffix(raw, "\"") {
-			if unquoted, err := strconv.Unquote(raw); err == nil {
-				raw = unquoted
-			}
-		}
-
-		raw = strings.TrimSpace(raw)
-		if raw == "" || raw == "null" || raw == "undefined" {
-			continue
-		}
-
-		result = append(result, raw)
-	}
-
+	result := parseStringList(rawValues)
 	if len(result) == 0 {
 		return nil, false, nil
 	}
 
 	return result, true, nil
+}
+
+// gatherStringsFromFormFiles extracts textual identifiers from multipart file parts.
+// It records filenames as potential keys and, when the payload is textual, attempts
+// to parse file contents as lists of strings (JSON arrays or plain values).
+func gatherStringsFromFormFiles(form *multipart.Form, keys ...string) ([]string, bool, error) {
+	if form == nil {
+		return nil, false, nil
+	}
+
+	var rawValues []string
+	for _, key := range keys {
+		fileHeaders := form.File[key]
+		for _, header := range fileHeaders {
+			if header == nil {
+				continue
+			}
+
+			if filename := strings.TrimSpace(header.Filename); filename != "" {
+				rawValues = append(rawValues, filename)
+			}
+
+			if !shouldReadTextPayload(header) {
+				continue
+			}
+
+			file, err := header.Open()
+			if err != nil {
+				return nil, false, err
+			}
+
+			data, err := io.ReadAll(io.LimitReader(file, maxTextualPayloadSize))
+			file.Close()
+			if err != nil {
+				return nil, false, err
+			}
+			if len(data) == 0 {
+				continue
+			}
+
+			rawValues = append(rawValues, string(data))
+		}
+	}
+
+	if len(rawValues) == 0 {
+		return nil, false, nil
+	}
+
+	result := parseStringList(rawValues)
+	if len(result) == 0 {
+		return nil, false, nil
+	}
+
+	return result, true, nil
+}
+
+const maxTextualPayloadSize = 1 << 20 // 1 MiB
+
+func shouldReadTextPayload(header *multipart.FileHeader) bool {
+	if header == nil {
+		return false
+	}
+
+	if isTextualContentType(header.Header.Get("Content-Type")) {
+		return true
+	}
+
+	filename := strings.ToLower(strings.TrimSpace(header.Filename))
+	if filename == "" {
+		return false
+	}
+
+	switch {
+	case strings.HasSuffix(filename, ".json"), strings.HasSuffix(filename, ".txt"), strings.HasSuffix(filename, ".csv"):
+		return true
+	}
+
+	return false
+}
+
+func isTextualContentType(contentType string) bool {
+	if contentType == "" {
+		return true
+	}
+
+	ct := strings.ToLower(contentType)
+	if strings.HasPrefix(ct, "text/") {
+		return true
+	}
+
+	switch ct {
+	case "application/json", "application/javascript", "application/xml", "application/yaml", "application/x-yaml":
+		return true
+	}
+
+	return false
+}
+
+func parseStringList(rawValues []string) []string {
+	var result []string
+
+	for _, raw := range rawValues {
+		entries := normalizeRawString(raw)
+		result = append(result, entries...)
+	}
+
+	return result
+}
+
+func normalizeRawString(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "null" || raw == "undefined" {
+		return nil
+	}
+
+	if strings.HasPrefix(raw, "[") {
+		var arr []string
+		if err := json.Unmarshal([]byte(raw), &arr); err == nil {
+			var parsed []string
+			for _, item := range arr {
+				item = strings.TrimSpace(item)
+				if item == "" || item == "null" || item == "undefined" {
+					continue
+				}
+				parsed = append(parsed, item)
+			}
+			if len(parsed) > 0 {
+				return parsed
+			}
+		}
+	}
+
+	if strings.ContainsAny(raw, "\n\r") {
+		lines := strings.FieldsFunc(raw, func(r rune) bool {
+			return r == '\n' || r == '\r'
+		})
+		var parsed []string
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || line == "null" || line == "undefined" {
+				continue
+			}
+			parsed = append(parsed, line)
+		}
+		if len(parsed) > 0 {
+			return parsed
+		}
+	}
+
+	if strings.HasPrefix(raw, "\"") && strings.HasSuffix(raw, "\"") {
+		if unquoted, err := strconv.Unquote(raw); err == nil {
+			raw = unquoted
+		}
+	}
+
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "null" || raw == "undefined" {
+		return nil
+	}
+
+	return []string{raw}
+
 }
 
 func parseImagesFromValues[T imagePayload](values []string) ([]T, error) {
