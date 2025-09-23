@@ -584,13 +584,11 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 		deletedImageKeys = append(deletedImageKeys, fileKeys...)
 	}
 
-
 	deletedVideoKeys, _, err := gatherStringsFromForm(r.MultipartForm, "delete_videos", "delete_videos[]", "removed_videos", "removed_videos[]")
 	if err != nil {
 		http.Error(w, "Invalid delete videos payload", http.StatusBadRequest)
 		return
 	}
-
 
 	if fileKeys, ok, err := gatherStringsFromFormFiles(r.MultipartForm, "delete_videos", "delete_videos[]", "removed_videos", "removed_videos[]"); err != nil {
 		http.Error(w, "Invalid delete videos payload", http.StatusBadRequest)

@@ -186,3 +186,56 @@ func TestGatherStringsFromFormFilesParsesJSONPayload(t *testing.T) {
 	}
 }
 
+
+func TestFilterAdImagesRemovesByNameAndPath(t *testing.T) {
+	images := []models.ImageAd{
+		{Name: "keep.jpg", Path: "/images/ad/keep.jpg", Type: "upload"},
+		{Name: "delete.jpg", Path: "/images/ad/delete.jpg", Type: "upload"},
+		{Name: "", Path: "/images/ad/remove-by-path.jpg", Type: "upload"},
+	}
+
+	kept, removed := filterAdImages(images, []string{"delete.jpg", "/images/ad/remove-by-path.jpg"})
+
+	if len(kept) != 1 || kept[0].Name != "keep.jpg" {
+		t.Fatalf("expected only keep.jpg to remain, got %#v", kept)
+	}
+
+	if len(removed) != 2 {
+		t.Fatalf("expected two removed images, got %d", len(removed))
+	}
+}
+
+func TestFilterRentAdImagesRemovesMatches(t *testing.T) {
+	images := []models.ImageRentAd{
+		{Name: "stay", Path: "/images/rents_ad/stay.jpg", Type: "upload"},
+		{Name: "drop", Path: "/images/rents_ad/drop.jpg", Type: "upload"},
+	}
+
+	kept, removed := filterRentAdImages(images, []string{"drop"})
+
+	if len(kept) != 1 || kept[0].Name != "stay" {
+		t.Fatalf("unexpected kept images: %#v", kept)
+	}
+
+	if len(removed) != 1 || removed[0].Name != "drop" {
+		t.Fatalf("unexpected removed images: %#v", removed)
+	}
+}
+
+func TestFilterWorkAdImagesRemovesMatches(t *testing.T) {
+	images := []models.ImageWorkAd{
+		{Name: "keep", Path: "/images/works/keep.jpg", Type: "upload"},
+		{Name: "remove", Path: "/images/works/remove.jpg", Type: "upload"},
+	}
+
+	kept, removed := filterWorkAdImages(images, []string{"/images/works/remove.jpg"})
+
+	if len(kept) != 1 || kept[0].Name != "keep" {
+		t.Fatalf("unexpected kept images: %#v", kept)
+	}
+
+	if len(removed) != 1 || removed[0].Name != "remove" {
+		t.Fatalf("unexpected removed images: %#v", removed)
+	}
+}
+
