@@ -599,7 +599,6 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 		deletedVideoKeys = append(deletedVideoKeys, fileKeys...)
 	}
 
-
 	if _, ok := r.MultipartForm.Value["name"]; ok {
 		service.Name = r.FormValue("name")
 	}
