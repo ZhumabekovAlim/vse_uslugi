@@ -41,6 +41,7 @@ func (app *application) routes() http.Handler {
 	mux.Put("/user/:id/city", authMiddleware.ThenFunc(app.userHandler.ChangeCityForUser))
 	mux.Get("/docs/:filename", authMiddleware.ThenFunc(app.userHandler.ServeProofDocument))
 	mux.Post("/user/:id/avatar", authMiddleware.ThenFunc(app.userHandler.UploadAvatar))
+	mux.Del("/user/:id/avatar", authMiddleware.ThenFunc(app.userHandler.DeleteAvatar))
 	mux.Get("/images/avatars/:filename", standardMiddleware.ThenFunc(app.userHandler.ServeAvatar))
 	mux.Post("/user/:id/upgrade", authMiddleware.ThenFunc(app.userHandler.UpdateToWorker))
 	mux.Post("/users/check_duplicate", standardMiddleware.ThenFunc(app.userHandler.CheckUserDuplicate))

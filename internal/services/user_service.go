@@ -21,6 +21,7 @@ import (
 	"net/smtp"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -279,6 +280,25 @@ func (s *UserService) UpdateUser(ctx context.Context, user models.User) (models.
 
 func (s *UserService) UpdateUserAvatar(ctx context.Context, userID int, avatarPath string) (models.User, error) {
 	return s.UserRepo.UpdateUserAvatar(ctx, userID, avatarPath)
+}
+
+func (s *UserService) DeleteUserAvatar(ctx context.Context, userID int) error {
+	user, err := s.UserRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if user.AvatarPath != nil && *user.AvatarPath != "" {
+		avatarFile := filepath.Base(*user.AvatarPath)
+		if avatarFile != "" {
+			diskPath := filepath.Join("cmd/uploads/avatars", avatarFile)
+			if removeErr := os.Remove(diskPath); removeErr != nil && !os.IsNotExist(removeErr) {
+				return removeErr
+			}
+		}
+	}
+
+	return s.UserRepo.ClearUserAvatar(ctx, userID)
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, id int) error {
