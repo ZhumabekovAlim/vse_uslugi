@@ -405,11 +405,12 @@ func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.
 
 func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterAdRequest) ([]models.FilteredAd, error) {
 	query := `
-       SELECT
+      SELECT
 
-               u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+              u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-              s.id, s.name, s.price, s.description, s.latitude, s.longitude
+             s.id, s.name, s.price, s.description, s.latitude, s.longitude,
+             COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos
       FROM ad s
       JOIN users u ON s.user_id = u.id
       WHERE 1=1
@@ -476,10 +477,11 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 	for rows.Next() {
 		var s models.FilteredAd
 		var lat, lon sql.NullString
+		var imagesJSON, videosJSON []byte
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon,
+			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon, &imagesJSON, &videosJSON,
 		); err != nil {
 			return nil, err
 		}
@@ -488,6 +490,12 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 		}
 		if lon.Valid {
 			s.AdLongitude = &lon.String
+		}
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return nil, fmt.Errorf("failed to decode images json: %w", err)
+		}
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return nil, fmt.Errorf("failed to decode videos json: %w", err)
 		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
@@ -555,6 +563,7 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
            u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
            s.id, s.name, s.price, s.description, s.latitude, s.longitude,
+           COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
            CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
            CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
    FROM ad s
@@ -641,11 +650,12 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 	for rows.Next() {
 		var s models.FilteredAd
 		var lat, lon sql.NullString
+		var imagesJSON, videosJSON []byte
 		var likedStr, respondedStr string
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon, &likedStr, &respondedStr,
+			&s.AdID, &s.AdName, &s.AdPrice, &s.AdDescription, &lat, &lon, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -655,6 +665,12 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 		}
 		if lon.Valid {
 			s.AdLongitude = &lon.String
+		}
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return nil, fmt.Errorf("failed to decode images json: %w", err)
+		}
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return nil, fmt.Errorf("failed to decode videos json: %w", err)
 		}
 		s.Liked = likedStr == "1"
 		s.Responded = respondedStr == "1"

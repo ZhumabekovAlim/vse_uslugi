@@ -74,19 +74,21 @@ type FilterRentAdRequest struct {
 }
 
 type FilteredRentAd struct {
-	UserID            int     `json:"user_id"`
-	UserName          string  `json:"user_name"`
-	UserSurname       string  `json:"user_surname"`
-	UserPhone         string  `json:"-"`
-	UserAvatarPath    *string `json:"user_avatar_path,omitempty"`
-	UserRating        float64 `json:"user_rating"`
-	UserReviewsCount  int     `json:"user_reviews_count"`
-	RentAdID          int     `json:"rentad_id"`
-	RentAdName        string  `json:"rentad_name"`
-	RentAdPrice       float64 `json:"rentad_price"`
-	RentAdDescription string  `json:"rentad_description"`
-	RentAdLatitude    string  `json:"latitude"`
-	RentAdLongitude   string  `json:"longitude"`
-	Liked             bool    `json:"liked"`
-	Responded         bool    `json:"is_responded"`
+	UserID            int           `json:"user_id"`
+	UserName          string        `json:"user_name"`
+	UserSurname       string        `json:"user_surname"`
+	UserPhone         string        `json:"-"`
+	UserAvatarPath    *string       `json:"user_avatar_path,omitempty"`
+	UserRating        float64       `json:"user_rating"`
+	UserReviewsCount  int           `json:"user_reviews_count"`
+	RentAdID          int           `json:"rentad_id"`
+	RentAdName        string        `json:"rentad_name"`
+	RentAdPrice       float64       `json:"rentad_price"`
+	RentAdDescription string        `json:"rentad_description"`
+	Images            []ImageRentAd `json:"images"`
+	Videos            []Video       `json:"videos"`
+	RentAdLatitude    string        `json:"latitude"`
+	RentAdLongitude   string        `json:"longitude"`
+	Liked             bool          `json:"liked"`
+	Responded         bool          `json:"is_responded"`
 }

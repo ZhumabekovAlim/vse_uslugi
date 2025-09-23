@@ -386,11 +386,12 @@ func (r *RentAdRepository) GetRentsAdByUserID(ctx context.Context, userID int) (
 
 func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req models.FilterRentAdRequest) ([]models.FilteredRentAd, error) {
 	query := `
-       SELECT
+      SELECT
 
-               u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+              u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-              s.id, s.name, s.price, s.description, s.latitude, s.longitude
+             s.id, s.name, s.price, s.description, s.latitude, s.longitude,
+             COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos
       FROM rent_ad s
       JOIN users u ON s.user_id = u.id
       WHERE 1=1
@@ -456,11 +457,19 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 	var rents []models.FilteredRentAd
 	for rows.Next() {
 		var s models.FilteredRentAd
+		var imagesJSON, videosJSON []byte
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 			&s.RentAdID, &s.RentAdName, &s.RentAdPrice, &s.RentAdDescription, &s.RentAdLatitude, &s.RentAdLongitude,
+			&imagesJSON, &videosJSON,
 		); err != nil {
 			return nil, err
+		}
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return nil, fmt.Errorf("failed to decode images json: %w", err)
+		}
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return nil, fmt.Errorf("failed to decode videos json: %w", err)
 		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
@@ -530,6 +539,7 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
            u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
            s.id, s.name, s.price, s.description, s.latitude, s.longitude,
+           COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
            CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
            CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
    FROM rent_ad s
@@ -615,14 +625,21 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 	var rents []models.FilteredRentAd
 	for rows.Next() {
 		var s models.FilteredRentAd
+		var imagesJSON, videosJSON []byte
 		var likedStr, respondedStr string
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.RentAdID, &s.RentAdName, &s.RentAdPrice, &s.RentAdDescription, &s.RentAdLatitude, &s.RentAdLongitude, &likedStr, &respondedStr,
+			&s.RentAdID, &s.RentAdName, &s.RentAdPrice, &s.RentAdDescription, &s.RentAdLatitude, &s.RentAdLongitude, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return nil, fmt.Errorf("failed to decode images json: %w", err)
+		}
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return nil, fmt.Errorf("failed to decode videos json: %w", err)
 		}
 		s.Liked = likedStr == "1"
 		s.Responded = respondedStr == "1"
