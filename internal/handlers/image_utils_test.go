@@ -109,6 +109,7 @@ func TestGatherStringsFromFormEmpty(t *testing.T) {
 	}
 }
 
+
 func TestGatherStringsFromFormFilesUsesFilename(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -184,3 +185,4 @@ func TestGatherStringsFromFormFilesParsesJSONPayload(t *testing.T) {
 		t.Fatalf("unexpected parsed values: %v", values)
 	}
 }
+
