@@ -548,6 +548,32 @@ func (h *RentAdHandler) UpdateRentAd(w http.ResponseWriter, r *http.Request) {
 
 	service := existingService
 
+	deletedImageKeys, _, err := gatherStringsFromForm(r.MultipartForm, "delete_images", "delete_images[]", "removed_images", "removed_images[]")
+	if err != nil {
+		http.Error(w, "Invalid delete images payload", http.StatusBadRequest)
+		return
+	}
+
+	if fileKeys, ok, err := gatherStringsFromFormFiles(r.MultipartForm, "delete_images", "delete_images[]", "removed_images", "removed_images[]"); err != nil {
+		http.Error(w, "Invalid delete images payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		deletedImageKeys = append(deletedImageKeys, fileKeys...)
+	}
+
+	deletedVideoKeys, _, err := gatherStringsFromForm(r.MultipartForm, "delete_videos", "delete_videos[]", "removed_videos", "removed_videos[]")
+	if err != nil {
+		http.Error(w, "Invalid delete videos payload", http.StatusBadRequest)
+		return
+	}
+
+	if fileKeys, ok, err := gatherStringsFromFormFiles(r.MultipartForm, "delete_videos", "delete_videos[]", "removed_videos", "removed_videos[]"); err != nil {
+		http.Error(w, "Invalid delete videos payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		deletedVideoKeys = append(deletedVideoKeys, fileKeys...)
+	}
+
 	if _, ok := r.MultipartForm.Value["name"]; ok {
 		service.Name = r.FormValue("name")
 	}
@@ -660,6 +686,14 @@ func (h *RentAdHandler) UpdateRentAd(w http.ResponseWriter, r *http.Request) {
 		images = append(images, uploaded...)
 	}
 
+	if len(deletedImageKeys) > 0 {
+		var removedImages []models.ImageRentAd
+		images, removedImages = filterRentAdImages(images, deletedImageKeys)
+		if err := removeRentAdImagesFromDisk(removedImages); err != nil {
+			log.Printf("Failed to remove rent ad images: %v", err)
+		}
+	}
+
 	service.Images = images
 
 	videos := service.Videos
@@ -725,6 +759,14 @@ func (h *RentAdHandler) UpdateRentAd(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		videos = append(videos, uploaded...)
+	}
+
+	if len(deletedVideoKeys) > 0 {
+		var removedVideos []models.Video
+		videos, removedVideos = filterServiceVideos(videos, deletedVideoKeys)
+		if err := removeRentAdVideosFromDisk(removedVideos); err != nil {
+			log.Printf("Failed to remove rent ad videos: %v", err)
+		}
 	}
 
 	service.Videos = videos
@@ -827,4 +869,50 @@ func (h *RentAdHandler) GetRentAdByRentIDAndUserID(w http.ResponseWriter, r *htt
 		log.Printf("[ERROR] Failed to encode response: %v", err)
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}
+}
+
+func filterRentAdImages(images []models.ImageRentAd, deleteKeys []string) ([]models.ImageRentAd, []models.ImageRentAd) {
+	removalSet := buildRemovalSet(deleteKeys)
+	if len(removalSet) == 0 {
+		return images, nil
+	}
+
+	var (
+		kept    []models.ImageRentAd
+		removed []models.ImageRentAd
+	)
+
+	for _, img := range images {
+		if shouldRemoveMedia(img.Path, img.Name, removalSet) {
+			removed = append(removed, img)
+			continue
+		}
+		kept = append(kept, img)
+	}
+
+	return kept, removed
+}
+
+func removeRentAdImagesFromDisk(images []models.ImageRentAd) error {
+	for _, img := range images {
+		if img.Type == "link" {
+			continue
+		}
+		if err := removeMediaFile("cmd/uploads/rents_ad", "/images/rents_ad/", img.Path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func removeRentAdVideosFromDisk(videos []models.Video) error {
+	for _, video := range videos {
+		if video.Type == "link" {
+			continue
+		}
+		if err := removeMediaFile("cmd/uploads/rent_ad/videos", "/videos/rent_ad/", video.Path); err != nil {
+			return err
+		}
+	}
+	return nil
 }

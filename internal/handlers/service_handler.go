@@ -570,6 +570,32 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 
 	service := existingService
 
+	deletedImageKeys, _, err := gatherStringsFromForm(r.MultipartForm, "delete_images", "delete_images[]", "removed_images", "removed_images[]")
+	if err != nil {
+		http.Error(w, "Invalid delete images payload", http.StatusBadRequest)
+		return
+	}
+
+	if fileKeys, ok, err := gatherStringsFromFormFiles(r.MultipartForm, "delete_images", "delete_images[]", "removed_images", "removed_images[]"); err != nil {
+		http.Error(w, "Invalid delete images payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		deletedImageKeys = append(deletedImageKeys, fileKeys...)
+	}
+
+	deletedVideoKeys, _, err := gatherStringsFromForm(r.MultipartForm, "delete_videos", "delete_videos[]", "removed_videos", "removed_videos[]")
+	if err != nil {
+		http.Error(w, "Invalid delete videos payload", http.StatusBadRequest)
+		return
+	}
+
+	if fileKeys, ok, err := gatherStringsFromFormFiles(r.MultipartForm, "delete_videos", "delete_videos[]", "removed_videos", "removed_videos[]"); err != nil {
+		http.Error(w, "Invalid delete videos payload", http.StatusBadRequest)
+		return
+	} else if ok {
+		deletedVideoKeys = append(deletedVideoKeys, fileKeys...)
+	}
+
 	if _, ok := r.MultipartForm.Value["name"]; ok {
 		service.Name = r.FormValue("name")
 	}
@@ -678,6 +704,14 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 		images = append(images, uploaded...)
 	}
 
+	if len(deletedImageKeys) > 0 {
+		var removedImages []models.Image
+		images, removedImages = filterServiceImages(images, deletedImageKeys)
+		if err := removeServiceImagesFromDisk(removedImages); err != nil {
+			log.Printf("Failed to remove service images: %v", err)
+		}
+	}
+
 	service.Images = images
 
 	videos := service.Videos
@@ -743,6 +777,14 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		videos = append(videos, uploaded...)
+	}
+
+	if len(deletedVideoKeys) > 0 {
+		var removedVideos []models.Video
+		videos, removedVideos = filterServiceVideos(videos, deletedVideoKeys)
+		if err := removeServiceVideosFromDisk(removedVideos); err != nil {
+			log.Printf("Failed to remove service videos: %v", err)
+		}
 	}
 
 	service.Videos = videos
@@ -848,4 +890,128 @@ func (h *ServiceHandler) GetServiceByServiceIDAndUserID(w http.ResponseWriter, r
 		log.Printf("[ERROR] Failed to encode response: %v", err)
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}
+}
+
+func filterServiceImages(images []models.Image, deleteKeys []string) ([]models.Image, []models.Image) {
+	removalSet := buildRemovalSet(deleteKeys)
+	if len(removalSet) == 0 {
+		return images, nil
+	}
+
+	var (
+		kept    []models.Image
+		removed []models.Image
+	)
+
+	for _, img := range images {
+		if shouldRemoveMedia(img.Path, img.Name, removalSet) {
+			removed = append(removed, img)
+			continue
+		}
+		kept = append(kept, img)
+	}
+
+	return kept, removed
+}
+
+func filterServiceVideos(videos []models.Video, deleteKeys []string) ([]models.Video, []models.Video) {
+	removalSet := buildRemovalSet(deleteKeys)
+	if len(removalSet) == 0 {
+		return videos, nil
+	}
+
+	var (
+		kept    []models.Video
+		removed []models.Video
+	)
+
+	for _, video := range videos {
+		if shouldRemoveMedia(video.Path, video.Name, removalSet) {
+			removed = append(removed, video)
+			continue
+		}
+		kept = append(kept, video)
+	}
+
+	return kept, removed
+}
+
+func removeServiceImagesFromDisk(images []models.Image) error {
+	for _, img := range images {
+		if img.Type == "link" {
+			continue
+		}
+		if err := removeMediaFile("cmd/uploads/services", "/images/services/", img.Path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func removeServiceVideosFromDisk(videos []models.Video) error {
+	for _, video := range videos {
+		if video.Type == "link" {
+			continue
+		}
+		if err := removeMediaFile("cmd/uploads/services/videos", "/videos/services/", video.Path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func buildRemovalSet(keys []string) map[string]struct{} {
+	if len(keys) == 0 {
+		return nil
+	}
+
+	set := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		set[key] = struct{}{}
+	}
+	return set
+}
+
+func shouldRemoveMedia(path, name string, removalSet map[string]struct{}) bool {
+	if removalSet == nil {
+		return false
+	}
+	if _, ok := removalSet[path]; ok {
+		return true
+	}
+	if name != "" {
+		if _, ok := removalSet[name]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func removeMediaFile(baseDir, publicPrefix, publicPath string) error {
+	if !strings.HasPrefix(publicPath, publicPrefix) {
+		return nil
+	}
+
+	relative := strings.TrimPrefix(publicPath, publicPrefix)
+	if relative == "" {
+		return nil
+	}
+
+	cleanRelative := filepath.Clean(relative)
+	if cleanRelative == "." || strings.HasPrefix(cleanRelative, "..") || filepath.IsAbs(cleanRelative) {
+		return fmt.Errorf("invalid media path: %s", publicPath)
+	}
+
+	fsPath := filepath.Join(baseDir, cleanRelative)
+	if err := os.Remove(fsPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
