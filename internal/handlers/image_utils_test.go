@@ -109,6 +109,7 @@ func TestGatherStringsFromFormEmpty(t *testing.T) {
 	}
 }
 
+
 func TestGatherStringsFromFormFilesUsesFilename(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -185,6 +186,7 @@ func TestGatherStringsFromFormFilesParsesJSONPayload(t *testing.T) {
 	}
 }
 
+
 func TestFilterAdImagesRemovesByNameAndPath(t *testing.T) {
 	images := []models.ImageAd{
 		{Name: "keep.jpg", Path: "/images/ad/keep.jpg", Type: "upload"},
@@ -236,3 +238,4 @@ func TestFilterWorkAdImagesRemovesMatches(t *testing.T) {
 		t.Fatalf("unexpected removed images: %#v", removed)
 	}
 }
+

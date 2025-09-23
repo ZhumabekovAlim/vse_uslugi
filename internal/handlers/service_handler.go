@@ -576,6 +576,7 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
 	if fileKeys, ok, err := gatherStringsFromFormFiles(r.MultipartForm, "delete_images", "delete_images[]", "removed_images", "removed_images[]"); err != nil {
 		http.Error(w, "Invalid delete images payload", http.StatusBadRequest)
 		return
