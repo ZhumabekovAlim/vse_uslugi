@@ -467,15 +467,15 @@ WHERE 1=1
 		var imagesJSON, videosJSON []byte
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON,
+			&s.WorkID, &s.WorkName, &s.WorkPrice, &s.WorkDescription, &lat, &lon, &imagesJSON, &videosJSON,
 		); err != nil {
 			return nil, err
 		}
 		if lat.Valid {
-			s.ServiceLatitude = lat.String
+			s.WorkLatitude = lat.String
 		}
 		if lon.Valid {
-			s.ServiceLongitude = lon.String
+			s.WorkLongitude = lon.String
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)
@@ -641,16 +641,16 @@ WHERE 1=1
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
+			&s.WorkID, &s.WorkName, &s.WorkPrice, &s.WorkDescription, &lat, &lon, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		if lat.Valid {
-			s.ServiceLatitude = lat.String
+			s.WorkLatitude = lat.String
 		}
 		if lon.Valid {
-			s.ServiceLongitude = lon.String
+			s.WorkLongitude = lon.String
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)
