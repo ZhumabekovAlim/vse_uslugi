@@ -79,21 +79,21 @@ type FilterWorkRequest struct {
 }
 
 type FilteredWork struct {
-	UserID             int         `json:"user_id"`
-	UserName           string      `json:"user_name"`
-	UserSurname        string      `json:"user_surname"`
-	UserPhone          string      `json:"-"`
-	UserAvatarPath     *string     `json:"user_avatar_path,omitempty"`
-	UserRating         float64     `json:"user_rating"`
-	UserReviewsCount   int         `json:"user_reviews_count"`
-	ServiceID          int         `json:"service_id"`
-	ServiceName        string      `json:"service_name"`
-	ServicePrice       float64     `json:"service_price"`
-	ServiceDescription string      `json:"service_description"`
-	Images             []ImageWork `json:"images"`
-	Videos             []Video     `json:"videos"`
-	ServiceLatitude    string      `json:"latitude"`
-	ServiceLongitude   string      `json:"longitude"`
-	Liked              bool        `json:"liked"`
-	Responded          bool        `json:"is_responded"`
+	UserID           int         `json:"user_id"`
+	UserName         string      `json:"user_name"`
+	UserSurname      string      `json:"user_surname"`
+	UserPhone        string      `json:"-"`
+	UserAvatarPath   *string     `json:"user_avatar_path,omitempty"`
+	UserRating       float64     `json:"user_rating"`
+	UserReviewsCount int         `json:"user_reviews_count"`
+	WorkID           int         `json:"work_id"`
+	WorkName         string      `json:"work_name"`
+	WorkPrice        float64     `json:"work_price"`
+	WorkDescription  string      `json:"work_description"`
+	Images           []ImageWork `json:"images"`
+	Videos           []Video     `json:"videos"`
+	WorkLatitude     string      `json:"latitude"`
+	WorkLongitude    string      `json:"longitude"`
+	Liked            bool        `json:"liked"`
+	Responded        bool        `json:"is_responded"`
 }
