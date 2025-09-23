@@ -691,6 +691,33 @@ func (h *UserHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+func (h *UserHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get(":id")
+	if idStr == "" {
+		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Service.DeleteUserAvatar(r.Context(), id); err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "avatar deleted"})
+}
+
 func (h *UserHandler) ServeAvatar(w http.ResponseWriter, r *http.Request) {
 	filename := r.URL.Query().Get(":filename")
 	if filename == "" {

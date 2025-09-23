@@ -398,6 +398,25 @@ func (r *UserRepository) UpdateUserAvatar(ctx context.Context, userID int, avata
 	return r.GetUserByID(ctx, userID)
 }
 
+func (r *UserRepository) ClearUserAvatar(ctx context.Context, userID int) error {
+	query := `UPDATE users SET avatar_path = NULL, updated_at = NOW() WHERE id = ?`
+
+	result, err := r.DB.ExecContext(ctx, query, userID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrUserNotFound
+	}
+
+	return nil
+}
+
 func (r *UserRepository) ChangeCityForUser(ctx context.Context, userID int, cityID int) error {
 	query := `UPDATE users SET city_id = ?, updated_at = NOW() WHERE id = ?`
 
