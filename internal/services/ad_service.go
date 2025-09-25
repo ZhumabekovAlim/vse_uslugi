@@ -12,13 +12,6 @@ type AdService struct {
 }
 
 func (s *AdService) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, error) {
-	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, ad.UserID)
-	if err != nil {
-		return models.Ad{}, err
-	}
-	if !has {
-		return models.Ad{}, ErrNoActiveSubscription
-	}
 	return s.AdRepo.CreateAd(ctx, ad)
 }
 
