@@ -12,13 +12,6 @@ type WorkAdService struct {
 }
 
 func (s *WorkAdService) CreateWorkAd(ctx context.Context, work models.WorkAd) (models.WorkAd, error) {
-	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
-	if err != nil {
-		return models.WorkAd{}, err
-	}
-	if !has {
-		return models.WorkAd{}, ErrNoActiveSubscription
-	}
 	return s.WorkAdRepo.CreateWorkAd(ctx, work)
 }
 

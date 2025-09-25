@@ -12,13 +12,6 @@ type RentAdService struct {
 }
 
 func (s *RentAdService) CreateRentAd(ctx context.Context, work models.RentAd) (models.RentAd, error) {
-	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
-	if err != nil {
-		return models.RentAd{}, err
-	}
-	if !has {
-		return models.RentAd{}, ErrNoActiveSubscription
-	}
 	return s.RentAdRepo.CreateRentAd(ctx, work)
 }
 
