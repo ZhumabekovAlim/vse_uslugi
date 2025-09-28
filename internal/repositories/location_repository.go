@@ -59,11 +59,11 @@ func (r *LocationRepository) ClearLocation(ctx context.Context, userID int) erro
 	return err
 }
 
-
 // GetExecutors returns executors on line with active items filtered by parameters.
-func (r *LocationRepository) GetExecutors(ctx context.Context, f models.ExecutorLocationFilter) ([]models.ExecutorLocation, error) {
+func (r *LocationRepository) GetExecutors(ctx context.Context, f models.ExecutorLocationFilter) ([]models.ExecutorLocationGroup, error) {
 	tables := []string{"service", "ad", "rent", "rent_ad", "work", "work_ad"}
-	var result []models.ExecutorLocation
+	groups := make(map[int]*models.ExecutorLocationGroup)
+	var order []int
 
 	for _, table := range tables {
 		query, args := buildExecutorQuery(table, f)
@@ -72,32 +72,90 @@ func (r *LocationRepository) GetExecutors(ctx context.Context, f models.Executor
 			return nil, err
 		}
 		for rows.Next() {
-			var item models.ExecutorLocation
-			var latStr, lonStr sql.NullString
+			var (
+				userID    int
+				name      string
+				surname   string
+				avatar    sql.NullString
+				latStr    sql.NullString
+				lonStr    sql.NullString
+				itemID    int
+				itemName  string
+				desc      string
+				price     float64
+				avgRating float64
+			)
 
-			var avatar sql.NullString
-			if err := rows.Scan(&item.UserID, &item.Name, &item.Surname, &avatar, &latStr, &lonStr, &item.ItemID, &item.ItemName, &item.Description, &item.Price, &item.AvgRating); err != nil {
+			if err := rows.Scan(&userID, &name, &surname, &avatar, &latStr, &lonStr, &itemID, &itemName, &desc, &price, &avgRating); err != nil {
 				rows.Close()
 				return nil, err
 			}
-			if avatar.Valid {
-				item.Avatar = &avatar.String
+
+			group, exists := groups[userID]
+			if !exists {
+				group = &models.ExecutorLocationGroup{
+					UserID:  userID,
+					Name:    name,
+					Surname: surname,
+				}
+				if avatar.Valid {
+					val := avatar.String
+					group.Avatar = &val
+				}
+				if lat := toFloatPtr(latStr); lat != nil {
+					group.Latitude = lat
+				}
+				if lon := toFloatPtr(lonStr); lon != nil {
+					group.Longitude = lon
+				}
+				groups[userID] = group
+				order = append(order, userID)
+			} else {
+				if group.Avatar == nil && avatar.Valid {
+					val := avatar.String
+					group.Avatar = &val
+				}
+				if group.Latitude == nil {
+					if lat := toFloatPtr(latStr); lat != nil {
+						group.Latitude = lat
+					}
+				}
+				if group.Longitude == nil {
+					if lon := toFloatPtr(lonStr); lon != nil {
+						group.Longitude = lon
+					}
+				}
 			}
 
-			if latStr.Valid {
-				if v, err2 := strconv.ParseFloat(latStr.String, 64); err2 == nil {
-					item.Latitude = &v
-				}
+			item := models.ExecutorLocationItem{
+				ID:          itemID,
+				Name:        itemName,
+				Description: desc,
+				Price:       price,
+				AvgRating:   avgRating,
 			}
-			if lonStr.Valid {
-				if v, err2 := strconv.ParseFloat(lonStr.String, 64); err2 == nil {
-					item.Longitude = &v
-				}
+
+			switch table {
+			case "service":
+				group.Services = append(group.Services, item)
+			case "ad":
+				group.Ads = append(group.Ads, item)
+			case "work_ad":
+				group.WorkAds = append(group.WorkAds, item)
+			case "work":
+				group.Works = append(group.Works, item)
+			case "rent_ad":
+				group.RentAds = append(group.RentAds, item)
+			case "rent":
+				group.Rents = append(group.Rents, item)
 			}
-			item.Type = table
-			result = append(result, item)
 		}
 		rows.Close()
+	}
+
+	result := make([]models.ExecutorLocationGroup, 0, len(order))
+	for _, userID := range order {
+		result = append(result, *groups[userID])
 	}
 	return result, nil
 }
@@ -105,7 +163,6 @@ func (r *LocationRepository) GetExecutors(ctx context.Context, f models.Executor
 func buildExecutorQuery(table string, f models.ExecutorLocationFilter) (string, []interface{}) {
 
 	base := fmt.Sprintf(`SELECT u.id, u.name, u.surname, u.avatar_path, u.latitude, u.longitude, s.id, s.name, s.description, s.price, s.avg_rating FROM %s s JOIN users u ON u.id = s.user_id`, table)
-
 
 	var where []string
 	var args []interface{}
@@ -145,4 +202,15 @@ func buildExecutorQuery(table string, f models.ExecutorLocationFilter) (string, 
 		query += " WHERE " + strings.Join(where, " AND ")
 	}
 	return query, args
+}
+
+func toFloatPtr(value sql.NullString) *float64 {
+	if !value.Valid {
+		return nil
+	}
+	if v, err := strconv.ParseFloat(value.String, 64); err == nil {
+		val := v
+		return &val
+	}
+	return nil
 }
