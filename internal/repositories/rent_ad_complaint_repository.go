@@ -18,7 +18,11 @@ func (r *RentAdComplaintRepository) CreateRentAdComplaint(ctx context.Context, c
 }
 
 func (r *RentAdComplaintRepository) GetComplaintsByRentAdID(ctx context.Context, rentAdID int) ([]models.RentAdComplaint, error) {
-	query := `SELECT id, rent_ad_id, user_id, description, created_at FROM rent_ad_complaints WHERE rent_ad_id = ?`
+	query := `SELECT rac.id, rac.rent_ad_id, rac.user_id, rac.description, rac.created_at,
+                u.name, u.surname, u.email, u.city_id, u.avatar_path, u.review_rating
+                FROM rent_ad_complaints rac
+                JOIN users u ON rac.user_id = u.id
+                WHERE rac.rent_ad_id = ?`
 	rows, err := r.DB.QueryContext(ctx, query, rentAdID)
 	if err != nil {
 		return nil, err
@@ -28,8 +32,35 @@ func (r *RentAdComplaintRepository) GetComplaintsByRentAdID(ctx context.Context,
 	var complaints []models.RentAdComplaint
 	for rows.Next() {
 		var c models.RentAdComplaint
-		if err := rows.Scan(&c.ID, &c.RentAdID, &c.UserID, &c.Description, &c.CreatedAt); err != nil {
+		var cityID sql.NullInt64
+		var avatarPath sql.NullString
+		var reviewRating sql.NullFloat64
+
+		if err := rows.Scan(
+			&c.ID,
+			&c.RentAdID,
+			&c.UserID,
+			&c.Description,
+			&c.CreatedAt,
+			&c.User.Name,
+			&c.User.Surname,
+			&c.User.Email,
+			&cityID,
+			&avatarPath,
+			&reviewRating,
+		); err != nil {
 			return nil, err
+		}
+		if cityID.Valid {
+			value := int(cityID.Int64)
+			c.User.CityID = &value
+		}
+		if avatarPath.Valid {
+			value := avatarPath.String
+			c.User.AvatarPath = &value
+		}
+		if reviewRating.Valid {
+			c.User.ReviewRating = reviewRating.Float64
 		}
 		complaints = append(complaints, c)
 	}
@@ -43,7 +74,11 @@ func (r *RentAdComplaintRepository) DeleteRentAdComplaintByID(ctx context.Contex
 }
 
 func (r *RentAdComplaintRepository) GetAllRentAdComplaints(ctx context.Context) ([]models.RentAdComplaint, error) {
-	query := `SELECT id, rent_ad_id, user_id, description, created_at FROM rent_ad_complaints ORDER BY created_at DESC`
+	query := `SELECT rac.id, rac.rent_ad_id, rac.user_id, rac.description, rac.created_at,
+                u.name, u.surname, u.email, u.city_id, u.avatar_path, u.review_rating
+                FROM rent_ad_complaints rac
+                JOIN users u ON rac.user_id = u.id
+                ORDER BY rac.created_at DESC`
 	rows, err := r.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -53,8 +88,35 @@ func (r *RentAdComplaintRepository) GetAllRentAdComplaints(ctx context.Context) 
 	var complaints []models.RentAdComplaint
 	for rows.Next() {
 		var c models.RentAdComplaint
-		if err := rows.Scan(&c.ID, &c.RentAdID, &c.UserID, &c.Description, &c.CreatedAt); err != nil {
+		var cityID sql.NullInt64
+		var avatarPath sql.NullString
+		var reviewRating sql.NullFloat64
+
+		if err := rows.Scan(
+			&c.ID,
+			&c.RentAdID,
+			&c.UserID,
+			&c.Description,
+			&c.CreatedAt,
+			&c.User.Name,
+			&c.User.Surname,
+			&c.User.Email,
+			&cityID,
+			&avatarPath,
+			&reviewRating,
+		); err != nil {
 			return nil, err
+		}
+		if cityID.Valid {
+			value := int(cityID.Int64)
+			c.User.CityID = &value
+		}
+		if avatarPath.Valid {
+			value := avatarPath.String
+			c.User.AvatarPath = &value
+		}
+		if reviewRating.Valid {
+			c.User.ReviewRating = reviewRating.Float64
 		}
 		complaints = append(complaints, c)
 	}
