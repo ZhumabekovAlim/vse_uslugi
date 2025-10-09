@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "context"
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/google/uuid"
@@ -14,6 +13,7 @@ import (
 	services "naimuBack/internal/services"
 	_ "naimuBack/utils"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -127,7 +127,7 @@ type application struct {
 	rentConfirmationRepo      *repositories.RentConfirmationRepository
 	subscriptionHandler       *handlers.SubscriptionHandler
 	subscriptionRepo          *repositories.SubscriptionRepository
-	robokassaHandler          *handlers.RobokassaHandler
+	airbapayHandler           *handlers.AirbapayHandler
 	invoiceRepo               *repositories.InvoiceRepo
 
 	// authService *services/*/.AuthService
@@ -228,14 +228,18 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
 	locationService := &services.LocationService{Repo: &locationRepo}
 
-	robokassaService := &services.RobokassaService{
-		MerchantLogin: "barlyqqyzmet",
-		Password1:     "dbYT25v0OZnV0dlh6Udg",
-		Password2:     "eckq4z0RvJ7pYJ1WS2vA",
-		TestPassword1: "iPyU7kCQhBz62pAA86wN",
-		TestPassword2: "adHE6yx9WO3YY5xOeQE7",
-		BaseURL:       "https://auth.robokassa.kz/Merchant/Index.aspx",
-		IsTest:        true,
+	airbapayCfg := services.AirbapayConfig{
+		Username:   getEnv("AIRBAPAY_USERNAME", "VSEUSLUGI"),
+		Password:   getEnv("AIRBAPAY_PASSWORD", "v(A3Z!_zua%V&%a"),
+		TerminalID: getEnv("AIRBAPAY_TERMINAL_ID", "68e73c28a36bcb28994f2061"),
+		BaseURL:    getEnv("AIRBAPAY_BASE_URL", "https://ps.airbapay.kz/acquiring-api"),
+		SuccessURL: getEnv("AIRBAPAY_SUCCESS_URL", ""),
+		FailureURL: getEnv("AIRBAPAY_FAILURE_URL", ""),
+	}
+
+	airbapayService, err := services.NewAirbapayService(airbapayCfg)
+	if err != nil {
+		errorLog.Fatalf("airbapay service init: %v", err)
 	}
 
 	workAdService := &services.WorkAdService{WorkAdRepo: &workAdRepo, SubscriptionRepo: &subscriptionRepo}
@@ -290,7 +294,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adResponseHandler := &handlers.AdResponseHandler{Service: adResponseService}
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
 	subscriptionHandler := &handlers.SubscriptionHandler{Service: subscriptionService}
-	robokassaHandler := handlers.NewRobokassaHandler(robokassaService, invoiceRepo)
+	airbapayHandler := handlers.NewAirbapayHandler(airbapayService, invoiceRepo)
 	locationHandler := &handlers.LocationHandler{Service: locationService}
 
 	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
@@ -419,7 +423,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		adFavoriteHandler:          adFavoriteHandler,
 		adConfirmationHandler:      adConfirmationHandler,
 		subscriptionHandler:        subscriptionHandler,
-		robokassaHandler:           robokassaHandler,
+		airbapayHandler:            airbapayHandler,
 
 		workAdHandler:             workAdHandler,
 		workAdReviewHandler:       workAdReviewHandler,
@@ -444,6 +448,13 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 
 		invoiceRepo: invoiceRepo,
 	}
+}
+
+func getEnv(key, fallback string) string {
+	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		return value
+	}
+	return fallback
 }
 
 func openDB(dsn string) (*sql.DB, error) {

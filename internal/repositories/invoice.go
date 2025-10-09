@@ -25,7 +25,11 @@ func (r *InvoiceRepo) CreateInvoice(ctx context.Context, userID int, amount floa
 }
 
 func (r *InvoiceRepo) MarkPaid(ctx context.Context, invID int) error {
-	_, err := r.DB.ExecContext(ctx, `UPDATE invoices SET status='paid' WHERE inv_id=?`, invID)
+	return r.UpdateStatus(ctx, invID, "paid")
+}
+
+func (r *InvoiceRepo) UpdateStatus(ctx context.Context, invID int, status string) error {
+	_, err := r.DB.ExecContext(ctx, `UPDATE invoices SET status=? WHERE inv_id=?`, status, invID)
 	return err
 }
 
