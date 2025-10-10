@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"naimuBack/internal/models"
 )
 
@@ -97,7 +98,7 @@ func (r *ChatRepository) DeleteChat(ctx context.Context, id int) error {
 // GetChatsByUserID retrieves chats grouped by advertisements for a specific author.
 func (r *ChatRepository) GetChatsByUserID(ctx context.Context, userID int) ([]models.AdChats, error) {
 	query := `
-SELECT a.id, a.name, a.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, ar.price, ac.chat_id, 'customer' AS my_role
+SELECT a.id, 'ad' AS ad_type, a.name, a.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, ar.price, ac.chat_id, 'customer' AS my_role
 FROM ad a
 JOIN ad_confirmations ac ON ac.ad_id = a.id
 JOIN users u ON u.id = ac.performer_id
@@ -107,7 +108,7 @@ WHERE a.user_id = ?
 
 UNION ALL
 
-SELECT a.id, a.name, a.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, ar.price, ac.chat_id, 'performer' AS my_role
+SELECT a.id, 'ad' AS ad_type, a.name, a.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, ar.price, ac.chat_id, 'performer' AS my_role
 FROM ad a
 JOIN ad_confirmations ac ON ac.ad_id = a.id
 JOIN users owner ON owner.id = a.user_id
@@ -117,7 +118,7 @@ WHERE ac.performer_id = ?
 
 UNION ALL
 
-SELECT s.id, s.name, s.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, sr.price, sc.chat_id, 'customer' AS my_role
+SELECT s.id, 'service' AS ad_type, s.name, s.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, sr.price, sc.chat_id, 'customer' AS my_role
 FROM service s
 JOIN service_confirmations sc ON sc.service_id = s.id
 JOIN users u ON u.id = sc.performer_id
@@ -127,7 +128,7 @@ WHERE s.user_id = ?
 
 UNION ALL
 
-SELECT s.id, s.name, s.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, sr.price, sc.chat_id, 'performer' AS my_role
+SELECT s.id, 'service' AS ad_type, s.name, s.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, sr.price, sc.chat_id, 'performer' AS my_role
 FROM service s
 JOIN service_confirmations sc ON sc.service_id = s.id
 JOIN users owner ON owner.id = s.user_id
@@ -137,7 +138,7 @@ WHERE sc.performer_id = ?
 
 UNION ALL
 
-SELECT ra.id, ra.name, ra.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, rar.price, rac.chat_id, 'customer' AS my_role
+SELECT ra.id, 'rent_ad' AS ad_type, ra.name, ra.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, rar.price, rac.chat_id, 'customer' AS my_role
 FROM rent_ad ra
 JOIN rent_ad_confirmations rac ON rac.rent_ad_id = ra.id
 JOIN users u ON u.id = rac.performer_id
@@ -147,7 +148,7 @@ WHERE ra.user_id = ?
 
 UNION ALL
 
-SELECT ra.id, ra.name, ra.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, rar.price, rac.chat_id, 'performer' AS my_role
+SELECT ra.id, 'rent_ad' AS ad_type, ra.name, ra.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, rar.price, rac.chat_id, 'performer' AS my_role
 FROM rent_ad ra
 JOIN rent_ad_confirmations rac ON rac.rent_ad_id = ra.id
 JOIN users owner ON owner.id = ra.user_id
@@ -157,7 +158,7 @@ WHERE rac.performer_id = ?
 
 UNION ALL
 
-SELECT wa.id, wa.name, wa.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, war.price, wac.chat_id, 'customer' AS my_role
+SELECT wa.id, 'work_ad' AS ad_type, wa.name, wa.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, war.price, wac.chat_id, 'customer' AS my_role
 FROM work_ad wa
 JOIN work_ad_confirmations wac ON wac.work_ad_id = wa.id
 JOIN users u ON u.id = wac.performer_id
@@ -167,7 +168,7 @@ WHERE wa.user_id = ?
 
 UNION ALL
 
-SELECT wa.id, wa.name, wa.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, war.price, wac.chat_id, 'performer' AS my_role
+SELECT wa.id, 'work_ad' AS ad_type, wa.name, wa.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, war.price, wac.chat_id, 'performer' AS my_role
 FROM work_ad wa
 JOIN work_ad_confirmations wac ON wac.work_ad_id = wa.id
 JOIN users owner ON owner.id = wa.user_id
@@ -177,7 +178,7 @@ WHERE wac.performer_id = ?
 
 UNION ALL
 
-SELECT r.id, r.name, r.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, rr.price, rc.chat_id, 'customer' AS my_role
+SELECT r.id, 'rent' AS ad_type, r.name, r.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, rr.price, rc.chat_id, 'customer' AS my_role
 FROM rent r
 JOIN rent_confirmations rc ON rc.rent_id = r.id
 JOIN users u ON u.id = rc.performer_id
@@ -187,7 +188,7 @@ WHERE r.user_id = ?
 
 UNION ALL
 
-SELECT r.id, r.name, r.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, rr.price, rc.chat_id, 'performer' AS my_role
+SELECT r.id, 'rent' AS ad_type, r.name, r.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, rr.price, rc.chat_id, 'performer' AS my_role
 FROM rent r
 JOIN rent_confirmations rc ON rc.rent_id = r.id
 JOIN users owner ON owner.id = r.user_id
@@ -197,7 +198,7 @@ WHERE rc.performer_id = ?
 
 UNION ALL
 
-SELECT w.id, w.name, w.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, wr.price, wc.chat_id, 'customer' AS my_role
+SELECT w.id, 'work' AS ad_type, w.name, w.status, c.performer_id, u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone, wr.price, wc.chat_id, 'customer' AS my_role
 FROM work w
 JOIN work_confirmations wc ON wc.work_id = w.id
 JOIN users u ON u.id = wc.performer_id
@@ -207,7 +208,7 @@ WHERE w.user_id = ?
 
 UNION ALL
 
-SELECT w.id, w.name, w.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, wr.price, wc.chat_id, 'performer' AS my_role
+SELECT w.id, 'work' AS ad_type, w.name, w.status, c.performer_id, owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone, wr.price, wc.chat_id, 'performer' AS my_role
 FROM work w
 JOIN work_confirmations wc ON wc.work_id = w.id
 JOIN users owner ON owner.id = w.user_id
@@ -233,15 +234,15 @@ ORDER BY 1
 	defer rows.Close()
 
 	var result []models.AdChats
-	adIndex := make(map[int]int)
+	adIndex := make(map[string]int)
 
 	for rows.Next() {
 		var adID int
-		var adName, status string
+		var adType, adName, status string
 		var confirmedPerformer sql.NullInt64
 		var user models.ChatUser
 		if err := rows.Scan(
-			&adID, &adName, &status, &confirmedPerformer,
+			&adID, &adType, &adName, &status, &confirmedPerformer,
 			&user.ID, &user.Name, &user.Surname, &user.AvatarPath, &user.Phone,
 			&user.Price, &user.ChatID, &user.MyRole,
 		); err != nil {
@@ -266,17 +267,20 @@ ORDER BY 1
 			performerID = &pid
 		}
 
-		if idx, ok := adIndex[adID]; ok {
+		key := fmt.Sprintf("%s:%d", adType, adID)
+
+		if idx, ok := adIndex[key]; ok {
 			result[idx].Users = append(result[idx].Users, user)
 		} else {
 			result = append(result, models.AdChats{
 				AdID:        adID,
+				AdType:      adType,
 				AdName:      adName,
 				Status:      status,
 				PerformerID: performerID,
 				Users:       []models.ChatUser{user},
 			})
-			adIndex[adID] = len(result) - 1
+			adIndex[key] = len(result) - 1
 		}
 	}
 

@@ -17,6 +17,7 @@ type ChatUser struct {
 // AdChats groups chat users by advertisement.
 type AdChats struct {
 	AdID        int        `json:"ad_id"`
+	AdType      string     `json:"ad_type"`
 	AdName      string     `json:"ad_name"`
 	Status      string     `json:"status"`
 	PerformerID *int       `json:"performer_id,omitempty"`
