@@ -133,9 +133,15 @@ func (s *AirbapayService) CreatePaymentLink(ctx context.Context, invoiceID int, 
 		return nil, fmt.Errorf("airbapay service is not initialised")
 	}
 
-	endpoint := *s.baseURL
-	relPath := strings.TrimPrefix(s.createInvoiceURI, "/")
-	endpoint.Path = path.Join(endpoint.Path, relPath)
+	var requestURL string
+	if strings.HasPrefix(strings.ToLower(s.createInvoiceURI), "http://") || strings.HasPrefix(strings.ToLower(s.createInvoiceURI), "https://") {
+		requestURL = s.createInvoiceURI
+	} else {
+		endpoint := *s.baseURL
+		relPath := strings.TrimPrefix(s.createInvoiceURI, "/")
+		endpoint.Path = path.Join(endpoint.Path, relPath)
+		requestURL = endpoint.String()
+	}
 
 	payload := AirbapayCreateInvoiceRequest{
 		TerminalID:  s.terminalID,
@@ -159,7 +165,7 @@ func (s *AirbapayService) CreatePaymentLink(ctx context.Context, invoiceID int, 
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}

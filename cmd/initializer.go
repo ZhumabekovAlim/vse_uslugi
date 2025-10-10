@@ -229,12 +229,13 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	locationService := &services.LocationService{Repo: &locationRepo}
 
 	airbapayCfg := services.AirbapayConfig{
-		Username:   getEnv("AIRBAPAY_USERNAME", "VSEUSLUGI"),
-		Password:   getEnv("AIRBAPAY_PASSWORD", "v(A3Z!_zua%V&%a"),
-		TerminalID: getEnv("AIRBAPAY_TERMINAL_ID", "68e73c28a36bcb28994f2061"),
-		BaseURL:    getEnv("AIRBAPAY_BASE_URL", "https://ps.airbapay.kz/acquiring-api"),
-		SuccessURL: getEnv("AIRBAPAY_SUCCESS_URL", ""),
-		FailureURL: getEnv("AIRBAPAY_FAILURE_URL", ""),
+		Username:         getEnv("AIRBAPAY_USERNAME", "VSEUSLUGI"),
+		Password:         getEnv("AIRBAPAY_PASSWORD", "v(A3Z!_zua%V&%a"),
+		TerminalID:       getEnv("AIRBAPAY_TERMINAL_ID", "68e73c28a36bcb28994f2061"),
+		BaseURL:          getEnv("AIRBAPAY_BASE_URL", "https://ps.airbapay.kz/acquiring-api"),
+		SuccessURL:       getEnv("AIRBAPAY_SUCCESS_URL", ""),
+		FailureURL:       getEnv("AIRBAPAY_FAILURE_URL", ""),
+		CreateInvoiceURI: getEnv("AIRBAPAY_CREATE_INVOICE_URI", ""),
 	}
 
 	airbapayService, err := services.NewAirbapayService(airbapayCfg)

@@ -19,6 +19,7 @@
 | `AIRBAPAY_PASSWORD` | Пароль для Basic Auth. | `v(A3Z!_zua%V&%a` |
 | `AIRBAPAY_TERMINAL_ID` | Идентификатор терминала из кабинета Airbapay. | `68e73c28a36bcb28994f2061` |
 | `AIRBAPAY_BASE_URL` | Базовый URL API. Для прод окружения — `https://ps.airbapay.kz/acquiring-api`. | `https://ps.airbapay.kz/acquiring-api` |
+| `AIRBAPAY_CREATE_INVOICE_URI` | Дополнительный путь или абсолютный URL для создания инвойса. Можно использовать для указания точного endpoint, если он отличается от значения по умолчанию. | `/v1/invoice/create` |
 | `AIRBAPAY_SUCCESS_URL` | URL на стороне вашего сервиса, куда Airbapay перенаправит клиента после успешной оплаты. | пусто |
 | `AIRBAPAY_FAILURE_URL` | URL для редиректа после неуспешной оплаты. | пусто |
 
@@ -31,6 +32,7 @@ AIRBAPAY_USERNAME="VSEUSLUGI"
 AIRBAPAY_PASSWORD="v(A3Z!_zua%V&%a"
 AIRBAPAY_TERMINAL_ID="68e73c28a36bcb28994f2061"
 AIRBAPAY_BASE_URL="https://ps.airbapay.kz/acquiring-api"
+AIRBAPAY_CREATE_INVOICE_URI="/v1/invoice/create"
 AIRBAPAY_SUCCESS_URL="https://example.com/payments/airbapay/success"
 AIRBAPAY_FAILURE_URL="https://example.com/payments/airbapay/failure"
 ```
@@ -68,7 +70,7 @@ Airbapay требует зарегистрировать адреса, куда 
      "description": "Оплата заказа #123"
    }
    ```
-2. Сервер создаёт запись в таблице `invoices`, отправляет запрос в Airbapay (`/v1/invoice/create`) и возвращает ссылку для оплаты.
+2. Сервер создаёт запись в таблице `invoices`, отправляет запрос в Airbapay (по умолчанию `/v1/invoice/create`, конечная точка может быть переопределена через `AIRBAPAY_CREATE_INVOICE_URI`) и возвращает ссылку для оплаты.
 3. Клиент перенаправляет пользователя на полученный `payment_url`.
 
 ### Обработка callback
