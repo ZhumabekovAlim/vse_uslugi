@@ -79,8 +79,39 @@ func (h *ChatHandler) GetChatsByUserID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	response := make([]map[string]interface{}, 0, len(chats))
+
+	for _, chat := range chats {
+		item := map[string]interface{}{
+			"ad_type":      chat.AdType,
+			"ad_name":      chat.AdName,
+			"status":       chat.Status,
+			"performer_id": chat.PerformerID,
+			"users":        chat.Users,
+		}
+
+		switch chat.AdType {
+		case "ad":
+			item["ad_id"] = chat.AdID
+		case "service":
+			item["service_id"] = chat.AdID
+		case "rent_ad":
+			item["rentad_id"] = chat.AdID
+		case "work_ad":
+			item["workad_id"] = chat.AdID
+		case "rent":
+			item["rent_id"] = chat.AdID
+		case "work":
+			item["work_id"] = chat.AdID
+		default:
+			item["ad_id"] = chat.AdID
+		}
+
+		response = append(response, item)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(chats)
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *ChatHandler) DeleteChat(w http.ResponseWriter, r *http.Request) {

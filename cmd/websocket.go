@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	_ "github.com/go-sql-driver/mysql" // MariaDB/MySQL
 	"github.com/gorilla/websocket"
 	"log"
@@ -186,13 +187,13 @@ func handleWebSocketMessages(conn *websocket.Conn, userID int, wsManager *WebSoc
 
 		msg.CreatedAt = time.Now()
 
-		// получить/создать чат
+		// получить/проверить чат
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			chatID, err := getOrCreateChat(ctx, db, msg.SenderID, msg.ReceiverID)
+			chatID, err := resolveChatID(ctx, db, msg.ChatID, msg.SenderID, msg.ReceiverID)
 			cancel()
 			if err != nil {
-				log.Println("get/create chat error:", err)
+				log.Println("resolve chat error:", err)
 				continue
 			}
 			msg.ChatID = chatID
@@ -225,6 +226,25 @@ func writeClose(conn *websocket.Conn, code int, reason string) error {
 }
 
 /********** DB helpers (MariaDB / MySQL) **********/
+
+func resolveChatID(ctx context.Context, db *sql.DB, chatID, user1ID, user2ID int) (int, error) {
+	if chatID > 0 {
+		var existingID int
+		err := db.QueryRowContext(ctx, `
+                        SELECT id FROM chats
+                        WHERE id = ? AND ((user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?))
+                `, chatID, user1ID, user2ID, user2ID, user1ID).Scan(&existingID)
+		if err == nil {
+			return existingID, nil
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("chat %d not found for users %d/%d", chatID, user1ID, user2ID)
+		}
+		return 0, err
+	}
+
+	return getOrCreateChat(ctx, db, user1ID, user2ID)
+}
 
 func getOrCreateChat(ctx context.Context, db *sql.DB, user1ID, user2ID int) (int, error) {
 	var chatID int
