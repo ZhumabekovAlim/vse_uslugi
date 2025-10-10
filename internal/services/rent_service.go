@@ -33,7 +33,7 @@ func (s *RentService) UpdateRent(ctx context.Context, work models.Rent) (models.
 			return models.Rent{}, err
 		}
 		if existing.Status != "active" {
-			has, err := s.SubscriptionRepo.HasActiveSubscriptionPlan(ctx, work.UserID)
+			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
 			if err != nil {
 				return models.Rent{}, err
 			}
