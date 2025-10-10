@@ -43,7 +43,7 @@ func (r *WorkConfirmationRepository) Confirm(ctx context.Context, workID, perfor
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE work SET status = 'active' WHERE id = ?`, workID)
+	_, err = tx.ExecContext(ctx, `UPDATE work SET status = 'in progress' WHERE id = ?`, workID)
 	if err != nil {
 		return err
 	}

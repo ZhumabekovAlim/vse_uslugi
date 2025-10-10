@@ -48,7 +48,7 @@ func (r *ServiceConfirmationRepository) Confirm(ctx context.Context, serviceID, 
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE service SET status = 'active' WHERE id = ?`, serviceID)
+	_, err = tx.ExecContext(ctx, `UPDATE service SET status = 'in progress' WHERE id = ?`, serviceID)
 	if err != nil {
 		return err
 	}
