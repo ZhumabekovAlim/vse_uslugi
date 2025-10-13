@@ -62,6 +62,9 @@ func (r *LocationRepository) ClearLocation(ctx context.Context, userID int) erro
 // GetExecutors returns executors on line with active items filtered by parameters.
 func (r *LocationRepository) GetExecutors(ctx context.Context, f models.ExecutorLocationFilter) ([]models.ExecutorLocationGroup, error) {
 	tables := []string{"service", "ad", "rent", "rent_ad", "work", "work_ad"}
+	if f.Type != "" {
+		tables = []string{f.Type}
+	}
 	groups := make(map[int]*models.ExecutorLocationGroup)
 	var order []int
 
