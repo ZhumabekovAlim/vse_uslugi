@@ -14,6 +14,7 @@ type ExecutorLocationFilter struct {
 	PriceFrom      float64   `json:"price_from"`
 	PriceTo        float64   `json:"price_to"`
 	AvgRating      []float64 `json:"avg_rating"`
+	Type           string    `json:"-"`
 }
 
 // ExecutorLocationItem describes a single active item bound to an executor.

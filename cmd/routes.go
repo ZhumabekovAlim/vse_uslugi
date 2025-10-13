@@ -161,6 +161,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/location", authMiddleware.ThenFunc(app.locationHandler.UpdateLocation))
 	mux.Post("/location/offline", authMiddleware.ThenFunc(app.locationHandler.GoOffline))
 	mux.Get("/location/:user_id", authMiddleware.ThenFunc(app.locationHandler.GetLocation))
+	mux.Post("/executors/location/:type", standardMiddleware.ThenFunc(app.locationHandler.GetExecutors))
 	mux.Post("/executors/location", standardMiddleware.ThenFunc(app.locationHandler.GetExecutors))
 
 	mux.Post("/api/chats", authMiddleware.ThenFunc(app.chatHandler.CreateChat))

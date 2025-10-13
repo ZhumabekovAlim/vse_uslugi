@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"naimuBack/internal/models"
 	"naimuBack/internal/services"
@@ -48,7 +49,6 @@ func (h *LocationHandler) GetLocation(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(loc)
 }
 
-
 // GoOffline clears location for a user and marks them offline.
 func (h *LocationHandler) GoOffline(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
@@ -65,7 +65,6 @@ func (h *LocationHandler) GoOffline(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-
 // GetExecutors returns online executors with active items filtered by request body.
 func (h *LocationHandler) GetExecutors(w http.ResponseWriter, r *http.Request) {
 	var filter models.ExecutorLocationFilter
@@ -73,6 +72,18 @@ func (h *LocationHandler) GetExecutors(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
+
+	if rawType := strings.TrimSpace(strings.ToLower(r.URL.Query().Get(":type"))); rawType != "" {
+		normalized := strings.ReplaceAll(rawType, "-", "_")
+		switch normalized {
+		case "service", "work", "rent", "ad", "work_ad", "rent_ad":
+			filter.Type = normalized
+		default:
+			http.Error(w, "Invalid executor type", http.StatusBadRequest)
+			return
+		}
+	}
+
 	execs, err := h.Service.GetExecutors(r.Context(), filter)
 	if err != nil {
 		http.Error(w, "Failed to get executors", http.StatusInternalServerError)
