@@ -72,6 +72,26 @@ type AirbapayCreateInvoiceResponse struct {
 	Raw        json.RawMessage `json:"-"`
 }
 
+
+// AirbapayError describes an error response received from the Airbapay API.
+type AirbapayError struct {
+	StatusCode int
+	Status     string
+	Body       string
+}
+
+func (e *AirbapayError) Error() string {
+	if e == nil {
+		return "<nil>"
+	}
+	trimmed := strings.TrimSpace(e.Body)
+	if trimmed == "" {
+		return fmt.Sprintf("airbapay responded with status %s", e.Status)
+	}
+	return fmt.Sprintf("airbapay responded with status %s: %s", e.Status, trimmed)
+}
+
+
 func (r *AirbapayCreateInvoiceResponse) UnmarshalJSON(data []byte) error {
 	type responseAlias struct {
 		InvoiceIDSnake  string `json:"invoice_id"`
@@ -94,7 +114,9 @@ func (r *AirbapayCreateInvoiceResponse) UnmarshalJSON(data []byte) error {
 	r.PaymentURL = firstNonEmpty(alias.PaymentURLSnake, alias.PaymentURLCamel)
 	r.Status = alias.Status
 	r.Message = alias.Message
-	r.Raw = append(r.Raw[:0], data...)
+
+	r.Raw = append([]byte(nil), data...)
+
 
 	return nil
 }
@@ -289,9 +311,11 @@ func (s *AirbapayService) CreatePaymentLink(ctx context.Context, invoiceID int, 
 
 	// Non-2xx
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyStr := trim(string(responseBody), 2000)
-		logger.Error("non-2xx from Airbapay", "status", resp.Status, "body", bodyStr)
-		return nil, fmt.Errorf("create payment link: airbapay responded with status %s: %s", resp.Status, bodyStr)
+		return nil, &AirbapayError{
+			StatusCode: resp.StatusCode,
+			Status:     resp.Status,
+			Body:       string(responseBody),
+		}
 	}
 
 	// Decode
@@ -300,9 +324,6 @@ func (s *AirbapayService) CreatePaymentLink(ctx context.Context, invoiceID int, 
 		logger.Error("decode response failed", "err", err)
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
-	result.Raw = json.RawMessage(responseBody)
-
-	// Validate
 	if strings.TrimSpace(result.PaymentURL) == "" {
 		logger.Error("empty payment_url in response")
 		return nil, fmt.Errorf("airbapay response does not contain payment_url")
