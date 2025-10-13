@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -46,7 +47,7 @@ func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) 
 	resp, err := h.Service.CreatePaymentLink(r.Context(), invID, req.Amount, req.Description)
 	if err != nil {
 		_ = h.InvoiceRepo.UpdateStatus(r.Context(), invID, "error")
-		http.Error(w, "create payment link: "+err.Error(), http.StatusBadGateway)
+		http.Error(w, "create payment link: "+err.Error(), airbapayErrorStatus(err))
 		return
 	}
 
@@ -62,6 +63,16 @@ func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) 
 		"payment_url": resp.PaymentURL,
 		"status":      resp.Status,
 	})
+}
+
+func airbapayErrorStatus(err error) int {
+	var apiErr *services.AirbapayError
+	if errors.As(err, &apiErr) {
+		if apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 {
+			return apiErr.StatusCode
+		}
+	}
+	return http.StatusBadGateway
 }
 
 func (h *AirbapayHandler) Callback(w http.ResponseWriter, r *http.Request) {
