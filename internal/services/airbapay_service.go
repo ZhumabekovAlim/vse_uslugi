@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
@@ -24,6 +25,7 @@ type AirbapayConfig struct {
 	FailureURL       string
 	CreateInvoiceURI string
 	Client           *http.Client
+	Logger           *slog.Logger // optional; if nil -> slog.Default()
 }
 
 // AirbapayService is responsible for communication with the Airbapay API.
@@ -36,6 +38,7 @@ type AirbapayService struct {
 	failureURL       string
 	createInvoiceURI string
 	httpClient       *http.Client
+	logger           *slog.Logger
 }
 
 // AirbapayAmount represents the payment amount in the request payload.
@@ -69,6 +72,7 @@ type AirbapayCreateInvoiceResponse struct {
 	Raw        json.RawMessage `json:"-"`
 }
 
+
 // AirbapayError describes an error response received from the Airbapay API.
 type AirbapayError struct {
 	StatusCode int
@@ -86,6 +90,7 @@ func (e *AirbapayError) Error() string {
 	}
 	return fmt.Sprintf("airbapay responded with status %s: %s", e.Status, trimmed)
 }
+
 
 func (r *AirbapayCreateInvoiceResponse) UnmarshalJSON(data []byte) error {
 	type responseAlias struct {
@@ -109,7 +114,9 @@ func (r *AirbapayCreateInvoiceResponse) UnmarshalJSON(data []byte) error {
 	r.PaymentURL = firstNonEmpty(alias.PaymentURLSnake, alias.PaymentURLCamel)
 	r.Status = alias.Status
 	r.Message = alias.Message
+
 	r.Raw = append([]byte(nil), data...)
+
 
 	return nil
 }
@@ -153,6 +160,11 @@ func NewAirbapayService(cfg AirbapayConfig) (*AirbapayService, error) {
 		return nil, fmt.Errorf("airbapay base url is required")
 	}
 
+	logger := cfg.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	parsed, err := url.Parse(cfg.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse base url: %w", err)
@@ -168,7 +180,7 @@ func NewAirbapayService(cfg AirbapayConfig) (*AirbapayService, error) {
 		createURI = "/v1/invoice/create"
 	}
 
-	return &AirbapayService{
+	svc := &AirbapayService{
 		username:         cfg.Username,
 		password:         cfg.Password,
 		terminalID:       cfg.TerminalID,
@@ -177,26 +189,65 @@ func NewAirbapayService(cfg AirbapayConfig) (*AirbapayService, error) {
 		failureURL:       cfg.FailureURL,
 		createInvoiceURI: createURI,
 		httpClient:       client,
-	}, nil
+		logger:           logger,
+	}
+
+	// Log initial configuration (without secrets)
+	logger.Info("Airbapay service initialized",
+		"baseURL", parsed.String(),
+		"createInvoiceURI", createURI,
+		"terminalID", maskRight(cfg.TerminalID, 4),
+		"successURL_set", strings.TrimSpace(cfg.SuccessURL) != "",
+		"failureURL_set", strings.TrimSpace(cfg.FailureURL) != "",
+		"http_timeout", client.Timeout.String(),
+	)
+
+	return svc, nil
 }
 
 // CreatePaymentLink creates an invoice in Airbapay and returns the payment URL
 // provided by the API.
 func (s *AirbapayService) CreatePaymentLink(ctx context.Context, invoiceID int, amount float64, description string) (*AirbapayCreateInvoiceResponse, error) {
+	start := time.Now()
 	if s == nil {
 		return nil, fmt.Errorf("airbapay service is not initialised")
 	}
+	logger := s.logger.With("op", "CreatePaymentLink")
 
+	// Context info
+	if deadline, ok := ctx.Deadline(); ok {
+		logger.Debug("context has deadline", "deadline", deadline)
+	} else {
+		logger.Debug("context has no deadline")
+	}
+
+	// Log input args (without secrets)
+	logger.Info("start",
+		"invoiceID", invoiceID,
+		"amount", amount,
+		"description_set", strings.TrimSpace(description) != "",
+		"baseURL", safeURL(s.baseURL),
+		"createInvoiceURI", s.createInvoiceURI,
+		"successURL_set", s.successURL != "",
+		"failureURL_set", s.failureURL != "",
+	)
+
+	// Build final request URL
 	var requestURL string
-	if strings.HasPrefix(strings.ToLower(s.createInvoiceURI), "http://") || strings.HasPrefix(strings.ToLower(s.createInvoiceURI), "https://") {
+	uriLower := strings.ToLower(s.createInvoiceURI)
+	if strings.HasPrefix(uriLower, "http://") || strings.HasPrefix(uriLower, "https://") {
 		requestURL = s.createInvoiceURI
 	} else {
-		endpoint := *s.baseURL
+		endpoint := *s.baseURL // copy
+		before := endpoint.Path
 		relPath := strings.TrimPrefix(s.createInvoiceURI, "/")
 		endpoint.Path = path.Join(endpoint.Path, relPath)
 		requestURL = endpoint.String()
+		logger.Debug("joined path", "base_path_before", before, "relPath", relPath, "base_path_after", endpoint.Path)
 	}
+	logger.Info("built request URL", "url", requestURL)
 
+	// Prepare payload
 	payload := AirbapayCreateInvoiceRequest{
 		TerminalID:  s.terminalID,
 		OrderID:     fmt.Sprintf("%d", invoiceID),
@@ -206,7 +257,6 @@ func (s *AirbapayService) CreatePaymentLink(ctx context.Context, invoiceID int, 
 			Currency: "KZT",
 		},
 	}
-
 	if s.successURL != "" {
 		payload.SuccessURL = s.successURL
 	}
@@ -216,27 +266,50 @@ func (s *AirbapayService) CreatePaymentLink(ctx context.Context, invoiceID int, 
 
 	body, err := json.Marshal(payload)
 	if err != nil {
+		logger.Error("marshal request failed", "err", err)
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
+	logger.Debug("payload", "json", trim(string(body), 2000))
 
+	// Build request
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(body))
 	if err != nil {
+		logger.Error("build request failed", "err", err)
 		return nil, fmt.Errorf("build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// Basic auth — DO NOT log password
 	req.SetBasicAuth(s.username, s.password)
 
+	logger.Info("sending request",
+		"method", req.Method,
+		"url", req.URL.String(),
+		"contentType", req.Header.Get("Content-Type"),
+		"username", s.username,
+		"contentLength", len(body),
+	)
+
+	// Execute
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
+		logger.Error("perform request failed", "err", err, "elapsed_ms", time.Since(start).Milliseconds())
 		return nil, fmt.Errorf("perform request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logger.Error("read response failed", "err", err, "status", resp.Status)
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 
+	logger.Info("response received",
+		"status", resp.Status,
+		"elapsed_ms", time.Since(start).Milliseconds(),
+	)
+	logger.Debug("raw response body", "body", trim(string(responseBody), 2000))
+
+	// Non-2xx
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, &AirbapayError{
 			StatusCode: resp.StatusCode,
@@ -245,14 +318,24 @@ func (s *AirbapayService) CreatePaymentLink(ctx context.Context, invoiceID int, 
 		}
 	}
 
+	// Decode
 	var result AirbapayCreateInvoiceResponse
 	if err := json.Unmarshal(responseBody, &result); err != nil {
+		logger.Error("decode response failed", "err", err)
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 	if strings.TrimSpace(result.PaymentURL) == "" {
+		logger.Error("empty payment_url in response")
 		return nil, fmt.Errorf("airbapay response does not contain payment_url")
 	}
 
+	logger.Info("success",
+		"invoiceID", result.InvoiceID,
+		"orderID", result.OrderID,
+		"paymentURL", result.PaymentURL,
+		"status", result.Status,
+		"elapsed_ms", time.Since(start).Milliseconds(),
+	)
 	return &result, nil
 }
 
@@ -265,7 +348,9 @@ func (s *AirbapayService) ValidateCallbackSignature(payload *AirbapayCallbackPay
 	if payload == nil {
 		return false
 	}
-	return strings.TrimSpace(payload.Signature) != ""
+	ok := strings.TrimSpace(payload.Signature) != ""
+	s.logger.Debug("validate callback signature", "present", ok)
+	return ok
 }
 
 // ParseCallback decodes Airbapay callback requests into a structured payload.
@@ -275,12 +360,56 @@ func (s *AirbapayService) ParseCallback(r io.Reader) (*AirbapayCallbackPayload, 
 	}
 	data, err := io.ReadAll(r)
 	if err != nil {
+		s.logger.Error("read callback body failed", "err", err)
 		return nil, fmt.Errorf("read callback body: %w", err)
 	}
+	s.logger.Info("callback received", "bytes", len(data))
+	s.logger.Debug("callback raw", "body", trim(string(data), 2000))
+
 	var payload AirbapayCallbackPayload
 	if err := json.Unmarshal(data, &payload); err != nil {
+		s.logger.Error("decode callback failed", "err", err)
 		return nil, fmt.Errorf("decode callback: %w", err)
 	}
 	payload.Raw = json.RawMessage(data)
+
+	s.logger.Info("callback parsed",
+		"operation_id", payload.OperationID,
+		"order_id", payload.OrderID,
+		"invoice_id", payload.InvoiceID,
+		"status", payload.Status,
+	)
 	return &payload, nil
+}
+
+// ---------- helpers ----------
+
+func trim(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "...(truncated)"
+}
+
+// safeURL prints URL without user/pass (just in case)
+func safeURL(u *url.URL) string {
+	if u == nil {
+		return ""
+	}
+	c := *u
+	c.User = nil
+	return c.String()
+}
+
+// maskRight keeps only rightmost n characters
+func maskRight(s string, n int) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	if len(s) <= n {
+		return strings.Repeat("*", len(s))
+	}
+	return strings.Repeat("*", len(s)-n) + s[len(s)-n:]
 }
