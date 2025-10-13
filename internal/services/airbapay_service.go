@@ -69,6 +69,42 @@ type AirbapayCreateInvoiceResponse struct {
 	Raw        json.RawMessage `json:"-"`
 }
 
+func (r *AirbapayCreateInvoiceResponse) UnmarshalJSON(data []byte) error {
+	type responseAlias struct {
+		InvoiceIDSnake  string `json:"invoice_id"`
+		InvoiceIDCamel  string `json:"invoiceId"`
+		OrderIDSnake    string `json:"order_id"`
+		OrderIDCamel    string `json:"orderId"`
+		PaymentURLSnake string `json:"payment_url"`
+		PaymentURLCamel string `json:"paymentUrl"`
+		Status          string `json:"status"`
+		Message         string `json:"message"`
+	}
+
+	var alias responseAlias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+
+	r.InvoiceID = firstNonEmpty(alias.InvoiceIDSnake, alias.InvoiceIDCamel)
+	r.OrderID = firstNonEmpty(alias.OrderIDSnake, alias.OrderIDCamel)
+	r.PaymentURL = firstNonEmpty(alias.PaymentURLSnake, alias.PaymentURLCamel)
+	r.Status = alias.Status
+	r.Message = alias.Message
+	r.Raw = append(r.Raw[:0], data...)
+
+	return nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 // AirbapayCallbackPayload describes the payload sent by Airbapay to the result
 // callback endpoint.
 type AirbapayCallbackPayload struct {
