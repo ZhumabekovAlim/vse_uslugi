@@ -86,32 +86,30 @@ func (h *AirbapayHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	if payload.OrderID == "" {
-		http.Error(w, "missing order_id", http.StatusBadRequest)
+	if strings.TrimSpace(payload.InvoiceID) == "" {
+		http.Error(w, "missing invoice_id", http.StatusBadRequest)
 		return
 	}
-
 	if !h.Service.ValidateCallbackSignature(payload) {
 		http.Error(w, "invalid callback signature", http.StatusBadRequest)
 		return
 	}
 
-	invID, err := strconv.Atoi(payload.OrderID)
+	// invoice_id мы сами задавали как наш invID → можно использовать его
+	invID, err := strconv.Atoi(payload.InvoiceID)
 	if err != nil {
-		http.Error(w, "invalid order_id", http.StatusBadRequest)
+		http.Error(w, "invalid invoice_id", http.StatusBadRequest)
 		return
 	}
 
 	status := strings.ToLower(payload.Status)
-
 	switch status {
 	case "success", "succeeded", "paid", "done", "approved":
 		if err := h.InvoiceRepo.MarkPaid(r.Context(), invID); err != nil {
 			http.Error(w, "mark paid: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-	case "failure", "failed", "cancelled", "rejected":
+	case "failure", "failed", "cancelled", "rejected", "error":
 		if err := h.InvoiceRepo.UpdateStatus(r.Context(), invID, "failed"); err != nil {
 			http.Error(w, "mark failed: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -125,11 +123,10 @@ func (h *AirbapayHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"status":   "ok",
-		"order_id": payload.OrderID,
+		"status":     "ok",
+		"invoice_id": payload.InvoiceID,
 	})
 }
-
 func (h *AirbapayHandler) SuccessRedirect(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"})

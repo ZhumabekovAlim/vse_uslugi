@@ -229,13 +229,22 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	locationService := &services.LocationService{Repo: &locationRepo}
 
 	airbapayCfg := services.AirbapayConfig{
-		Username:         getEnv("AIRBAPAY_USERNAME", "VSEUSLUGI"),
-		Password:         getEnv("AIRBAPAY_PASSWORD", "v(A3Z!_zua%V&%a"),
-		TerminalID:       getEnv("AIRBAPAY_TERMINAL_ID", "68e73c28a36bcb28994f2061"),
-		BaseURL:          getEnv("AIRBAPAY_BASE_URL", "https://ps.airbapay.kz/acquiring-api"),
-		SuccessURL:       getEnv("AIRBAPAY_SUCCESS_URL", ""),
-		FailureURL:       getEnv("AIRBAPAY_FAILURE_URL", ""),
-		CreateInvoiceURI: getEnv("AIRBAPAY_CREATE_INVOICE_URI", ""),
+		Username:   getEnv("AIRBAPAY_USERNAME", "VSEUSLUGI"),
+		Password:   getEnv("AIRBAPAY_PASSWORD", "v(A3Z!_zua%V&%a"),
+		TerminalID: getEnv("AIRBAPAY_TERMINAL_ID", "68e73c28a36bcb28994f2061"),
+		BaseURL:    getEnv("AIRBAPAY_BASE_URL", "https://ps.airbapay.kz/acquiring-api"),
+
+		// Куда вернуть ПОЛЬЗОВАТЕЛЯ после оплаты (фронт):
+		SuccessBackURL: getEnv("AIRBAPAY_SUCCESS_BACK_URL", "https://vse-uslugi-website.vercel.app/pay/success"),
+		FailureBackURL: getEnv("AIRBAPAY_FAILURE_BACK_URL", "https://vse-uslugi-website.vercel.app/pay/failure"),
+
+		// Куда AirbaPay шлёт ВЕБХУК (бэкенд, должен быть HTTPS и доступен извне):
+		CallbackURL: getEnv("AIRBAPAY_CALLBACK_URL", "https://api.barlyqqyzmet.kz/airbapay/callback"),
+
+		// Необязательно: будут подставляться в тело create-платежа
+		DefaultEmail:     getEnv("AIRBAPAY_DEFAULT_EMAIL", ""),
+		DefaultPhone:     getEnv("AIRBAPAY_DEFAULT_PHONE", ""), // строго 11 цифр, без '+'
+		DefaultAccountID: getEnv("AIRBAPAY_DEFAULT_ACCOUNT_ID", ""),
 	}
 
 	airbapayService, err := services.NewAirbapayService(airbapayCfg)
