@@ -260,14 +260,14 @@ ORDER BY 1
 		if idx, ok := adIndex[key]; ok {
 			result[idx].Users = append(result[idx].Users, user)
 		} else {
-			result = append(result, models.AdChats{
-				AdID:        adID,
-				AdType:      adType,
+			chatGroup := models.AdChats{
 				AdName:      adName,
 				Status:      status,
 				PerformerID: performerID,
 				Users:       []models.ChatUser{user},
-			})
+			}
+			chatGroup.SetIDByType(adType, adID)
+			result = append(result, chatGroup)
 			adIndex[key] = len(result) - 1
 		}
 	}

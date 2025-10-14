@@ -83,28 +83,29 @@ func (h *ChatHandler) GetChatsByUserID(w http.ResponseWriter, r *http.Request) {
 
 	for _, chat := range chats {
 		item := map[string]interface{}{
-			"ad_type":      chat.AdType,
 			"ad_name":      chat.AdName,
 			"status":       chat.Status,
 			"performer_id": chat.PerformerID,
 			"users":        chat.Users,
 		}
 
-		switch chat.AdType {
-		case "ad":
-			item["ad_id"] = chat.AdID
-		case "service":
-			item["service_id"] = chat.AdID
-		case "rent_ad":
-			item["rentad_id"] = chat.AdID
-		case "work_ad":
-			item["workad_id"] = chat.AdID
-		case "rent":
-			item["rent_id"] = chat.AdID
-		case "work":
-			item["work_id"] = chat.AdID
-		default:
-			item["ad_id"] = chat.AdID
+		if chat.AdID != nil {
+			item["ad_id"] = *chat.AdID
+		}
+		if chat.ServiceID != nil {
+			item["service_id"] = *chat.ServiceID
+		}
+		if chat.RentAdID != nil {
+			item["rentad_id"] = *chat.RentAdID
+		}
+		if chat.WorkAdID != nil {
+			item["workad_id"] = *chat.WorkAdID
+		}
+		if chat.RentID != nil {
+			item["rent_id"] = *chat.RentID
+		}
+		if chat.WorkID != nil {
+			item["work_id"] = *chat.WorkID
 		}
 
 		response = append(response, item)
