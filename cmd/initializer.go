@@ -46,6 +46,7 @@ type application struct {
 	locationManager            *LocationManager
 	locationHandler            *handlers.LocationHandler
 	locationRepo               *repositories.LocationRepository
+	locationService            *services.LocationService
 	chatHandler                *handlers.ChatHandler
 	messageHandler             *handlers.MessageHandler
 	db                         *sql.DB
@@ -380,6 +381,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		rentConfirmationRepo:    &rentConfirmationRepo,
 		subscriptionRepo:        &subscriptionRepo,
 		locationRepo:            &locationRepo,
+		locationService:         locationService,
 
 		// WorkAd блок
 		workAdRepo:             &workAdRepo,

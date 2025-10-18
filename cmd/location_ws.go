@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"naimuBack/internal/models"
 	"net/http"
@@ -16,6 +17,17 @@ type LocationManager struct {
 	register   chan Client
 	unregister chan unreg
 	broadcast  chan models.Location
+}
+
+type locationMessage struct {
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload,omitempty"`
+}
+
+type locationResponse struct {
+	Type    string      `json:"type"`
+	Payload interface{} `json:"payload,omitempty"`
+	Error   string      `json:"error,omitempty"`
 }
 
 // NewLocationManager creates a new LocationManager instance.
@@ -43,9 +55,10 @@ func (lm *LocationManager) Run() {
 				delete(lm.clients, u.userID)
 			}
 		case loc := <-lm.broadcast:
+			msg := locationResponse{Type: "location_update", Payload: loc}
 			for id, conn := range lm.clients {
 				_ = conn.SetWriteDeadline(time.Now().Add(writeDeadline))
-				if err := conn.WriteJSON(loc); err != nil {
+				if err := conn.WriteJSON(msg); err != nil {
 					_ = conn.Close()
 					delete(lm.clients, id)
 				}
@@ -104,32 +117,111 @@ func (app *application) handleLocationMessages(conn *websocket.Conn, userID int)
 	defer func() {
 		app.locationManager.unregister <- unreg{userID: userID, conn: conn}
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		_ = app.locationRepo.ClearLocation(ctx, userID)
+		if err := app.locationService.GoOffline(ctx, userID); err != nil {
+			log.Println("go offline error:", err)
+		}
 		cancel()
+		app.locationManager.broadcast <- models.Location{UserID: userID}
 		_ = conn.Close()
 	}()
 
 	for {
-		var msg struct {
-			Latitude  float64 `json:"latitude"`
-			Longitude float64 `json:"longitude"`
-		}
+		var msg locationMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			log.Println("location read error:", err)
 			_ = writeClose(conn, websocket.CloseNormalClosure, "read error")
 			return
 		}
 
-		latStr := msg.Latitude
-		lonStr := msg.Longitude
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		err := app.locationRepo.SetLocation(ctx, models.Location{UserID: userID, Latitude: &latStr, Longitude: &lonStr})
-		cancel()
-		if err != nil {
-			log.Println("update location error:", err)
-			continue
-		}
+		switch msg.Type {
+		case "update_location":
+			var coords struct {
+				Latitude  float64 `json:"latitude"`
+				Longitude float64 `json:"longitude"`
+			}
+			if err := json.Unmarshal(msg.Payload, &coords); err != nil {
+				respondLocationError(conn, "invalid update payload")
+				continue
+			}
 
-		app.locationManager.broadcast <- models.Location{UserID: userID, Latitude: &latStr, Longitude: &lonStr}
+			latVal := coords.Latitude
+			lonVal := coords.Longitude
+
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			err := app.locationService.SetLocation(ctx, models.Location{UserID: userID, Latitude: &latVal, Longitude: &lonVal})
+			cancel()
+			if err != nil {
+				log.Println("update location error:", err)
+				respondLocationError(conn, "failed to update location")
+				continue
+			}
+
+			app.locationManager.broadcast <- models.Location{UserID: userID, Latitude: &latVal, Longitude: &lonVal}
+			_ = sendLocationResponse(conn, locationResponse{Type: "location_ack"})
+
+		case "request_executors":
+			var filter models.ExecutorLocationFilter
+			if len(msg.Payload) > 0 {
+				if err := json.Unmarshal(msg.Payload, &filter); err != nil {
+					respondLocationError(conn, "invalid filter payload")
+					continue
+				}
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			execs, err := app.locationService.GetExecutors(ctx, filter)
+			cancel()
+			if err != nil {
+				log.Println("get executors error:", err)
+				respondLocationError(conn, "failed to load executors")
+				continue
+			}
+
+			_ = sendLocationResponse(conn, locationResponse{Type: "executor_locations", Payload: execs})
+
+		case "request_location":
+			var payload struct {
+				UserID int `json:"user_id"`
+			}
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil || payload.UserID == 0 {
+				respondLocationError(conn, "invalid location request")
+				continue
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			loc, err := app.locationService.GetLocation(ctx, payload.UserID)
+			cancel()
+			if err != nil {
+				log.Println("get location error:", err)
+				respondLocationError(conn, "failed to get location")
+				continue
+			}
+
+			_ = sendLocationResponse(conn, locationResponse{Type: "user_location", Payload: loc})
+
+		case "go_offline":
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			if err := app.locationService.GoOffline(ctx, userID); err != nil {
+				cancel()
+				log.Println("go offline error:", err)
+				respondLocationError(conn, "failed to go offline")
+				continue
+			}
+			cancel()
+			app.locationManager.broadcast <- models.Location{UserID: userID}
+			_ = sendLocationResponse(conn, locationResponse{Type: "offline_ack"})
+
+		default:
+			respondLocationError(conn, "unknown message type")
+		}
 	}
+}
+
+func respondLocationError(conn *websocket.Conn, message string) {
+	_ = sendLocationResponse(conn, locationResponse{Type: "error", Error: message})
+}
+
+func sendLocationResponse(conn *websocket.Conn, resp locationResponse) error {
+	_ = conn.SetWriteDeadline(time.Now().Add(writeDeadline))
+	return conn.WriteJSON(resp)
 }
