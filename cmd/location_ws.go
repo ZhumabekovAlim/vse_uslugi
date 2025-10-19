@@ -269,7 +269,7 @@ func (app *application) handleLocationMessages(client *locationClient) {
 				Longitude float64 `json:"longitude"`
 			}
 			if err := json.Unmarshal(msg.Payload, &coords); err != nil {
-				respondLocationError(client, msg.RequestID, "invalid update payload")
+				client.sendLocationError(msg.RequestID, "invalid update payload")
 				continue
 			}
 
@@ -281,18 +281,18 @@ func (app *application) handleLocationMessages(client *locationClient) {
 			cancel()
 			if err != nil {
 				log.Println("update location error:", err)
-				respondLocationError(client, msg.RequestID, "failed to update location")
+				client.sendLocationError(msg.RequestID, "failed to update location")
 				continue
 			}
 
 			app.locationManager.broadcast <- models.Location{UserID: userID, Latitude: &latVal, Longitude: &lonVal}
-			sendLocationResponse(client, locationResponse{Type: "location_ack", RequestID: msg.RequestID})
+			client.sendLocationResponse(locationResponse{Type: "location_ack", RequestID: msg.RequestID})
 
 		case "request_executors":
 			var filter models.ExecutorLocationFilter
 			if len(msg.Payload) > 0 {
 				if err := json.Unmarshal(msg.Payload, &filter); err != nil {
-					respondLocationError(client, msg.RequestID, "invalid filter payload")
+					client.sendLocationError(msg.RequestID, "invalid filter payload")
 					continue
 				}
 			}
@@ -302,18 +302,18 @@ func (app *application) handleLocationMessages(client *locationClient) {
 			cancel()
 			if err != nil {
 				log.Println("get executors error:", err)
-				respondLocationError(client, msg.RequestID, "failed to load executors")
+				client.sendLocationError(msg.RequestID, "failed to load executors")
 				continue
 			}
 
-			sendLocationResponse(client, locationResponse{Type: "executor_locations", RequestID: msg.RequestID, Payload: execs})
+			client.sendLocationResponse(locationResponse{Type: "executor_locations", RequestID: msg.RequestID, Payload: execs})
 
 		case "request_location":
 			var payload struct {
 				UserID int `json:"user_id"`
 			}
 			if err := json.Unmarshal(msg.Payload, &payload); err != nil || payload.UserID == 0 {
-				respondLocationError(client, msg.RequestID, "invalid location request")
+				client.sendLocationError(msg.RequestID, "invalid location request")
 				continue
 			}
 
@@ -322,11 +322,11 @@ func (app *application) handleLocationMessages(client *locationClient) {
 			cancel()
 			if err != nil {
 				log.Println("get location error:", err)
-				respondLocationError(client, msg.RequestID, "failed to get location")
+				client.sendLocationError(msg.RequestID, "failed to get location")
 				continue
 			}
 
-			sendLocationResponse(client, locationResponse{Type: "user_location", RequestID: msg.RequestID, Payload: loc})
+			client.sendLocationResponse(locationResponse{Type: "user_location", RequestID: msg.RequestID, Payload: loc})
 
 		case "subscribe_executors":
 			app.handleSubscribeExecutors(client, msg)
@@ -339,15 +339,15 @@ func (app *application) handleLocationMessages(client *locationClient) {
 			if err := app.locationService.GoOffline(ctx, userID); err != nil {
 				cancel()
 				log.Println("go offline error:", err)
-				respondLocationError(client, msg.RequestID, "failed to go offline")
+				client.sendLocationError(msg.RequestID, "failed to go offline")
 				continue
 			}
 			cancel()
 			app.locationManager.broadcast <- models.Location{UserID: userID}
-			sendLocationResponse(client, locationResponse{Type: "offline_ack", RequestID: msg.RequestID})
+			client.sendLocationResponse(locationResponse{Type: "offline_ack", RequestID: msg.RequestID})
 
 		default:
-			respondLocationError(client, msg.RequestID, "unknown message type")
+			client.sendLocationError(msg.RequestID, "unknown message type")
 		}
 	}
 }
@@ -359,7 +359,7 @@ func (app *application) handleSubscribeExecutors(client *locationClient, msg loc
 	}
 	if len(msg.Payload) > 0 {
 		if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-			respondLocationError(client, msg.RequestID, "invalid subscription payload")
+			client.sendLocationError(msg.RequestID, "invalid subscription payload")
 			return
 		}
 	}
@@ -382,7 +382,7 @@ func (app *application) handleSubscribeExecutors(client *locationClient, msg loc
 	cancel()
 	if err != nil {
 		log.Println("initial executor snapshot error:", err)
-		respondLocationError(client, msg.RequestID, "failed to load executors")
+		client.sendLocationError(msg.RequestID, "failed to load executors")
 		return
 	}
 
@@ -400,7 +400,7 @@ func (app *application) handleSubscribeExecutors(client *locationClient, msg loc
 		"subscription_id": subID,
 		"interval_ms":     interval.Milliseconds(),
 	}
-	if !sendLocationResponse(client, locationResponse{Type: "subscription_ack", RequestID: msg.RequestID, Payload: ackPayload}) {
+	if !client.sendLocationResponse(locationResponse{Type: "subscription_ack", RequestID: msg.RequestID, Payload: ackPayload}) {
 		if removed, ok := client.removeSubscription(subID); ok {
 			removed.stopSubscription()
 		} else {
@@ -414,7 +414,7 @@ func (app *application) handleSubscribeExecutors(client *locationClient, msg loc
 		GeneratedAt:    time.Now().UTC(),
 		Executors:      execs,
 	}
-	if !sendLocationResponse(client, locationResponse{Type: "executor_snapshot", RequestID: requestID, Payload: snapshot}) {
+	if !client.sendLocationResponse(locationResponse{Type: "executor_snapshot", RequestID: requestID, Payload: snapshot}) {
 		if removed, ok := client.removeSubscription(subID); ok {
 			removed.stopSubscription()
 		} else {
@@ -431,17 +431,17 @@ func (app *application) handleUnsubscribeExecutors(client *locationClient, msg l
 		SubscriptionID string `json:"subscription_id"`
 	}
 	if err := json.Unmarshal(msg.Payload, &payload); err != nil || payload.SubscriptionID == "" {
-		respondLocationError(client, msg.RequestID, "invalid unsubscribe payload")
+		client.sendLocationError(msg.RequestID, "invalid unsubscribe payload")
 		return
 	}
 
 	if sub, ok := client.removeSubscription(payload.SubscriptionID); ok {
 		sub.stopSubscription()
-		sendLocationResponse(client, locationResponse{Type: "unsubscribe_ack", RequestID: msg.RequestID, Payload: map[string]string{
+		client.sendLocationResponse(locationResponse{Type: "unsubscribe_ack", RequestID: msg.RequestID, Payload: map[string]string{
 			"subscription_id": payload.SubscriptionID,
 		}})
 	} else {
-		respondLocationError(client, msg.RequestID, "subscription not found")
+		client.sendLocationError(msg.RequestID, "subscription not found")
 	}
 }
 
@@ -471,7 +471,7 @@ func (app *application) pushExecutorSnapshot(client *locationClient, sub *execut
 	cancel()
 	if err != nil {
 		log.Println("executor subscription refresh error:", err)
-		respondLocationError(client, sub.requestID, "failed to refresh executors")
+		client.sendLocationError(sub.requestID, "failed to refresh executors")
 		return true
 	}
 
@@ -481,25 +481,16 @@ func (app *application) pushExecutorSnapshot(client *locationClient, sub *execut
 		Executors:      execs,
 	}
 
-	return sendLocationResponse(client, locationResponse{Type: "executor_snapshot", RequestID: sub.requestID, Payload: snapshot})
+	return client.sendLocationResponse(locationResponse{Type: "executor_snapshot", RequestID: sub.requestID, Payload: snapshot})
 }
 
-func respondLocationError(client *locationClient, requestID, message string) {
-	sendLocationResponse(client, locationResponse{Type: "error", RequestID: requestID, Error: message})
+func (client *locationClient) sendLocationError(requestID, message string) {
+	client.sendLocationResponse(locationResponse{Type: "error", RequestID: requestID, Error: message})
 }
 
-func sendLocationResponse(client *locationClient, resp locationResponse) bool {
+func (client *locationClient) sendLocationResponse(resp locationResponse) bool {
 	if client == nil {
 		return false
 	}
 	return client.enqueue(resp)
-}
-
-func respondLocationError(conn *websocket.Conn, message string) {
-	_ = sendLocationResponse(conn, locationResponse{Type: "error", Error: message})
-}
-
-func sendLocationResponse(conn *websocket.Conn, resp locationResponse) error {
-	_ = conn.SetWriteDeadline(time.Now().Add(writeDeadline))
-	return conn.WriteJSON(resp)
 }
