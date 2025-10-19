@@ -78,6 +78,16 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 	}
 
+	certFile := os.Getenv("TLS_CERT_FILE")
+	keyFile := os.Getenv("TLS_KEY_FILE")
+	if certFile != "" && keyFile != "" {
+		infoLog.Printf("Starting TLS server on %s", *addr)
+		if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil {
+			errorLog.Fatal(err)
+		}
+		return
+	}
+
 	infoLog.Printf("Starting server on %s", *addr)
 	if err := srv.ListenAndServe(); err != nil {
 		errorLog.Fatal(err)
