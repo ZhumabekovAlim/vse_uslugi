@@ -494,3 +494,12 @@ func sendLocationResponse(client *locationClient, resp locationResponse) bool {
 	}
 	return client.enqueue(resp)
 }
+
+func respondLocationError(conn *websocket.Conn, message string) {
+	_ = sendLocationResponse(conn, locationResponse{Type: "error", Error: message})
+}
+
+func sendLocationResponse(conn *websocket.Conn, resp locationResponse) error {
+	_ = conn.SetWriteDeadline(time.Now().Add(writeDeadline))
+	return conn.WriteJSON(resp)
+}
