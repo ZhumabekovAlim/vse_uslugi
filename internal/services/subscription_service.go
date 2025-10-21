@@ -30,7 +30,7 @@ func (s *SubscriptionService) GetProfile(ctx context.Context, userID int) (model
 		ResponsePacks:               responses.Packs,
 		MonthlyResponsesQuota:       responses.MonthlyQuota,
 		RemainingResponses:          responses.Remaining,
-		MonthlyAmount:               slots.Slots*10 + responses.Packs*10,
+		MonthlyAmount:               slots.Slots*1000 + responses.Packs*1000,
 	}
 	profile.Status.Slots = slots.Status
 	profile.Status.Responses = responses.Status

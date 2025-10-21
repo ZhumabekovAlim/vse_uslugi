@@ -232,7 +232,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
 	locationService := &services.LocationService{Repo: &locationRepo}
 
-	kb, err := ai.LoadKnowledgeBase("./kb/kb.json")
+	kb, err := ai.LoadKnowledgeBase("/root/NaimuBack/vse_uslugi/kb/kb.json")
 	if err != nil {
 		errorLog.Fatalf("load knowledge base: %v", err)
 	}
