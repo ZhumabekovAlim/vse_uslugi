@@ -10,7 +10,6 @@ import (
 
 type KBEntry struct {
 	ID       string   `json:"id"`
-	Screen   string   `json:"screen"`
 	Keywords []string `json:"keywords"`
 	Answer   string   `json:"answer"`
 	Deeplink string   `json:"deeplink,omitempty"`
@@ -21,9 +20,8 @@ type KnowledgeBase struct {
 }
 
 type ScoredEntry struct {
-	Entry       KBEntry
-	Score       int
-	ScreenMatch bool
+	Entry KBEntry
+	Score int
 }
 
 func LoadKnowledgeBase(path string) (*KnowledgeBase, error) {
@@ -49,20 +47,19 @@ func (kb *KnowledgeBase) Entries() []KBEntry {
 	return result
 }
 
-func (kb *KnowledgeBase) FindBestMatch(question, screen string) (KBEntry, int, bool) {
+func (kb *KnowledgeBase) FindBestMatch(question string) (KBEntry, int, bool) {
 	if kb == nil {
 		return KBEntry{}, 0, false
 	}
 
 	lowerQuestion := strings.ToLower(question)
-	lowerScreen := strings.ToLower(screen)
 
 	var best KBEntry
 	bestScore := 0
 	found := false
 
 	for _, entry := range kb.entries {
-		score := scoreEntry(entry, lowerQuestion, lowerScreen)
+		score := scoreEntry(entry, lowerQuestion)
 		if !found || score > bestScore {
 			best = entry
 			bestScore = score
@@ -73,28 +70,23 @@ func (kb *KnowledgeBase) FindBestMatch(question, screen string) (KBEntry, int, b
 	return best, bestScore, found
 }
 
-func (kb *KnowledgeBase) TopEntries(question, screen string, limit int) []ScoredEntry {
+func (kb *KnowledgeBase) TopEntries(question string, limit int) []ScoredEntry {
 	if kb == nil || limit <= 0 {
 		return nil
 	}
 
 	lowerQuestion := strings.ToLower(question)
-	lowerScreen := strings.ToLower(screen)
 
 	scored := make([]ScoredEntry, 0, len(kb.entries))
 	for _, entry := range kb.entries {
-		score := scoreEntry(entry, lowerQuestion, lowerScreen)
+		score := scoreEntry(entry, lowerQuestion)
 		scored = append(scored, ScoredEntry{
-			Entry:       entry,
-			Score:       score,
-			ScreenMatch: lowerScreen != "" && strings.EqualFold(entry.Screen, screen),
+			Entry: entry,
+			Score: score,
 		})
 	}
 
 	sort.Slice(scored, func(i, j int) bool {
-		if scored[i].ScreenMatch != scored[j].ScreenMatch {
-			return scored[i].ScreenMatch
-		}
 		if scored[i].Score != scored[j].Score {
 			return scored[i].Score > scored[j].Score
 		}
@@ -108,12 +100,8 @@ func (kb *KnowledgeBase) TopEntries(question, screen string, limit int) []Scored
 	return scored
 }
 
-func scoreEntry(entry KBEntry, lowerQuestion, lowerScreen string) int {
+func scoreEntry(entry KBEntry, lowerQuestion string) int {
 	score := 0
-	if lowerScreen != "" && entry.Screen != "" && strings.ToLower(entry.Screen) == lowerScreen {
-		score += 1
-	}
-
 	if lowerQuestion == "" {
 		return score
 	}
