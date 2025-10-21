@@ -38,6 +38,8 @@ type UserService struct {
 	TokenManager *utils.Manager
 }
 
+var errMailgunNotConfigured = errors.New("mailgun not configured")
+
 const (
 	salt       = "sadasdnsadna"
 	tokenTTL   = 120 * time.Minute
@@ -510,9 +512,11 @@ func (s *UserService) SendResetCode(ctx context.Context, email string) error {
 	code := generateVerificationCode()
 	subject := "Восстановление пароля"
 	body := fmt.Sprintf("Ваш код подтверждения для сброса пароля: %s", code)
-	err := s.sendMailgunEmail(email, subject, body)
-	if err != nil {
-		return err
+	if err := s.sendMailgunEmail(email, subject, body); err != nil {
+		log.Printf("mailgun send failed, falling back to SMTP: %v", err)
+		if errSMTP := s.sendEmailSMTP(email, subject, body); errSMTP != nil {
+			return fmt.Errorf("не удалось отправить email: %w", errSMTP)
+		}
 	}
 	return s.UserRepo.SaveResetCode(ctx, email, code)
 }
@@ -532,6 +536,9 @@ func (s *UserService) ResetPassword(ctx context.Context, email, newPassword stri
 func (s *UserService) sendMailgunEmail(to, subject, body string) error {
 	apiKey := os.Getenv("MAILGUN_API_KEY")
 	domain := os.Getenv("MAILGUN_DOMAIN")
+	if apiKey == "" || domain == "" {
+		return errMailgunNotConfigured
+	}
 	apiUrl := fmt.Sprintf("https://api.mailgun.net/v3/%s/messages", domain)
 
 	data := url.Values{}
