@@ -1,0 +1,133 @@
+package ai
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"sort"
+	"strings"
+)
+
+type KBEntry struct {
+	ID       string   `json:"id"`
+	Screen   string   `json:"screen"`
+	Keywords []string `json:"keywords"`
+	Answer   string   `json:"answer"`
+	Deeplink string   `json:"deeplink,omitempty"`
+}
+
+type KnowledgeBase struct {
+	entries []KBEntry
+}
+
+type ScoredEntry struct {
+	Entry       KBEntry
+	Score       int
+	ScreenMatch bool
+}
+
+func LoadKnowledgeBase(path string) (*KnowledgeBase, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read knowledge base: %w", err)
+	}
+
+	var entries []KBEntry
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return nil, fmt.Errorf("parse knowledge base: %w", err)
+	}
+
+	return &KnowledgeBase{entries: entries}, nil
+}
+
+func (kb *KnowledgeBase) Entries() []KBEntry {
+	if kb == nil {
+		return nil
+	}
+	result := make([]KBEntry, len(kb.entries))
+	copy(result, kb.entries)
+	return result
+}
+
+func (kb *KnowledgeBase) FindBestMatch(question, screen string) (KBEntry, int, bool) {
+	if kb == nil {
+		return KBEntry{}, 0, false
+	}
+
+	lowerQuestion := strings.ToLower(question)
+	lowerScreen := strings.ToLower(screen)
+
+	var best KBEntry
+	bestScore := 0
+	found := false
+
+	for _, entry := range kb.entries {
+		score := scoreEntry(entry, lowerQuestion, lowerScreen)
+		if !found || score > bestScore {
+			best = entry
+			bestScore = score
+			found = true
+		}
+	}
+
+	return best, bestScore, found
+}
+
+func (kb *KnowledgeBase) TopEntries(question, screen string, limit int) []ScoredEntry {
+	if kb == nil || limit <= 0 {
+		return nil
+	}
+
+	lowerQuestion := strings.ToLower(question)
+	lowerScreen := strings.ToLower(screen)
+
+	scored := make([]ScoredEntry, 0, len(kb.entries))
+	for _, entry := range kb.entries {
+		score := scoreEntry(entry, lowerQuestion, lowerScreen)
+		scored = append(scored, ScoredEntry{
+			Entry:       entry,
+			Score:       score,
+			ScreenMatch: lowerScreen != "" && strings.EqualFold(entry.Screen, screen),
+		})
+	}
+
+	sort.Slice(scored, func(i, j int) bool {
+		if scored[i].ScreenMatch != scored[j].ScreenMatch {
+			return scored[i].ScreenMatch
+		}
+		if scored[i].Score != scored[j].Score {
+			return scored[i].Score > scored[j].Score
+		}
+		return scored[i].Entry.ID < scored[j].Entry.ID
+	})
+
+	if len(scored) > limit {
+		scored = scored[:limit]
+	}
+
+	return scored
+}
+
+func scoreEntry(entry KBEntry, lowerQuestion, lowerScreen string) int {
+	score := 0
+	if lowerScreen != "" && entry.Screen != "" && strings.ToLower(entry.Screen) == lowerScreen {
+		score += 2
+	}
+
+	if lowerQuestion == "" {
+		return score
+	}
+
+	question := lowerQuestion
+	for _, keyword := range entry.Keywords {
+		keyword = strings.ToLower(strings.TrimSpace(keyword))
+		if keyword == "" {
+			continue
+		}
+		if strings.Contains(question, keyword) {
+			score++
+		}
+	}
+
+	return score
+}
