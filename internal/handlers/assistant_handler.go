@@ -15,7 +15,6 @@ type AssistantHandler struct {
 type AskRequest struct {
 	Question string `json:"question"`
 	Locale   string `json:"locale,omitempty"`
-	Screen   string `json:"screen,omitempty"`
 	Role     string `json:"role,omitempty"`
 	UseLLM   *bool  `json:"use_llm,omitempty"`
 	MaxKB    *int   `json:"max_kb,omitempty"`
@@ -66,7 +65,6 @@ func (h *AssistantHandler) Ask(w http.ResponseWriter, r *http.Request) {
 	params := services.AskParams{
 		Question: question,
 		Locale:   locale,
-		Screen:   strings.TrimSpace(req.Screen),
 		Role:     role,
 		UseLLM:   useLLM,
 		MaxKB:    maxKB,
