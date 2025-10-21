@@ -111,7 +111,7 @@ func (kb *KnowledgeBase) TopEntries(question, screen string, limit int) []Scored
 func scoreEntry(entry KBEntry, lowerQuestion, lowerScreen string) int {
 	score := 0
 	if lowerScreen != "" && entry.Screen != "" && strings.ToLower(entry.Screen) == lowerScreen {
-		score += 2
+		score += 1
 	}
 
 	if lowerQuestion == "" {
