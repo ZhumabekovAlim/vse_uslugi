@@ -7,6 +7,7 @@ import (
 	_ "github.com/joho/godotenv"
 	_ "google.golang.org/api/option"
 	"log"
+	"naimuBack/internal/ai"
 	"naimuBack/internal/handlers"
 	_ "naimuBack/internal/models"
 	"naimuBack/internal/repositories"
@@ -131,6 +132,8 @@ type application struct {
 	airbapayHandler           *handlers.AirbapayHandler
 	invoiceRepo               *repositories.InvoiceRepo
 
+	assistantHandler *handlers.AssistantHandler
+
 	// authService *services/*/.AuthService
 }
 
@@ -229,6 +232,19 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
 	locationService := &services.LocationService{Repo: &locationRepo}
 
+	kb, err := ai.LoadKnowledgeBase("./kb/kb.json")
+	if err != nil {
+		errorLog.Fatalf("load knowledge base: %v", err)
+	}
+
+	var chatClient services.ChatCompletionClient
+	apiKey := strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+	if apiKey != "" {
+		chatClient = services.NewOpenAIClient(nil, apiKey)
+	}
+
+	assistantService := services.NewAssistantService(kb, chatClient)
+
 	airbapayCfg := services.AirbapayConfig{
 		Username:   getEnv("AIRBAPAY_USERNAME", "VSEUSLUGI"),
 		Password:   getEnv("AIRBAPAY_PASSWORD", "v(A3Z!_zua%V&%a"),
@@ -307,6 +323,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	subscriptionHandler := &handlers.SubscriptionHandler{Service: subscriptionService}
 	airbapayHandler := handlers.NewAirbapayHandler(airbapayService, invoiceRepo)
 	locationHandler := &handlers.LocationHandler{Service: locationService}
+	assistantHandler := handlers.NewAssistantHandler(assistantService)
 
 	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
 	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
@@ -436,6 +453,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		adConfirmationHandler:      adConfirmationHandler,
 		subscriptionHandler:        subscriptionHandler,
 		airbapayHandler:            airbapayHandler,
+		assistantHandler:           assistantHandler,
 
 		workAdHandler:             workAdHandler,
 		workAdReviewHandler:       workAdReviewHandler,

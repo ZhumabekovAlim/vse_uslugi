@@ -25,6 +25,8 @@ func (app *application) routes() http.Handler {
 
 	// mux.Get("/swagger/", httpSwagger.WrapHandler)
 
+	mux.Post("/ai/ask", standardMiddleware.ThenFunc(app.assistantHandler.Ask))
+
 	// Users
 	mux.Post("/user", adminAuthMiddleware.ThenFunc(app.userHandler.CreateUser))                //
 	mux.Get("/user", authMiddleware.ThenFunc(app.userHandler.GetUsers))                        //РАБОТАЕТ
