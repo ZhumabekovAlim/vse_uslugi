@@ -32,6 +32,12 @@ func main() {
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		infoLog.Println("OpenAI: DISABLED (no OPENAI_API_KEY)")
+	} else {
+		infoLog.Println("OpenAI: ENABLED")
+	}
+
 	db, err := openDB(cfg.Database.URL)
 	if err != nil {
 		errorLog.Fatal(err)
