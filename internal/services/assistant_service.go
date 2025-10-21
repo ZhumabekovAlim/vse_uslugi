@@ -150,7 +150,7 @@ func buildSystemPrompt(role, locale string) string {
 func buildContext(snippets []ai.ScoredEntry) string {
 	var builder strings.Builder
 	builder.WriteString("Контекст знаний:\n")
-	for idx, snippet := range snippets {
+	for _, snippet := range snippets {
 		builder.WriteString(fmt.Sprintf("Ответ: %s\n", snippet.Entry.Answer))
 		if len(snippet.Entry.Keywords) > 0 {
 			builder.WriteString(fmt.Sprintf("Ключевые слова: %s\n", strings.Join(snippet.Entry.Keywords, ", ")))
