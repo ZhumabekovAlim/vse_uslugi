@@ -141,7 +141,39 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	requesterID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	role, _ := r.Context().Value("role").(string)
+	if role != "admin" && requesterID != id {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
 	err = h.Service.DeleteUser(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *UserHandler) DeleteOwnAccount(w http.ResponseWriter, r *http.Request) {
+	requesterID, ok := r.Context().Value("user_id").(int)
+	if !ok || requesterID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	err := h.Service.DeleteUser(r.Context(), requesterID)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)
