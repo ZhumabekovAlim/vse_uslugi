@@ -33,8 +33,8 @@ func (app *application) routes() http.Handler {
 	mux.Get("/user/token", authMiddleware.ThenFunc(app.userHandler.GetUserByToken)) //РАБОТАЕТ
 	mux.Get("/user/:id", authMiddleware.ThenFunc(app.userHandler.GetUserByID))      //РАБОТАЕТ
 	mux.Put("/user/:id", authMiddleware.ThenFunc(app.userHandler.UpdateUser))       //РАБОТАЕТ
-	mux.Del("/user/:id", authMiddleware.ThenFunc(app.userHandler.DeleteUser))       //ИСПРАВИТЬ
 	mux.Del("/user/me", authMiddleware.ThenFunc(app.userHandler.DeleteOwnAccount))
+	mux.Del("/user/:id", authMiddleware.ThenFunc(app.userHandler.DeleteUser))                  //ИСПРАВИТЬ
 	mux.Post("/user/sign_up", standardMiddleware.ThenFunc(app.userHandler.SignUp))             //РАБОТАЕТ
 	mux.Post("/user/sign_in", standardMiddleware.ThenFunc(app.userHandler.SignIn))             //РАБОТАЕТ
 	mux.Post("/user/change_number", standardMiddleware.ThenFunc(app.userHandler.ChangeNumber)) //РАБОТАЕТ
