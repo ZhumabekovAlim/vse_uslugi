@@ -303,8 +303,54 @@ func (s *UserService) DeleteUserAvatar(ctx context.Context, userID int) error {
 	return s.UserRepo.ClearUserAvatar(ctx, userID)
 }
 
-func (s *UserService) DeleteUser(ctx context.Context, id int) error {
-	return s.UserRepo.DeleteUser(ctx, id)
+func (s *UserService) DeleteUser(ctx context.Context, id int) (err error) {
+	tx, err := s.UserRepo.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				log.Printf("rollback delete user %d: %v", id, rollbackErr)
+			}
+		}
+	}()
+
+	cleanupQueries := []string{
+		"DELETE FROM service WHERE user_id = ?",
+		"DELETE FROM ad WHERE user_id = ?",
+		"DELETE FROM rent WHERE user_id = ?",
+		"DELETE FROM rent_ad WHERE user_id = ?",
+		"DELETE FROM work WHERE user_id = ?",
+		"DELETE FROM work_ad WHERE user_id = ?",
+	}
+
+	for _, query := range cleanupQueries {
+		if _, err = tx.ExecContext(ctx, query, id); err != nil {
+			return err
+		}
+	}
+
+	result, err := tx.ExecContext(ctx, "DELETE FROM users WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return repositories.ErrUserNotFound
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *UserService) GetUserByPhone(ctx context.Context, phone string) (models.User, error) {
