@@ -12,6 +12,7 @@ import (
 	_ "naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 	services "naimuBack/internal/services"
+	"naimuBack/internal/taxi"
 	_ "naimuBack/utils"
 	"net/http"
 	"os"
@@ -135,6 +136,8 @@ type application struct {
 	assistantHandler *handlers.AssistantHandler
 
 	// authService *services/*/.AuthService
+	taxiMux  http.Handler
+	taxiDeps *taxi.TaxiDeps
 }
 
 func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {

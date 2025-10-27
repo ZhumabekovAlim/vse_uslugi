@@ -1,16 +1,24 @@
 package main
 
 import (
+	"context"
 	"flag"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
 	"log"
 	"naimuBack/internal/config"
+	"naimuBack/internal/taxi"
 	"net/http"
 	"os"
 	"time"
 )
+
+type taxiLogger struct{ info, err *log.Logger }
+
+func (l taxiLogger) Infof(f string, a ...interface{})  { l.info.Printf(f, a...) }
+func (l taxiLogger) Errorf(f string, a ...interface{}) { l.err.Printf(f, a...) }
 
 func main() {
 	err := godotenv.Load()
@@ -46,6 +54,49 @@ func main() {
 
 	app := initializeApp(db, errorLog, infoLog)
 
+	// === Redis (боевой) ===
+	rdb := redis.NewClient(&redis.Options{
+		Addr: os.Getenv("REDIS_ADDR"),
+		DB:   0,
+	})
+	defer func() {
+		if err := rdb.Close(); err != nil {
+			errorLog.Printf("failed to close redis: %v", err)
+		}
+	}()
+
+	// === Конфиг Taxi из ENV (ошибка — фатал)
+	taxiCfg, err := taxi.LoadTaxiConfig()
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	// === Собираем зависимости Taxi
+	deps := &taxi.TaxiDeps{
+		DB:         db,
+		RDB:        rdb,
+		Logger:     taxiLogger{infoLog, errorLog},
+		Config:     taxiCfg,
+		HTTPClient: &http.Client{Timeout: 5 * time.Second},
+	}
+
+	// === Заводим stdlib mux для такси и регистрируем его маршруты
+	taxiMux := http.NewServeMux()
+	if err := taxi.RegisterTaxiRoutes(taxiMux, deps); err != nil {
+		errorLog.Fatal(err)
+	}
+
+	// === Прокидываем в app, чтобы routes() мог смонтировать такси-маршруты
+	app.taxiMux = taxiMux
+	app.taxiDeps = deps
+
+	// === Запускаем фоновые воркеры такси
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := taxi.StartTaxiWorkers(ctx, deps); err != nil {
+		errorLog.Fatal(err)
+	}
+
 	app.wsManager = NewWebSocketManager()
 	app.locationManager = NewLocationManager()
 	app.locationHandler.Broadcast = app.locationManager.broadcast
@@ -64,7 +115,8 @@ func main() {
 
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, origin string) bool {
-			if r.URL.Path == "/ws" || r.URL.Path == "/ws/location" {
+			if r.URL.Path == "/ws" || r.URL.Path == "/ws/location" ||
+				r.URL.Path == "/ws/driver" || r.URL.Path == "/ws/passenger" {
 				return true
 			}
 			_, ok := allowedOrigins[origin]
