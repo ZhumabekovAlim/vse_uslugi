@@ -1,35 +1,30 @@
 [
   {
     "id": "orders_create",
-    "screen": "orders",
     "keywords": ["заказ", "создать", "оформить"],
     "answer": "1. Откройте экран \"Заказы\". 2. Нажмите \"Создать заказ\". 3. Заполните данные и подтвердите.",
     "deeplink": "vseuslugi://orders/create"
   },
   {
     "id": "chat_start",
-    "screen": "chat",
     "keywords": ["чат", "сообщение", "переписка"],
     "answer": "1. Перейдите в чат исполнителя. 2. Нажмите поле ввода. 3. Напишите сообщение и отправьте.",
     "deeplink": "vseuslugi://chat"
   },
   {
     "id": "map_filters",
-    "screen": "map",
     "keywords": ["карта", "фильтр", "рядом"],
     "answer": "1. Откройте карту. 2. Коснитесь \"Фильтры\". 3. Выберите нужные параметры и примените.",
     "deeplink": "vseuslugi://map/filters"
   },
   {
     "id": "verification_upload",
-    "screen": "verification",
     "keywords": ["верификация", "документ", "подтвердить"],
     "answer": "1. Зайдите в раздел проверки. 2. Выберите тип документа. 3. Загрузите фото и отправьте на проверку.",
     "deeplink": "vseuslugi://verification"
   },
   {
     "id": "ratings_view",
-    "screen": "profile",
     "keywords": ["рейтинг", "отзыв", "оценка"],
     "answer": "1. Откройте профиль. 2. Перейдите во вкладку \"Рейтинг\". 3. Просмотрите оценки и отзывы.",
     "deeplink": "vseuslugi://profile/ratings"
