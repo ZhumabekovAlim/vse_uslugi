@@ -85,7 +85,7 @@ func (c *DGISClient) Geocode(ctx context.Context, query string) (float64, float6
 
 // RouteMatrix returns distance and duration between two points.
 func (c *DGISClient) RouteMatrix(ctx context.Context, fromLon, fromLat, toLon, toLat float64) (int, int, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
 	payload := struct {
