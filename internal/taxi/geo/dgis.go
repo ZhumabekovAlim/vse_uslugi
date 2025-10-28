@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -33,54 +34,151 @@ func NewDGISClient(httpClient *http.Client, apiKey, regionID string) *DGISClient
 	return &DGISClient{httpClient: httpClient, apiKey: apiKey, regionID: regionID}
 }
 
-// Geocode returns coordinates for the given query.
-func (c *DGISClient) Geocode(ctx context.Context, query string) (float64, float64, error) {
-	if query == "" {
-		return 0, 0, errors.New("empty query")
+// tryParseLonLat returns lon,lat if query looks like "lon,lat" (WGS84), otherwise (0,0,false).
+func tryParseLonLat(query string) (float64, float64, bool) {
+	q := strings.TrimSpace(query)
+	// Accept comma or semicolon separators
+	sep := ","
+	if strings.Contains(q, ";") {
+		sep = ";"
 	}
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	parts := strings.Split(q, sep)
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	lonStr := strings.TrimSpace(parts[0])
+	latStr := strings.TrimSpace(parts[1])
+
+	lon, err1 := strconv.ParseFloat(lonStr, 64)
+	lat, err2 := strconv.ParseFloat(latStr, 64)
+	if err1 != nil || err2 != nil {
+		return 0, 0, false
+	}
+	// quick sanity checks
+	if lon < -180 || lon > 180 || lat < -90 || lat > 90 {
+		return 0, 0, false
+	}
+	return lon, lat, true
+}
+
+// Geocode returns coordinates for the given query (lon, lat).
+func (c *DGISClient) Geocode(ctx context.Context, query string) (float64, float64, error) {
+	if strings.TrimSpace(query) == "" {
+		return 0, 0, errors.New("geocode: empty query")
+	}
+
+	// If user passed "lon,lat" — short-circuit without hitting API
+	if lon, lat, ok := tryParseLonLat(query); ok {
+		return lon, lat, nil
+	}
+
+	// Per-call timeout
+	ctx, cancel := context.WithTimeout(ctx, 7*time.Second)
 	defer cancel()
 
-	params := url.Values{}
-	params.Set("q", query)
-	params.Set("key", c.apiKey)
-	if c.regionID != "" {
-		params.Set("region_id", c.regionID)
+	type attempt struct {
+		locale string
+		typed  bool // whether to send type=building,street
 	}
 
-	endpoint := fmt.Sprintf("%s/3.0/items/geocode?%s", catalogBaseURL, params.Encode())
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return 0, 0, err
+	attempts := []attempt{
+		{locale: "ru_KZ", typed: true},
+		{locale: "ru_KZ", typed: false},
+		{locale: "kk_KZ", typed: true},
+		{locale: "kk_KZ", typed: false},
 	}
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		return 0, 0, fmt.Errorf("dgis geocode status %s", resp.Status)
+	var lastErr error
+
+	for _, a := range attempts {
+		params := url.Values{}
+		params.Set("q", query)
+		params.Set("key", c.apiKey)
+		// Coordinates only if we ask for point:
+		params.Set("fields", "items.point")
+		// Prefer exact address intents
+		if a.typed {
+			params.Set("type", "building,street")
+		}
+		// Help searcher: full query committed by user
+		params.Set("search_is_query_text_complete", "true")
+		// Locale & region biasing
+		params.Set("locale", a.locale)
+		if c.regionID != "" {
+			params.Set("region_id", c.regionID)
+		}
+
+		endpoint := fmt.Sprintf("%s/3.0/items/geocode?%s", catalogBaseURL, params.Encode())
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if err != nil {
+			lastErr = fmt.Errorf("geocode: build request: %w", err)
+			continue
+		}
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("geocode: do request: %w", err)
+			continue
+		}
+
+		func() {
+			defer resp.Body.Close()
+
+			if resp.StatusCode == http.StatusNotFound {
+				lastErr = fmt.Errorf("geocode: 404 not found (query=%q)", query)
+				return
+			}
+			if resp.StatusCode >= 300 {
+				// Read small body for diagnostics
+				b, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
+				lastErr = fmt.Errorf("geocode: http %s: %s", resp.Status, strings.TrimSpace(string(b)))
+				return
+			}
+
+			var payload struct {
+				Result struct {
+					Items []struct {
+						Point struct {
+							Lon float64 `json:"lon"`
+							Lat float64 `json:"lat"`
+						} `json:"point"`
+					} `json:"items"`
+				} `json:"result"`
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+				lastErr = fmt.Errorf("geocode: decode: %w", err)
+				return
+			}
+			if len(payload.Result.Items) == 0 {
+				lastErr = fmt.Errorf("geocode: no results (locale=%s typed=%v)", a.locale, a.typed)
+				return
+			}
+			p := payload.Result.Items[0].Point
+			if p.Lon == 0 && p.Lat == 0 {
+				lastErr = errors.New("geocode: got zero coordinates")
+				return
+			}
+			// Success
+			lon, lat := p.Lon, p.Lat
+			lastErr = nil
+			// Return via panic/recover trick? Better: shadow return.
+			// We'll assign to named results instead? Keep it simple:
+			// we can't break two nested func scopes, so capture via closure vars:
+			query = fmt.Sprintf("%f,%f", lon, lat) // reuse carrier
+		}()
+
+		// If we stuffed lon,lat back into query — treat it as success signal
+		if strings.Contains(query, ",") {
+			if lon, lat, ok := tryParseLonLat(query); ok {
+				return lon, lat, nil
+			}
+		}
 	}
 
-	var payload struct {
-		Result struct {
-			Items []struct {
-				Point struct {
-					Lon float64 `json:"lon"`
-					Lat float64 `json:"lat"`
-				} `json:"point"`
-			} `json:"items"`
-		} `json:"result"`
+	if lastErr == nil {
+		lastErr = errors.New("geocode: unknown error")
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return 0, 0, err
-	}
-	if len(payload.Result.Items) == 0 {
-		return 0, 0, errors.New("dgis: no results")
-	}
-	p := payload.Result.Items[0].Point
-	return p.Lon, p.Lat, nil
+	return 0, 0, lastErr
 }
 
 // RouteMatrix returns distance and duration between two points.
