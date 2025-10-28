@@ -122,42 +122,73 @@ func (c *DGISClient) RouteMatrix(ctx context.Context, fromLon, fromLat, toLon, t
 		return 0, 0, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		return 0, 0, err
+	client := c.httpClient
+	if client == nil {
+		client = &http.Client{}
 	}
-	req.Header.Set("Content-Type", "application/json")
+	clone := *client
+	clone.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	client = &clone
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer resp.Body.Close()
+	const maxRedirects = 3
+	currentURL := endpoint
 
-	if resp.StatusCode == http.StatusNoContent {
-		return 0, 0, errors.New("2gis: route not found (204)")
-	}
-	if resp.StatusCode >= 300 {
-		data, _ := io.ReadAll(resp.Body)
-		return 0, 0, fmt.Errorf("2gis: %s: %s", resp.Status, strings.TrimSpace(string(data)))
+	for redirects := 0; redirects <= maxRedirects; redirects++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, currentURL, bytes.NewReader(body))
+		if err != nil {
+			return 0, 0, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return 0, 0, err
+		}
+
+		if resp.StatusCode == http.StatusNoContent {
+			resp.Body.Close()
+			return 0, 0, errors.New("2gis: route not found (204)")
+		}
+
+		if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+			location, err := resp.Location()
+			resp.Body.Close()
+			if err != nil {
+				return 0, 0, fmt.Errorf("2gis: redirect: %w", err)
+			}
+			currentURL = location.String()
+			continue
+		}
+
+		if resp.StatusCode >= 300 {
+			data, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return 0, 0, fmt.Errorf("2gis: %s: %s", resp.Status, strings.TrimSpace(string(data)))
+		}
+
+		var out struct {
+			Routes []struct {
+				Status   string `json:"status"`
+				Distance int    `json:"distance"`
+				Duration int    `json:"duration"`
+			} `json:"routes"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			resp.Body.Close()
+			return 0, 0, err
+		}
+		resp.Body.Close()
+		if len(out.Routes) == 0 {
+			return 0, 0, errors.New("2gis: empty routes")
+		}
+		route := out.Routes[0]
+		if strings.ToUpper(route.Status) != "OK" {
+			return 0, 0, fmt.Errorf("2gis: status=%s", route.Status)
+		}
+		return route.Distance, route.Duration, nil
 	}
 
-	var out struct {
-		Routes []struct {
-			Status   string `json:"status"`
-			Distance int    `json:"distance"`
-			Duration int    `json:"duration"`
-		} `json:"routes"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return 0, 0, err
-	}
-	if len(out.Routes) == 0 {
-		return 0, 0, errors.New("2gis: empty routes")
-	}
-	route := out.Routes[0]
-	if strings.ToUpper(route.Status) != "OK" {
-		return 0, 0, fmt.Errorf("2gis: status=%s", route.Status)
-	}
-	return route.Distance, route.Duration, nil
+	return 0, 0, errors.New("2gis: too many redirects")
 }
