@@ -52,9 +52,10 @@ func (h *AssistantHandler) Ask(w http.ResponseWriter, r *http.Request) {
 		role = "user"
 	}
 
-	maxKB := 3
+	maxKB := 5
 	if req.MaxKB != nil {
-		maxKB = clamp(*req.MaxKB, 1, 5)
+		// пусть до 20, чтобы твой запрос 20 не резался до 5
+		maxKB = clamp(*req.MaxKB, 1, 20)
 	}
 
 	useLLM := true
@@ -82,6 +83,7 @@ func (h *AssistantHandler) Ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(payload)
 }
