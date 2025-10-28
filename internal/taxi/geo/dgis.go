@@ -239,6 +239,7 @@ func (c *DGISClient) RouteMatrix(ctx context.Context, fromLon, fromLat, toLon, t
 			return 0, 0, err
 		}
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
 
 		resp, err := client.Do(req)
 		if err != nil {

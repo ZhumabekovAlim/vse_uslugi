@@ -91,7 +91,8 @@ func (s *Server) handleRouteQuote(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("From:", fromLon, fromLat, "To:", toLon, toLat)
 	distance, eta, err := s.geoClient.RouteMatrix(ctx, fromLon, fromLat, toLon, toLat)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "route matrix failed")
+		// ВРЕМЕННО на отладку: отдаём подробности
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("route matrix failed: %v", err))
 		return
 	}
 	rec := pricing.Recommended(distance, s.cfg.GetPricePerKM(), s.cfg.GetMinPrice())
