@@ -31,36 +31,92 @@ func redisKey(city, status string) string {
 	return fmt.Sprintf("drivers:%s:%s", city, status)
 }
 
-// UpdateDriver stores driver coordinates in the appropriate GEO set.
+func memberName(driverID int64) string {
+	return fmt.Sprintf("driver:%d", driverID)
+}
+
+func parseDriverMember(member string) (int64, error) {
+	parts := strings.Split(member, ":")
+	if len(parts) != 2 {
+		return 0, fmt.Errorf("invalid member %q", member)
+	}
+	return strconv.ParseInt(parts[1], 10, 64)
+}
+
+// UpdateDriver stores/updates driver coordinates in the appropriate GEO set.
 func (l *DriverLocator) UpdateDriver(ctx context.Context, driverID int64, lon, lat float64, city, status string) error {
 	key := redisKey(city, status)
-	member := fmt.Sprintf("driver:%d", driverID)
-	return l.rdb.GeoAdd(ctx, key, &redis.GeoLocation{Longitude: lon, Latitude: lat, Name: member}).Err()
+	return l.rdb.GeoAdd(ctx, key, &redis.GeoLocation{
+		Name:      memberName(driverID),
+		Longitude: lon,
+		Latitude:  lat,
+	}).Err()
 }
 
-// MoveDriver moves a driver between status sets.
+// MoveDriver moves a driver between status sets, preserving coordinates.
 func (l *DriverLocator) MoveDriver(ctx context.Context, driverID int64, city, fromStatus, toStatus string) error {
-	member := fmt.Sprintf("driver:%d", driverID)
-	if err := l.rdb.ZRem(ctx, redisKey(city, fromStatus), member).Err(); err != nil {
+	if fromStatus == toStatus {
+		return nil
+	}
+	src := redisKey(city, fromStatus)
+	dst := redisKey(city, toStatus)
+	mem := memberName(driverID)
+
+	// 1) Берём координаты из исходного ключа.
+	pos, err := l.rdb.GeoPos(ctx, src, mem).Result()
+	if err != nil {
 		return err
 	}
-	return l.rdb.GeoAdd(ctx, redisKey(city, toStatus), &redis.GeoLocation{Name: member}).Err()
+	if len(pos) == 0 || pos[0] == nil {
+		// Если нет в src — ничего страшного: не падаем, но без координат не можем добавить.
+		// Можно вернуть ошибку:
+		return fmt.Errorf("MoveDriver: coordinates not found for %s in %s", mem, src)
+	}
+	lon := pos[0].Longitude
+	lat := pos[0].Latitude
+
+	// 2) Добавляем в новый ключ с теми же координатами.
+	if err := l.rdb.GeoAdd(ctx, dst, &redis.GeoLocation{
+		Name:      mem,
+		Longitude: lon,
+		Latitude:  lat,
+	}).Err(); err != nil {
+		return err
+	}
+
+	// 3) Удаляем из старого ключа.
+	if err := l.rdb.ZRem(ctx, src, mem).Err(); err != nil {
+		return err
+	}
+	return nil
 }
 
-// Nearby returns drivers within radius sorted by distance.
-// Nearby возвращает водителей в радиусе по возрастанию дистанции.
+// GoOffline удаляет водителя из всех статусных наборов конкретного города.
+func (l *DriverLocator) GoOffline(ctx context.Context, driverID int64, city string) error {
+	mem := memberName(driverID)
+	// если статусов у тебя больше — просто добавь сюда.
+	statuses := []string{"free", "busy"}
+	for _, st := range statuses {
+		if err := l.rdb.ZRem(ctx, redisKey(city, st), mem).Err(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Nearby returns drivers within radius sorted by distance (ascending).
 func (l *DriverLocator) Nearby(ctx context.Context, lon, lat float64, radiusMeters float64, limit int, city string) ([]NearbyDriver, error) {
 	res, err := l.rdb.GeoSearchLocation(ctx, redisKey(city, "free"), &redis.GeoSearchLocationQuery{
 		GeoSearchQuery: redis.GeoSearchQuery{
 			Longitude:  lon,
 			Latitude:   lat,
 			Radius:     radiusMeters,
-			RadiusUnit: "m",   // единицы: m|km|ft|mi
-			Sort:       "ASC", // ASC|DESC
-			Count:      limit, // лимит результатов
+			RadiusUnit: "m",
+			Sort:       "ASC",
+			Count:      limit,
 		},
-		WithCoord: true, // ← эти флаги здесь
-		WithDist:  true, // ← а не в GeoSearchQuery
+		WithCoord: true,
+		WithDist:  true,
 	}).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -77,18 +133,10 @@ func (l *DriverLocator) Nearby(ctx context.Context, lon, lat float64, radiusMete
 		}
 		drivers = append(drivers, NearbyDriver{
 			ID:   id,
-			Dist: item.Dist,
+			Dist: item.Dist, // метры (см. RadiusUnit: "m")
 			Lon:  item.Longitude,
 			Lat:  item.Latitude,
 		})
 	}
 	return drivers, nil
-}
-
-func parseDriverMember(member string) (int64, error) {
-	parts := strings.Split(member, ":")
-	if len(parts) != 2 {
-		return 0, fmt.Errorf("invalid member")
-	}
-	return strconv.ParseInt(parts[1], 10, 64)
 }

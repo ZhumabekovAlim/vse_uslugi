@@ -62,6 +62,17 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/ws/passenger", s.handlePassengerWS)
 }
 
+func roundDownToStep(n, step int) int {
+	if step <= 0 {
+		return n
+	}
+	if n < 0 {
+		// на всякий случай корректно обрабатываем отрицательные
+		return -roundDownToStep(-n, step)
+	}
+	return (n / step) * step
+}
+
 func (s *Server) handleRouteQuote(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -128,6 +139,15 @@ func (s *Server) handleRouteQuote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rec := pricing.Recommended(distance, s.cfg.GetPricePerKM(), s.cfg.GetMinPrice())
+	minPrice := s.cfg.GetMinPrice()
+	if rec <= minPrice {
+		rec = minPrice // не опускаем ниже минимума
+	} else {
+		rec = roundDownToStep(rec, 50) // округляем вниз до 50
+		if rec < minPrice {
+			rec = minPrice
+		}
+	}
 	resp := map[string]interface{}{
 		"from":              map[string]float64{"lon": fromLon, "lat": fromLat},
 		"to":                map[string]float64{"lon": toLon, "lat": toLat},
@@ -199,6 +219,15 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rec := pricing.Recommended(distance, s.cfg.GetPricePerKM(), s.cfg.GetMinPrice())
+	minPrice := s.cfg.GetMinPrice()
+	if rec <= minPrice {
+		rec = minPrice
+	} else {
+		rec = roundDownToStep(rec, 50)
+		if rec < minPrice {
+			rec = minPrice
+		}
+	}
 	order := repo.Order{
 		PassengerID:      passengerID,
 		FromLon:          req.From.Lon,
