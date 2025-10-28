@@ -67,34 +67,66 @@ func (s *Server) handleRouteQuote(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
 	var req struct {
 		FromAddress string `json:"from_address"`
 		ToAddress   string `json:"to_address"`
+		From        *struct {
+			Lon float64 `json:"lon"`
+			Lat float64 `json:"lat"`
+		} `json:"from"`
+		To *struct {
+			Lon float64 `json:"lon"`
+			Lat float64 `json:"lat"`
+		} `json:"to"`
 	}
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 7*time.Second)
 	defer cancel()
 
-	fromLon, fromLat, err := s.geoClient.Geocode(ctx, req.FromAddress)
+	// helper: получить lon/lat либо из координат, либо геокодировать адрес
+	resolvePoint := func(addr string, pt *struct {
+		Lon float64 `json:"lon"`
+		Lat float64 `json:"lat"`
+	}) (lon, lat float64, err error) {
+		// Если пришли валидные координаты — используем их
+		if pt != nil && pt.Lon != 0 && pt.Lat != 0 {
+			return pt.Lon, pt.Lat, nil
+		}
+		// Иначе, если есть адрес — геокодируем
+		if strings.TrimSpace(addr) != "" {
+			return s.geoClient.Geocode(ctx, addr)
+		}
+		// Ни координат, ни адреса — ошибка
+		return 0, 0, errors.New("point required: pass either coordinates or address")
+	}
+
+	fromLon, fromLat, err := resolvePoint(req.FromAddress, req.From)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "geocode from failed")
+		writeError(w, http.StatusBadRequest, "from: "+err.Error())
 		return
 	}
-	toLon, toLat, err := s.geoClient.Geocode(ctx, req.ToAddress)
+	toLon, toLat, err := resolvePoint(req.ToAddress, req.To)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "geocode to failed")
+		writeError(w, http.StatusBadRequest, "to: "+err.Error())
 		return
 	}
-	fmt.Println("From:", fromLon, fromLat, "To:", toLon, toLat)
+
+	// Лог на всякий случай
+	fmt.Println("RouteQuote FROM:", fromLon, fromLat, "TO:", toLon, toLat)
+
 	distance, eta, err := s.geoClient.RouteMatrix(ctx, fromLon, fromLat, toLon, toLat)
 	if err != nil {
-		// ВРЕМЕННО на отладку: отдаём подробности
+		// Оставляю подробный ответ — удобно для дебага.
 		writeError(w, http.StatusBadGateway, fmt.Sprintf("route matrix failed: %v", err))
 		return
 	}
+
 	rec := pricing.Recommended(distance, s.cfg.GetPricePerKM(), s.cfg.GetMinPrice())
 	resp := map[string]interface{}{
 		"from":              map[string]float64{"lon": fromLon, "lat": fromLat},
@@ -107,7 +139,6 @@ func (s *Server) handleRouteQuote(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, resp)
 }
-
 func (s *Server) handleOrders(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
