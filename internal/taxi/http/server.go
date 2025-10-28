@@ -104,6 +104,7 @@ func (s *Server) handleRouteQuote(w http.ResponseWriter, r *http.Request) {
 		"recommended_price": rec,
 		"min_price":         s.cfg.GetMinPrice(),
 	}
+
 	writeJSON(w, http.StatusOK, resp)
 }
 
