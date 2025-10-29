@@ -13,7 +13,7 @@ const (
 	defaultSearchRadiusStart = 800
 	defaultSearchRadiusStep  = 400
 	defaultSearchRadiusMax   = 3000
-	defaultDispatchTick      = 10 * time.Second
+	defaultDispatchTick      = 30 * time.Second
 	defaultOfferTTL          = 20 * time.Second
 )
 
