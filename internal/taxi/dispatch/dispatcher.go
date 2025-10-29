@@ -3,6 +3,7 @@ package dispatch
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"naimuBack/internal/taxi/geo"
@@ -119,6 +120,11 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 	}
 
 	cityKey := d.cfg.GetRegionID()
+	d.logger.Infof("dispatch: search city=%q lon=%.6f lat=%.6f radius=%dm",
+		cityKey, order.FromLon, order.FromLat, rec.RadiusM)
+	if strings.TrimSpace(cityKey) == "" {
+		cityKey = "astana" // fallback на время отладки
+	}
 	drivers, err := d.locator.Nearby(ctx, order.FromLon, order.FromLat, float64(rec.RadiusM), 20, cityKey)
 	if err != nil {
 		d.logger.Errorf("dispatch: Nearby failed: %v", err)
