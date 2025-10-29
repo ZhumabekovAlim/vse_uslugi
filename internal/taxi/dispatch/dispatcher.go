@@ -106,32 +106,48 @@ func (d *Dispatcher) tick(ctx context.Context) {
 }
 
 func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord, now time.Time) error {
+	d.logger.Infof("🚕 dispatch: start order=%d state=%s radius=%dm", rec.OrderID, rec.State, rec.RadiusM)
+
 	order, err := d.orders.Get(ctx, rec.OrderID)
 	if err != nil {
+		d.logger.Errorf("dispatch: load order %d failed: %v", rec.OrderID, err)
 		return err
 	}
 	if order.Status != "searching" {
+		d.logger.Infof("dispatch: order %d not searching (status=%s) → finish", rec.OrderID, order.Status)
 		return d.dispatch.Finish(ctx, rec.OrderID)
 	}
 
 	cityKey := d.cfg.GetRegionID()
 	drivers, err := d.locator.Nearby(ctx, order.FromLon, order.FromLat, float64(rec.RadiusM), 20, cityKey)
 	if err != nil {
+		d.logger.Errorf("dispatch: Nearby failed: %v", err)
 		return err
 	}
+	d.logger.Infof("dispatch: found %d drivers near order=%d", len(drivers), order.ID)
+
 	ttl := now.Add(d.cfg.GetOfferTTL())
 	sentOffers := 0
+	skippedExisting := 0
+
 	for _, driver := range drivers {
 		offered, err := d.offers.AlreadyOffered(ctx, order.ID, driver.ID)
 		if err != nil {
-			return err
-		}
-		if offered {
+			d.logger.Errorf("dispatch: AlreadyOffered(order=%d,driver=%d) failed: %v", order.ID, driver.ID, err)
+			// НЕ прерываем — продолжаем со следующими
 			continue
 		}
-		if err := d.offers.CreateOffer(ctx, order.ID, driver.ID, ttl); err != nil {
-			return err
+		if offered {
+			skippedExisting++
+			continue
 		}
+
+		if err := d.offers.CreateOffer(ctx, order.ID, driver.ID, ttl); err != nil {
+			d.logger.Errorf("dispatch: CreateOffer(order=%d,driver=%d) failed: %v", order.ID, driver.ID, err)
+			// НЕ прерываем — продолжаем со следующими
+			continue
+		}
+
 		payload := ws.DriverOfferPayload{
 			OrderID:      order.ID,
 			FromLon:      order.FromLon,
@@ -145,24 +161,46 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 		}
 		d.driverWS.SendOffer(driver.ID, payload)
 		sentOffers++
+		d.logger.Infof("✅ dispatch: offer created & sent order=%d → driver=%d (ttl=%s)", order.ID, driver.ID, ttl.Format(time.RFC3339))
 	}
 
-	if sentOffers == 0 {
+	// Планирование следующего тика
+	switch {
+	case len(drivers) == 0:
+		// никого не нашли — расширяем радиус
 		newRadius := rec.RadiusM + d.cfg.GetSearchRadiusStep()
 		if newRadius > d.cfg.GetSearchRadiusMax() {
 			newRadius = d.cfg.GetSearchRadiusMax()
 		}
-		next := rec.NextTickAt.Add(d.cfg.GetDispatchTick())
-		if rec.NextTickAt.IsZero() || !next.After(now) {
-			next = now.Add(d.cfg.GetDispatchTick())
-		}
+		next := now.Add(d.cfg.GetDispatchTick())
 		if err := d.dispatch.UpdateRadius(ctx, rec.OrderID, newRadius, next); err != nil {
 			return err
 		}
+		d.logger.Infof("dispatch: no drivers; radius ↑ to %d; next_tick=%s", newRadius, next.Format(time.RFC3339))
 		d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "search_progress", OrderID: order.ID, Radius: newRadius})
-	} else {
+
+	case sentOffers == 0 && skippedExisting > 0:
+		// водители есть, но все уже имеют офферы (дубликаты) — быстрый повтор
+		next := now.Add(d.cfg.GetDispatchTick() / 2)
+		if next.Before(now.Add(1 * time.Second)) {
+			next = now.Add(1 * time.Second)
+		}
+		if err := d.dispatch.UpdateRadius(ctx, rec.OrderID, rec.RadiusM, next); err != nil {
+			return err
+		}
+		d.logger.Infof("dispatch: only duplicates; keep radius=%d; next_tick=%s", rec.RadiusM, next.Format(time.RFC3339))
+		d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "searching", OrderID: order.ID, Radius: rec.RadiusM})
+
+	default:
+		// офферы отправлены — оставляем радиус, ставим обычный next_tick
+		next := now.Add(d.cfg.GetDispatchTick())
+		if err := d.dispatch.UpdateRadius(ctx, rec.OrderID, rec.RadiusM, next); err != nil {
+			return err
+		}
+		d.logger.Infof("dispatch: sent_offers=%d; keep radius=%d; next_tick=%s", sentOffers, rec.RadiusM, next.Format(time.RFC3339))
 		d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "searching", OrderID: order.ID, Radius: rec.RadiusM})
 	}
+
 	return nil
 }
 
