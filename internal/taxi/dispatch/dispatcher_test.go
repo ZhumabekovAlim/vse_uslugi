@@ -1,96 +1,112 @@
 package dispatch
 
 import (
-    "context"
-    "testing"
-    "time"
+	"context"
+	"testing"
+	"time"
 
-    "naimuBack/internal/taxi/geo"
-    "naimuBack/internal/taxi/repo"
-    "naimuBack/internal/taxi/ws"
-    "github.com/redis/go-redis/v9"
+	"naimuBack/internal/taxi/geo"
+	"naimuBack/internal/taxi/repo"
+	"naimuBack/internal/taxi/ws"
 )
 
 type testLogger struct{}
 
-func (testLogger) Infof(string, ...interface{}) {}
+func (testLogger) Infof(string, ...interface{})  {}
 func (testLogger) Errorf(string, ...interface{}) {}
 
 type stubOrders struct {
-    order repo.Order
+	order repo.Order
 }
 
 func (s *stubOrders) Get(ctx context.Context, id int64) (repo.Order, error) {
-    return s.order, nil
+	return s.order, nil
 }
 
 type stubDispatch struct {
-    radius int
-    next   time.Time
-    finished bool
+	radius   int
+	next     time.Time
+	finished bool
 }
 
 func (s *stubDispatch) ListDue(ctx context.Context, now time.Time) ([]repo.DispatchRecord, error) {
-    return nil, nil
+	return nil, nil
 }
 
 func (s *stubDispatch) UpdateRadius(ctx context.Context, orderID int64, radius int, next time.Time) error {
-    s.radius = radius
-    s.next = next
-    return nil
+	s.radius = radius
+	s.next = next
+	return nil
 }
 
 func (s *stubDispatch) Finish(ctx context.Context, orderID int64) error {
-    s.finished = true
-    return nil
+	s.finished = true
+	return nil
 }
 
 type stubOffers struct{}
 
-func (stubOffers) AlreadyOffered(ctx context.Context, orderID, driverID int64) (bool, error) { return false, nil }
-func (stubOffers) CreateOffer(ctx context.Context, orderID, driverID int64, ttl time.Time) error { return nil }
+func (stubOffers) AlreadyOffered(ctx context.Context, orderID, driverID int64) (bool, error) {
+	return false, nil
+}
+func (stubOffers) CreateOffer(ctx context.Context, orderID, driverID int64, ttl time.Time) error {
+	return nil
+}
 
-type stubDriverHub struct { sent int }
+type stubDriverHub struct{ sent int }
 
 func (s *stubDriverHub) SendOffer(driverID int64, payload ws.DriverOfferPayload) { s.sent++ }
 
 type stubPassengerHub struct {
-    events []ws.PassengerEvent
+	events []ws.PassengerEvent
 }
 
 func (s *stubPassengerHub) PushOrderEvent(passengerID int64, event ws.PassengerEvent) {
-    s.events = append(s.events, event)
+	s.events = append(s.events, event)
+}
+
+type stubLocator struct {
+	drivers []geo.NearbyDriver
+}
+
+func (s *stubLocator) Nearby(ctx context.Context, lon, lat float64, radiusMeters float64, limit int, city string) ([]geo.NearbyDriver, error) {
+	return s.drivers, nil
 }
 
 func TestDispatcherRadiusExpansion(t *testing.T) {
-    locator := geo.NewDriverLocator(redis.NewClient(nil))
-    orders := &stubOrders{order: repo.Order{ID: 1, PassengerID: 10, FromLon: 76.9, FromLat: 43.2, Status: "searching"}}
-    dispatchRepo := &stubDispatch{}
-    offers := &stubOffers{}
-    driverHub := &stubDriverHub{}
-    passengerHub := &stubPassengerHub{}
+	locator := &stubLocator{}
+	orders := &stubOrders{order: repo.Order{ID: 1, PassengerID: 10, FromLon: 76.9, FromLat: 43.2, Status: "searching"}}
+	dispatchRepo := &stubDispatch{}
+	offers := &stubOffers{}
+	driverHub := &stubDriverHub{}
+	passengerHub := &stubPassengerHub{}
 
-    cfg := ConfigAdapter{
-        PricePerKM:        300,
-        MinPrice:          1200,
-        SearchRadiusStart: 800,
-        SearchRadiusStep:  400,
-        SearchRadiusMax:   3000,
-        DispatchTick:      time.Minute,
-        OfferTTL:          20 * time.Second,
-        RegionID:          "test",
-    }
+	cfg := ConfigAdapter{
+		PricePerKM:        300,
+		MinPrice:          1200,
+		SearchRadiusStart: 800,
+		SearchRadiusStep:  400,
+		SearchRadiusMax:   3000,
+		DispatchTick:      time.Minute,
+		OfferTTL:          20 * time.Second,
+		RegionID:          "test",
+	}
 
-    d := New(orders, dispatchRepo, offers, locator, driverHub, passengerHub, testLogger{}, cfg)
+	d := New(orders, dispatchRepo, offers, locator, driverHub, passengerHub, testLogger{}, cfg)
 
-    rec := repo.DispatchRecord{OrderID: 1, RadiusM: cfg.SearchRadiusStart}
-    if err := d.processRecord(context.Background(), rec); err != nil {
-        t.Fatalf("processRecord error: %v", err)
-    }
-    if dispatchRepo.radius != cfg.SearchRadiusStart+cfg.SearchRadiusStep {
-        t.Fatalf("expected radius to increase, got %d", dispatchRepo.radius)
-    }
-    if len(passengerHub.events) == 0 || passengerHub.events[0].Type != "search_progress" {
-        t.Fatalf("expected search_progress event")
-    }
+	now := time.Now()
+	rec := repo.DispatchRecord{OrderID: 1, RadiusM: cfg.SearchRadiusStart, NextTickAt: now}
+	if err := d.processRecord(context.Background(), rec, now); err != nil {
+		t.Fatalf("processRecord error: %v", err)
+	}
+	if dispatchRepo.radius != cfg.SearchRadiusStart+cfg.SearchRadiusStep {
+		t.Fatalf("expected radius to increase, got %d", dispatchRepo.radius)
+	}
+	expectedNext := now.Add(cfg.DispatchTick)
+	if dispatchRepo.next.Before(expectedNext.Add(-time.Second)) || dispatchRepo.next.After(expectedNext.Add(time.Second)) {
+		t.Fatalf("expected next tick around %v, got %v", expectedNext, dispatchRepo.next)
+	}
+	if len(passengerHub.events) == 0 || passengerHub.events[0].Type != "search_progress" {
+		t.Fatalf("expected search_progress event")
+	}
 }
