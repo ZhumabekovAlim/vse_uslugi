@@ -176,13 +176,20 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	var req struct {
 		From struct {
-			Lon float64 `json:"lon"`
-			Lat float64 `json:"lat"`
+			Lon     float64 `json:"lon"`
+			Lat     float64 `json:"lat"`
+			Address string  `json:"address"`
 		} `json:"from"`
 		To struct {
-			Lon float64 `json:"lon"`
-			Lat float64 `json:"lat"`
+			Lon     float64 `json:"lon"`
+			Lat     float64 `json:"lat"`
+			Address string  `json:"address"`
 		} `json:"to"`
+		Stops []struct {
+			Lon     float64 `json:"lon"`
+			Lat     float64 `json:"lat"`
+			Address string  `json:"address"`
+		} `json:"stops"`
 		DistanceM     int    `json:"distance_m"`
 		EtaSeconds    int    `json:"eta_s"`
 		ClientPrice   int    `json:"client_price"`
@@ -202,23 +209,50 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	distance, eta, err := s.geoClient.RouteMatrix(ctx, req.From.Lon, req.From.Lat, req.To.Lon, req.To.Lat)
-	if err != nil {
-		writeError(w, http.StatusBadGateway, "route validation failed")
+	type waypoint struct {
+		lon     float64
+		lat     float64
+		address string
+	}
+	points := []waypoint{{lon: req.From.Lon, lat: req.From.Lat, address: strings.TrimSpace(req.From.Address)}}
+	for i, stop := range req.Stops {
+		if stop.Lon == 0 && stop.Lat == 0 {
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("stop %d has empty coordinates", i))
+			return
+		}
+		points = append(points, waypoint{lon: stop.Lon, lat: stop.Lat, address: strings.TrimSpace(stop.Address)})
+	}
+	points = append(points, waypoint{lon: req.To.Lon, lat: req.To.Lat, address: strings.TrimSpace(req.To.Address)})
+	if len(points) < 2 {
+		writeError(w, http.StatusBadRequest, "at least two points required")
 		return
 	}
-	if !validateInt(distance, req.DistanceM) {
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	totalDistance := 0
+	totalEta := 0
+	for i := 0; i < len(points)-1; i++ {
+		distance, eta, err := s.geoClient.RouteMatrix(ctx, points[i].lon, points[i].lat, points[i+1].lon, points[i+1].lat)
+		if err != nil {
+			writeError(w, http.StatusBadGateway, "route validation failed")
+			return
+		}
+		totalDistance += distance
+		totalEta += eta
+	}
+
+	if !validateInt(totalDistance, req.DistanceM) {
 		writeError(w, http.StatusBadRequest, "distance mismatch")
 		return
 	}
-	if !validateInt(eta, req.EtaSeconds) {
+	if !validateInt(totalEta, req.EtaSeconds) {
 		writeError(w, http.StatusBadRequest, "eta mismatch")
 		return
 	}
 
-	rec := pricing.Recommended(distance, s.cfg.GetPricePerKM(), s.cfg.GetMinPrice())
+	rec := pricing.Recommended(totalDistance, s.cfg.GetPricePerKM(), s.cfg.GetMinPrice())
 	minPrice := s.cfg.GetMinPrice()
 	if rec <= minPrice {
 		rec = minPrice
@@ -234,8 +268,8 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		FromLat:          req.From.Lat,
 		ToLon:            req.To.Lon,
 		ToLat:            req.To.Lat,
-		DistanceM:        distance,
-		EtaSeconds:       eta,
+		DistanceM:        totalDistance,
+		EtaSeconds:       totalEta,
 		RecommendedPrice: rec,
 		ClientPrice:      req.ClientPrice,
 		PaymentMethod:    req.PaymentMethod,
@@ -243,6 +277,16 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	if req.Notes != "" {
 		order.Notes = sql.NullString{String: req.Notes, Valid: true}
 	}
+
+	addresses := make([]repo.OrderAddress, 0, len(points))
+	for idx, point := range points {
+		addr := repo.OrderAddress{Seq: idx, Lon: point.lon, Lat: point.lat}
+		if point.address != "" {
+			addr.Address = sql.NullString{String: point.address, Valid: true}
+		}
+		addresses = append(addresses, addr)
+	}
+	order.Addresses = addresses
 
 	dispatchRec := repo.DispatchRecord{RadiusM: s.cfg.GetSearchRadiusStart(), NextTickAt: time.Now(), State: "searching"}
 	orderID, err := s.ordersRepo.CreateWithDispatch(ctx, order, dispatchRec)

@@ -165,6 +165,17 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 			EtaSeconds:   order.EtaSeconds,
 			ExpiresInSec: int(d.cfg.GetOfferTTL().Seconds()),
 		}
+		if len(order.Addresses) > 0 {
+			route := make([]ws.DriverRoutePoint, 0, len(order.Addresses))
+			for _, addr := range order.Addresses {
+				point := ws.DriverRoutePoint{Lon: addr.Lon, Lat: addr.Lat}
+				if addr.Address.Valid {
+					point.Address = addr.Address.String
+				}
+				route = append(route, point)
+			}
+			payload.Route = route
+		}
 		d.driverWS.SendOffer(driver.ID, payload)
 		sentOffers++
 		d.logger.Infof("✅ dispatch: offer created & sent order=%d → driver=%d (ttl=%s)", order.ID, driver.ID, ttl.Format(time.RFC3339))
