@@ -1,0 +1,372 @@
+{
+  "info": {
+    "name": "Taxi API v1",
+    "description": "Коллекция запросов для такси-сервиса. Все примеры и комментарии на русском языке.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Список водителей",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/drivers?limit=10&offset=0",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "drivers"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10",
+              "description": "Максимум записей в ответе"
+            },
+            {
+              "key": "offset",
+              "value": "0",
+              "description": "Смещение для пагинации"
+            }
+          ]
+        },
+        "description": "Возвращает список водителей. Полезно для админ-панели или поддержки."
+      },
+      "response": [
+        {
+          "name": "200 Успешно",
+          "originalRequest": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/drivers?limit=10&offset=0"
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "{\n  \"drivers\": [\n    {\n      \"id\": 101,\n      \"user_id\": 501,\n      \"status\": \"free\",\n      \"car_model\": \"Toyota Camry\",\n      \"car_color\": \"Черный\",\n      \"car_number\": \"123ABC01\",\n      \"tech_passport\": \"TP-123456\",\n      \"car_photo_front\": \"https://cdn.example.com/cars/101/front.jpg\",\n      \"car_photo_back\": \"https://cdn.example.com/cars/101/back.jpg\",\n      \"car_photo_left\": \"https://cdn.example.com/cars/101/left.jpg\",\n      \"car_photo_right\": \"https://cdn.example.com/cars/101/right.jpg\",\n      \"driver_photo\": \"https://cdn.example.com/drivers/101/photo.jpg\",\n      \"phone\": \"+77001234567\",\n      \"iin\": \"900101123456\",\n      \"id_card_front\": \"https://cdn.example.com/docs/101/id_front.jpg\",\n      \"id_card_back\": \"https://cdn.example.com/docs/101/id_back.jpg\",\n      \"rating\": 4.92,\n      \"updated_at\": \"2024-01-20T10:15:00Z\"\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "Создать водителя",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": 501,\n  \"status\": \"offline\",\n  \"car_model\": \"Hyundai Sonata\",\n  \"car_color\": \"Белый\",\n  \"car_number\": \"777ABC01\",\n  \"tech_passport\": \"TP-654321\",\n  \"car_photo_front\": \"https://cdn.example.com/cars/777/front.jpg\",\n  \"car_photo_back\": \"https://cdn.example.com/cars/777/back.jpg\",\n  \"car_photo_left\": \"https://cdn.example.com/cars/777/left.jpg\",\n  \"car_photo_right\": \"https://cdn.example.com/cars/777/right.jpg\",\n  \"driver_photo\": \"https://cdn.example.com/drivers/777/photo.jpg\",\n  \"phone\": \"+77007654321\",\n  \"iin\": \"880202123456\",\n  \"id_card_front\": \"https://cdn.example.com/docs/777/id_front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/docs/777/id_back.jpg\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/drivers",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "drivers"
+          ]
+        },
+        "description": "Создает нового водителя. Перед отправкой убедитесь, что все обязательные поля заполнены."
+      },
+      "response": [
+        {
+          "name": "201 Создано",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/drivers"
+            }
+          },
+          "status": "Created",
+          "code": 201,
+          "body": "{\n  \"id\": 777,\n  \"rating\": 0,\n  \"updated_at\": \"2024-01-21T08:00:00Z\",\n  \"user_id\": 501,\n  \"status\": \"offline\",\n  \"car_model\": \"Hyundai Sonata\",\n  \"car_color\": \"Белый\",\n  \"car_number\": \"777ABC01\",\n  \"tech_passport\": \"TP-654321\",\n  \"car_photo_front\": \"https://cdn.example.com/cars/777/front.jpg\",\n  \"car_photo_back\": \"https://cdn.example.com/cars/777/back.jpg\",\n  \"car_photo_left\": \"https://cdn.example.com/cars/777/left.jpg\",\n  \"car_photo_right\": \"https://cdn.example.com/cars/777/right.jpg\",\n  \"driver_photo\": \"https://cdn.example.com/drivers/777/photo.jpg\",\n  \"phone\": \"+77007654321\",\n  \"iin\": \"880202123456\",\n  \"id_card_front\": \"https://cdn.example.com/docs/777/id_front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/docs/777/id_back.jpg\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Получить водителя по ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/drivers/777",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "drivers",
+            "777"
+          ]
+        },
+        "description": "Возвращает карточку конкретного водителя."
+      }
+    },
+    {
+      "name": "Обновить водителя",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": 501,\n  \"status\": \"free\",\n  \"car_model\": \"Hyundai Sonata\",\n  \"car_color\": \"Белый\",\n  \"car_number\": \"777ABC01\",\n  \"tech_passport\": \"TP-654321\",\n  \"car_photo_front\": \"https://cdn.example.com/cars/777/front.jpg\",\n  \"car_photo_back\": \"https://cdn.example.com/cars/777/back.jpg\",\n  \"car_photo_left\": \"https://cdn.example.com/cars/777/left.jpg\",\n  \"car_photo_right\": \"https://cdn.example.com/cars/777/right.jpg\",\n  \"driver_photo\": \"https://cdn.example.com/drivers/777/photo.jpg\",\n  \"phone\": \"+77007654321\",\n  \"iin\": \"880202123456\",\n  \"id_card_front\": \"https://cdn.example.com/docs/777/id_front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/docs/777/id_back.jpg\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/drivers/777",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "drivers",
+            "777"
+          ]
+        },
+        "description": "Обновляет данные водителя. Все поля обязательны, так как бэкенд выполняет полную валидацию."
+      }
+    },
+    {
+      "name": "Удалить водителя",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/drivers/777",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "drivers",
+            "777"
+          ]
+        },
+        "description": "Удаляет водителя по ID. Успешный ответ без тела с кодом 204."
+      }
+    },
+    {
+      "name": "Запросить расчет маршрута",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"from_address\": \"Алматы, проспект Абая 10\",\n  \"to_address\": \"Алматы, улица Панфилова 100\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/route/quote",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "route",
+            "quote"
+          ]
+        },
+        "description": "Возвращает расстояние, ETA и рекомендованную цену. Можно передавать координаты вместо адресов."
+      },
+      "response": [
+        {
+          "name": "200 Пример",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"from\": {\n    \"lon\": 76.921,\n    \"lat\": 43.256\n  },\n  \"to\": {\n    \"lon\": 76.945,\n    \"lat\": 43.238\n  },\n  \"distance_m\": 5400,\n  \"eta_s\": 780,\n  \"recommended_price\": 1500,\n  \"min_price\": 1000\n}"
+        }
+      ]
+    },
+    {
+      "name": "Создать заказ",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Passenger-ID",
+            "value": "9001",
+            "description": "Идентификатор авторизованного пассажира"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"from\": {\n    \"lon\": 76.921,\n    \"lat\": 43.256,\n    \"address\": \"Алматы, пр. Абая 10\"\n  },\n  \"to\": {\n    \"lon\": 76.945,\n    \"lat\": 43.238,\n    \"address\": \"Алматы, ул. Панфилова 100\"\n  },\n  \"stops\": [\n    {\n      \"lon\": 76.93,\n      \"lat\": 43.245,\n      \"address\": \"Алматы, ул. Байсеитовой 45\"\n    }\n  ],\n  \"distance_m\": 5400,\n  \"eta_s\": 780,\n  \"client_price\": 1500,\n  \"payment_method\": \"online\",\n  \"notes\": \"Пассажир с ребенком, нужна детская удерживающая система\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/orders",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders"
+          ]
+        },
+        "description": "Создает новый заказ от имени пассажира. Требует заголовок X-Passenger-ID."
+      }
+    },
+    {
+      "name": "Изменить цену заказа",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"client_price\": 1800\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/orders/123/reprice",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            "123",
+            "reprice"
+          ]
+        },
+        "description": "Пересчитывает цену по инициативе пассажира или поддержки."
+      }
+    },
+    {
+      "name": "Обновить статус заказа",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"arrived\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/orders/123/status",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            "123",
+            "status"
+          ]
+        },
+        "description": "Обновляет статус заказа. Доступные переходы: created → searching → accepted → arrived → picked_up → completed → paid → closed."
+      }
+    },
+    {
+      "name": "Принять оффер водителем",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Driver-ID",
+            "value": "777",
+            "description": "Идентификатор авторизованного водителя"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": 123\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/offers/accept",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "offers",
+            "accept"
+          ]
+        },
+        "description": "Водитель подтверждает получение заказа через оффер."
+      }
+    },
+    {
+      "name": "Webhook AirbaPay",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-AirbaPay-Signature",
+            "value": "пример-подписи"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": 123,\n  \"status\": \"paid\",\n  \"transaction_id\": \"txn_abc123\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/payments/airbapay/webhook",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "payments",
+            "airbapay",
+            "webhook"
+          ]
+        },
+        "description": "Пример ручного тестирования вебхука от AirbaPay. Необходима корректная HMAC-подпись."
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ]
+}
