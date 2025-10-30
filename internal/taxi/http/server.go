@@ -26,6 +26,7 @@ type Server struct {
 	logger       dispatch.Logger
 	cfg          dispatch.Config
 	geoClient    *geo.DGISClient
+	driversRepo  *repo.DriversRepo
 	ordersRepo   *repo.OrdersRepo
 	offersRepo   *repo.OffersRepo
 	paymentsRepo *repo.PaymentsRepo
@@ -36,11 +37,12 @@ type Server struct {
 }
 
 // NewServer constructs Server.
-func NewServer(logger dispatch.Logger, cfg dispatch.Config, geoClient *geo.DGISClient, orders *repo.OrdersRepo, offers *repo.OffersRepo, payments *repo.PaymentsRepo, driverHub *ws.DriverHub, passengerHub *ws.PassengerHub, dispatcher *dispatch.Dispatcher, payClient *pay.Client) *Server {
+func NewServer(logger dispatch.Logger, cfg dispatch.Config, geoClient *geo.DGISClient, drivers *repo.DriversRepo, orders *repo.OrdersRepo, offers *repo.OffersRepo, payments *repo.PaymentsRepo, driverHub *ws.DriverHub, passengerHub *ws.PassengerHub, dispatcher *dispatch.Dispatcher, payClient *pay.Client) *Server {
 	return &Server{
 		logger:       logger,
 		cfg:          cfg,
 		geoClient:    geoClient,
+		driversRepo:  drivers,
 		ordersRepo:   orders,
 		offersRepo:   offers,
 		paymentsRepo: payments,
@@ -52,7 +54,124 @@ func NewServer(logger dispatch.Logger, cfg dispatch.Config, geoClient *geo.DGISC
 }
 
 // RegisterRoutes registers HTTP routes on mux.
+type driverPayload struct {
+	UserID        int64  `json:"user_id"`
+	Status        string `json:"status"`
+	CarModel      string `json:"car_model"`
+	CarColor      string `json:"car_color"`
+	CarNumber     string `json:"car_number"`
+	TechPassport  string `json:"tech_passport"`
+	CarPhotoFront string `json:"car_photo_front"`
+	CarPhotoBack  string `json:"car_photo_back"`
+	CarPhotoLeft  string `json:"car_photo_left"`
+	CarPhotoRight string `json:"car_photo_right"`
+	DriverPhoto   string `json:"driver_photo"`
+	Phone         string `json:"phone"`
+	IIN           string `json:"iin"`
+	IDCardFront   string `json:"id_card_front"`
+	IDCardBack    string `json:"id_card_back"`
+}
+
+func (p *driverPayload) normalize() {
+	p.Status = strings.TrimSpace(p.Status)
+	p.CarModel = strings.TrimSpace(p.CarModel)
+	p.CarColor = strings.TrimSpace(p.CarColor)
+	p.CarNumber = strings.TrimSpace(p.CarNumber)
+	p.TechPassport = strings.TrimSpace(p.TechPassport)
+	p.CarPhotoFront = strings.TrimSpace(p.CarPhotoFront)
+	p.CarPhotoBack = strings.TrimSpace(p.CarPhotoBack)
+	p.CarPhotoLeft = strings.TrimSpace(p.CarPhotoLeft)
+	p.CarPhotoRight = strings.TrimSpace(p.CarPhotoRight)
+	p.DriverPhoto = strings.TrimSpace(p.DriverPhoto)
+	p.Phone = strings.TrimSpace(p.Phone)
+	p.IIN = strings.TrimSpace(p.IIN)
+	p.IDCardFront = strings.TrimSpace(p.IDCardFront)
+	p.IDCardBack = strings.TrimSpace(p.IDCardBack)
+	if p.Status == "" {
+		p.Status = "offline"
+	}
+}
+
+func (p driverPayload) validate() string {
+	if p.UserID <= 0 {
+		return "user_id is required"
+	}
+	switch p.Status {
+	case "offline", "free", "busy":
+	default:
+		return "invalid status"
+	}
+	if p.CarNumber == "" {
+		return "car_number is required"
+	}
+	if p.TechPassport == "" {
+		return "tech_passport is required"
+	}
+	if p.CarPhotoFront == "" || p.CarPhotoBack == "" || p.CarPhotoLeft == "" || p.CarPhotoRight == "" {
+		return "all car photos are required"
+	}
+	if p.DriverPhoto == "" {
+		return "driver_photo is required"
+	}
+	if p.Phone == "" {
+		return "phone is required"
+	}
+	if p.IIN == "" {
+		return "iin is required"
+	}
+	if p.IDCardFront == "" || p.IDCardBack == "" {
+		return "id card photos are required"
+	}
+	return ""
+}
+
+type driverResponse struct {
+	ID            int64     `json:"id"`
+	UserID        int64     `json:"user_id"`
+	Status        string    `json:"status"`
+	CarModel      string    `json:"car_model,omitempty"`
+	CarColor      string    `json:"car_color,omitempty"`
+	CarNumber     string    `json:"car_number"`
+	TechPassport  string    `json:"tech_passport"`
+	CarPhotoFront string    `json:"car_photo_front"`
+	CarPhotoBack  string    `json:"car_photo_back"`
+	CarPhotoLeft  string    `json:"car_photo_left"`
+	CarPhotoRight string    `json:"car_photo_right"`
+	DriverPhoto   string    `json:"driver_photo"`
+	Phone         string    `json:"phone"`
+	IIN           string    `json:"iin"`
+	IDCardFront   string    `json:"id_card_front"`
+	IDCardBack    string    `json:"id_card_back"`
+	Rating        float64   `json:"rating"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+func newDriverResponse(d repo.Driver) driverResponse {
+	return driverResponse{
+		ID:            d.ID,
+		UserID:        d.UserID,
+		Status:        d.Status,
+		CarModel:      d.CarModel.String,
+		CarColor:      d.CarColor.String,
+		CarNumber:     d.CarNumber,
+		TechPassport:  d.TechPassport,
+		CarPhotoFront: d.CarPhotoFront,
+		CarPhotoBack:  d.CarPhotoBack,
+		CarPhotoLeft:  d.CarPhotoLeft,
+		CarPhotoRight: d.CarPhotoRight,
+		DriverPhoto:   d.DriverPhoto,
+		Phone:         d.Phone,
+		IIN:           d.IIN,
+		IDCardFront:   d.IDCardFront,
+		IDCardBack:    d.IDCardBack,
+		Rating:        d.Rating,
+		UpdatedAt:     d.UpdatedAt,
+	}
+}
+
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/api/v1/drivers", s.handleDrivers)
+	mux.HandleFunc("/api/v1/drivers/", s.handleDriver)
 	mux.HandleFunc("/api/v1/route/quote", s.handleRouteQuote)
 	mux.HandleFunc("/api/v1/orders", s.handleOrders)
 	mux.HandleFunc("/api/v1/orders/", s.handleOrderSubroutes)
@@ -60,6 +179,211 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/payments/airbapay/webhook", s.handleAirbaPayWebhook)
 	mux.HandleFunc("/ws/driver", s.handleDriverWS)
 	mux.HandleFunc("/ws/passenger", s.handlePassengerWS)
+}
+
+func (s *Server) handleDrivers(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.listDrivers(w, r)
+	case http.MethodPost:
+		s.createDriver(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleDriver(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/drivers/")
+	path = strings.TrimSuffix(path, "/")
+	if path == "" || strings.Contains(path, "/") {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	id, err := strconv.ParseInt(path, 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		s.getDriver(w, r, id)
+	case http.MethodPut:
+		s.updateDriver(w, r, id)
+	case http.MethodDelete:
+		s.deleteDriver(w, r, id)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) listDrivers(w http.ResponseWriter, r *http.Request) {
+	limit := 100
+	if v := r.URL.Query().Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			writeError(w, http.StatusBadRequest, "invalid limit")
+			return
+		}
+		limit = n
+	}
+	offset := 0
+	if v := r.URL.Query().Get("offset"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			writeError(w, http.StatusBadRequest, "invalid offset")
+			return
+		}
+		offset = n
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	drivers, err := s.driversRepo.List(ctx, limit, offset)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "list drivers failed")
+		return
+	}
+	resp := make([]driverResponse, 0, len(drivers))
+	for _, d := range drivers {
+		resp = append(resp, newDriverResponse(d))
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"drivers": resp})
+}
+
+func (s *Server) createDriver(w http.ResponseWriter, r *http.Request) {
+	var payload driverPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	payload.normalize()
+	if msg := payload.validate(); msg != "" {
+		writeError(w, http.StatusBadRequest, msg)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	driver := repo.Driver{
+		UserID:        payload.UserID,
+		Status:        payload.Status,
+		CarModel:      toNullString(payload.CarModel),
+		CarColor:      toNullString(payload.CarColor),
+		CarNumber:     payload.CarNumber,
+		TechPassport:  payload.TechPassport,
+		CarPhotoFront: payload.CarPhotoFront,
+		CarPhotoBack:  payload.CarPhotoBack,
+		CarPhotoLeft:  payload.CarPhotoLeft,
+		CarPhotoRight: payload.CarPhotoRight,
+		DriverPhoto:   payload.DriverPhoto,
+		Phone:         payload.Phone,
+		IIN:           payload.IIN,
+		IDCardFront:   payload.IDCardFront,
+		IDCardBack:    payload.IDCardBack,
+	}
+
+	id, err := s.driversRepo.Create(ctx, driver)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "create driver failed")
+		return
+	}
+	driver, err = s.driversRepo.Get(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "fetch driver failed")
+		return
+	}
+	writeJSON(w, http.StatusCreated, newDriverResponse(driver))
+}
+
+func (s *Server) getDriver(w http.ResponseWriter, r *http.Request, id int64) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	driver, err := s.driversRepo.Get(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "driver not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch driver failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, newDriverResponse(driver))
+}
+
+func (s *Server) updateDriver(w http.ResponseWriter, r *http.Request, id int64) {
+	var payload driverPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	payload.normalize()
+	if msg := payload.validate(); msg != "" {
+		writeError(w, http.StatusBadRequest, msg)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	driver := repo.Driver{
+		ID:            id,
+		UserID:        payload.UserID,
+		Status:        payload.Status,
+		CarModel:      toNullString(payload.CarModel),
+		CarColor:      toNullString(payload.CarColor),
+		CarNumber:     payload.CarNumber,
+		TechPassport:  payload.TechPassport,
+		CarPhotoFront: payload.CarPhotoFront,
+		CarPhotoBack:  payload.CarPhotoBack,
+		CarPhotoLeft:  payload.CarPhotoLeft,
+		CarPhotoRight: payload.CarPhotoRight,
+		DriverPhoto:   payload.DriverPhoto,
+		Phone:         payload.Phone,
+		IIN:           payload.IIN,
+		IDCardFront:   payload.IDCardFront,
+		IDCardBack:    payload.IDCardBack,
+	}
+
+	if err := s.driversRepo.Update(ctx, driver); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "driver not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "update driver failed")
+		return
+	}
+
+	driver, err := s.driversRepo.Get(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "fetch driver failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, newDriverResponse(driver))
+}
+
+func (s *Server) deleteDriver(w http.ResponseWriter, r *http.Request, id int64) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	if err := s.driversRepo.Delete(ctx, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "driver not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "delete driver failed")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func toNullString(v string) sql.NullString {
+	if v == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: v, Valid: true}
 }
 
 func roundDownToStep(n, step int) int {
@@ -398,6 +722,15 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+
+	if _, err := s.driversRepo.Get(ctx, driverID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusUnauthorized, "driver not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "driver lookup failed")
+		return
+	}
 
 	if err := s.offersRepo.AcceptOffer(ctx, req.OrderID, driverID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
