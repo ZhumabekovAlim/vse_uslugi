@@ -135,6 +135,9 @@ type application struct {
 
 	assistantHandler *handlers.AssistantHandler
 
+	taxiIntercityOrderHandler *handlers.TaxiIntercityOrderHandler
+	taxiIntercityOrderRepo    *repositories.TaxiIntercityOrderRepository
+
 	// authService *services/*/.AuthService
 	taxiMux  http.Handler
 	taxiDeps *taxi.TaxiDeps
@@ -195,6 +198,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	rentConfirmationRepo := repositories.RentConfirmationRepository{DB: db}
 	rentAdConfirmationRepo := repositories.RentAdConfirmationRepository{DB: db}
 	subscriptionRepo := repositories.SubscriptionRepository{DB: db}
+	taxiIntercityOrderRepo := repositories.TaxiIntercityOrderRepository{DB: db}
 
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
@@ -234,6 +238,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
 	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
 	locationService := &services.LocationService{Repo: &locationRepo}
+	taxiIntercityOrderService := &services.TaxiIntercityOrderService{Repo: &taxiIntercityOrderRepo}
 
 	kb, err := ai.LoadKnowledgeBase("/root/NaimuBack/vse_uslugi/kb/kb.json")
 	if err != nil {
@@ -327,6 +332,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	airbapayHandler := handlers.NewAirbapayHandler(airbapayService, invoiceRepo)
 	locationHandler := &handlers.LocationHandler{Service: locationService}
 	assistantHandler := handlers.NewAssistantHandler(assistantService)
+	taxiIntercityOrderHandler := &handlers.TaxiIntercityOrderHandler{Service: taxiIntercityOrderService}
 
 	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
 	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
@@ -400,6 +406,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		workConfirmationRepo:    &workConfirmationRepo,
 		rentConfirmationRepo:    &rentConfirmationRepo,
 		subscriptionRepo:        &subscriptionRepo,
+		taxiIntercityOrderRepo:  &taxiIntercityOrderRepo,
 		locationRepo:            &locationRepo,
 		locationService:         locationService,
 
@@ -457,6 +464,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		subscriptionHandler:        subscriptionHandler,
 		airbapayHandler:            airbapayHandler,
 		assistantHandler:           assistantHandler,
+		taxiIntercityOrderHandler:  taxiIntercityOrderHandler,
 
 		workAdHandler:             workAdHandler,
 		workAdReviewHandler:       workAdReviewHandler,

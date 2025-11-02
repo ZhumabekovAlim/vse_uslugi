@@ -203,6 +203,12 @@ func (app *application) routes() http.Handler {
 	mux.Get("/ws/passenger", wsMiddleware.Append(app.JWTMiddlewareWithRole("client")).Then(app.wsWithQueryUserID(app.taxiMux, "passenger_id")))
 	mux.Get("/ws/driver", wsMiddleware.Append(app.JWTMiddlewareWithRole("worker")).Then(app.wsWithQueryUserID(app.taxiMux, "driver_id")))
 
+	mux.Post("/taxi/intercity/orders", clientAuth.ThenFunc(app.taxiIntercityOrderHandler.Create))
+	mux.Get("/taxi/intercity/orders", workerAuth.ThenFunc(app.taxiIntercityOrderHandler.Search))
+	mux.Get("/taxi/intercity/orders/:id", workerAuth.ThenFunc(app.taxiIntercityOrderHandler.GetByID))
+	mux.Get("/taxi/intercity/orders/my", clientAuth.ThenFunc(app.taxiIntercityOrderHandler.ListMine))
+	mux.Post("/taxi/intercity/orders/:id/close", clientAuth.ThenFunc(app.taxiIntercityOrderHandler.Close))
+
 	mux.Post("/location", authMiddleware.ThenFunc(app.locationHandler.UpdateLocation))
 	mux.Post("/location/offline", authMiddleware.ThenFunc(app.locationHandler.GoOffline))
 	mux.Get("/location/:user_id", authMiddleware.ThenFunc(app.locationHandler.GetLocation))
