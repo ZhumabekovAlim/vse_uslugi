@@ -57,7 +57,7 @@ func (r *ServiceResponseRepository) GetByID(ctx context.Context, id int) (models
 	if err != nil {
 		return models.ServiceResponses{}, err
 	}
-	resp.PerformerID = resp.UserID
+	resp.ClientID = resp.UserID
 	return resp, nil
 }
 

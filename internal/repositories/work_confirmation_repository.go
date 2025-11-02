@@ -34,21 +34,23 @@ func (r *WorkConfirmationRepository) Confirm(ctx context.Context, workID, perfor
 	}
 	defer tx.Rollback()
 
+	var actualPerformerID, actualClientID int
+	query := `SELECT performer_id, client_id FROM work_confirmations WHERE work_id = ? AND (performer_id = ? OR client_id = ?)`
+	if err := tx.QueryRowContext(ctx, query, workID, performerID, performerID).Scan(&actualPerformerID, &actualClientID); err != nil {
+		return err
+	}
+
 	now := time.Now()
-	_, err = tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = true, updated_at = ? WHERE work_id = ? AND performer_id = ?`, now, workID, performerID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = true, updated_at = ? WHERE work_id = ? AND performer_id = ?`, now, workID, actualPerformerID); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `DELETE FROM work_responses WHERE work_id = ? AND user_id <> ?`, workID, performerID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `DELETE FROM work_responses WHERE work_id = ? AND user_id <> ?`, workID, actualClientID); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE work SET status = 'in progress' WHERE id = ?`, workID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE work SET status = 'in progress' WHERE id = ?`, workID); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, performerID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, actualPerformerID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -99,7 +101,7 @@ func (r *WorkConfirmationRepository) Done(ctx context.Context, workID int) error
 	return tx.Commit()
 }
 
-func (r *WorkConfirmationRepository) DeletePending(ctx context.Context, workID, performerID int) error {
-	_, err := r.DB.ExecContext(ctx, `DELETE FROM work_confirmations WHERE work_id = ? AND performer_id = ? AND confirmed = false`, workID, performerID)
+func (r *WorkConfirmationRepository) DeletePending(ctx context.Context, workID, userID int) error {
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM work_confirmations WHERE work_id = ? AND confirmed = false AND (performer_id = ? OR client_id = ?)`, workID, userID, userID)
 	return err
 }

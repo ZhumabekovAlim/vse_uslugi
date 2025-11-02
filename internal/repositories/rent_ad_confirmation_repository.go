@@ -34,21 +34,23 @@ func (r *RentAdConfirmationRepository) Confirm(ctx context.Context, rentAdID, pe
 	}
 	defer tx.Rollback()
 
+	var actualPerformerID int
+	query := `SELECT performer_id FROM rent_ad_confirmations WHERE rent_ad_id = ? AND (performer_id = ? OR client_id = ?)`
+	if err := tx.QueryRowContext(ctx, query, rentAdID, performerID, performerID).Scan(&actualPerformerID); err != nil {
+		return err
+	}
+
 	now := time.Now()
-	_, err = tx.ExecContext(ctx, `UPDATE rent_ad_confirmations SET confirmed = true, updated_at = ? WHERE rent_ad_id = ? AND performer_id = ?`, now, rentAdID, performerID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE rent_ad_confirmations SET confirmed = true, updated_at = ? WHERE rent_ad_id = ? AND performer_id = ?`, now, rentAdID, actualPerformerID); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `DELETE FROM rent_ad_responses WHERE rent_ad_id = ? AND user_id <> ?`, rentAdID, performerID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `DELETE FROM rent_ad_responses WHERE rent_ad_id = ? AND user_id <> ?`, rentAdID, actualPerformerID); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE rent_ad SET status = 'in progress' WHERE id = ?`, rentAdID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE rent_ad SET status = 'in progress' WHERE id = ?`, rentAdID); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, performerID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, actualPerformerID); err != nil {
 		return err
 	}
 	return tx.Commit()
