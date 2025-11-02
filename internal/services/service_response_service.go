@@ -34,14 +34,14 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 		return resp, err
 	}
 	resp.ChatID = chatID
-	resp.ClientID = service.UserID
-	resp.PerformerID = resp.UserID
+	resp.ClientID = resp.UserID
+	resp.PerformerID = service.UserID
 
 	_, err = s.ConfirmationRepo.Create(ctx, models.ServiceConfirmation{
 		ServiceID:   resp.ServiceID,
 		ChatID:      chatID,
-		ClientID:    service.UserID,
-		PerformerID: resp.UserID,
+		ClientID:    resp.UserID,
+		PerformerID: service.UserID,
 	})
 	if err != nil {
 		return resp, err

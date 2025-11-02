@@ -34,21 +34,23 @@ func (r *WorkAdConfirmationRepository) Confirm(ctx context.Context, workAdID, pe
 	}
 	defer tx.Rollback()
 
+	var actualPerformerID int
+	query := `SELECT performer_id FROM work_ad_confirmations WHERE work_ad_id = ? AND (performer_id = ? OR client_id = ?)`
+	if err := tx.QueryRowContext(ctx, query, workAdID, performerID, performerID).Scan(&actualPerformerID); err != nil {
+		return err
+	}
+
 	now := time.Now()
-	_, err = tx.ExecContext(ctx, `UPDATE work_ad_confirmations SET confirmed = true, updated_at = ? WHERE work_ad_id = ? AND performer_id = ?`, now, workAdID, performerID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE work_ad_confirmations SET confirmed = true, updated_at = ? WHERE work_ad_id = ? AND performer_id = ?`, now, workAdID, actualPerformerID); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `DELETE FROM work_ad_responses WHERE work_ad_id = ? AND user_id <> ?`, workAdID, performerID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `DELETE FROM work_ad_responses WHERE work_ad_id = ? AND user_id <> ?`, workAdID, actualPerformerID); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE work_ad SET status = 'in progress' WHERE id = ?`, workAdID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE work_ad SET status = 'in progress' WHERE id = ?`, workAdID); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, performerID)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, actualPerformerID); err != nil {
 		return err
 	}
 	return tx.Commit()

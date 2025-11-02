@@ -124,11 +124,11 @@ UNION ALL
 
 SELECT s.id, 'service' AS ad_type, s.name, s.status, c.performer_id,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
-       sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role
+       sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role
 FROM service s
 JOIN service_confirmations sc ON sc.service_id = s.id
-JOIN users u ON u.id = sc.performer_id
-JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.performer_id
+JOIN users u ON u.id = sc.client_id
+JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.client_id
 LEFT JOIN service_confirmations c ON c.service_id = s.id AND c.confirmed = true
 LEFT JOIN last_messages lm ON lm.chat_id = sc.chat_id
 WHERE s.user_id = ?
@@ -137,14 +137,14 @@ UNION ALL
 
 SELECT s.id, 'service' AS ad_type, s.name, s.status, c.performer_id,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
-       sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role
+       sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role
 FROM service s
 JOIN service_confirmations sc ON sc.service_id = s.id
 JOIN users owner ON owner.id = s.user_id
-JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.performer_id
+JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.client_id
 LEFT JOIN service_confirmations c ON c.service_id = s.id AND c.confirmed = true
 LEFT JOIN last_messages lm ON lm.chat_id = sc.chat_id
-WHERE sc.performer_id = ?
+WHERE sc.client_id = ?
 
 UNION ALL
 
@@ -228,11 +228,11 @@ UNION ALL
 
 SELECT w.id, 'work' AS ad_type, w.name, w.status, c.performer_id,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
-       wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role
+       wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role
 FROM work w
 JOIN work_confirmations wc ON wc.work_id = w.id
-JOIN users u ON u.id = wc.performer_id
-JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.performer_id
+JOIN users u ON u.id = wc.client_id
+JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.client_id
 LEFT JOIN work_confirmations c ON c.work_id = w.id AND c.confirmed = true
 LEFT JOIN last_messages lm ON lm.chat_id = wc.chat_id
 WHERE w.user_id = ?
@@ -241,14 +241,14 @@ UNION ALL
 
 SELECT w.id, 'work' AS ad_type, w.name, w.status, c.performer_id,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
-       wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role
+       wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role
 FROM work w
 JOIN work_confirmations wc ON wc.work_id = w.id
 JOIN users owner ON owner.id = w.user_id
-JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.performer_id
+JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.client_id
 LEFT JOIN work_confirmations c ON c.work_id = w.id AND c.confirmed = true
 LEFT JOIN last_messages lm ON lm.chat_id = wc.chat_id
-WHERE wc.performer_id = ?
+WHERE wc.client_id = ?
 
 ORDER BY 1
 `
