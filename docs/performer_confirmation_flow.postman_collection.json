@@ -1,0 +1,168 @@
+{
+  "info": {
+    "name": "Performer Confirmation Lifecycle",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Sample requests that demonstrate the active → in progress → done/cancelled flow for performer advertisements."
+  },
+  "item": [
+    {
+      "name": "Create performer ad response (active)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": 42,\n  \"ad_id\": 17,\n  \"price\": 1500,\n  \"description\": \"Готов приступить завтра\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/ad_responses",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "ad_responses"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "201 Created",
+          "status": "Created",
+          "code": 201,
+          "body": "{\n  \"id\": 501,\n  \"user_id\": 42,\n  \"ad_id\": 17,\n  \"chat_id\": 9301,\n  \"client_id\": 7,\n  \"performer_id\": 42,\n  \"price\": 1500,\n  \"description\": \"Готов приступить завтра\",\n  \"created_at\": \"2024-05-15T09:42:11Z\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Confirm performer for ad (in progress)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ad_id\": 17,\n  \"performer_id\": 42\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/ad/confirm",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "ad",
+            "confirm"
+          ]
+        }
+      }
+    },
+    {
+      "name": "View performer chats (status visibility)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/chats/user/{{performerId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "chats",
+            "user",
+            "{{performerId}}"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "body": "[\n  {\n    \"ad_id\": 17,\n    \"ad_name\": \"Настройка оборудования\",\n    \"status\": \"in progress\",\n    \"performer_id\": 42,\n    \"users\": [\n      {\n        \"id\": 7,\n        \"name\": \"Ирина\",\n        \"surname\": \"Климова\",\n        \"avatar_path\": \"\",\n        \"phone\": \"+7-900-100-2020\",\n        \"price\": 1500,\n        \"chat_id\": 9301,\n        \"lastMessage\": \"Отлично, приступаю завтра\",\n        \"review_rating\": 4.9,\n        \"reviews_count\": 32,\n        \"my_role\": \"performer\"\n      }\n    ]\n  },\n  {\n    \"ad_id\": 18,\n    \"ad_name\": \"Настройка оборудования\",\n    \"status\": \"active\",\n    \"users\": [\n      {\n        \"id\": 55,\n        \"name\": \"Максим\",\n        \"surname\": \"Назаров\",\n        \"avatar_path\": \"\",\n        \"phone\": \"\",\n        \"price\": 1800,\n        \"chat_id\": 9310,\n        \"lastMessage\": \"Готов обсудить детали\",\n        \"review_rating\": 4.7,\n        \"reviews_count\": 11,\n        \"my_role\": \"performer\"\n      }\n    ]\n  }\n]"
+        }
+      ]
+    },
+    {
+      "name": "Mark performer order as done",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ad_id\": 17\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/ad/done",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "ad",
+            "done"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Cancel performer order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ad_id\": 17\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/ad/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "ad",
+            "cancel"
+          ]
+        }
+      }
+    }
+  ]
+}

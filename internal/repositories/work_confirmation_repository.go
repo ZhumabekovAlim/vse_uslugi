@@ -12,7 +12,7 @@ type WorkConfirmationRepository struct {
 }
 
 func (r *WorkConfirmationRepository) Create(ctx context.Context, wc models.WorkConfirmation) (models.WorkConfirmation, error) {
-	query := `INSERT INTO work_confirmations (work_id, chat_id, client_id, performer_id, confirmed, created_at) VALUES (?, ?, ?, ?, false, ?)`
+	query := `INSERT INTO work_confirmations (work_id, chat_id, client_id, performer_id, confirmed, status, created_at) VALUES (?, ?, ?, ?, false, 'active', ?)`
 	now := time.Now()
 	res, err := r.DB.ExecContext(ctx, query, wc.WorkID, wc.ChatID, wc.ClientID, wc.PerformerID, now)
 	if err != nil {
@@ -23,6 +23,7 @@ func (r *WorkConfirmationRepository) Create(ctx context.Context, wc models.WorkC
 		return models.WorkConfirmation{}, err
 	}
 	wc.ID = int(id)
+	wc.Status = "active"
 	wc.CreatedAt = now
 	return wc, nil
 }
@@ -41,13 +42,10 @@ func (r *WorkConfirmationRepository) Confirm(ctx context.Context, workID, perfor
 	}
 
 	now := time.Now()
-	if _, err = tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = true, updated_at = ? WHERE work_id = ? AND performer_id = ?`, now, workID, actualPerformerID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = true, status = 'in progress', updated_at = ? WHERE work_id = ? AND performer_id = ?`, now, workID, actualPerformerID); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM work_responses WHERE work_id = ? AND user_id <> ?`, workID, actualClientID); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE work SET status = 'in progress' WHERE id = ?`, workID); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, actualPerformerID); err != nil {
@@ -64,7 +62,7 @@ func (r *WorkConfirmationRepository) Cancel(ctx context.Context, workID, userID 
 	defer tx.Rollback()
 
 	var clientID, performerID int
-	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM work_confirmations WHERE work_id = ?`, workID).Scan(&clientID, &performerID); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM work_confirmations WHERE work_id = ? AND confirmed = true`, workID).Scan(&clientID, &performerID); err != nil {
 		return err
 	}
 	if userID == clientID {
@@ -76,10 +74,8 @@ func (r *WorkConfirmationRepository) Cancel(ctx context.Context, workID, userID 
 		}
 	}
 
-	if _, err := tx.ExecContext(ctx, `UPDATE work SET status = 'active' WHERE id = ?`, workID); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM work_confirmations WHERE work_id = ?`, workID); err != nil {
+	now := time.Now()
+	if _, err := tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = false, status = 'cancelled', updated_at = ? WHERE work_id = ? AND client_id = ? AND performer_id = ?`, now, workID, clientID, performerID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -92,10 +88,8 @@ func (r *WorkConfirmationRepository) Done(ctx context.Context, workID int) error
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx, `UPDATE work SET status = 'done' WHERE id = ?`, workID); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM work_confirmations WHERE work_id = ?`, workID); err != nil {
+	now := time.Now()
+	if _, err := tx.ExecContext(ctx, `UPDATE work_confirmations SET status = 'done', updated_at = ? WHERE work_id = ? AND confirmed = true`, now, workID); err != nil {
 		return err
 	}
 	return tx.Commit()
