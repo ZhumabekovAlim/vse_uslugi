@@ -486,10 +486,12 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 			return nil, err
 		}
 		if lat.Valid {
-			s.AdLatitude = &lat.String
+			latVal := lat.String
+			s.AdLatitude = &latVal
 		}
 		if lon.Valid {
-			s.AdLongitude = &lon.String
+			lonVal := lon.String
+			s.AdLongitude = &lonVal
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)
@@ -661,10 +663,12 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		if lat.Valid {
-			s.AdLatitude = &lat.String
+			latVal := lat.String
+			s.AdLatitude = &latVal
 		}
 		if lon.Valid {
-			s.AdLongitude = &lon.String
+			lonVal := lon.String
+			s.AdLongitude = &lonVal
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)

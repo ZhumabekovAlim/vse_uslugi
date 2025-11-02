@@ -489,10 +489,12 @@ WHERE 1=1
 			return nil, err
 		}
 		if lat.Valid {
-			s.ServiceLatitude = &lat.String
+			latVal := lat.String
+			s.ServiceLatitude = &latVal
 		}
 		if lon.Valid {
-			s.ServiceLongitude = &lon.String
+			lonVal := lon.String
+			s.ServiceLongitude = &lonVal
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)
@@ -664,10 +666,12 @@ WHERE 1=1
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		if lat.Valid {
-			s.ServiceLatitude = &lat.String
+			latVal := lat.String
+			s.ServiceLatitude = &latVal
 		}
 		if lon.Valid {
-			s.ServiceLongitude = &lon.String
+			lonVal := lon.String
+			s.ServiceLongitude = &lonVal
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)
