@@ -12,7 +12,7 @@ type RentConfirmationRepository struct {
 }
 
 func (r *RentConfirmationRepository) Create(ctx context.Context, rc models.RentConfirmation) (models.RentConfirmation, error) {
-	query := `INSERT INTO rent_confirmations (rent_id, chat_id, client_id, performer_id, confirmed, created_at) VALUES (?, ?, ?, ?, false, ?)`
+	query := `INSERT INTO rent_confirmations (rent_id, chat_id, client_id, performer_id, confirmed, status, created_at) VALUES (?, ?, ?, ?, false, 'active', ?)`
 	now := time.Now()
 	res, err := r.DB.ExecContext(ctx, query, rc.RentID, rc.ChatID, rc.ClientID, rc.PerformerID, now)
 	if err != nil {
@@ -23,6 +23,7 @@ func (r *RentConfirmationRepository) Create(ctx context.Context, rc models.RentC
 		return models.RentConfirmation{}, err
 	}
 	rc.ID = int(id)
+	rc.Status = "active"
 	rc.CreatedAt = now
 	return rc, nil
 }
@@ -41,13 +42,10 @@ func (r *RentConfirmationRepository) Confirm(ctx context.Context, rentID, perfor
 	}
 
 	now := time.Now()
-	if _, err = tx.ExecContext(ctx, `UPDATE rent_confirmations SET confirmed = true, updated_at = ? WHERE rent_id = ? AND performer_id = ?`, now, rentID, actualPerformerID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE rent_confirmations SET confirmed = true, status = 'in progress', updated_at = ? WHERE rent_id = ? AND performer_id = ?`, now, rentID, actualPerformerID); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM rent_responses WHERE rent_id = ? AND user_id <> ?`, rentID, actualPerformerID); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE rent SET status = 'in progress' WHERE id = ?`, rentID); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, actualPerformerID); err != nil {
@@ -64,7 +62,7 @@ func (r *RentConfirmationRepository) Cancel(ctx context.Context, rentID, userID 
 	defer tx.Rollback()
 
 	var clientID, performerID int
-	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM rent_confirmations WHERE rent_id = ?`, rentID).Scan(&clientID, &performerID); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM rent_confirmations WHERE rent_id = ? AND confirmed = true`, rentID).Scan(&clientID, &performerID); err != nil {
 		return err
 	}
 	if userID == clientID {
@@ -76,10 +74,8 @@ func (r *RentConfirmationRepository) Cancel(ctx context.Context, rentID, userID 
 		}
 	}
 
-	if _, err := tx.ExecContext(ctx, `UPDATE rent SET status = 'active' WHERE id = ?`, rentID); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM rent_confirmations WHERE rent_id = ?`, rentID); err != nil {
+	now := time.Now()
+	if _, err := tx.ExecContext(ctx, `UPDATE rent_confirmations SET confirmed = false, status = 'cancelled', updated_at = ? WHERE rent_id = ? AND client_id = ? AND performer_id = ?`, now, rentID, clientID, performerID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -92,10 +88,8 @@ func (r *RentConfirmationRepository) Done(ctx context.Context, rentID int) error
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx, `UPDATE rent SET status = 'done' WHERE id = ?`, rentID); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM rent_confirmations WHERE rent_id = ?`, rentID); err != nil {
+	now := time.Now()
+	if _, err := tx.ExecContext(ctx, `UPDATE rent_confirmations SET status = 'done', updated_at = ? WHERE rent_id = ? AND confirmed = true`, now, rentID); err != nil {
 		return err
 	}
 	return tx.Commit()
