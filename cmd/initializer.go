@@ -202,7 +202,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	categoryService := &services.CategoryService{CategoryRepo: &categoryRepo}
 	rentCategoryService := &services.RentCategoryService{CategoryRepo: &rentCategoryRepo}
 	workCategoryService := &services.WorkCategoryService{CategoryRepo: &workCategoryRepo}
-	reviewsService := &services.ReviewService{ReviewsRepo: &reviewsRepo}
+	reviewsService := &services.ReviewService{ReviewsRepo: &reviewsRepo, ConfirmationRepo: &serviceConfirmationRepo}
 	serviceFavoritesService := &services.ServiceFavoriteService{ServiceFavoriteRepo: &serviceFavoriteRepo}
 	subcategoryService := services.SubcategoryService{SubcategoryRepo: &subcategoryRepo}
 	rentSubcategoryService := services.RentSubcategoryService{SubcategoryRepo: &rentSubcategoryRepo}
@@ -222,14 +222,14 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	responseUsersService := &services.ResponseUsersService{Repo: &responseUsersRepo}
 	workService := &services.WorkService{WorkRepo: &workRepo, SubscriptionRepo: &subscriptionRepo}
 	rentService := &services.RentService{RentRepo: &rentRepo, SubscriptionRepo: &subscriptionRepo}
-	workReviewService := &services.WorkReviewService{WorkReviewsRepo: &workReviewRepo}
+	workReviewService := &services.WorkReviewService{WorkReviewsRepo: &workReviewRepo, ConfirmationRepo: &workConfirmationRepo}
 	workResponseService := &services.WorkResponseService{WorkResponseRepo: &workResponseRepo, WorkRepo: &workRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workConfirmationRepo, MessageRepo: &messageRepo}
 	workFavoriteService := &services.WorkFavoriteService{WorkFavoriteRepo: &workFavoriteRepo}
-	rentReviewService := &services.RentReviewService{RentReviewsRepo: &rentReviewRepo}
+	rentReviewService := &services.RentReviewService{RentReviewsRepo: &rentReviewRepo, ConfirmationRepo: &rentConfirmationRepo}
 	rentResponseService := &services.RentResponseService{RentResponseRepo: &rentResponseRepo, RentRepo: &rentRepo, ChatRepo: &chatRepo, ConfirmationRepo: &rentConfirmationRepo, MessageRepo: &messageRepo}
 	rentFavoriteService := &services.RentFavoriteService{RentFavoriteRepo: &rentFavoriteRepo}
 	adService := &services.AdService{AdRepo: &adRepo, SubscriptionRepo: &subscriptionRepo}
-	adReviewService := &services.AdReviewService{AdReviewsRepo: &adReviewRepo}
+	adReviewService := &services.AdReviewService{AdReviewsRepo: &adReviewRepo, ConfirmationRepo: &adConfirmationRepo}
 	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo, AdRepo: &adRepo, ChatRepo: &chatRepo, ConfirmationRepo: &adConfirmationRepo, MessageRepo: &messageRepo, SubscriptionRepo: &subscriptionRepo}
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
 	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
@@ -273,11 +273,11 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	}
 
 	workAdService := &services.WorkAdService{WorkAdRepo: &workAdRepo, SubscriptionRepo: &subscriptionRepo}
-	workAdReviewService := &services.WorkAdReviewService{WorkAdReviewsRepo: &workAdReviewRepo}
+	workAdReviewService := &services.WorkAdReviewService{WorkAdReviewsRepo: &workAdReviewRepo, ConfirmationRepo: &workAdConfirmationRepo}
 	workAdResponseService := &services.WorkAdResponseService{WorkAdResponseRepo: &workAdResponseRepo, WorkAdRepo: &workAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &workAdConfirmationRepo, MessageRepo: &messageRepo, SubscriptionRepo: &subscriptionRepo}
 	workAdFavoriteService := &services.WorkAdFavoriteService{WorkAdFavoriteRepo: &workAdFavoriteRepo}
 	rentAdService := &services.RentAdService{RentAdRepo: &rentAdRepo, SubscriptionRepo: &subscriptionRepo}
-	rentAdReviewService := &services.RentAdReviewService{RentAdReviewsRepo: &rentAdReviewRepo}
+	rentAdReviewService := &services.RentAdReviewService{RentAdReviewsRepo: &rentAdReviewRepo, ConfirmationRepo: &rentAdConfirmationRepo}
 	rentAdResponseService := &services.RentAdResponseService{RentAdResponseRepo: &rentAdResponseRepo, RentAdRepo: &rentAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &rentAdConfirmationRepo, MessageRepo: &messageRepo, SubscriptionRepo: &subscriptionRepo}
 	rentAdFavoriteService := &services.RentAdFavoriteService{RentAdFavoriteRepo: &rentAdFavoriteRepo}
 	adConfirmationService := &services.AdConfirmationService{ConfirmationRepo: &adConfirmationRepo}

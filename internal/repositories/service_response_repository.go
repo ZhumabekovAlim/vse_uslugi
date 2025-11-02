@@ -41,3 +41,27 @@ func (r *ServiceResponseRepository) CreateResponse(ctx context.Context, resp mod
 
 	return resp, nil
 }
+
+func (r *ServiceResponseRepository) GetByID(ctx context.Context, id int) (models.ServiceResponses, error) {
+	var resp models.ServiceResponses
+	query := `SELECT id, user_id, service_id, price, description, created_at, updated_at FROM service_responses WHERE id = ?`
+	err := r.DB.QueryRowContext(ctx, query, id).Scan(
+		&resp.ID,
+		&resp.UserID,
+		&resp.ServiceID,
+		&resp.Price,
+		&resp.Description,
+		&resp.CreatedAt,
+		&resp.UpdatedAt,
+	)
+	if err != nil {
+		return models.ServiceResponses{}, err
+	}
+	resp.PerformerID = resp.UserID
+	return resp, nil
+}
+
+func (r *ServiceResponseRepository) DeleteResponse(ctx context.Context, id int) error {
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM service_responses WHERE id = ?`, id)
+	return err
+}

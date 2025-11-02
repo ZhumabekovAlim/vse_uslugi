@@ -7,11 +7,21 @@ import (
 )
 
 type RentReviewService struct {
-	RentReviewsRepo *repositories.RentReviewRepository
+	RentReviewsRepo  *repositories.RentReviewRepository
+	ConfirmationRepo *repositories.RentConfirmationRepository
 }
 
 func (s *RentReviewService) CreateRentReview(ctx context.Context, review models.RentReviews) (models.RentReviews, error) {
-	return s.RentReviewsRepo.CreateRentReview(ctx, review)
+	rev, err := s.RentReviewsRepo.CreateRentReview(ctx, review)
+	if err != nil {
+		return rev, err
+	}
+	if s.ConfirmationRepo != nil && review.RentID != 0 {
+		if err := s.ConfirmationRepo.Done(ctx, review.RentID); err != nil {
+			return rev, err
+		}
+	}
+	return rev, nil
 }
 
 func (s *RentReviewService) GetRentReviewsByRentID(ctx context.Context, rentID int) ([]models.RentReviews, error) {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"naimuBack/internal/models"
 	"naimuBack/internal/services"
@@ -39,4 +40,30 @@ func (h *RentAdResponseHandler) CreateRentAdResponse(w http.ResponseWriter, r *h
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *RentAdResponseHandler) CancelRentAdResponse(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get(":id")
+	responseID, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "invalid response id", http.StatusBadRequest)
+		return
+	}
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if err := h.Service.CancelRentAdResponse(r.Context(), responseID, userID); err != nil {
+		switch {
+		case errors.Is(err, models.ErrNoRecord):
+			http.Error(w, "response not found", http.StatusNotFound)
+		case errors.Is(err, models.ErrForbidden):
+			http.Error(w, "forbidden", http.StatusForbidden)
+		default:
+			http.Error(w, "could not cancel response", http.StatusInternalServerError)
+		}
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

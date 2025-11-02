@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
@@ -57,4 +59,24 @@ func (s *WorkResponseService) CreateWorkResponse(ctx context.Context, resp model
 	}
 
 	return resp, nil
+}
+
+func (s *WorkResponseService) CancelWorkResponse(ctx context.Context, responseID, userID int) error {
+	resp, err := s.WorkResponseRepo.GetByID(ctx, responseID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.ErrNoRecord
+		}
+		return err
+	}
+	if resp.UserID != userID {
+		return models.ErrForbidden
+	}
+	if err := s.WorkResponseRepo.DeleteResponse(ctx, responseID); err != nil {
+		return err
+	}
+	if err := s.ConfirmationRepo.DeletePending(ctx, resp.WorkID, userID); err != nil {
+		return err
+	}
+	return nil
 }

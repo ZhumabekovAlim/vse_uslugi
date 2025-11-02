@@ -8,10 +8,20 @@ import (
 
 type WorkAdReviewService struct {
 	WorkAdReviewsRepo *repositories.WorkAdReviewRepository
+	ConfirmationRepo  *repositories.WorkAdConfirmationRepository
 }
 
 func (s *WorkAdReviewService) CreateWorkAdReview(ctx context.Context, review models.WorkAdReviews) (models.WorkAdReviews, error) {
-	return s.WorkAdReviewsRepo.CreateWorkAdReview(ctx, review)
+	rev, err := s.WorkAdReviewsRepo.CreateWorkAdReview(ctx, review)
+	if err != nil {
+		return rev, err
+	}
+	if s.ConfirmationRepo != nil && review.WorkAdID != 0 {
+		if err := s.ConfirmationRepo.Done(ctx, review.WorkAdID); err != nil {
+			return rev, err
+		}
+	}
+	return rev, nil
 }
 
 func (s *WorkAdReviewService) GetWorkAdReviewsByWorkID(ctx context.Context, workAdID int) ([]models.WorkAdReviews, error) {

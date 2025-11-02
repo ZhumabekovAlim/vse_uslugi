@@ -67,19 +67,58 @@ func (r *UserItemsRepository) GetAdWorkAdRentAdByUserID(ctx context.Context, use
 // GetOrderHistoryByUserID returns completed service, work, rent, ad, work_ad and rent_ad items for the user ordered by creation time.
 func (r *UserItemsRepository) GetOrderHistoryByUserID(ctx context.Context, userID int) ([]models.UserItem, error) {
 	query := `
-    SELECT id, name, price, description, created_at, status, 'service' AS type FROM service WHERE user_id = ? AND status = 'done'
-    UNION ALL
-    SELECT id, name, price, description, created_at, status, 'work' AS type FROM work WHERE user_id = ? AND status = 'done'
-    UNION ALL
-    SELECT id, name, price, description, created_at, status, 'rent' AS type FROM rent WHERE user_id = ? AND status = 'done'
-    UNION ALL
-    SELECT id, name, price, description, created_at, status, 'ad' AS type FROM ad WHERE user_id = ? AND status = 'done'
-    UNION ALL
-    SELECT id, name, price, description, created_at, status, 'work_ad' AS type FROM work_ad WHERE user_id = ? AND status = 'done'
-    UNION ALL
-    SELECT id, name, price, description, created_at, status, 'rent_ad' AS type FROM rent_ad WHERE user_id = ? AND status = 'done'
+    SELECT id, name, price, description, created_at, status, type FROM (
+        SELECT id, name, price, description, created_at, status, 'service' AS type FROM service WHERE user_id = ? AND status = 'done'
+        UNION
+        SELECT s.id, s.name, s.price, s.description, s.created_at, s.status, 'service' AS type
+        FROM service s
+        JOIN service_responses sr ON sr.service_id = s.id
+        WHERE sr.user_id = ? AND s.status IN ('done', 'in progress')
+        UNION
+        SELECT id, name, price, description, created_at, status, 'work' AS type FROM work WHERE user_id = ? AND status = 'done'
+        UNION
+        SELECT w.id, w.name, w.price, w.description, w.created_at, w.status, 'work' AS type
+        FROM work w
+        JOIN work_responses wr ON wr.work_id = w.id
+        WHERE wr.user_id = ? AND w.status IN ('done', 'in progress')
+        UNION
+        SELECT id, name, price, description, created_at, status, 'rent' AS type FROM rent WHERE user_id = ? AND status = 'done'
+        UNION
+        SELECT r.id, r.name, r.price, r.description, r.created_at, r.status, 'rent' AS type
+        FROM rent r
+        JOIN rent_responses rr ON rr.rent_id = r.id
+        WHERE rr.user_id = ? AND r.status IN ('done', 'in progress')
+        UNION
+        SELECT id, name, price, description, created_at, status, 'ad' AS type FROM ad WHERE user_id = ? AND status = 'done'
+        UNION
+        SELECT a.id, a.name, a.price, a.description, a.created_at, a.status, 'ad' AS type
+        FROM ad a
+        JOIN ad_responses ar ON ar.ad_id = a.id
+        WHERE ar.user_id = ? AND a.status IN ('done', 'in progress')
+        UNION
+        SELECT id, name, price, description, created_at, status, 'work_ad' AS type FROM work_ad WHERE user_id = ? AND status = 'done'
+        UNION
+        SELECT wa.id, wa.name, wa.price, wa.description, wa.created_at, wa.status, 'work_ad' AS type
+        FROM work_ad wa
+        JOIN work_ad_responses war ON war.work_ad_id = wa.id
+        WHERE war.user_id = ? AND wa.status IN ('done', 'in progress')
+        UNION
+        SELECT id, name, price, description, created_at, status, 'rent_ad' AS type FROM rent_ad WHERE user_id = ? AND status = 'done'
+        UNION
+        SELECT ra.id, ra.name, ra.price, ra.description, ra.created_at, ra.status, 'rent_ad' AS type
+        FROM rent_ad ra
+        JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id
+        WHERE rar.user_id = ? AND ra.status IN ('done', 'in progress')
+    ) AS combined
     ORDER BY created_at DESC`
-	rows, err := r.DB.QueryContext(ctx, query, userID, userID, userID, userID, userID, userID)
+	rows, err := r.DB.QueryContext(ctx, query,
+		userID, userID,
+		userID, userID,
+		userID, userID,
+		userID, userID,
+		userID, userID,
+		userID, userID,
+	)
 	if err != nil {
 		return nil, err
 	}

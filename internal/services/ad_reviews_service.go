@@ -7,11 +7,21 @@ import (
 )
 
 type AdReviewService struct {
-	AdReviewsRepo *repositories.AdReviewRepository
+	AdReviewsRepo    *repositories.AdReviewRepository
+	ConfirmationRepo *repositories.AdConfirmationRepository
 }
 
 func (s *AdReviewService) CreateAdReview(ctx context.Context, review models.AdReviews) (models.AdReviews, error) {
-	return s.AdReviewsRepo.CreateAdReview(ctx, review)
+	rev, err := s.AdReviewsRepo.CreateAdReview(ctx, review)
+	if err != nil {
+		return rev, err
+	}
+	if s.ConfirmationRepo != nil && review.AdID != 0 {
+		if err := s.ConfirmationRepo.Done(ctx, review.AdID); err != nil {
+			return rev, err
+		}
+	}
+	return rev, nil
 }
 
 func (s *AdReviewService) GetReviewsByAdID(ctx context.Context, adID int) ([]models.AdReviews, error) {

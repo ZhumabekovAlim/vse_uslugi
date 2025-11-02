@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
@@ -57,4 +59,24 @@ func (s *RentResponseService) CreateRentResponse(ctx context.Context, resp model
 	}
 
 	return resp, nil
+}
+
+func (s *RentResponseService) CancelRentResponse(ctx context.Context, responseID, userID int) error {
+	resp, err := s.RentResponseRepo.GetByID(ctx, responseID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.ErrNoRecord
+		}
+		return err
+	}
+	if resp.UserID != userID {
+		return models.ErrForbidden
+	}
+	if err := s.RentResponseRepo.DeleteResponse(ctx, responseID); err != nil {
+		return err
+	}
+	if err := s.ConfirmationRepo.DeletePending(ctx, resp.RentID, userID); err != nil {
+		return err
+	}
+	return nil
 }

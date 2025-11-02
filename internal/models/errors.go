@@ -32,6 +32,7 @@ var (
 	ErrSubcategoryNotFound    = errors.New("subcategory not found")
 	ErrAlreadyResponded       = errors.New("user already responded")
 	ErrNoRemainingResponses   = errors.New("no remaining responses")
+	ErrForbidden              = errors.New("forbidden")
 )
 
 var ErrInvalidVerificationCode = errors.New("invalid verification code")

@@ -41,3 +41,27 @@ func (r *WorkResponseRepository) CreateWorkResponse(ctx context.Context, resp mo
 
 	return resp, nil
 }
+
+func (r *WorkResponseRepository) GetByID(ctx context.Context, id int) (models.WorkResponses, error) {
+	var resp models.WorkResponses
+	query := `SELECT id, user_id, work_id, price, description, created_at, updated_at FROM work_responses WHERE id = ?`
+	err := r.DB.QueryRowContext(ctx, query, id).Scan(
+		&resp.ID,
+		&resp.UserID,
+		&resp.WorkID,
+		&resp.Price,
+		&resp.Description,
+		&resp.CreatedAt,
+		&resp.UpdatedAt,
+	)
+	if err != nil {
+		return models.WorkResponses{}, err
+	}
+	resp.PerformerID = resp.UserID
+	return resp, nil
+}
+
+func (r *WorkResponseRepository) DeleteResponse(ctx context.Context, id int) error {
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM work_responses WHERE id = ?`, id)
+	return err
+}
