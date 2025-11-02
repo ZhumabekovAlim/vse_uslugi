@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -110,5 +111,73 @@ func TestCreatePaymentLink_Non2xxReturnsAirbapayError(t *testing.T) {
 	}
 	if apiErr.Body == "" {
 		t.Errorf("expected body to be populated")
+	}
+}
+
+func TestWebhookPayload_UnmarshalJSON_SupportsSnakeAndCamelCase(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload string
+		wantID  string
+		wantAmt float64
+	}{
+		{
+			name: "snake_case",
+			payload: `{
+                "id": "123",
+                "invoice_id": "inv-1",
+                "amount": 2500,
+                "currency": "KZT",
+                "status": "success",
+                "description": "Test",
+                "sign": "abc"
+            }`,
+			wantID:  "inv-1",
+			wantAmt: 2500,
+		},
+		{
+			name: "camelCase",
+			payload: `{
+                "id": "321",
+                "invoiceId": "inv-2",
+                "amount": "150.50",
+                "currency": "KZT",
+                "status": "success",
+                "description": "Test",
+                "sign": "abc"
+            }`,
+			wantID:  "inv-2",
+			wantAmt: 150.50,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var payload WebhookPayload
+			if err := json.Unmarshal([]byte(tc.payload), &payload); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if payload.InvoiceID != tc.wantID {
+				t.Errorf("invoice id mismatch: got %q want %q", payload.InvoiceID, tc.wantID)
+			}
+			if payload.Amount != tc.wantAmt {
+				t.Errorf("amount mismatch: got %.2f want %.2f", payload.Amount, tc.wantAmt)
+			}
+		})
+	}
+}
+
+func TestParseCallback_AllowsCamelCaseInvoiceID(t *testing.T) {
+	svc := &AirbapayService{}
+	body := `{"id":"5","invoiceId":"inv-99","amount":100,"currency":"KZT","status":"success","description":"","sign":"sig"}`
+	payload, err := svc.ParseCallback(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if payload.InvoiceID != "inv-99" {
+		t.Fatalf("invoice id mismatch: got %q", payload.InvoiceID)
+	}
+	if string(payload.Raw) != body {
+		t.Fatalf("raw payload mismatch: got %q want %q", string(payload.Raw), body)
 	}
 }
