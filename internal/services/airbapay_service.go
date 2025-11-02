@@ -335,6 +335,57 @@ type WebhookPayload struct {
 	Raw         json.RawMessage `json:"-"`
 }
 
+func (p *WebhookPayload) UnmarshalJSON(data []byte) error {
+	type rawPayload struct {
+		ID             string          `json:"id"`
+		InvoiceID      string          `json:"invoice_id"`
+		InvoiceIDCamel string          `json:"invoiceId"`
+		Amount         json.RawMessage `json:"amount"`
+		Currency       string          `json:"currency"`
+		Status         string          `json:"status"`
+		Description    string          `json:"description"`
+		Sign           string          `json:"sign"`
+	}
+
+	var raw rawPayload
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	invoiceID := strings.TrimSpace(raw.InvoiceID)
+	if invoiceID == "" {
+		invoiceID = strings.TrimSpace(raw.InvoiceIDCamel)
+	}
+
+	var amount float64
+	if len(raw.Amount) > 0 {
+		if err := json.Unmarshal(raw.Amount, &amount); err != nil {
+			var amountStr string
+			if err := json.Unmarshal(raw.Amount, &amountStr); err != nil {
+				return fmt.Errorf("airbapay: parse webhook amount: %w", err)
+			}
+			amountStr = strings.TrimSpace(amountStr)
+			if amountStr != "" {
+				parsed, err := strconv.ParseFloat(amountStr, 64)
+				if err != nil {
+					return fmt.Errorf("airbapay: parse webhook amount: %w", err)
+				}
+				amount = parsed
+			}
+		}
+	}
+
+	p.ID = strings.TrimSpace(raw.ID)
+	p.InvoiceID = invoiceID
+	p.Amount = amount
+	p.Currency = strings.TrimSpace(raw.Currency)
+	p.Status = strings.TrimSpace(raw.Status)
+	p.Description = strings.TrimSpace(raw.Description)
+	p.Sign = strings.TrimSpace(raw.Sign)
+
+	return nil
+}
+
 // Порядок конкатенации для подписи: id+invoice_id+amount+currency+status+description
 func (s *AirbapayService) ValidateCallbackSignature(p *WebhookPayload) bool {
 	if p == nil || strings.TrimSpace(p.Sign) == "" {
