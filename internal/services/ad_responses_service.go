@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
@@ -72,4 +74,27 @@ func (s *AdResponseService) CreateAdResponse(ctx context.Context, resp models.Ad
 	}
 
 	return resp, nil
+}
+
+func (s *AdResponseService) CancelAdResponse(ctx context.Context, responseID, userID int) error {
+	resp, err := s.AdResponseRepo.GetByID(ctx, responseID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.ErrNoRecord
+		}
+		return err
+	}
+	if resp.UserID != userID {
+		return models.ErrForbidden
+	}
+	if err := s.AdResponseRepo.DeleteResponse(ctx, responseID); err != nil {
+		return err
+	}
+	if err := s.ConfirmationRepo.DeletePending(ctx, resp.AdID, userID); err != nil {
+		return err
+	}
+	if err := s.SubscriptionRepo.RestoreResponse(ctx, userID); err != nil {
+		return err
+	}
+	return nil
 }

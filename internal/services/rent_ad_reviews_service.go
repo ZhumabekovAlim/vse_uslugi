@@ -8,10 +8,20 @@ import (
 
 type RentAdReviewService struct {
 	RentAdReviewsRepo *repositories.RentAdReviewRepository
+	ConfirmationRepo  *repositories.RentAdConfirmationRepository
 }
 
 func (s *RentAdReviewService) CreateRentAdReview(ctx context.Context, review models.RentAdReviews) (models.RentAdReviews, error) {
-	return s.RentAdReviewsRepo.CreateRentAdReview(ctx, review)
+	rev, err := s.RentAdReviewsRepo.CreateRentAdReview(ctx, review)
+	if err != nil {
+		return rev, err
+	}
+	if s.ConfirmationRepo != nil && review.RentAdID != 0 {
+		if err := s.ConfirmationRepo.Done(ctx, review.RentAdID); err != nil {
+			return rev, err
+		}
+	}
+	return rev, nil
 }
 
 func (s *RentAdReviewService) GetRentAdReviewsByRentID(ctx context.Context, rentAdID int) ([]models.RentAdReviews, error) {

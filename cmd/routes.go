@@ -259,6 +259,7 @@ func (app *application) routes() http.Handler {
 
 	// Service Response
 	mux.Post("/responses", authMiddleware.ThenFunc(app.serviceResponseHandler.CreateServiceResponse))
+	mux.Del("/responses/:id", authMiddleware.ThenFunc(app.serviceResponseHandler.CancelServiceResponse))
 	mux.Get("/responses/:user_id", authMiddleware.ThenFunc(app.userResponsesHandler.GetResponsesByUserID))
 	mux.Get("/responses/item/:type/:item_id", authMiddleware.ThenFunc(app.responseUsersHandler.GetUsersByItemID))
 
@@ -289,6 +290,7 @@ func (app *application) routes() http.Handler {
 
 	// Work Response
 	mux.Post("/work_responses", authMiddleware.ThenFunc(app.workResponseHandler.CreateWorkResponse))
+	mux.Del("/work_responses/:id", authMiddleware.ThenFunc(app.workResponseHandler.CancelWorkResponse))
 
 	// Work Favorites
 	mux.Post("/work_favorites", authMiddleware.ThenFunc(app.workFavoriteHandler.AddWorkToFavorites))
@@ -323,6 +325,7 @@ func (app *application) routes() http.Handler {
 
 	// Reent Response
 	mux.Post("/rent_responses", authMiddleware.ThenFunc(app.rentResponseHandler.CreateRentResponse))
+	mux.Del("/rent_responses/:id", authMiddleware.ThenFunc(app.rentResponseHandler.CancelRentResponse))
 
 	// Rent Favorites
 	mux.Post("/rent_favorites", authMiddleware.ThenFunc(app.rentFavoriteHandler.AddRentToFavorites))
@@ -357,6 +360,7 @@ func (app *application) routes() http.Handler {
 
 	// Ad Response
 	mux.Post("/ad_responses", authMiddleware.ThenFunc(app.adResponseHandler.CreateAdResponse))
+	mux.Del("/ad_responses/:id", authMiddleware.ThenFunc(app.adResponseHandler.CancelAdResponse))
 
 	// Ad Favorites
 	mux.Post("/ad_favorites", authMiddleware.ThenFunc(app.adFavoriteHandler.AddAdToFavorites))
@@ -391,6 +395,7 @@ func (app *application) routes() http.Handler {
 
 	// Work Response
 	mux.Post("/work_ad_responses", authMiddleware.ThenFunc(app.workAdResponseHandler.CreateWorkAdResponse))
+	mux.Del("/work_ad_responses/:id", authMiddleware.ThenFunc(app.workAdResponseHandler.CancelWorkAdResponse))
 
 	// Work Favorites
 	mux.Post("/work_ad_favorites", authMiddleware.ThenFunc(app.workAdFavoriteHandler.AddWorkAdToFavorites))
@@ -425,6 +430,7 @@ func (app *application) routes() http.Handler {
 
 	// Reent Response
 	mux.Post("/rent_ad_responses", authMiddleware.ThenFunc(app.rentAdResponseHandler.CreateRentAdResponse))
+	mux.Del("/rent_ad_responses/:id", authMiddleware.ThenFunc(app.rentAdResponseHandler.CancelRentAdResponse))
 
 	// Rent Ad Favorites
 	mux.Post("/rent_ad_favorites", authMiddleware.ThenFunc(app.rentAdFavoriteHandler.AddRentAdToFavorites))

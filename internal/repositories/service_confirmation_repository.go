@@ -106,3 +106,8 @@ func (r *ServiceConfirmationRepository) Done(ctx context.Context, serviceID int)
 	}
 	return tx.Commit()
 }
+
+func (r *ServiceConfirmationRepository) DeletePending(ctx context.Context, serviceID, performerID int) error {
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM service_confirmations WHERE service_id = ? AND performer_id = ? AND confirmed = false`, serviceID, performerID)
+	return err
+}

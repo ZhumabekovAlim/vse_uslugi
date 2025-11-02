@@ -98,3 +98,8 @@ func (r *WorkAdConfirmationRepository) Done(ctx context.Context, workAdID int) e
 	}
 	return tx.Commit()
 }
+
+func (r *WorkAdConfirmationRepository) DeletePending(ctx context.Context, workAdID, performerID int) error {
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM work_ad_confirmations WHERE work_ad_id = ? AND performer_id = ? AND confirmed = false`, workAdID, performerID)
+	return err
+}

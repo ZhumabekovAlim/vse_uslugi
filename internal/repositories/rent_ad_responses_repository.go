@@ -42,6 +42,25 @@ func (r *RentAdResponseRepository) CreateRentAdResponse(ctx context.Context, res
 	return resp, nil
 }
 
+func (r *RentAdResponseRepository) GetByID(ctx context.Context, id int) (models.RentAdResponses, error) {
+	var resp models.RentAdResponses
+	query := `SELECT id, user_id, rent_ad_id, price, description, created_at, updated_at FROM rent_ad_responses WHERE id = ?`
+	err := r.DB.QueryRowContext(ctx, query, id).Scan(
+		&resp.ID,
+		&resp.UserID,
+		&resp.RentAdID,
+		&resp.Price,
+		&resp.Description,
+		&resp.CreatedAt,
+		&resp.UpdatedAt,
+	)
+	if err != nil {
+		return models.RentAdResponses{}, err
+	}
+	resp.PerformerID = resp.UserID
+	return resp, nil
+}
+
 func (r *RentAdResponseRepository) DeleteResponse(ctx context.Context, id int) error {
 	_, err := r.DB.ExecContext(ctx, `DELETE FROM rent_ad_responses WHERE id = ?`, id)
 	return err
