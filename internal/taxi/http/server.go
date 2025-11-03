@@ -821,7 +821,7 @@ func (s *Server) handleGetOrder(w http.ResponseWriter, r *http.Request, orderID 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	order, err := s.ordersRepo.Get(ctx, orderID)
+	order, driver, err := s.ordersRepo.GetWithDriver(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "order not found")
@@ -834,15 +834,6 @@ func (s *Server) handleGetOrder(w http.ResponseWriter, r *http.Request, orderID 
 		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
-
-	var driver *repo.Driver
-	if order.DriverID.Valid {
-		d, err := s.driversRepo.Get(ctx, order.DriverID.Int64)
-		if err == nil {
-			driver = &d
-		}
-	}
-
 	writeJSON(w, http.StatusOK, newOrderResponse(order, driver))
 }
 
