@@ -65,9 +65,17 @@ func (s *WorkResponseService) CancelWorkResponse(ctx context.Context, responseID
 	resp, err := s.WorkResponseRepo.GetByID(ctx, responseID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return models.ErrNoRecord
+			resp, err = s.WorkResponseRepo.GetByWorkAndUser(ctx, responseID, userID)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					return models.ErrNoRecord
+				}
+				return err
+			}
+			responseID = resp.ID
+		} else {
+			return err
 		}
-		return err
 	}
 	if resp.UserID != userID {
 		return models.ErrForbidden

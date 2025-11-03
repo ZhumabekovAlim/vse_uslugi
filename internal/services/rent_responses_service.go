@@ -65,9 +65,17 @@ func (s *RentResponseService) CancelRentResponse(ctx context.Context, responseID
 	resp, err := s.RentResponseRepo.GetByID(ctx, responseID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return models.ErrNoRecord
+			resp, err = s.RentResponseRepo.GetByRentAndUser(ctx, responseID, userID)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					return models.ErrNoRecord
+				}
+				return err
+			}
+			responseID = resp.ID
+		} else {
+			return err
 		}
-		return err
 	}
 	if resp.UserID != userID {
 		return models.ErrForbidden
