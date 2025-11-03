@@ -61,6 +61,25 @@ func (r *RentResponseRepository) GetByID(ctx context.Context, id int) (models.Re
 	return resp, nil
 }
 
+func (r *RentResponseRepository) GetByRentAndUser(ctx context.Context, rentID, userID int) (models.RentResponses, error) {
+	var resp models.RentResponses
+	query := `SELECT id, user_id, rent_id, price, description, created_at, updated_at FROM rent_responses WHERE rent_id = ? AND user_id = ?`
+	err := r.DB.QueryRowContext(ctx, query, rentID, userID).Scan(
+		&resp.ID,
+		&resp.UserID,
+		&resp.RentID,
+		&resp.Price,
+		&resp.Description,
+		&resp.CreatedAt,
+		&resp.UpdatedAt,
+	)
+	if err != nil {
+		return models.RentResponses{}, err
+	}
+	resp.PerformerID = resp.UserID
+	return resp, nil
+}
+
 func (r *RentResponseRepository) DeleteResponse(ctx context.Context, id int) error {
 	_, err := r.DB.ExecContext(ctx, `DELETE FROM rent_responses WHERE id = ?`, id)
 	return err

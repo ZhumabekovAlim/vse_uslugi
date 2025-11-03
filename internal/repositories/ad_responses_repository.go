@@ -61,6 +61,25 @@ func (r *AdResponseRepository) GetByID(ctx context.Context, id int) (models.AdRe
 	return resp, nil
 }
 
+func (r *AdResponseRepository) GetByAdAndUser(ctx context.Context, adID, userID int) (models.AdResponses, error) {
+	var resp models.AdResponses
+	query := `SELECT id, user_id, ad_id, price, description, created_at, updated_at FROM ad_responses WHERE ad_id = ? AND user_id = ?`
+	err := r.DB.QueryRowContext(ctx, query, adID, userID).Scan(
+		&resp.ID,
+		&resp.UserID,
+		&resp.AdID,
+		&resp.Price,
+		&resp.Description,
+		&resp.CreatedAt,
+		&resp.UpdatedAt,
+	)
+	if err != nil {
+		return models.AdResponses{}, err
+	}
+	resp.PerformerID = resp.UserID
+	return resp, nil
+}
+
 func (r *AdResponseRepository) DeleteResponse(ctx context.Context, id int) error {
 	_, err := r.DB.ExecContext(ctx, `DELETE FROM ad_responses WHERE id = ?`, id)
 	return err

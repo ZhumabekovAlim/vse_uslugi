@@ -65,9 +65,17 @@ func (s *ServiceResponseService) CancelServiceResponse(ctx context.Context, resp
 	resp, err := s.ServiceResponseRepo.GetByID(ctx, responseID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return models.ErrNoRecord
+			resp, err = s.ServiceResponseRepo.GetByServiceAndUser(ctx, responseID, userID)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					return models.ErrNoRecord
+				}
+				return err
+			}
+			responseID = resp.ID
+		} else {
+			return err
 		}
-		return err
 	}
 	if resp.UserID != userID {
 		return models.ErrForbidden
