@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -167,6 +168,82 @@ func newDriverResponse(d repo.Driver) driverResponse {
 		Rating:        d.Rating,
 		UpdatedAt:     d.UpdatedAt,
 	}
+}
+
+type orderAddressResponse struct {
+	ID      int64   `json:"id"`
+	Seq     int     `json:"seq"`
+	Lon     float64 `json:"lon"`
+	Lat     float64 `json:"lat"`
+	Address string  `json:"address,omitempty"`
+}
+
+type orderResponse struct {
+	ID               int64                  `json:"id"`
+	PassengerID      int64                  `json:"passenger_id"`
+	DriverID         *int64                 `json:"driver_id,omitempty"`
+	FromLon          float64                `json:"from_lon"`
+	FromLat          float64                `json:"from_lat"`
+	ToLon            float64                `json:"to_lon"`
+	ToLat            float64                `json:"to_lat"`
+	DistanceM        int                    `json:"distance_m"`
+	EtaSeconds       int                    `json:"eta_s"`
+	RecommendedPrice int                    `json:"recommended_price"`
+	ClientPrice      int                    `json:"client_price"`
+	PaymentMethod    string                 `json:"payment_method"`
+	Status           string                 `json:"status"`
+	Notes            string                 `json:"notes,omitempty"`
+	CreatedAt        time.Time              `json:"created_at"`
+	UpdatedAt        time.Time              `json:"updated_at"`
+	Addresses        []orderAddressResponse `json:"addresses"`
+	Driver           *driverResponse        `json:"driver,omitempty"`
+}
+
+func newOrderResponse(o repo.Order, driver *repo.Driver) orderResponse {
+	var driverID *int64
+	if o.DriverID.Valid {
+		driverID = &o.DriverID.Int64
+	}
+	resp := orderResponse{
+		ID:               o.ID,
+		PassengerID:      o.PassengerID,
+		DriverID:         driverID,
+		FromLon:          o.FromLon,
+		FromLat:          o.FromLat,
+		ToLon:            o.ToLon,
+		ToLat:            o.ToLat,
+		DistanceM:        o.DistanceM,
+		EtaSeconds:       o.EtaSeconds,
+		RecommendedPrice: o.RecommendedPrice,
+		ClientPrice:      o.ClientPrice,
+		PaymentMethod:    o.PaymentMethod,
+		Status:           o.Status,
+		CreatedAt:        o.CreatedAt,
+		UpdatedAt:        o.UpdatedAt,
+	}
+	if o.Notes.Valid {
+		resp.Notes = o.Notes.String
+	}
+	if len(o.Addresses) > 0 {
+		resp.Addresses = make([]orderAddressResponse, 0, len(o.Addresses))
+		for _, addr := range o.Addresses {
+			addrResp := orderAddressResponse{
+				ID:  addr.ID,
+				Seq: addr.Seq,
+				Lon: addr.Lon,
+				Lat: addr.Lat,
+			}
+			if addr.Address.Valid {
+				addrResp.Address = addr.Address.String
+			}
+			resp.Addresses = append(resp.Addresses, addrResp)
+		}
+	}
+	if driver != nil {
+		d := newDriverResponse(*driver)
+		resp.Driver = &d
+	}
+	return resp
 }
 
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
@@ -485,11 +562,68 @@ func (s *Server) handleRouteQuote(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) handleOrders(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
+	case http.MethodGet:
+		s.handleListOrders(w, r)
 	case http.MethodPost:
 		s.handleCreateOrder(w, r)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
+	passengerID, err := parseAuthID(r, "X-Passenger-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing passenger id")
+		return
+	}
+	limit := 50
+	if v := r.URL.Query().Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n <= 0 {
+			writeError(w, http.StatusBadRequest, "invalid limit")
+			return
+		}
+		limit = n
+	}
+	offset := 0
+	if v := r.URL.Query().Get("offset"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			writeError(w, http.StatusBadRequest, "invalid offset")
+			return
+		}
+		offset = n
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	orders, err := s.ordersRepo.ListByPassenger(ctx, passengerID, limit, offset)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "list orders failed")
+		return
+	}
+
+	driverCache := make(map[int64]repo.Driver)
+	resp := make([]orderResponse, 0, len(orders))
+	for _, order := range orders {
+		var driver *repo.Driver
+		if order.DriverID.Valid {
+			if cached, ok := driverCache[order.DriverID.Int64]; ok {
+				driver = &cached
+			} else {
+				d, err := s.driversRepo.Get(ctx, order.DriverID.Int64)
+				if err == nil {
+					driverCache[order.DriverID.Int64] = d
+					driver = &d
+				}
+			}
+		}
+		resp = append(resp, newOrderResponse(order, driver))
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"orders": resp, "limit": limit, "offset": offset})
 }
 
 func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
@@ -640,14 +774,23 @@ func validateInt(expected, actual int) bool {
 
 func (s *Server) handleOrderSubroutes(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/orders/")
-	parts := strings.Split(path, "/")
-	if len(parts) < 2 {
+	path = strings.Trim(path, "/")
+	if path == "" {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+	parts := strings.Split(path, "/")
 	id, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	if len(parts) == 1 {
+		if r.Method == http.MethodGet {
+			s.handleGetOrder(w, r, id)
+			return
+		}
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	switch parts[1] {
@@ -666,6 +809,41 @@ func (s *Server) handleOrderSubroutes(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
+}
+
+func (s *Server) handleGetOrder(w http.ResponseWriter, r *http.Request, orderID int64) {
+	passengerID, err := parseAuthID(r, "X-Passenger-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing passenger id")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.ordersRepo.Get(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch failed")
+		return
+	}
+	if order.PassengerID != passengerID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+
+	var driver *repo.Driver
+	if order.DriverID.Valid {
+		d, err := s.driversRepo.Get(ctx, order.DriverID.Int64)
+		if err == nil {
+			driver = &d
+		}
+	}
+
+	writeJSON(w, http.StatusOK, newOrderResponse(order, driver))
 }
 
 func (s *Server) handleReprice(w http.ResponseWriter, r *http.Request, orderID int64) {
@@ -755,7 +933,9 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID int64) {
 	var req struct {
-		Status string `json:"status"`
+		Status string   `json:"status"`
+		Lon    *float64 `json:"lon"`
+		Lat    *float64 `json:"lat"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
@@ -779,6 +959,21 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 		return
 	}
 
+	if req.Status == "completed" {
+		if !order.DriverID.Valid {
+			writeError(w, http.StatusBadRequest, "driver not assigned")
+			return
+		}
+		if req.Lon == nil || req.Lat == nil {
+			writeError(w, http.StatusBadRequest, "location required to complete")
+			return
+		}
+		if distanceMeters(order.ToLon, order.ToLat, *req.Lon, *req.Lat) > 300 {
+			writeError(w, http.StatusBadRequest, "driver location mismatch")
+			return
+		}
+	}
+
 	if err := s.ordersRepo.UpdateStatusCAS(ctx, orderID, order.Status, req.Status); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeError(w, http.StatusConflict, "order status changed")
@@ -795,6 +990,18 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": req.Status})
+}
+
+func distanceMeters(lon1, lat1, lon2, lat2 float64) float64 {
+	const earthRadius = 6371000.0
+	dLat := (lat2 - lat1) * math.Pi / 180
+	dLon := (lon2 - lon1) * math.Pi / 180
+	lat1Rad := lat1 * math.Pi / 180
+	lat2Rad := lat2 * math.Pi / 180
+
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) + math.Cos(lat1Rad)*math.Cos(lat2Rad)*math.Sin(dLon/2)*math.Sin(dLon/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+	return earthRadius * c
 }
 
 func (s *Server) createPayment(orderID int64, amount int) {
