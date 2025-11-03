@@ -96,18 +96,118 @@ func (r *OrdersRepo) CreateWithDispatch(ctx context.Context, order Order, dispat
 
 // Get fetches an order by id.
 func (r *OrdersRepo) Get(ctx context.Context, id int64) (Order, error) {
-	var o Order
-	row := r.db.QueryRowContext(ctx, `SELECT id, passenger_id, driver_id, from_lon, from_lat, to_lon, to_lat, distance_m, eta_s, recommended_price, client_price, payment_method, status, notes, created_at, updated_at FROM orders WHERE id = ?`, id)
-	err := row.Scan(&o.ID, &o.PassengerID, &o.DriverID, &o.FromLon, &o.FromLat, &o.ToLon, &o.ToLat, &o.DistanceM, &o.EtaSeconds, &o.RecommendedPrice, &o.ClientPrice, &o.PaymentMethod, &o.Status, &o.Notes, &o.CreatedAt, &o.UpdatedAt)
+	order, _, err := r.GetWithDriver(ctx, id)
+	return order, err
+}
+
+// GetWithDriver fetches an order by id along with the assigned driver information.
+func (r *OrdersRepo) GetWithDriver(ctx context.Context, id int64) (Order, *Driver, error) {
+	var (
+		o Order
+
+		driverID           sql.NullInt64
+		driverUserID       sql.NullInt64
+		driverStatus       sql.NullString
+		driverCarModel     sql.NullString
+		driverCarColor     sql.NullString
+		driverCarNumber    sql.NullString
+		driverTechPassport sql.NullString
+		driverPhotoFront   sql.NullString
+		driverPhotoBack    sql.NullString
+		driverPhotoLeft    sql.NullString
+		driverPhotoRight   sql.NullString
+		driverDriverPhoto  sql.NullString
+		driverPhone        sql.NullString
+		driverIIN          sql.NullString
+		driverIDCardFront  sql.NullString
+		driverIDCardBack   sql.NullString
+		driverRating       sql.NullFloat64
+		driverUpdatedAt    sql.NullTime
+	)
+
+	row := r.db.QueryRowContext(ctx, `SELECT
+        o.id, o.passenger_id, o.driver_id, o.from_lon, o.from_lat, o.to_lon, o.to_lat,
+        o.distance_m, o.eta_s, o.recommended_price, o.client_price, o.payment_method,
+        o.status, o.notes, o.created_at, o.updated_at,
+        d.id, d.user_id, d.status, d.car_model, d.car_color, d.car_number,
+        d.tech_passport, d.car_photo_front, d.car_photo_back, d.car_photo_left, d.car_photo_right,
+        d.driver_photo, d.phone, d.iin, d.id_card_front, d.id_card_back, d.rating, d.updated_at
+    FROM orders o
+    LEFT JOIN drivers d ON d.id = o.driver_id
+    WHERE o.id = ?`, id)
+	err := row.Scan(
+		&o.ID, &o.PassengerID, &o.DriverID, &o.FromLon, &o.FromLat, &o.ToLon, &o.ToLat,
+		&o.DistanceM, &o.EtaSeconds, &o.RecommendedPrice, &o.ClientPrice, &o.PaymentMethod,
+		&o.Status, &o.Notes, &o.CreatedAt, &o.UpdatedAt,
+		&driverID, &driverUserID, &driverStatus, &driverCarModel, &driverCarColor, &driverCarNumber,
+		&driverTechPassport, &driverPhotoFront, &driverPhotoBack, &driverPhotoLeft, &driverPhotoRight,
+		&driverDriverPhoto, &driverPhone, &driverIIN, &driverIDCardFront, &driverIDCardBack, &driverRating, &driverUpdatedAt,
+	)
 	if err != nil {
-		return Order{}, err
+		return Order{}, nil, err
 	}
 
 	o.Addresses, err = r.listAddresses(ctx, o.ID)
 	if err != nil {
-		return Order{}, err
+		return Order{}, nil, err
 	}
-	return o, nil
+
+	if !driverID.Valid {
+		return o, nil, nil
+	}
+
+	driver := Driver{
+		ID:       driverID.Int64,
+		CarModel: driverCarModel,
+		CarColor: driverCarColor,
+	}
+	if driverUserID.Valid {
+		driver.UserID = driverUserID.Int64
+	}
+	if driverStatus.Valid {
+		driver.Status = driverStatus.String
+	}
+	if driverCarNumber.Valid {
+		driver.CarNumber = driverCarNumber.String
+	}
+	if driverTechPassport.Valid {
+		driver.TechPassport = driverTechPassport.String
+	}
+	if driverPhotoFront.Valid {
+		driver.CarPhotoFront = driverPhotoFront.String
+	}
+	if driverPhotoBack.Valid {
+		driver.CarPhotoBack = driverPhotoBack.String
+	}
+	if driverPhotoLeft.Valid {
+		driver.CarPhotoLeft = driverPhotoLeft.String
+	}
+	if driverPhotoRight.Valid {
+		driver.CarPhotoRight = driverPhotoRight.String
+	}
+	if driverDriverPhoto.Valid {
+		driver.DriverPhoto = driverDriverPhoto.String
+	}
+	if driverPhone.Valid {
+		driver.Phone = driverPhone.String
+	}
+	if driverIIN.Valid {
+		driver.IIN = driverIIN.String
+	}
+	if driverIDCardFront.Valid {
+		driver.IDCardFront = driverIDCardFront.String
+	}
+	if driverIDCardBack.Valid {
+		driver.IDCardBack = driverIDCardBack.String
+	}
+	if driverRating.Valid {
+		driver.Rating = driverRating.Float64
+	}
+	if driverUpdatedAt.Valid {
+		driver.UpdatedAt = driverUpdatedAt.Time
+	}
+
+	return o, &driver, nil
 }
 
 // ListByPassenger returns orders belonging to passenger sorted by creation date.
