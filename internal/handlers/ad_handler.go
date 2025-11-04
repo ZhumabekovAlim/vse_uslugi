@@ -398,6 +398,12 @@ func (h *AdHandler) CreateAd(w http.ResponseWriter, r *http.Request) {
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.Top = r.FormValue("top")
 	service.Status = normalizeListingStatus(r.FormValue("status"))
+	if v := r.FormValue("latitude"); v != "" {
+		service.Latitude = &v
+	}
+	if v := r.FormValue("longitude"); v != "" {
+		service.Longitude = &v
+	}
 	service.CreatedAt = time.Now()
 
 	// Сохраняем изображения

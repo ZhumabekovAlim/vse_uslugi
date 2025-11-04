@@ -88,6 +88,7 @@ type FilteredService struct {
 	UserReviewsCount   int     `json:"user_reviews_count"`
 	ServiceID          int     `json:"service_id"`
 	ServiceName        string  `json:"service_name"`
+	ServiceAddress     string  `json:"service_address"`
 	ServicePrice       float64 `json:"service_price"`
 	ServiceDescription string  `json:"service_description"`
 	Images             []Image `json:"images"`

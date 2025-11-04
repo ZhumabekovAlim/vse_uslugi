@@ -83,6 +83,7 @@ type FilteredRentAd struct {
 	UserReviewsCount  int           `json:"user_reviews_count"`
 	RentAdID          int           `json:"rentad_id"`
 	RentAdName        string        `json:"rentad_name"`
+	RentAdAddress     string        `json:"rentad_address"`
 	RentAdPrice       float64       `json:"rentad_price"`
 	RentAdDescription string        `json:"rentad_description"`
 	Images            []ImageRentAd `json:"images"`

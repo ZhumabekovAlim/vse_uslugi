@@ -37,6 +37,16 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		return models.Service{}, err
 	}
 
+	var latitude interface{}
+	if service.Latitude != nil && *service.Latitude != "" {
+		latitude = *service.Latitude
+	}
+
+	var longitude interface{}
+	if service.Longitude != nil && *service.Longitude != "" {
+		longitude = *service.Longitude
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
 		service.Name,
 		service.Address,
@@ -51,8 +61,8 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		service.Top,
 		service.Liked,
 		service.Status,
-		service.Latitude,
-		service.Longitude,
+		latitude,
+		longitude,
 		service.CreatedAt,
 	)
 	if err != nil {
@@ -151,9 +161,19 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
 	}
 	updatedAt := time.Now()
 	service.UpdatedAt = &updatedAt
+	var latitude interface{}
+	if service.Latitude != nil && *service.Latitude != "" {
+		latitude = *service.Latitude
+	}
+
+	var longitude interface{}
+	if service.Longitude != nil && *service.Longitude != "" {
+		longitude = *service.Longitude
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
 		service.Name, service.Address, service.Price, service.UserID, imagesJSON, videosJSON,
-		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, service.Latitude, service.Longitude, service.UpdatedAt, service.ID,
+		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, latitude, longitude, service.UpdatedAt, service.ID,
 	)
 	if err != nil {
 		return models.Service{}, err
@@ -412,7 +432,7 @@ SELECT
 
         u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-       s.id, s.name, s.price, s.description, s.latitude, s.longitude,
+       s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
        COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos
 FROM service s
 JOIN users u ON s.user_id = u.id
@@ -484,7 +504,7 @@ WHERE 1=1
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON,
+			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON,
 		); err != nil {
 			return nil, err
 		}
@@ -574,7 +594,7 @@ SELECT DISTINCT
 
        u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-      s.id, s.name, s.price, s.description, s.latitude, s.longitude,
+      s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
       COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
       CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
@@ -660,7 +680,7 @@ WHERE 1=1
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.ServiceID, &s.ServiceName, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
+			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)

@@ -403,7 +403,7 @@ SELECT
 
         u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-       s.id, s.name, s.price, s.description, s.latitude, s.longitude,
+       s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
        COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos
 FROM rent s
 JOIN users u ON s.user_id = u.id
@@ -474,7 +474,7 @@ WHERE 1=1
 		var imagesJSON, videosJSON []byte
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
-			&s.RentID, &s.RentName, &s.RentPrice, &s.RentDescription, &lat, &lon, &imagesJSON, &videosJSON,
+			&s.RentID, &s.RentName, &s.RentAddress, &s.RentPrice, &s.RentDescription, &lat, &lon, &imagesJSON, &videosJSON,
 		); err != nil {
 			return nil, err
 		}
@@ -562,7 +562,7 @@ SELECT DISTINCT
 
        u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-       s.id, s.name, s.price, s.description, s.latitude, s.longitude,
+       s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
        COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
        CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
        CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
@@ -655,7 +655,7 @@ WHERE 1=1
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.RentID, &s.RentName, &s.RentPrice, &s.RentDescription, &lat, &lon, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
+			&s.RentID, &s.RentName, &s.RentAddress, &s.RentPrice, &s.RentDescription, &lat, &lon, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
