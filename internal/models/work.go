@@ -88,6 +88,7 @@ type FilteredWork struct {
 	UserReviewsCount int         `json:"user_reviews_count"`
 	WorkID           int         `json:"work_id"`
 	WorkName         string      `json:"work_name"`
+	WorkAddress      string      `json:"work_address"`
 	WorkPrice        float64     `json:"work_price"`
 	WorkDescription  string      `json:"work_description"`
 	Images           []ImageWork `json:"images"`

@@ -81,6 +81,7 @@ type FilteredAd struct {
 	UserReviewsCount int       `json:"user_reviews_count"`
 	AdID             int       `json:"ad_id"`
 	AdName           string    `json:"ad_name"`
+	AdAddress        string    `json:"ad_address"`
 	AdPrice          float64   `json:"ad_price"`
 	AdDescription    string    `json:"ad_description"`
 	Images           []ImageAd `json:"images"`
