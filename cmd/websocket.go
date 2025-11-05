@@ -20,7 +20,7 @@ const (
 	readDeadline       = 120 * time.Second // дедлайн чтения (продлевается pong’ом)
 	writeDeadline      = 5 * time.Second   // дедлайн записи
 	pingInterval       = 15 * time.Second  // период пингов
-	firstHelloDeadline = 30 * time.Second  // время на первый кадр {userId}
+	firstHelloDeadline = 300 * time.Second // время на первый кадр {userId}
 )
 
 /*****************************/
