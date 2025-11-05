@@ -46,6 +46,7 @@ func ensureModule(deps *TaxiDeps) (*moduleState, error) {
 		DispatchTick:      deps.Config.DispatchTick,
 		OfferTTL:          deps.Config.OfferTTL,
 		RegionID:          deps.Config.DGISRegionID,
+		SearchTimeout:     deps.Config.SearchTimeout,
 	}
 
 	geoClient := geo.NewDGISClient(deps.HTTPClient, deps.Config.DGISAPIKey, deps.Config.DGISRegionID)

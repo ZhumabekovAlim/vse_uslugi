@@ -15,6 +15,7 @@ const (
 	defaultSearchRadiusMax   = 3000
 	defaultDispatchTick      = 30 * time.Second
 	defaultOfferTTL          = 20 * time.Second
+	defaultSearchTimeout     = 10 * time.Minute
 )
 
 // TaxiConfig holds runtime configuration for the Taxi module.
@@ -26,6 +27,7 @@ type TaxiConfig struct {
 	SearchRadiusMax   int
 	DispatchTick      time.Duration
 	OfferTTL          time.Duration
+	SearchTimeout     time.Duration
 	DGISAPIKey        string
 	DGISRegionID      string
 	AirbaPayMerchant  string
@@ -43,6 +45,7 @@ func LoadTaxiConfig() (TaxiConfig, error) {
 		SearchRadiusMax:   defaultSearchRadiusMax,
 		DispatchTick:      defaultDispatchTick,
 		OfferTTL:          defaultOfferTTL,
+		SearchTimeout:     defaultSearchTimeout,
 	}
 
 	if v, err := readIntEnv("PRICE_PER_KM"); err != nil {
@@ -91,6 +94,14 @@ func LoadTaxiConfig() (TaxiConfig, error) {
 		cfg.OfferTTL = time.Duration(secs) * time.Second
 	}
 
+	if v := os.Getenv("SEARCH_TIMEOUT_SECONDS"); v != "" {
+		secs, err := strconv.Atoi(v)
+		if err != nil {
+			return TaxiConfig{}, fmt.Errorf("parse SEARCH_TIMEOUT_SECONDS: %w", err)
+		}
+		cfg.SearchTimeout = time.Duration(secs) * time.Second
+	}
+
 	cfg.DGISAPIKey = os.Getenv("DGIS_API_KEY")
 	if cfg.DGISAPIKey == "" {
 		return TaxiConfig{}, fmt.Errorf("DGIS_API_KEY is required")
@@ -111,6 +122,9 @@ func LoadTaxiConfig() (TaxiConfig, error) {
 	}
 	if cfg.SearchRadiusStart > cfg.SearchRadiusMax {
 		return TaxiConfig{}, fmt.Errorf("SEARCH_RADIUS_START must be <= SEARCH_RADIUS_MAX")
+	}
+	if cfg.SearchTimeout <= 0 {
+		return TaxiConfig{}, fmt.Errorf("SEARCH_TIMEOUT_SECONDS must be positive")
 	}
 
 	return cfg, nil

@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"time"
@@ -28,11 +29,13 @@ type Config interface {
 	GetDispatchTick() time.Duration
 	GetOfferTTL() time.Duration
 	GetRegionID() string
+	GetSearchTimeout() time.Duration
 }
 
 // Dispatcher performs periodic matching between orders and drivers.
 type OrdersRepository interface {
 	Get(ctx context.Context, id int64) (repo.Order, error)
+	UpdateStatusCAS(ctx context.Context, orderID int64, fromStatus, toStatus string) error
 }
 
 type DispatchRepository interface {
@@ -116,6 +119,18 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 	}
 	if order.Status != "searching" {
 		d.logger.Infof("dispatch: order %d not searching (status=%s) → finish", rec.OrderID, order.Status)
+		return d.dispatch.Finish(ctx, rec.OrderID)
+	}
+
+	if timeout := d.cfg.GetSearchTimeout(); timeout > 0 && now.Sub(rec.CreatedAt) >= timeout {
+		d.logger.Infof("dispatch: order %d timed out after %s → mark not_found", rec.OrderID, timeout)
+		if err := d.orders.UpdateStatusCAS(ctx, order.ID, "searching", "not_found"); err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return err
+			}
+		} else {
+			d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "order_status", OrderID: order.ID, Status: "not_found"})
+		}
 		return d.dispatch.Finish(ctx, rec.OrderID)
 	}
 
@@ -236,16 +251,18 @@ type ConfigAdapter struct {
 	DispatchTick      time.Duration
 	OfferTTL          time.Duration
 	RegionID          string
+	SearchTimeout     time.Duration
 }
 
-func (c ConfigAdapter) GetPricePerKM() int             { return c.PricePerKM }
-func (c ConfigAdapter) GetMinPrice() int               { return c.MinPrice }
-func (c ConfigAdapter) GetSearchRadiusStart() int      { return c.SearchRadiusStart }
-func (c ConfigAdapter) GetSearchRadiusStep() int       { return c.SearchRadiusStep }
-func (c ConfigAdapter) GetSearchRadiusMax() int        { return c.SearchRadiusMax }
-func (c ConfigAdapter) GetDispatchTick() time.Duration { return c.DispatchTick }
-func (c ConfigAdapter) GetOfferTTL() time.Duration     { return c.OfferTTL }
-func (c ConfigAdapter) GetRegionID() string            { return c.RegionID }
+func (c ConfigAdapter) GetPricePerKM() int              { return c.PricePerKM }
+func (c ConfigAdapter) GetMinPrice() int                { return c.MinPrice }
+func (c ConfigAdapter) GetSearchRadiusStart() int       { return c.SearchRadiusStart }
+func (c ConfigAdapter) GetSearchRadiusStep() int        { return c.SearchRadiusStep }
+func (c ConfigAdapter) GetSearchRadiusMax() int         { return c.SearchRadiusMax }
+func (c ConfigAdapter) GetDispatchTick() time.Duration  { return c.DispatchTick }
+func (c ConfigAdapter) GetOfferTTL() time.Duration      { return c.OfferTTL }
+func (c ConfigAdapter) GetRegionID() string             { return c.RegionID }
+func (c ConfigAdapter) GetSearchTimeout() time.Duration { return c.SearchTimeout }
 
 // RecalculateRecommendedPrice recalculates price based on distance.
 func RecalculateRecommendedPrice(distanceM int, cfg Config) int {
