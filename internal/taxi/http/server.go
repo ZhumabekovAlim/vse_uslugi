@@ -9,6 +9,8 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -330,10 +332,80 @@ func (s *Server) listDrivers(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createDriver(w http.ResponseWriter, r *http.Request) {
 	var payload driverPayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json")
-		return
+
+	contentType := r.Header.Get("Content-Type")
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		if err := r.ParseMultipartForm(50 << 20); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid multipart form")
+			return
+		}
+		if r.MultipartForm != nil {
+			defer r.MultipartForm.RemoveAll()
+		}
+
+		if userIDStr := strings.TrimSpace(r.FormValue("user_id")); userIDStr != "" {
+			userID, err := strconv.ParseInt(userIDStr, 10, 64)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "invalid user_id")
+				return
+			}
+			payload.UserID = userID
+		}
+		payload.Status = r.FormValue("status")
+		payload.CarModel = r.FormValue("car_model")
+		payload.CarColor = r.FormValue("car_color")
+		payload.CarNumber = r.FormValue("car_number")
+		payload.Phone = r.FormValue("phone")
+		payload.IIN = r.FormValue("iin")
+
+		var err error
+		if payload.TechPassport, err = saveDriverAsset(r, "tech_passport", "TechPassport"); err != nil {
+			s.logger.Errorf("failed to save tech_passport: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to save tech_passport")
+			return
+		}
+		if payload.CarPhotoFront, err = saveDriverAsset(r, "car_photo_front", "CarPhotoFront"); err != nil {
+			s.logger.Errorf("failed to save car_photo_front: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to save car_photo_front")
+			return
+		}
+		if payload.CarPhotoBack, err = saveDriverAsset(r, "car_photo_back", "CarPhotoBack"); err != nil {
+			s.logger.Errorf("failed to save car_photo_back: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to save car_photo_back")
+			return
+		}
+		if payload.CarPhotoLeft, err = saveDriverAsset(r, "car_photo_left", "CarPhotoLeft"); err != nil {
+			s.logger.Errorf("failed to save car_photo_left: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to save car_photo_left")
+			return
+		}
+		if payload.CarPhotoRight, err = saveDriverAsset(r, "car_photo_right", "CarPhotoRight"); err != nil {
+			s.logger.Errorf("failed to save car_photo_right: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to save car_photo_right")
+			return
+		}
+		if payload.DriverPhoto, err = saveDriverAsset(r, "driver_photo", "DriverPhoto"); err != nil {
+			s.logger.Errorf("failed to save driver_photo: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to save driver_photo")
+			return
+		}
+		if payload.IDCardFront, err = saveDriverAsset(r, "id_card_front", "IDCardFront"); err != nil {
+			s.logger.Errorf("failed to save id_card_front: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to save id_card_front")
+			return
+		}
+		if payload.IDCardBack, err = saveDriverAsset(r, "id_card_back", "IDCardBack"); err != nil {
+			s.logger.Errorf("failed to save id_card_back: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to save id_card_back")
+			return
+		}
+	} else {
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid json")
+			return
+		}
 	}
+
 	payload.normalize()
 	if msg := payload.validate(); msg != "" {
 		writeError(w, http.StatusBadRequest, msg)
@@ -439,6 +511,59 @@ func (s *Server) updateDriver(w http.ResponseWriter, r *http.Request, id int64) 
 		return
 	}
 	writeJSON(w, http.StatusOK, newDriverResponse(driver))
+}
+
+func saveDriverAsset(r *http.Request, field string, alt ...string) (string, error) {
+	keys := append([]string{field}, alt...)
+	for _, key := range keys {
+		if v := strings.TrimSpace(r.FormValue(key)); v != "" {
+			return v, nil
+		}
+	}
+
+	for _, key := range keys {
+		file, header, err := r.FormFile(key)
+		if err != nil {
+			if errors.Is(err, http.ErrMissingFile) {
+				continue
+			}
+			return "", err
+		}
+
+		dirName := strings.ToLower(field)
+		dirName = strings.ReplaceAll(dirName, " ", "_")
+		saveDir := filepath.Join("uploads", "taxi", dirName)
+		if err := os.MkdirAll(saveDir, 0o755); err != nil {
+			file.Close()
+			return "", err
+		}
+
+		ext := filepath.Ext(header.Filename)
+		safeField := strings.ReplaceAll(dirName, " ", "_")
+		filename := fmt.Sprintf("%s_%d%s", safeField, time.Now().UnixNano(), ext)
+		diskPath := filepath.Join(saveDir, filename)
+
+		dst, err := os.Create(diskPath)
+		if err != nil {
+			file.Close()
+			return "", err
+		}
+
+		if _, err := io.Copy(dst, file); err != nil {
+			dst.Close()
+			file.Close()
+			_ = os.Remove(diskPath)
+			return "", err
+		}
+
+		dst.Close()
+		file.Close()
+
+		publicPath := "/" + filepath.ToSlash(filepath.Join("uploads", "taxi", dirName, filename))
+		return publicPath, nil
+	}
+
+	return "", nil
 }
 
 func (s *Server) deleteDriver(w http.ResponseWriter, r *http.Request, id int64) {
