@@ -446,7 +446,7 @@ func (r *OffersRepo) AcceptOffer(ctx context.Context, orderID, driverID int64) e
 		}
 	}()
 
-	res, err := tx.ExecContext(ctx, `UPDATE driver_order_offers SET state = 'accepted' WHERE order_id = ? AND driver_id = ? AND state = 'pending' AND ttl_at >= NOW()`, orderID, driverID)
+	res, err := tx.ExecContext(ctx, `UPDATE driver_order_offers SET state = 'accepted' WHERE order_id = ? AND driver_id = ? AND state = 'pending'`, orderID, driverID)
 	if err != nil {
 		return err
 	}
