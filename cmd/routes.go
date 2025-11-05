@@ -5,6 +5,7 @@ import (
 	"github.com/bmizerany/pat"
 	"github.com/justinas/alice"
 	"net/http"
+	"strings"
 	// httpSwagger "github.com/swaggo/http-swagger"
 	// _ "naimuBack/docs"
 )
@@ -37,6 +38,27 @@ func (app *application) wsWithQueryUserID(next http.Handler, param string) http.
 				q.Set(param, fmt.Sprintf("%d", id))
 				r = r.Clone(r.Context())
 				r.URL.RawQuery = q.Encode()
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// Для WS: прокинуть Authorization токен из query параметров в заголовок.
+func (app *application) wsWithAuthFromQuery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			q := r.URL.Query()
+			token := q.Get("token")
+			if token == "" {
+				token = q.Get("authorization")
+			}
+			if token != "" {
+				if !strings.HasPrefix(strings.ToLower(token), "bearer ") {
+					token = "Bearer " + token
+				}
+				r = r.Clone(r.Context())
+				r.Header.Set("Authorization", token)
 			}
 		}
 		next.ServeHTTP(w, r)
@@ -200,8 +222,8 @@ func (app *application) routes() http.Handler {
 	mux.Post("/api/v1/orders/:id/status", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
 	mux.Post("/api/v1/offers/accept", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
 	mux.Post("/api/v1/payments/airbapay/webhook", standardMiddleware.Then(app.taxiMux))
-	mux.Get("/ws/passenger", wsMiddleware.Append(app.JWTMiddlewareWithRole("client")).Then(app.wsWithQueryUserID(app.taxiMux, "passenger_id")))
-	mux.Get("/ws/driver", wsMiddleware.Append(app.JWTMiddlewareWithRole("worker")).Then(app.wsWithQueryUserID(app.taxiMux, "driver_id")))
+	mux.Get("/ws/passenger", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("client")).Then(app.wsWithQueryUserID(app.taxiMux, "passenger_id")))
+	mux.Get("/ws/driver", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("worker")).Then(app.wsWithQueryUserID(app.taxiMux, "driver_id")))
 
 	mux.Post("/location", authMiddleware.ThenFunc(app.locationHandler.UpdateLocation))
 	mux.Post("/location/offline", authMiddleware.ThenFunc(app.locationHandler.GoOffline))
