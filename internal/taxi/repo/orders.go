@@ -356,6 +356,7 @@ type DispatchRecord struct {
 	RadiusM    int
 	NextTickAt time.Time
 	State      string
+	CreatedAt  time.Time
 }
 
 // DispatchRepo handles order_dispatch table.
@@ -370,7 +371,7 @@ func NewDispatchRepo(db *sql.DB) *DispatchRepo {
 
 // ListDue returns dispatch records ready for processing.
 func (r *DispatchRepo) ListDue(ctx context.Context, now time.Time) ([]DispatchRecord, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, order_id, radius_m, next_tick_at, state FROM order_dispatch WHERE state = 'searching' AND next_tick_at <= ?`, now)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, order_id, radius_m, next_tick_at, state, created_at FROM order_dispatch WHERE state = 'searching' AND next_tick_at <= ?`, now)
 	if err != nil {
 		return nil, err
 	}
@@ -379,7 +380,7 @@ func (r *DispatchRepo) ListDue(ctx context.Context, now time.Time) ([]DispatchRe
 	var items []DispatchRecord
 	for rows.Next() {
 		var rec DispatchRecord
-		if err := rows.Scan(&rec.ID, &rec.OrderID, &rec.RadiusM, &rec.NextTickAt, &rec.State); err != nil {
+		if err := rows.Scan(&rec.ID, &rec.OrderID, &rec.RadiusM, &rec.NextTickAt, &rec.State, &rec.CreatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, rec)

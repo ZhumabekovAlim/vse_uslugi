@@ -17,10 +17,19 @@ func (testLogger) Errorf(string, ...interface{}) {}
 
 type stubOrders struct {
 	order repo.Order
+	from  string
+	to    string
 }
 
 func (s *stubOrders) Get(ctx context.Context, id int64) (repo.Order, error) {
 	return s.order, nil
+}
+
+func (s *stubOrders) UpdateStatusCAS(ctx context.Context, orderID int64, fromStatus, toStatus string) error {
+	s.from = fromStatus
+	s.to = toStatus
+	s.order.Status = toStatus
+	return nil
 }
 
 type stubDispatch struct {
@@ -90,12 +99,13 @@ func TestDispatcherRadiusExpansion(t *testing.T) {
 		DispatchTick:      time.Minute,
 		OfferTTL:          20 * time.Second,
 		RegionID:          "test",
+		SearchTimeout:     time.Hour,
 	}
 
 	d := New(orders, dispatchRepo, offers, locator, driverHub, passengerHub, testLogger{}, cfg)
 
 	now := time.Now()
-	rec := repo.DispatchRecord{OrderID: 1, RadiusM: cfg.SearchRadiusStart, NextTickAt: now}
+	rec := repo.DispatchRecord{OrderID: 1, RadiusM: cfg.SearchRadiusStart, NextTickAt: now, CreatedAt: now}
 	if err := d.processRecord(context.Background(), rec, now); err != nil {
 		t.Fatalf("processRecord error: %v", err)
 	}
@@ -108,5 +118,47 @@ func TestDispatcherRadiusExpansion(t *testing.T) {
 	}
 	if len(passengerHub.events) == 0 || passengerHub.events[0].Type != "search_progress" {
 		t.Fatalf("expected search_progress event")
+	}
+}
+
+func TestDispatcherTimeoutCancelsOrder(t *testing.T) {
+	timeout := 10 * time.Minute
+	locator := &stubLocator{}
+	orders := &stubOrders{order: repo.Order{ID: 1, PassengerID: 42, Status: "searching", CreatedAt: time.Now().Add(-timeout - time.Minute)}}
+	dispatchRepo := &stubDispatch{}
+	offers := &stubOffers{}
+	driverHub := &stubDriverHub{}
+	passengerHub := &stubPassengerHub{}
+
+	cfg := ConfigAdapter{
+		PricePerKM:        300,
+		MinPrice:          1200,
+		SearchRadiusStart: 800,
+		SearchRadiusStep:  400,
+		SearchRadiusMax:   3000,
+		DispatchTick:      time.Minute,
+		OfferTTL:          20 * time.Second,
+		RegionID:          "test",
+		SearchTimeout:     timeout,
+	}
+
+	d := New(orders, dispatchRepo, offers, locator, driverHub, passengerHub, testLogger{}, cfg)
+
+	now := time.Now()
+	rec := repo.DispatchRecord{OrderID: 1, RadiusM: cfg.SearchRadiusStart, NextTickAt: now, CreatedAt: now.Add(-timeout - time.Minute)}
+	if err := d.processRecord(context.Background(), rec, now); err != nil {
+		t.Fatalf("processRecord error: %v", err)
+	}
+	if !dispatchRepo.finished {
+		t.Fatalf("expected dispatch to finish after timeout")
+	}
+	if orders.to != "not_found" {
+		t.Fatalf("expected order status to change to not_found, got %q", orders.to)
+	}
+	if len(passengerHub.events) == 0 {
+		t.Fatalf("expected passenger event to be sent")
+	}
+	if passengerHub.events[0].Type != "order_status" || passengerHub.events[0].Status != "not_found" {
+		t.Fatalf("unexpected passenger event: %+v", passengerHub.events[0])
 	}
 }
