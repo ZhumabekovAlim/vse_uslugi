@@ -102,9 +102,9 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 	}()
 
 	conn.SetReadLimit(1024)
-	conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+	conn.SetReadDeadline(time.Now().Add(1000 * time.Second))
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(1000 * time.Second))
 		return nil
 	})
 
@@ -113,7 +113,7 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 		if err != nil {
 			return
 		}
-		conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(1000 * time.Second))
 		var payload struct {
 			Lon    float64 `json:"lon"`
 			Lat    float64 `json:"lat"`

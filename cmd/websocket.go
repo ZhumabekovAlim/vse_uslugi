@@ -16,11 +16,11 @@ import (
 
 /********** тайминги **********/
 const (
-	readLimit          = 1 << 20           // 1 MB
-	readDeadline       = 120 * time.Second // дедлайн чтения (продлевается pong’ом)
-	writeDeadline      = 5 * time.Second   // дедлайн записи
-	pingInterval       = 15 * time.Second  // период пингов
-	firstHelloDeadline = 300 * time.Second // время на первый кадр {userId}
+	readLimit          = 1 << 20            // 1 MB
+	readDeadline       = 120 * time.Second  // дедлайн чтения (продлевается pong’ом)
+	writeDeadline      = 5 * time.Second    // дедлайн записи
+	pingInterval       = 15 * time.Second   // период пингов
+	firstHelloDeadline = 1000 * time.Second // время на первый кадр {userId}
 )
 
 /*****************************/
