@@ -3,14 +3,14 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"github.com/gorilla/websocket"
+	"math" // 👈 добавь для проверки "near-zero"
+	"naimuBack/internal/taxi/geo"
 	"net/http"
 	"strconv"
+	"strings" // 👈 добавь
 	"sync"
 	"time"
-
-	"github.com/gorilla/websocket"
-
-	"naimuBack/internal/taxi/geo"
 )
 
 // Logger is shared between hubs.
@@ -47,19 +47,21 @@ type DriverHub struct {
 	locator  *geo.DriverLocator
 	logger   Logger
 
-	mu     sync.RWMutex
-	conns  map[int64]*websocket.Conn
-	cities map[int64]string
+	mu         sync.RWMutex
+	conns      map[int64]*websocket.Conn
+	cities     map[int64]string
+	lastStatus map[int64]string // 👈 добавь это поле
 }
 
 // NewDriverHub creates driver hub.
 func NewDriverHub(locator *geo.DriverLocator, logger Logger) *DriverHub {
 	return &DriverHub{
-		upgrader: websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }},
-		locator:  locator,
-		logger:   logger,
-		conns:    make(map[int64]*websocket.Conn),
-		cities:   make(map[int64]string),
+		upgrader:   websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }},
+		locator:    locator,
+		logger:     logger,
+		conns:      make(map[int64]*websocket.Conn),
+		cities:     make(map[int64]string),
+		lastStatus: make(map[int64]string), // 👈
 	}
 }
 
@@ -74,6 +76,7 @@ func (h *DriverHub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	if city == "" {
 		city = "default"
 	}
+	city = strings.ToLower(strings.TrimSpace(city)) // 👈 нормализация
 
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -84,9 +87,12 @@ func (h *DriverHub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
 	h.conns[driverID] = conn
 	h.cities[driverID] = city
+	if _, ok := h.lastStatus[driverID]; !ok {
+		h.lastStatus[driverID] = "free"
+	}
 	h.mu.Unlock()
 
-	h.logger.Infof("driver %d connected", driverID)
+	h.logger.Infof("driver %d connected (city=%s)", driverID, city)
 
 	go h.readLoop(driverID, conn, city)
 }
@@ -97,6 +103,7 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 		h.mu.Lock()
 		delete(h.conns, driverID)
 		delete(h.cities, driverID)
+		delete(h.lastStatus, driverID) // 👈 чистим
 		h.mu.Unlock()
 		h.logger.Infof("driver %d disconnected", driverID)
 	}()
@@ -108,28 +115,71 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 		return nil
 	})
 
+	type payloadT struct {
+		Lon    float64 `json:"lon"`
+		Lat    float64 `json:"lat"`
+		Status string  `json:"status"`
+	}
+
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			return
 		}
 		conn.SetReadDeadline(time.Now().Add(1000 * time.Second))
-		var payload struct {
-			Lon    float64 `json:"lon"`
-			Lat    float64 `json:"lat"`
-			Status string  `json:"status"`
-		}
+
+		var payload payloadT
 		if err := json.Unmarshal(message, &payload); err != nil {
 			h.logger.Errorf("driver %d invalid payload: %v", driverID, err)
 			continue
 		}
-		status := payload.Status
+
+		// валидация координат (защита от near-zero/мусора)
+		if payload.Lon < -180 || payload.Lon > 180 || payload.Lat < -90 || payload.Lat > 90 {
+			h.logger.Errorf("driver %d invalid coords lon=%.8f lat=%.8f", driverID, payload.Lon, payload.Lat)
+			continue
+		}
+		if math.Abs(payload.Lon) < 1e-4 && math.Abs(payload.Lat) < 1e-4 {
+			h.logger.Errorf("driver %d near-zero coords lon=%.8f lat=%.8f", driverID, payload.Lon, payload.Lat)
+			continue
+		}
+
+		status := strings.ToLower(strings.TrimSpace(payload.Status))
 		if status == "" {
 			status = "free"
 		}
+
+		// если статус поменялся — корректно переносим между ключами
+		h.mu.Lock()
+		prev := h.lastStatus[driverID]
+		if prev == "" {
+			prev = "free"
+		}
+		needMove := (prev != status)
+		h.lastStatus[driverID] = status
+		h.mu.Unlock()
+
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_ = h.locator.UpdateDriver(ctx, driverID, payload.Lon, payload.Lat, city, status)
+		if needMove {
+			if err := h.locator.MoveDriver(ctx, driverID, city, prev, status); err != nil {
+				h.logger.Errorf("driver %d MoveDriver %s→%s error: %v", driverID, prev, status, err)
+				//fallback: если coords ещё не были в prev, просто SafeUpdate в новый ключ
+				_ = h.locator.SafeUpdateDriver(ctx, driverID, payload.Lon, payload.Lat, city, status)
+			} else {
+				// после MoveDriver можно обновить координаты, чтобы они были актуальны
+				if err := h.locator.SafeUpdateDriver(ctx, driverID, payload.Lon, payload.Lat, city, status); err != nil {
+					h.logger.Errorf("driver %d SafeUpdateDriver after move error: %v", driverID, err)
+				}
+			}
+		} else {
+			if err := h.locator.SafeUpdateDriver(ctx, driverID, payload.Lon, payload.Lat, city, status); err != nil {
+				h.logger.Errorf("driver %d SafeUpdateDriver error: %v", driverID, err)
+			}
+		}
 		cancel()
+
+		// при желании включай отладочный дамп (но не на каждом сообщении в проде)
+		// h.locator.DebugDumpFree(context.Background(), city)
 	}
 }
 
