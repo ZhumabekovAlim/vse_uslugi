@@ -1,0 +1,195 @@
+package repo
+
+import (
+	"context"
+	"database/sql"
+	"strings"
+	"time"
+)
+
+// IntercityOrder represents a long-distance taxi request made as an advertisement.
+type IntercityOrder struct {
+	ID            int64
+	PassengerID   int64
+	FromLocation  string
+	ToLocation    string
+	TripType      string
+	Comment       sql.NullString
+	Price         int
+	ContactPhone  string
+	DepartureDate time.Time
+	Status        string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	ClosedAt      sql.NullTime
+}
+
+// IntercityOrdersRepo provides CRUD helpers for intercity taxi requests.
+type IntercityOrdersRepo struct {
+	db *sql.DB
+}
+
+// NewIntercityOrdersRepo constructs a repo instance.
+func NewIntercityOrdersRepo(db *sql.DB) *IntercityOrdersRepo {
+	return &IntercityOrdersRepo{db: db}
+}
+
+// Create inserts a new intercity order and returns its identifier.
+func (r *IntercityOrdersRepo) Create(ctx context.Context, order IntercityOrder) (int64, error) {
+	res, err := r.db.ExecContext(ctx, `INSERT INTO intercity_orders
+(passenger_id, from_location, to_location, trip_type, comment, price, contact_phone, departure_date, status)
+VALUES (?,?,?,?,?,?,?,?,?)`,
+		order.PassengerID,
+		order.FromLocation,
+		order.ToLocation,
+		order.TripType,
+		order.Comment,
+		order.Price,
+		order.ContactPhone,
+		order.DepartureDate,
+		order.Status,
+	)
+	if err != nil {
+		return 0, err
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
+// Get returns a single intercity order by id.
+func (r *IntercityOrdersRepo) Get(ctx context.Context, id int64) (IntercityOrder, error) {
+	row := r.db.QueryRowContext(ctx, `SELECT
+id, passenger_id, from_location, to_location, trip_type, comment, price, contact_phone,
+departure_date, status, created_at, updated_at, closed_at
+FROM intercity_orders WHERE id = ?`, id)
+	var order IntercityOrder
+	err := row.Scan(
+		&order.ID,
+		&order.PassengerID,
+		&order.FromLocation,
+		&order.ToLocation,
+		&order.TripType,
+		&order.Comment,
+		&order.Price,
+		&order.ContactPhone,
+		&order.DepartureDate,
+		&order.Status,
+		&order.CreatedAt,
+		&order.UpdatedAt,
+		&order.ClosedAt,
+	)
+	if err != nil {
+		return IntercityOrder{}, err
+	}
+	return order, nil
+}
+
+// IntercityOrdersFilter describes optional filters for listing orders.
+type IntercityOrdersFilter struct {
+	From        string
+	To          string
+	Date        *time.Time
+	Status      string
+	PassengerID int64
+	Limit       int
+	Offset      int
+}
+
+// List returns orders matching the filter.
+func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFilter) ([]IntercityOrder, error) {
+	var (
+		parts = []string{"SELECT id, passenger_id, from_location, to_location, trip_type, comment, price, contact_phone, departure_date, status, created_at, updated_at, closed_at FROM intercity_orders"}
+		where []string
+		args  []interface{}
+	)
+
+	if filter.From != "" {
+		where = append(where, "LOWER(from_location) LIKE ?")
+		args = append(args, "%"+strings.ToLower(filter.From)+"%")
+	}
+	if filter.To != "" {
+		where = append(where, "LOWER(to_location) LIKE ?")
+		args = append(args, "%"+strings.ToLower(filter.To)+"%")
+	}
+	if filter.Date != nil {
+		where = append(where, "departure_date = ?")
+		args = append(args, filter.Date.Format("2006-01-02"))
+	}
+	if filter.Status != "" {
+		where = append(where, "status = ?")
+		args = append(args, filter.Status)
+	}
+	if filter.PassengerID > 0 {
+		where = append(where, "passenger_id = ?")
+		args = append(args, filter.PassengerID)
+	}
+	if len(where) > 0 {
+		parts = append(parts, "WHERE "+strings.Join(where, " AND "))
+	}
+
+	parts = append(parts, "ORDER BY departure_date ASC, created_at DESC")
+
+	if filter.Limit > 0 {
+		parts = append(parts, "LIMIT ?")
+		args = append(args, filter.Limit)
+	}
+	if filter.Offset > 0 {
+		parts = append(parts, "OFFSET ?")
+		args = append(args, filter.Offset)
+	}
+
+	query := strings.Join(parts, " ")
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []IntercityOrder
+	for rows.Next() {
+		var order IntercityOrder
+		if err := rows.Scan(
+			&order.ID,
+			&order.PassengerID,
+			&order.FromLocation,
+			&order.ToLocation,
+			&order.TripType,
+			&order.Comment,
+			&order.Price,
+			&order.ContactPhone,
+			&order.DepartureDate,
+			&order.Status,
+			&order.CreatedAt,
+			&order.UpdatedAt,
+			&order.ClosedAt,
+		); err != nil {
+			return nil, err
+		}
+		orders = append(orders, order)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
+// Close marks an order as closed by the passenger.
+func (r *IntercityOrdersRepo) Close(ctx context.Context, id, passengerID int64) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE intercity_orders
+SET status = 'closed', closed_at = NOW()
+WHERE id = ? AND passenger_id = ? AND status = 'open'`, id, passengerID)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}

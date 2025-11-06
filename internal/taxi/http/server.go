@@ -27,33 +27,35 @@ import (
 
 // Server handles HTTP endpoints for taxi module.
 type Server struct {
-	logger       dispatch.Logger
-	cfg          dispatch.Config
-	geoClient    *geo.DGISClient
-	driversRepo  *repo.DriversRepo
-	ordersRepo   *repo.OrdersRepo
-	offersRepo   *repo.OffersRepo
-	paymentsRepo *repo.PaymentsRepo
-	driverHub    *ws.DriverHub
-	passengerHub *ws.PassengerHub
-	dispatcher   *dispatch.Dispatcher
-	payClient    *pay.Client
+	logger        dispatch.Logger
+	cfg           dispatch.Config
+	geoClient     *geo.DGISClient
+	driversRepo   *repo.DriversRepo
+	ordersRepo    *repo.OrdersRepo
+	intercityRepo *repo.IntercityOrdersRepo
+	offersRepo    *repo.OffersRepo
+	paymentsRepo  *repo.PaymentsRepo
+	driverHub     *ws.DriverHub
+	passengerHub  *ws.PassengerHub
+	dispatcher    *dispatch.Dispatcher
+	payClient     *pay.Client
 }
 
 // NewServer constructs Server.
-func NewServer(logger dispatch.Logger, cfg dispatch.Config, geoClient *geo.DGISClient, drivers *repo.DriversRepo, orders *repo.OrdersRepo, offers *repo.OffersRepo, payments *repo.PaymentsRepo, driverHub *ws.DriverHub, passengerHub *ws.PassengerHub, dispatcher *dispatch.Dispatcher, payClient *pay.Client) *Server {
+func NewServer(logger dispatch.Logger, cfg dispatch.Config, geoClient *geo.DGISClient, drivers *repo.DriversRepo, orders *repo.OrdersRepo, intercity *repo.IntercityOrdersRepo, offers *repo.OffersRepo, payments *repo.PaymentsRepo, driverHub *ws.DriverHub, passengerHub *ws.PassengerHub, dispatcher *dispatch.Dispatcher, payClient *pay.Client) *Server {
 	return &Server{
-		logger:       logger,
-		cfg:          cfg,
-		geoClient:    geoClient,
-		driversRepo:  drivers,
-		ordersRepo:   orders,
-		offersRepo:   offers,
-		paymentsRepo: payments,
-		driverHub:    driverHub,
-		passengerHub: passengerHub,
-		dispatcher:   dispatcher,
-		payClient:    payClient,
+		logger:        logger,
+		cfg:           cfg,
+		geoClient:     geoClient,
+		driversRepo:   drivers,
+		ordersRepo:    orders,
+		intercityRepo: intercity,
+		offersRepo:    offers,
+		paymentsRepo:  payments,
+		driverHub:     driverHub,
+		passengerHub:  passengerHub,
+		dispatcher:    dispatcher,
+		payClient:     payClient,
 	}
 }
 
@@ -249,6 +251,106 @@ func newOrderResponse(o repo.Order, driver *repo.Driver) orderResponse {
 	return resp
 }
 
+var allowedIntercityTripTypes = map[string]struct{}{
+	"companions": {},
+	"parcel":     {},
+	"solo":       {},
+}
+
+var allowedIntercityStatuses = map[string]struct{}{
+	"open":   {},
+	"closed": {},
+}
+
+type intercityOrderPayload struct {
+	PassengerID   int64  `json:"passenger_id"`
+	FromLocation  string `json:"from"`
+	ToLocation    string `json:"to"`
+	TripType      string `json:"trip_type"`
+	Comment       string `json:"comment"`
+	Price         int    `json:"price"`
+	ContactPhone  string `json:"contact_phone"`
+	DepartureDate string `json:"departure_date"`
+}
+
+type intercityClosePayload struct {
+	PassengerID int64 `json:"passenger_id"`
+}
+
+func (p *intercityOrderPayload) normalize() {
+	p.FromLocation = strings.TrimSpace(p.FromLocation)
+	p.ToLocation = strings.TrimSpace(p.ToLocation)
+	p.TripType = strings.TrimSpace(strings.ToLower(p.TripType))
+	p.Comment = strings.TrimSpace(p.Comment)
+	p.ContactPhone = strings.TrimSpace(p.ContactPhone)
+	p.DepartureDate = strings.TrimSpace(p.DepartureDate)
+}
+
+func (p intercityOrderPayload) validate() string {
+	if p.PassengerID <= 0 {
+		return "passenger_id is required"
+	}
+	if p.FromLocation == "" {
+		return "from is required"
+	}
+	if p.ToLocation == "" {
+		return "to is required"
+	}
+	if _, ok := allowedIntercityTripTypes[p.TripType]; !ok {
+		return "invalid trip_type"
+	}
+	if p.ContactPhone == "" {
+		return "contact_phone is required"
+	}
+	if p.DepartureDate == "" {
+		return "departure_date is required"
+	}
+	if p.Price < 0 {
+		return "price must be >= 0"
+	}
+	return ""
+}
+
+type intercityOrderResponse struct {
+	ID            int64      `json:"id"`
+	PassengerID   int64      `json:"passenger_id"`
+	FromLocation  string     `json:"from"`
+	ToLocation    string     `json:"to"`
+	TripType      string     `json:"trip_type"`
+	Comment       string     `json:"comment,omitempty"`
+	Price         int        `json:"price"`
+	ContactPhone  string     `json:"contact_phone"`
+	DepartureDate string     `json:"departure_date"`
+	Status        string     `json:"status"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	ClosedAt      *time.Time `json:"closed_at,omitempty"`
+}
+
+func newIntercityOrderResponse(o repo.IntercityOrder) intercityOrderResponse {
+	resp := intercityOrderResponse{
+		ID:            o.ID,
+		PassengerID:   o.PassengerID,
+		FromLocation:  o.FromLocation,
+		ToLocation:    o.ToLocation,
+		TripType:      o.TripType,
+		Price:         o.Price,
+		ContactPhone:  o.ContactPhone,
+		DepartureDate: o.DepartureDate.Format("2006-01-02"),
+		Status:        o.Status,
+		CreatedAt:     o.CreatedAt,
+		UpdatedAt:     o.UpdatedAt,
+	}
+	if o.Comment.Valid {
+		resp.Comment = o.Comment.String
+	}
+	if o.ClosedAt.Valid {
+		closedAt := o.ClosedAt.Time
+		resp.ClosedAt = &closedAt
+	}
+	return resp
+}
+
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/drivers", s.handleDrivers)
 	mux.HandleFunc("/api/v1/drivers/", s.handleDriver)
@@ -256,6 +358,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/orders", s.handleOrders)
 	mux.HandleFunc("/api/v1/driver/orders", s.handleDriverOrders)
 	mux.HandleFunc("/api/v1/orders/", s.handleOrderSubroutes)
+	mux.HandleFunc("/api/v1/intercity/orders", s.handleIntercityOrders)
+	mux.HandleFunc("/api/v1/intercity/orders/", s.handleIntercityOrderSubroutes)
 	mux.HandleFunc("/api/v1/offers/accept", s.handleOfferAccept)
 	mux.HandleFunc("/api/v1/payments/airbapay/webhook", s.handleAirbaPayWebhook)
 	mux.HandleFunc("/ws/driver", s.handleDriverWS)
@@ -1053,6 +1157,221 @@ func (s *Server) handleReprice(w http.ResponseWriter, r *http.Request, orderID i
 		_ = s.dispatcher.TriggerImmediate(context.Background(), orderID)
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"order_id": orderID, "client_price": req.ClientPrice})
+}
+
+func (s *Server) handleIntercityOrders(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.listIntercityOrders(w, r)
+	case http.MethodPost:
+		s.createIntercityOrder(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleIntercityOrderSubroutes(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/intercity/orders/")
+	path = strings.Trim(path, "/")
+	if path == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	parts := strings.Split(path, "/")
+	id, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	if len(parts) == 1 {
+		if r.Method == http.MethodGet {
+			s.getIntercityOrder(w, r, id)
+			return
+		}
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "close" {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		s.closeIntercityOrder(w, r, id)
+		return
+	}
+	w.WriteHeader(http.StatusNotFound)
+}
+
+func (s *Server) listIntercityOrders(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	limit := 100
+	if v := query.Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			writeError(w, http.StatusBadRequest, "invalid limit")
+			return
+		}
+		limit = n
+	}
+	offset := 0
+	if v := query.Get("offset"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			writeError(w, http.StatusBadRequest, "invalid offset")
+			return
+		}
+		offset = n
+	}
+
+	filter := repo.IntercityOrdersFilter{
+		Limit:  limit,
+		Offset: offset,
+	}
+
+	if from := strings.TrimSpace(query.Get("from")); from != "" {
+		filter.From = from
+	}
+	if to := strings.TrimSpace(query.Get("to")); to != "" {
+		filter.To = to
+	}
+	if passenger := strings.TrimSpace(query.Get("passenger_id")); passenger != "" {
+		passengerID, err := strconv.ParseInt(passenger, 10, 64)
+		if err != nil || passengerID <= 0 {
+			writeError(w, http.StatusBadRequest, "invalid passenger_id")
+			return
+		}
+		filter.PassengerID = passengerID
+	}
+	if dateStr := strings.TrimSpace(query.Get("date")); dateStr != "" {
+		date, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid date")
+			return
+		}
+		filter.Date = &date
+	}
+
+	status := strings.TrimSpace(strings.ToLower(query.Get("status")))
+	if status == "" {
+		filter.Status = "open"
+	} else if status == "all" {
+		filter.Status = ""
+	} else {
+		if _, ok := allowedIntercityStatuses[status]; !ok {
+			writeError(w, http.StatusBadRequest, "invalid status")
+			return
+		}
+		filter.Status = status
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	orders, err := s.intercityRepo.List(ctx, filter)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "list failed")
+		return
+	}
+
+	resp := make([]intercityOrderResponse, 0, len(orders))
+	for _, order := range orders {
+		resp = append(resp, newIntercityOrderResponse(order))
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"orders": resp, "limit": limit, "offset": offset})
+}
+
+func (s *Server) createIntercityOrder(w http.ResponseWriter, r *http.Request) {
+	var payload intercityOrderPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	payload.normalize()
+	if msg := payload.validate(); msg != "" {
+		writeError(w, http.StatusBadRequest, msg)
+		return
+	}
+	departure, err := time.Parse("2006-01-02", payload.DepartureDate)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid departure_date")
+		return
+	}
+
+	order := repo.IntercityOrder{
+		PassengerID:   payload.PassengerID,
+		FromLocation:  payload.FromLocation,
+		ToLocation:    payload.ToLocation,
+		TripType:      payload.TripType,
+		Price:         payload.Price,
+		ContactPhone:  payload.ContactPhone,
+		DepartureDate: departure,
+		Status:        "open",
+	}
+	if payload.Comment != "" {
+		order.Comment = sql.NullString{String: payload.Comment, Valid: true}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	id, err := s.intercityRepo.Create(ctx, order)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "create failed")
+		return
+	}
+	created, err := s.intercityRepo.Get(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "fetch failed")
+		return
+	}
+	writeJSON(w, http.StatusCreated, newIntercityOrderResponse(created))
+}
+
+func (s *Server) getIntercityOrder(w http.ResponseWriter, r *http.Request, id int64) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.intercityRepo.Get(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, newIntercityOrderResponse(order))
+}
+
+func (s *Server) closeIntercityOrder(w http.ResponseWriter, r *http.Request, id int64) {
+	var payload intercityClosePayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if payload.PassengerID <= 0 {
+		writeError(w, http.StatusBadRequest, "passenger_id is required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	if err := s.intercityRepo.Close(ctx, id, payload.PassengerID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "close failed")
+		return
+	}
+	order, err := s.intercityRepo.Get(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "fetch failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, newIntercityOrderResponse(order))
 }
 
 func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
