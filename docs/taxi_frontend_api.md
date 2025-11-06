@@ -76,6 +76,12 @@
 - **Параметры**: `limit` (по умолчанию 50) и `offset` ≥ 0. 【F:internal/taxi/http/server.go†L580-L597】
 - **Ответ**: объект с массивом `orders`, включающим адреса и профиль водителя, если он назначен. 【F:internal/taxi/http/server.go†L608-L626】【F:internal/taxi/http/server.go†L181-L246】
 
+**GET /api/v1/driver/orders**
+
+- **Заголовок**: `X-Driver-ID`.
+- **Параметры**: `limit` (по умолчанию 50) и `offset` ≥ 0. 【F:internal/taxi/http/server.go†L716-L735】
+- **Ответ**: объект с массивом `orders`; каждый элемент включает адреса, а при успешной загрузке профиля текущего водителя — вложенную карточку `driver`. 【F:internal/taxi/http/server.go†L739-L759】【F:internal/taxi/http/server.go†L181-L246】
+
 ### `/api/v1/orders/{id}/reprice`
 
 - **Метод**: `POST`

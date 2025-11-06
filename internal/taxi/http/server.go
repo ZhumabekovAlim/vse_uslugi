@@ -254,6 +254,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/drivers/", s.handleDriver)
 	mux.HandleFunc("/api/v1/route/quote", s.handleRouteQuote)
 	mux.HandleFunc("/api/v1/orders", s.handleOrders)
+	mux.HandleFunc("/api/v1/driver/orders", s.handleDriverOrders)
 	mux.HandleFunc("/api/v1/orders/", s.handleOrderSubroutes)
 	mux.HandleFunc("/api/v1/offers/accept", s.handleOfferAccept)
 	mux.HandleFunc("/api/v1/payments/airbapay/webhook", s.handleAirbaPayWebhook)
@@ -697,6 +698,15 @@ func (s *Server) handleOrders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleDriverOrders(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.handleListDriverOrders(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
 func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
 	passengerID, err := parseAuthID(r, "X-Passenger-ID")
 	if err != nil {
@@ -746,6 +756,53 @@ func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		resp = append(resp, newOrderResponse(order, driver))
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"orders": resp, "limit": limit, "offset": offset})
+}
+
+func (s *Server) handleListDriverOrders(w http.ResponseWriter, r *http.Request) {
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+	limit := 50
+	if v := r.URL.Query().Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n <= 0 {
+			writeError(w, http.StatusBadRequest, "invalid limit")
+			return
+		}
+		limit = n
+	}
+	offset := 0
+	if v := r.URL.Query().Get("offset"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			writeError(w, http.StatusBadRequest, "invalid offset")
+			return
+		}
+		offset = n
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	orders, err := s.ordersRepo.ListByDriver(ctx, driverID, limit, offset)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "list orders failed")
+		return
+	}
+
+	var driver *repo.Driver
+	if d, err := s.driversRepo.Get(ctx, driverID); err == nil {
+		driver = &d
+	}
+
+	resp := make([]orderResponse, 0, len(orders))
+	for _, order := range orders {
 		resp = append(resp, newOrderResponse(order, driver))
 	}
 
