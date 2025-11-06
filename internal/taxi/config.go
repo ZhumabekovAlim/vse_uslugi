@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	defaultPricePerKM        = 300
-	defaultMinPrice          = 1200
-	defaultSearchRadiusStart = 800
-	defaultSearchRadiusStep  = 400
-	defaultSearchRadiusMax   = 3000
+	defaultPricePerKM        = 170
+	defaultMinPrice          = 400
+	defaultSearchRadiusStart = 500
+	defaultSearchRadiusStep  = 500
+	defaultSearchRadiusMax   = 5000
 	defaultDispatchTick      = 10 * time.Second
 	defaultOfferTTL          = 10 * time.Minute
 	defaultSearchTimeout     = 10 * time.Minute
