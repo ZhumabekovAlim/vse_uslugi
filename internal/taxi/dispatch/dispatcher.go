@@ -94,7 +94,8 @@ func (d *Dispatcher) Run(ctx context.Context) {
 }
 
 func (d *Dispatcher) tick(ctx context.Context) {
-	now := timeutil.Now()
+	loc, _ := time.LoadLocation("Asia/Almaty")
+	now := time.Now().In(loc)
 	records, err := d.dispatch.ListDue(ctx, now)
 	if err != nil {
 		d.logger.Errorf("dispatch: list due failed: %v", err)
