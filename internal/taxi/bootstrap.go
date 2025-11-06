@@ -10,6 +10,7 @@ import (
 	taxihttp "naimuBack/internal/taxi/http"
 	"naimuBack/internal/taxi/pay"
 	"naimuBack/internal/taxi/repo"
+	"naimuBack/internal/taxi/timeutil"
 	"naimuBack/internal/taxi/ws"
 )
 
@@ -111,7 +112,7 @@ func (m *moduleState) startOfferCleanup(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			_ = m.offersRepo.ExpireOffers(ctx, time.Now())
+			_ = m.offersRepo.ExpireOffers(ctx, timeutil.Now())
 		}
 	}
 }

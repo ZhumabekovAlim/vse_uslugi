@@ -21,6 +21,7 @@ import (
 	"naimuBack/internal/taxi/pay"
 	"naimuBack/internal/taxi/pricing"
 	"naimuBack/internal/taxi/repo"
+	"naimuBack/internal/taxi/timeutil"
 	"naimuBack/internal/taxi/ws"
 )
 
@@ -871,7 +872,7 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	order.Addresses = addresses
 
-	dispatchRec := repo.DispatchRecord{RadiusM: s.cfg.GetSearchRadiusStart(), NextTickAt: time.Now(), State: "searching"}
+	dispatchRec := repo.DispatchRecord{RadiusM: s.cfg.GetSearchRadiusStart(), NextTickAt: timeutil.Now(), State: "searching"}
 	orderID, err := s.ordersRepo.CreateWithDispatch(ctx, order, dispatchRec)
 	if err != nil {
 		s.logger.Errorf("create order failed: %v", err)
