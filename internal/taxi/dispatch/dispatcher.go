@@ -10,6 +10,7 @@ import (
 	"naimuBack/internal/taxi/geo"
 	"naimuBack/internal/taxi/pricing"
 	"naimuBack/internal/taxi/repo"
+	"naimuBack/internal/taxi/timeutil"
 	"naimuBack/internal/taxi/ws"
 )
 
@@ -93,7 +94,7 @@ func (d *Dispatcher) Run(ctx context.Context) {
 }
 
 func (d *Dispatcher) tick(ctx context.Context) {
-	now := time.Now()
+	now := timeutil.Now()
 	records, err := d.dispatch.ListDue(ctx, now)
 	if err != nil {
 		d.logger.Errorf("dispatch: list due failed: %v", err)
@@ -238,7 +239,7 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 
 // TriggerImmediate schedules an order for immediate dispatch tick.
 func (d *Dispatcher) TriggerImmediate(ctx context.Context, orderID int64) error {
-	return d.dispatch.UpdateRadius(ctx, orderID, d.cfg.GetSearchRadiusStart(), time.Now())
+	return d.dispatch.UpdateRadius(ctx, orderID, d.cfg.GetSearchRadiusStart(), timeutil.Now())
 }
 
 // ConfigAdapter allows TaxiConfig to satisfy Config interface.
