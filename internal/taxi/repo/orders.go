@@ -246,6 +246,44 @@ func (r *OrdersRepo) ListByPassenger(ctx context.Context, passengerID int64, lim
 	return orders, nil
 }
 
+// ListByDriver returns orders assigned to a driver sorted by creation date.
+func (r *OrdersRepo) ListByDriver(ctx context.Context, driverID int64, limit, offset int) ([]Order, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	rows, err := r.db.QueryContext(ctx, `SELECT id, passenger_id, driver_id, from_lon, from_lat, to_lon, to_lat, distance_m,
+ eta_s, recommended_price, client_price, payment_method, status, notes, created_at, updated_at FROM orders WHERE driver_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`, driverID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []Order
+	for rows.Next() {
+		var o Order
+		if err := rows.Scan(&o.ID, &o.PassengerID, &o.DriverID, &o.FromLon, &o.FromLat, &o.ToLon, &o.ToLat, &o.DistanceM, &o.EtaSeconds, &o.RecommendedPrice, &o.ClientPrice, &o.PaymentMethod, &o.Status, &o.Notes, &o.CreatedAt, &o.UpdatedAt); err != nil {
+			return nil, err
+		}
+		orders = append(orders, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for i := range orders {
+		addresses, err := r.listAddresses(ctx, orders[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		orders[i].Addresses = addresses
+	}
+	return orders, nil
+}
+
 func insertOrderAddresses(ctx context.Context, tx *sql.Tx, orderID int64, addresses []OrderAddress) error {
 	stmt, err := tx.PrepareContext(ctx, `INSERT INTO order_addresses (order_id, seq, lon, lat, address) VALUES (?,?,?,?,?)`)
 	if err != nil {
