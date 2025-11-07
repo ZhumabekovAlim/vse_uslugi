@@ -1,372 +1,822 @@
 {
-  "info": {
-    "name": "Taxi API v1",
-    "description": "Коллекция запросов для такси-сервиса. Все примеры и комментарии на русском языке.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "1.0.0"
-  },
-  "item": [
-    {
-      "name": "Список водителей",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{base_url}}/api/v1/drivers?limit=10&offset=0",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "drivers"
-          ],
-          "query": [
-            {
-              "key": "limit",
-              "value": "10",
-              "description": "Максимум записей в ответе"
-            },
-            {
-              "key": "offset",
-              "value": "0",
-              "description": "Смещение для пагинации"
-            }
-          ]
-        },
-        "description": "Возвращает список водителей. Полезно для админ-панели или поддержки."
-      },
-      "response": [
+    "info": {
+        "name": "Taxi & Intercity API",
+        "description": "\u041f\u043e\u043b\u043d\u0430\u044f Postman-\u043a\u043e\u043b\u043b\u0435\u043a\u0446\u0438\u044f \u0434\u043b\u044f \u043c\u043e\u0434\u0443\u043b\u0435\u0439 \u0422\u0430\u043a\u0441\u0438 \u0438 \u041c\u0435\u0436\u0433\u043e\u0440\u043e\u0434. \u0412\u0441\u0435 \u043f\u0440\u0438\u043c\u0435\u0440\u044b \u043e\u0444\u043e\u0440\u043c\u043b\u0435\u043d\u044b \u043d\u0430 \u0440\u0443\u0441\u0441\u043a\u043e\u043c \u044f\u0437\u044b\u043a\u0435.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "version": "2.0.0"
+    },
+    "variable": [
         {
-          "name": "200 Успешно",
-          "originalRequest": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/api/v1/drivers?limit=10&offset=0"
-            }
-          },
-          "status": "OK",
-          "code": 200,
-          "_postman_previewlanguage": "json",
-          "body": "{\n  \"drivers\": [\n    {\n      \"id\": 101,\n      \"user_id\": 501,\n      \"status\": \"free\",\n      \"car_model\": \"Toyota Camry\",\n      \"car_color\": \"Черный\",\n      \"car_number\": \"123ABC01\",\n      \"tech_passport\": \"TP-123456\",\n      \"car_photo_front\": \"https://cdn.example.com/cars/101/front.jpg\",\n      \"car_photo_back\": \"https://cdn.example.com/cars/101/back.jpg\",\n      \"car_photo_left\": \"https://cdn.example.com/cars/101/left.jpg\",\n      \"car_photo_right\": \"https://cdn.example.com/cars/101/right.jpg\",\n      \"driver_photo\": \"https://cdn.example.com/drivers/101/photo.jpg\",\n      \"phone\": \"+77001234567\",\n      \"iin\": \"900101123456\",\n      \"id_card_front\": \"https://cdn.example.com/docs/101/id_front.jpg\",\n      \"id_card_back\": \"https://cdn.example.com/docs/101/id_back.jpg\",\n      \"rating\": 4.92,\n      \"updated_at\": \"2024-01-20T10:15:00Z\"\n    }\n  ]\n}"
-        }
-      ]
-    },
-    {
-      "name": "Создать водителя",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"user_id\": 501,\n  \"status\": \"offline\",\n  \"car_model\": \"Hyundai Sonata\",\n  \"car_color\": \"Белый\",\n  \"car_number\": \"777ABC01\",\n  \"tech_passport\": \"TP-654321\",\n  \"car_photo_front\": \"https://cdn.example.com/cars/777/front.jpg\",\n  \"car_photo_back\": \"https://cdn.example.com/cars/777/back.jpg\",\n  \"car_photo_left\": \"https://cdn.example.com/cars/777/left.jpg\",\n  \"car_photo_right\": \"https://cdn.example.com/cars/777/right.jpg\",\n  \"driver_photo\": \"https://cdn.example.com/drivers/777/photo.jpg\",\n  \"phone\": \"+77007654321\",\n  \"iin\": \"880202123456\",\n  \"id_card_front\": \"https://cdn.example.com/docs/777/id_front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/docs/777/id_back.jpg\"\n}"
+            "key": "base_url",
+            "value": "https://api.barlyqqyzmet.kz",
+            "type": "string",
+            "description": "\u0411\u0430\u0437\u043e\u0432\u044b\u0439 URL \u0434\u043b\u044f \u0432\u0441\u0435\u0445 HTTP-\u0437\u0430\u043f\u0440\u043e\u0441\u043e\u0432"
         },
-        "url": {
-          "raw": "{{base_url}}/api/v1/drivers",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "drivers"
-          ]
-        },
-        "description": "Создает нового водителя. Перед отправкой убедитесь, что все обязательные поля заполнены."
-      },
-      "response": [
         {
-          "name": "201 Создано",
-          "originalRequest": {
-            "method": "POST",
-            "url": {
-              "raw": "{{base_url}}/api/v1/drivers"
-            }
-          },
-          "status": "Created",
-          "code": 201,
-          "body": "{\n  \"id\": 777,\n  \"rating\": 0,\n  \"updated_at\": \"2024-01-21T08:00:00Z\",\n  \"user_id\": 501,\n  \"status\": \"offline\",\n  \"car_model\": \"Hyundai Sonata\",\n  \"car_color\": \"Белый\",\n  \"car_number\": \"777ABC01\",\n  \"tech_passport\": \"TP-654321\",\n  \"car_photo_front\": \"https://cdn.example.com/cars/777/front.jpg\",\n  \"car_photo_back\": \"https://cdn.example.com/cars/777/back.jpg\",\n  \"car_photo_left\": \"https://cdn.example.com/cars/777/left.jpg\",\n  \"car_photo_right\": \"https://cdn.example.com/cars/777/right.jpg\",\n  \"driver_photo\": \"https://cdn.example.com/drivers/777/photo.jpg\",\n  \"phone\": \"+77007654321\",\n  \"iin\": \"880202123456\",\n  \"id_card_front\": \"https://cdn.example.com/docs/777/id_front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/docs/777/id_back.jpg\"\n}"
+            "key": "ws_base_url",
+            "value": "wss://api.barlyqqyzmet.kz",
+            "type": "string",
+            "description": "\u0411\u0430\u0437\u043e\u0432\u044b\u0439 URL \u0434\u043b\u044f WebSocket-\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0439"
         }
-      ]
-    },
-    {
-      "name": "Получить водителя по ID",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{base_url}}/api/v1/drivers/777",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "drivers",
-            "777"
-          ]
-        },
-        "description": "Возвращает карточку конкретного водителя."
-      }
-    },
-    {
-      "name": "Обновить водителя",
-      "request": {
-        "method": "PUT",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"user_id\": 501,\n  \"status\": \"free\",\n  \"car_model\": \"Hyundai Sonata\",\n  \"car_color\": \"Белый\",\n  \"car_number\": \"777ABC01\",\n  \"tech_passport\": \"TP-654321\",\n  \"car_photo_front\": \"https://cdn.example.com/cars/777/front.jpg\",\n  \"car_photo_back\": \"https://cdn.example.com/cars/777/back.jpg\",\n  \"car_photo_left\": \"https://cdn.example.com/cars/777/left.jpg\",\n  \"car_photo_right\": \"https://cdn.example.com/cars/777/right.jpg\",\n  \"driver_photo\": \"https://cdn.example.com/drivers/777/photo.jpg\",\n  \"phone\": \"+77007654321\",\n  \"iin\": \"880202123456\",\n  \"id_card_front\": \"https://cdn.example.com/docs/777/id_front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/docs/777/id_back.jpg\"\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/v1/drivers/777",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "drivers",
-            "777"
-          ]
-        },
-        "description": "Обновляет данные водителя. Все поля обязательны, так как бэкенд выполняет полную валидацию."
-      }
-    },
-    {
-      "name": "Удалить водителя",
-      "request": {
-        "method": "DELETE",
-        "header": [],
-        "url": {
-          "raw": "{{base_url}}/api/v1/drivers/777",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "drivers",
-            "777"
-          ]
-        },
-        "description": "Удаляет водителя по ID. Успешный ответ без тела с кодом 204."
-      }
-    },
-    {
-      "name": "Запросить расчет маршрута",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"from_address\": \"Алматы, проспект Абая 10\",\n  \"to_address\": \"Алматы, улица Панфилова 100\"\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/v1/route/quote",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "route",
-            "quote"
-          ]
-        },
-        "description": "Возвращает расстояние, ETA и рекомендованную цену. Можно передавать координаты вместо адресов."
-      },
-      "response": [
+    ],
+    "item": [
         {
-          "name": "200 Пример",
-          "status": "OK",
-          "code": 200,
-          "body": "{\n  \"from\": {\n    \"lon\": 76.921,\n    \"lat\": 43.256\n  },\n  \"to\": {\n    \"lon\": 76.945,\n    \"lat\": 43.238\n  },\n  \"distance_m\": 5400,\n  \"eta_s\": 780,\n  \"recommended_price\": 1500,\n  \"min_price\": 1000\n}"
+            "name": "\u0422\u0430\u043a\u0441\u0438",
+            "description": "\u042d\u043d\u0434\u043f\u043e\u0438\u043d\u0442\u044b \u0433\u043e\u0440\u043e\u0434\u0441\u043a\u043e\u0433\u043e \u0442\u0430\u043a\u0441\u0438.",
+            "item": [
+                {
+                    "name": "\u0412\u043e\u0434\u0438\u0442\u0435\u043b\u0438",
+                    "description": "CRUD-\u0437\u0430\u043f\u0440\u043e\u0441\u044b \u0434\u043b\u044f \u0443\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u043f\u0440\u043e\u0444\u0438\u043b\u044f\u043c\u0438 \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u0435\u0439.",
+                    "item": [
+                        {
+                            "name": "\u0421\u043f\u0438\u0441\u043e\u043a \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u0435\u0439",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/drivers",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "drivers"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "limit",
+                                            "value": "10",
+                                            "description": "\u041c\u0430\u043a\u0441\u0438\u043c\u0443\u043c \u0437\u0430\u043f\u0438\u0441\u0435\u0439"
+                                        },
+                                        {
+                                            "key": "offset",
+                                            "value": "0",
+                                            "description": "\u0421\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0434\u043b\u044f \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0438"
+                                        }
+                                    ]
+                                },
+                                "description": "\u0412\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u043f\u0430\u0433\u0438\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u0441\u043f\u0438\u0441\u043e\u043a \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u0435\u0439."
+                            },
+                            "response": [
+                                {
+                                    "name": "200 \u0423\u0441\u043f\u0435\u0448\u043d\u043e",
+                                    "originalRequest": {
+                                        "method": "GET",
+                                        "url": {
+                                            "raw": "{{base_url}}/api/v1/drivers?limit=10&offset=0"
+                                        }
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "_postman_previewlanguage": "json",
+                                    "body": "{\n  \"drivers\": [\n    {\n      \"id\": 101,\n      \"user_id\": 501,\n      \"status\": \"free\",\n      \"car_model\": \"Toyota Camry\",\n      \"car_color\": \"\u0427\u0435\u0440\u043d\u044b\u0439\",\n      \"car_number\": \"123ABC01\",\n      \"tech_passport\": \"TP-123456\",\n      \"car_photo_front\": \"https://cdn.example.com/cars/101/front.jpg\",\n      \"car_photo_back\": \"https://cdn.example.com/cars/101/back.jpg\",\n      \"car_photo_left\": \"https://cdn.example.com/cars/101/left.jpg\",\n      \"car_photo_right\": \"https://cdn.example.com/cars/101/right.jpg\",\n      \"driver_photo\": \"https://cdn.example.com/drivers/101/photo.jpg\",\n      \"phone\": \"+77001234567\",\n      \"iin\": \"900101123456\",\n      \"id_card_front\": \"https://cdn.example.com/docs/101/id_front.jpg\",\n      \"id_card_back\": \"https://cdn.example.com/docs/101/id_back.jpg\",\n      \"rating\": 4.92,\n      \"updated_at\": \"2024-01-20T10:15:00Z\"\n    }\n  ],\n  \"limit\": 10,\n  \"offset\": 0\n}"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"user_id\": 501,\n  \"status\": \"offline\",\n  \"car_model\": \"Hyundai Sonata\",\n  \"car_color\": \"\u0411\u0435\u043b\u044b\u0439\",\n  \"car_number\": \"777ABC01\",\n  \"tech_passport\": \"TP-654321\",\n  \"car_photo_front\": \"https://cdn.example.com/cars/777/front.jpg\",\n  \"car_photo_back\": \"https://cdn.example.com/cars/777/back.jpg\",\n  \"car_photo_left\": \"https://cdn.example.com/cars/777/left.jpg\",\n  \"car_photo_right\": \"https://cdn.example.com/cars/777/right.jpg\",\n  \"driver_photo\": \"https://cdn.example.com/drivers/777/photo.jpg\",\n  \"phone\": \"+77007654321\",\n  \"iin\": \"880202123456\",\n  \"id_card_front\": \"https://cdn.example.com/docs/777/id_front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/docs/777/id_back.jpg\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/drivers",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "drivers"
+                                    ]
+                                },
+                                "description": "\u0421\u043e\u0437\u0434\u0430\u0435\u0442 \u043d\u043e\u0432\u043e\u0433\u043e \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f. \u0412\u0441\u0435 \u043f\u043e\u043b\u044f \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u044b."
+                            },
+                            "response": [
+                                {
+                                    "name": "201 \u0421\u043e\u0437\u0434\u0430\u043d\u043e",
+                                    "originalRequest": {
+                                        "method": "POST",
+                                        "url": {
+                                            "raw": "{{base_url}}/api/v1/drivers"
+                                        }
+                                    },
+                                    "status": "Created",
+                                    "code": 201,
+                                    "_postman_previewlanguage": "json",
+                                    "body": "{\n  \"id\": 777,\n  \"rating\": 0,\n  \"updated_at\": \"2024-01-21T08:00:00Z\",\n  \"user_id\": 501,\n  \"status\": \"offline\",\n  \"car_model\": \"Hyundai Sonata\",\n  \"car_color\": \"\u0411\u0435\u043b\u044b\u0439\",\n  \"car_number\": \"777ABC01\",\n  \"tech_passport\": \"TP-654321\",\n  \"car_photo_front\": \"https://cdn.example.com/cars/777/front.jpg\",\n  \"car_photo_back\": \"https://cdn.example.com/cars/777/back.jpg\",\n  \"car_photo_left\": \"https://cdn.example.com/cars/777/left.jpg\",\n  \"car_photo_right\": \"https://cdn.example.com/cars/777/right.jpg\",\n  \"driver_photo\": \"https://cdn.example.com/drivers/777/photo.jpg\",\n  \"phone\": \"+77007654321\",\n  \"iin\": \"880202123456\",\n  \"id_card_front\": \"https://cdn.example.com/docs/777/id_front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/docs/777/id_back.jpg\"\n}"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f \u043f\u043e ID",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/drivers/777",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "drivers",
+                                        "777"
+                                    ]
+                                },
+                                "description": "\u0412\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0443 \u043a\u043e\u043d\u043a\u0440\u0435\u0442\u043d\u043e\u0433\u043e \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f \u043f\u043e \u0438\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0443."
+                            }
+                        },
+                        {
+                            "name": "\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f",
+                            "request": {
+                                "method": "PUT",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"user_id\": 501,\n  \"status\": \"free\",\n  \"car_model\": \"Hyundai Sonata\",\n  \"car_color\": \"\u0411\u0435\u043b\u044b\u0439\",\n  \"car_number\": \"777ABC01\",\n  \"tech_passport\": \"TP-654321\",\n  \"car_photo_front\": \"https://cdn.example.com/cars/777/front.jpg\",\n  \"car_photo_back\": \"https://cdn.example.com/cars/777/back.jpg\",\n  \"car_photo_left\": \"https://cdn.example.com/cars/777/left.jpg\",\n  \"car_photo_right\": \"https://cdn.example.com/cars/777/right.jpg\",\n  \"driver_photo\": \"https://cdn.example.com/drivers/777/photo.jpg\",\n  \"phone\": \"+77007654321\",\n  \"iin\": \"880202123456\",\n  \"id_card_front\": \"https://cdn.example.com/docs/777/id_front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/docs/777/id_back.jpg\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/drivers/777",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "drivers",
+                                        "777"
+                                    ]
+                                },
+                                "description": "\u041f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0435 \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f."
+                            }
+                        },
+                        {
+                            "name": "\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/drivers/777",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "drivers",
+                                        "777"
+                                    ]
+                                },
+                                "description": "\u0423\u0434\u0430\u043b\u044f\u0435\u0442 \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f. \u0412\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 204 No Content \u043f\u0440\u0438 \u0443\u0441\u043f\u0435\u0445\u0435."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "\u041c\u0430\u0440\u0448\u0440\u0443\u0442\u044b",
+                    "description": "\u0420\u0430\u0441\u0447\u0435\u0442 \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u0438 \u043f\u043e\u0435\u0437\u0434\u043a\u0438 \u043f\u043e \u0442\u043e\u0447\u043a\u0430\u043c.",
+                    "item": [
+                        {
+                            "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u043a\u0432\u043e\u0442\u0443 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"from\": {\n    \"lon\": 76.9094,\n    \"lat\": 43.2565,\n    \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u0410\u0431\u0430\u044f 10\"\n  },\n  \"stops\": [\n    {\n      \"lon\": 76.9351,\n      \"lat\": 43.2444,\n      \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u0421\u0435\u0439\u0444\u0443\u043b\u043b\u0438\u043d\u0430 498\"\n    }\n  ],\n  \"to\": {\n    \"lon\": 76.9452,\n    \"lat\": 43.238,\n    \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u041d\u0430\u0437\u0430\u0440\u0431\u0430\u0435\u0432\u0430 120\"\n  }\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/route/quote",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "route",
+                                        "quote"
+                                    ]
+                                },
+                                "description": "\u0421\u0447\u0438\u0442\u0430\u0435\u0442 \u0440\u0430\u0441\u0441\u0442\u043e\u044f\u043d\u0438\u0435, \u0432\u0440\u0435\u043c\u044f \u0438 \u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0443\u0435\u043c\u0443\u044e \u0446\u0435\u043d\u0443 \u0434\u043b\u044f \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430 \u0441 \u043f\u0440\u043e\u043c\u0435\u0436\u0443\u0442\u043e\u0447\u043d\u044b\u043c\u0438 \u0442\u043e\u0447\u043a\u0430\u043c\u0438."
+                            },
+                            "response": [
+                                {
+                                    "name": "200 \u0423\u0441\u043f\u0435\u0448\u043d\u043e",
+                                    "originalRequest": {
+                                        "method": "POST",
+                                        "url": {
+                                            "raw": "{{base_url}}/api/v1/route/quote"
+                                        }
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "_postman_previewlanguage": "json",
+                                    "body": "{\n  \"from\": {\n    \"lon\": 76.9094,\n    \"lat\": 43.2565,\n    \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u0410\u0431\u0430\u044f 10\"\n  },\n  \"stops\": [\n    {\n      \"lon\": 76.9351,\n      \"lat\": 43.2444,\n      \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u0421\u0435\u0439\u0444\u0443\u043b\u043b\u0438\u043d\u0430 498\"\n    }\n  ],\n  \"to\": {\n    \"lon\": 76.9452,\n    \"lat\": 43.238,\n    \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u041d\u0430\u0437\u0430\u0440\u0431\u0430\u0435\u0432\u0430 120\"\n  },\n  \"distance_m\": 8200,\n  \"eta_s\": 1080,\n  \"recommended_price\": 1500,\n  \"min_price\": 1000\n}"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "\u0417\u0430\u043a\u0430\u0437\u044b",
+                    "description": "\u0421\u043e\u0437\u0434\u0430\u043d\u0438\u0435, \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u0438\u0435 \u0438 \u0443\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0437\u0430\u043a\u0430\u0437\u0430\u043c\u0438 \u0432\u043d\u0443\u0442\u0440\u0438 \u0433\u043e\u0440\u043e\u0434\u0430.",
+                    "item": [
+                        {
+                            "name": "\u0421\u043f\u0438\u0441\u043e\u043a \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043f\u0430\u0441\u0441\u0430\u0436\u0438\u0440\u0430",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "X-Passenger-ID",
+                                        "value": "9001"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/orders",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "orders"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "limit",
+                                            "value": "20",
+                                            "description": "\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0437\u0430\u043f\u0438\u0441\u0435\u0439"
+                                        },
+                                        {
+                                            "key": "offset",
+                                            "value": "0",
+                                            "description": "\u0421\u043c\u0435\u0449\u0435\u043d\u0438\u0435"
+                                        }
+                                    ]
+                                },
+                                "description": "\u0412\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u0438\u0441\u0442\u043e\u0440\u0438\u044e \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043f\u0430\u0441\u0441\u0430\u0436\u0438\u0440\u0430. \u0422\u0440\u0435\u0431\u0443\u0435\u0442 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a X-Passenger-ID."
+                            },
+                            "response": [
+                                {
+                                    "name": "200 \u0423\u0441\u043f\u0435\u0448\u043d\u043e",
+                                    "originalRequest": {
+                                        "method": "GET",
+                                        "url": {
+                                            "raw": "{{base_url}}/api/v1/orders?limit=20&offset=0"
+                                        }
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "_postman_previewlanguage": "json",
+                                    "body": "{\n  \"orders\": [\n    {\n      \"id\": 5001,\n      \"passenger_id\": 9001,\n      \"driver_id\": 3001,\n      \"from_lon\": 76.9094,\n      \"from_lat\": 43.2565,\n      \"to_lon\": 76.9452,\n      \"to_lat\": 43.238,\n      \"distance_m\": 8200,\n      \"eta_s\": 1080,\n      \"recommended_price\": 1500,\n      \"client_price\": 1600,\n      \"payment_method\": \"online\",\n      \"status\": \"accepted\",\n      \"notes\": \"\u041f\u043e\u0434\u044a\u0435\u0445\u0430\u0442\u044c \u043a\u043e \u0432\u0442\u043e\u0440\u043e\u043c\u0443 \u043f\u043e\u0434\u044a\u0435\u0437\u0434\u0443\",\n      \"created_at\": \"2024-01-21T08:05:00Z\",\n      \"updated_at\": \"2024-01-21T08:06:30Z\",\n      \"addresses\": [\n        {\n          \"id\": 90011,\n          \"seq\": 0,\n          \"lon\": 76.9094,\n          \"lat\": 43.2565,\n          \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u0410\u0431\u0430\u044f 10\"\n        },\n        {\n          \"id\": 90012,\n          \"seq\": 1,\n          \"lon\": 76.9351,\n          \"lat\": 43.2444,\n          \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u0421\u0435\u0439\u0444\u0443\u043b\u043b\u0438\u043d\u0430 498\"\n        },\n        {\n          \"id\": 90013,\n          \"seq\": 2,\n          \"lon\": 76.9452,\n          \"lat\": 43.238,\n          \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u041d\u0430\u0437\u0430\u0440\u0431\u0430\u0435\u0432\u0430 120\"\n        }\n      ],\n      \"driver\": {\n        \"id\": 3001,\n        \"user_id\": 8001,\n        \"status\": \"busy\",\n        \"car_model\": \"Toyota Camry\",\n        \"car_color\": \"\u0427\u0435\u0440\u043d\u044b\u0439\",\n        \"car_number\": \"123ABC01\",\n        \"tech_passport\": \"TP-123456\",\n        \"car_photo_front\": \"https://cdn.example.com/cars/101/front.jpg\",\n        \"car_photo_back\": \"https://cdn.example.com/cars/101/back.jpg\",\n        \"car_photo_left\": \"https://cdn.example.com/cars/101/left.jpg\",\n        \"car_photo_right\": \"https://cdn.example.com/cars/101/right.jpg\",\n        \"driver_photo\": \"https://cdn.example.com/drivers/101/photo.jpg\",\n        \"phone\": \"+77001234567\",\n        \"iin\": \"900101123456\",\n        \"id_card_front\": \"https://cdn.example.com/docs/101/id_front.jpg\",\n        \"id_card_back\": \"https://cdn.example.com/docs/101/id_back.jpg\",\n        \"rating\": 4.92,\n        \"updated_at\": \"2024-01-21T08:04:00Z\"\n      }\n    }\n  ],\n  \"limit\": 20,\n  \"offset\": 0\n}"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u0437\u0430\u043a\u0430\u0437",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "X-Passenger-ID",
+                                        "value": "9001"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"from\": {\n    \"lon\": 76.9094,\n    \"lat\": 43.2565,\n    \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u0410\u0431\u0430\u044f 10\"\n  },\n  \"stops\": [\n    {\n      \"lon\": 76.9351,\n      \"lat\": 43.2444,\n      \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u0421\u0435\u0439\u0444\u0443\u043b\u043b\u0438\u043d\u0430 498\"\n    }\n  ],\n  \"to\": {\n    \"lon\": 76.9452,\n    \"lat\": 43.238,\n    \"address\": \"\u0410\u043b\u043c\u0430\u0442\u044b, \u041d\u0430\u0437\u0430\u0440\u0431\u0430\u0435\u0432\u0430 120\"\n  },\n  \"distance_m\": 8200,\n  \"eta_s\": 1080,\n  \"client_price\": 1600,\n  \"payment_method\": \"online\",\n  \"notes\": \"\u041f\u043e\u0434\u044a\u0435\u0445\u0430\u0442\u044c \u043a\u043e \u0432\u0442\u043e\u0440\u043e\u043c\u0443 \u043f\u043e\u0434\u044a\u0435\u0437\u0434\u0443\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/orders",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "orders"
+                                    ]
+                                },
+                                "description": "\u0421\u043e\u0437\u0434\u0430\u0435\u0442 \u0437\u0430\u043a\u0430\u0437 \u0442\u0430\u043a\u0441\u0438. \u0422\u0440\u0435\u0431\u0443\u0435\u0442 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a X-Passenger-ID."
+                            },
+                            "response": [
+                                {
+                                    "name": "201 \u0421\u043e\u0437\u0434\u0430\u043d\u043e",
+                                    "originalRequest": {
+                                        "method": "POST",
+                                        "url": {
+                                            "raw": "{{base_url}}/api/v1/orders"
+                                        }
+                                    },
+                                    "status": "Created",
+                                    "code": 201,
+                                    "_postman_previewlanguage": "json",
+                                    "body": "{\n  \"order_id\": 5002,\n  \"recommended_price\": 1500\n}"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0437\u0430\u043a\u0430\u0437 \u043f\u043e ID",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "X-Passenger-ID",
+                                        "value": "9001"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/orders/5002",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "orders",
+                                        "5002"
+                                    ]
+                                },
+                                "description": "\u0412\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u0442\u0435\u043a\u0443\u0449\u0438\u0439 \u0441\u0442\u0430\u0442\u0443\u0441 \u0437\u0430\u043a\u0430\u0437\u0430. \u0422\u0440\u0435\u0431\u0443\u0435\u0442 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a X-Passenger-ID."
+                            }
+                        },
+                        {
+                            "name": "\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u0446\u0435\u043d\u0443 \u0437\u0430\u043a\u0430\u0437\u0430",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"client_price\": 1800\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/orders/5002/reprice",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "orders",
+                                        "5002",
+                                        "reprice"
+                                    ]
+                                },
+                                "description": "\u041c\u0435\u043d\u044f\u0435\u0442 \u043a\u043b\u0438\u0435\u043d\u0442\u0441\u043a\u0443\u044e \u0446\u0435\u043d\u0443 \u0437\u0430\u043a\u0430\u0437\u0430 \u0438 \u043f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0435\u0442 \u043f\u043e\u0438\u0441\u043a \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f."
+                            },
+                            "response": [
+                                {
+                                    "name": "200 \u0423\u0441\u043f\u0435\u0448\u043d\u043e",
+                                    "originalRequest": {
+                                        "method": "POST",
+                                        "url": {
+                                            "raw": "{{base_url}}/api/v1/orders/5002/reprice"
+                                        }
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "_postman_previewlanguage": "json",
+                                    "body": "{\n  \"order_id\": 5002,\n  \"client_price\": 1800\n}"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "\u0418\u0437\u043c\u0435\u043d\u0438\u0442\u044c \u0441\u0442\u0430\u0442\u0443\u0441 \u0437\u0430\u043a\u0430\u0437\u0430",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"status\": \"completed\",\n  \"lon\": 76.945,\n  \"lat\": 43.2381\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/orders/5002/status",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "orders",
+                                        "5002",
+                                        "status"
+                                    ]
+                                },
+                                "description": "\u041f\u0435\u0440\u0435\u0432\u043e\u0434\u0438\u0442 \u0437\u0430\u043a\u0430\u0437 \u0432 \u043d\u043e\u0432\u044b\u0439 \u0441\u0442\u0430\u0442\u0443\u0441. \u0414\u043b\u044f \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u044f \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044f \u043a\u043e\u043e\u0440\u0434\u0438\u043d\u0430\u0442\u044b \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f."
+                            },
+                            "response": [
+                                {
+                                    "name": "200 \u0423\u0441\u043f\u0435\u0448\u043d\u043e",
+                                    "originalRequest": {
+                                        "method": "POST",
+                                        "url": {
+                                            "raw": "{{base_url}}/api/v1/orders/5002/status"
+                                        }
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "_postman_previewlanguage": "json",
+                                    "body": "{\n  \"status\": \"completed\"\n}"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "\u0421\u043f\u0438\u0441\u043e\u043a \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "X-Driver-ID",
+                                        "value": "3001"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/driver/orders",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "driver",
+                                        "orders"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "limit",
+                                            "value": "20",
+                                            "description": "\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0437\u0430\u043f\u0438\u0441\u0435\u0439"
+                                        },
+                                        {
+                                            "key": "offset",
+                                            "value": "0",
+                                            "description": "\u0421\u043c\u0435\u0449\u0435\u043d\u0438\u0435"
+                                        }
+                                    ]
+                                },
+                                "description": "\u0418\u0441\u0442\u043e\u0440\u0438\u044f \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f. \u0422\u0440\u0435\u0431\u0443\u0435\u0442 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a X-Driver-ID."
+                            }
+                        },
+                        {
+                            "name": "\u041f\u0440\u0438\u043d\u044f\u0442\u044c \u043e\u0444\u0444\u0435\u0440",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "X-Driver-ID",
+                                        "value": "3001"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"order_id\": 5002\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/offers/accept",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "offers",
+                                        "accept"
+                                    ]
+                                },
+                                "description": "\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u0435\u043c \u0434\u043b\u044f \u043f\u0440\u0438\u043d\u044f\u0442\u0438\u044f \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u044f. \u0422\u0440\u0435\u0431\u0443\u0435\u0442 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a X-Driver-ID."
+                            },
+                            "response": [
+                                {
+                                    "name": "200 \u0423\u0441\u043f\u0435\u0448\u043d\u043e",
+                                    "originalRequest": {
+                                        "method": "POST",
+                                        "url": {
+                                            "raw": "{{base_url}}/api/v1/offers/accept"
+                                        }
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "_postman_previewlanguage": "json",
+                                    "body": "{\n  \"status\": \"accepted\"\n}"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "\u041f\u043b\u0430\u0442\u0435\u0436\u0438",
+                    "item": [
+                        {
+                            "name": "AirbaPay Webhook",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "X-AirbaPay-Signature",
+                                        "value": "example-signature"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"order_id\": 5002,\n  \"status\": \"paid\",\n  \"transaction_id\": \"INV-20240121-0001\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/payments/airbapay/webhook",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "payments",
+                                        "airbapay",
+                                        "webhook"
+                                    ]
+                                },
+                                "description": "Webhook \u043e\u0442 AirbaPay \u0441 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435\u043c \u043e\u0431 \u043e\u043f\u043b\u0430\u0442\u0435. \u0422\u0440\u0435\u0431\u0443\u0435\u0442 \u043f\u043e\u0434\u043f\u0438\u0441\u044c \u0432 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043a\u0435."
+                            },
+                            "response": [
+                                {
+                                    "name": "200 \u0423\u0441\u043f\u0435\u0448\u043d\u043e",
+                                    "originalRequest": {
+                                        "method": "POST",
+                                        "url": {
+                                            "raw": "{{base_url}}/api/v1/payments/airbapay/webhook"
+                                        }
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "_postman_previewlanguage": "json",
+                                    "body": "{\n  \"status\": \"ok\"\n}"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "WebSocket",
+                    "item": [
+                        {
+                            "name": "Driver WS",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{ws_base_url}}/ws/driver?driver_id=3001&city=almaty",
+                                    "host": [
+                                        "{{ws_base_url}}"
+                                    ],
+                                    "path": [
+                                        "ws",
+                                        "driver"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "driver_id",
+                                            "value": "3001",
+                                            "description": "\u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440 \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f"
+                                        },
+                                        {
+                                            "key": "city",
+                                            "value": "almaty",
+                                            "description": "\u041e\u043f\u0446\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u044b\u0439 \u0433\u043e\u0440\u043e\u0434 \u0434\u043b\u044f \u0441\u0435\u0433\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u0438"
+                                        }
+                                    ]
+                                },
+                                "description": "WS-\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f. \u041e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0439\u0442\u0435 JSON {\"lon\":...,\"lat\":...,\"status\":...} \u0434\u043b\u044f \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f \u043a\u043e\u043e\u0440\u0434\u0438\u043d\u0430\u0442."
+                            }
+                        },
+                        {
+                            "name": "Passenger WS",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{ws_base_url}}/ws/passenger?passenger_id=9001",
+                                    "host": [
+                                        "{{ws_base_url}}"
+                                    ],
+                                    "path": [
+                                        "ws",
+                                        "passenger"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "passenger_id",
+                                            "value": "9001",
+                                            "description": "\u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440 \u043f\u0430\u0441\u0441\u0430\u0436\u0438\u0440\u0430"
+                                        }
+                                    ]
+                                },
+                                "description": "WS-\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043f\u0430\u0441\u0441\u0430\u0436\u0438\u0440\u0430 \u0434\u043b\u044f \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u0438\u044f \u0441\u043e\u0431\u044b\u0442\u0438\u0439 \u043f\u043e \u0437\u0430\u043a\u0430\u0437\u0443."
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "\u041c\u0435\u0436\u0433\u043e\u0440\u043e\u0434",
+            "description": "\u042d\u043d\u0434\u043f\u043e\u0438\u043d\u0442\u044b \u043c\u0435\u0436\u0433\u043e\u0440\u043e\u0434\u0441\u043a\u0438\u0445 \u043f\u043e\u0435\u0437\u0434\u043e\u043a.",
+            "item": [
+                {
+                    "name": "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u043c\u0435\u0436\u0433\u043e\u0440\u043e\u0434\u0441\u043a\u043e\u0439 \u0437\u0430\u043a\u0430\u0437",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"passenger_id\": 9001,\n  \"from\": \"\u0410\u043b\u043c\u0430\u0442\u044b\",\n  \"to\": \"\u0410\u0441\u0442\u0430\u043d\u0430\",\n  \"trip_type\": \"companions\",\n  \"price\": 15000,\n  \"comment\": \"2 \u043c\u0435\u0441\u0442\u0430, \u0431\u0435\u0437 \u0431\u0430\u0433\u0430\u0436\u0430\",\n  \"departure_date\": \"2024-02-01\",\n  \"departure_time\": \"08:00\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/intercity/orders",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "intercity",
+                                "orders"
+                            ]
+                        },
+                        "description": "\u0421\u043e\u0437\u0434\u0430\u0435\u0442 \u043f\u043e\u0435\u0437\u0434\u043a\u0443 \u043c\u0435\u0436\u0434\u0443 \u0433\u043e\u0440\u043e\u0434\u0430\u043c\u0438. \u0423\u043a\u0430\u0436\u0438\u0442\u0435 passenger_id \u0418\u041b\u0418 driver_id."
+                    },
+                    "response": [
+                        {
+                            "name": "201 \u0421\u043e\u0437\u0434\u0430\u043d\u043e",
+                            "originalRequest": {
+                                "method": "POST",
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/intercity/orders"
+                                }
+                            },
+                            "status": "Created",
+                            "code": 201,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"id\": 7201,\n  \"passenger_id\": 9001,\n  \"from\": \"\u0410\u043b\u043c\u0430\u0442\u044b\",\n  \"to\": \"\u0410\u0441\u0442\u0430\u043d\u0430\",\n  \"trip_type\": \"companions\",\n  \"price\": 15000,\n  \"contact_phone\": \"+77001234567\",\n  \"departure_date\": \"2024-02-01\",\n  \"departure_time\": \"08:00\",\n  \"status\": \"open\",\n  \"created_at\": \"2024-01-21T09:00:00Z\",\n  \"updated_at\": \"2024-01-21T09:00:00Z\",\n  \"creator_role\": \"passenger\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "\u0421\u043f\u0438\u0441\u043e\u043a \u043c\u0435\u0436\u0433\u043e\u0440\u043e\u0434\u0441\u043a\u0438\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"from\": \"\u0410\u043b\u043c\u0430\u0442\u044b\",\n  \"to\": \"\u0410\u0441\u0442\u0430\u043d\u0430\",\n  \"status\": \"open\",\n  \"limit\": 20,\n  \"offset\": 0\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/intercity/orders/list",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "intercity",
+                                "orders",
+                                "list"
+                            ]
+                        },
+                        "description": "\u0412\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u043e\u0442\u0444\u0438\u043b\u044c\u0442\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0435 \u043c\u0435\u0436\u0433\u043e\u0440\u043e\u0434\u0441\u043a\u0438\u0435 \u043f\u043e\u0435\u0437\u0434\u043a\u0438."
+                    },
+                    "response": [
+                        {
+                            "name": "200 \u0423\u0441\u043f\u0435\u0448\u043d\u043e",
+                            "originalRequest": {
+                                "method": "POST",
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/intercity/orders/list"
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"orders\": [\n    {\n      \"id\": 7201,\n      \"passenger_id\": 9001,\n      \"from\": \"\u0410\u043b\u043c\u0430\u0442\u044b\",\n      \"to\": \"\u0410\u0441\u0442\u0430\u043d\u0430\",\n      \"trip_type\": \"companions\",\n      \"price\": 15000,\n      \"contact_phone\": \"+77001234567\",\n      \"departure_date\": \"2024-02-01\",\n      \"departure_time\": \"08:00\",\n      \"status\": \"open\",\n      \"creator_role\": \"passenger\",\n      \"created_at\": \"2024-01-21T09:00:00Z\",\n      \"updated_at\": \"2024-01-21T09:00:00Z\"\n    }\n  ],\n  \"limit\": 20,\n  \"offset\": 0\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u043c\u0435\u0436\u0433\u043e\u0440\u043e\u0434\u0441\u043a\u043e\u0439 \u0437\u0430\u043a\u0430\u0437",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/intercity/orders/7201",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "intercity",
+                                "orders",
+                                "7201"
+                            ]
+                        },
+                        "description": "\u0412\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u043a\u043e\u043d\u043a\u0440\u0435\u0442\u043d\u044b\u0439 \u043c\u0435\u0436\u0433\u043e\u0440\u043e\u0434\u0441\u043a\u043e\u0439 \u0437\u0430\u043a\u0430\u0437 \u043f\u043e \u0438\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0443."
+                    }
+                },
+                {
+                    "name": "\u0417\u0430\u043a\u0440\u044b\u0442\u044c \u043c\u0435\u0436\u0433\u043e\u0440\u043e\u0434\u0441\u043a\u043e\u0439 \u0437\u0430\u043a\u0430\u0437",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"passenger_id\": 9001\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/intercity/orders/7201/close",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "intercity",
+                                "orders",
+                                "7201",
+                                "close"
+                            ]
+                        },
+                        "description": "\u0417\u0430\u043a\u0440\u044b\u0432\u0430\u0435\u0442 \u0437\u0430\u043a\u0430\u0437 \u043f\u043e \u0438\u043d\u0438\u0446\u0438\u0430\u0442\u0438\u0432\u0435 \u043f\u0430\u0441\u0441\u0430\u0436\u0438\u0440\u0430."
+                    },
+                    "response": [
+                        {
+                            "name": "200 \u0423\u0441\u043f\u0435\u0448\u043d\u043e",
+                            "originalRequest": {
+                                "method": "POST",
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/intercity/orders/7201/close"
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"id\": 7201,\n  \"status\": \"closed\"\n}"
+                        }
+                    ]
+                }
+            ]
         }
-      ]
-    },
-    {
-      "name": "Создать заказ",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "X-Passenger-ID",
-            "value": "9001",
-            "description": "Идентификатор авторизованного пассажира"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"from\": {\n    \"lon\": 76.921,\n    \"lat\": 43.256,\n    \"address\": \"Алматы, пр. Абая 10\"\n  },\n  \"to\": {\n    \"lon\": 76.945,\n    \"lat\": 43.238,\n    \"address\": \"Алматы, ул. Панфилова 100\"\n  },\n  \"stops\": [\n    {\n      \"lon\": 76.93,\n      \"lat\": 43.245,\n      \"address\": \"Алматы, ул. Байсеитовой 45\"\n    }\n  ],\n  \"distance_m\": 5400,\n  \"eta_s\": 780,\n  \"client_price\": 1500,\n  \"payment_method\": \"online\",\n  \"notes\": \"Пассажир с ребенком, нужна детская удерживающая система\"\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/v1/orders",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "orders"
-          ]
-        },
-        "description": "Создает новый заказ от имени пассажира. Требует заголовок X-Passenger-ID."
-      }
-    },
-    {
-      "name": "Изменить цену заказа",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"client_price\": 1800\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/v1/orders/123/reprice",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "orders",
-            "123",
-            "reprice"
-          ]
-        },
-        "description": "Пересчитывает цену по инициативе пассажира или поддержки."
-      }
-    },
-    {
-      "name": "Обновить статус заказа",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"status\": \"arrived\"\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/v1/orders/123/status",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "orders",
-            "123",
-            "status"
-          ]
-        },
-        "description": "Обновляет статус заказа. Доступные переходы: created → searching → accepted → arrived → picked_up → completed → paid → closed."
-      }
-    },
-    {
-      "name": "Принять оффер водителем",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "X-Driver-ID",
-            "value": "777",
-            "description": "Идентификатор авторизованного водителя"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"order_id\": 123\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/v1/offers/accept",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "offers",
-            "accept"
-          ]
-        },
-        "description": "Водитель подтверждает получение заказа через оффер."
-      }
-    },
-    {
-      "name": "Webhook AirbaPay",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "X-AirbaPay-Signature",
-            "value": "пример-подписи"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"order_id\": 123,\n  \"status\": \"paid\",\n  \"transaction_id\": \"txn_abc123\"\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/v1/payments/airbapay/webhook",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "payments",
-            "airbapay",
-            "webhook"
-          ]
-        },
-        "description": "Пример ручного тестирования вебхука от AirbaPay. Необходима корректная HMAC-подпись."
-      }
-    }
-  ],
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8080",
-      "type": "string"
-    }
-  ]
+    ]
 }
