@@ -585,3 +585,27 @@ func (r *OffersRepo) ExpireOffers(ctx context.Context, now time.Time) error {
 }
 
 var ErrNoRows = errors.New("not found")
+
+func (r *OffersRepo) GetActiveOfferDriverIDs(ctx context.Context, orderID int64) ([]int64, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT driver_id
+		FROM driver_order_offers
+		WHERE order_id = ?
+		  AND state = 'pending'
+		  AND ttl_at >= CURRENT_TIMESTAMP
+	`, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
