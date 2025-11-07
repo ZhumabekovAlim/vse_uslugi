@@ -469,6 +469,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/intercity/orders/list", s.listIntercityOrders)
 	mux.HandleFunc("/api/v1/intercity/orders/", s.handleIntercityOrderSubroutes)
 	mux.HandleFunc("/api/v1/offers/accept", s.handleOfferAccept)
+	mux.HandleFunc("/api/v1/offers/propose_price", s.handleOfferPrice)
+	mux.HandleFunc("/api/v1/offers/respond", s.handleOfferResponse)
 	mux.HandleFunc("/api/v1/payments/airbapay/webhook", s.handleAirbaPayWebhook)
 	mux.HandleFunc("/ws/driver", s.handleDriverWS)
 	mux.HandleFunc("/ws/passenger", s.handlePassengerWS)
@@ -1573,6 +1575,179 @@ func (s *Server) closeIntercityOrder(w http.ResponseWriter, r *http.Request, id 
 	writeJSON(w, http.StatusOK, resp)
 }
 
+func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+	var req struct {
+		OrderID int64 `json:"order_id"`
+		Price   int   `json:"price"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if req.OrderID <= 0 {
+		writeError(w, http.StatusBadRequest, "order_id is required")
+		return
+	}
+	if req.Price <= 0 {
+		writeError(w, http.StatusBadRequest, "price must be positive")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	if _, err := s.driversRepo.Get(ctx, driverID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusUnauthorized, "driver not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "driver lookup failed")
+		return
+	}
+
+	order, err := s.ordersRepo.Get(ctx, req.OrderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "order lookup failed")
+		return
+	}
+	if order.Status != "searching" {
+		writeError(w, http.StatusConflict, "order not searching")
+		return
+	}
+
+	if err := s.offersRepo.SetDriverPrice(ctx, req.OrderID, driverID, req.Price); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "offer not available")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "set price failed")
+		return
+	}
+
+	s.passengerHub.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "offer_price", OrderID: req.OrderID, DriverID: driverID, Price: req.Price})
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "price_proposed"})
+}
+
+func (s *Server) handleOfferResponse(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	passengerID, err := parseAuthID(r, "X-Passenger-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing passenger id")
+		return
+	}
+	var req struct {
+		OrderID  int64  `json:"order_id"`
+		DriverID int64  `json:"driver_id"`
+		Decision string `json:"decision"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if req.OrderID <= 0 || req.DriverID <= 0 {
+		writeError(w, http.StatusBadRequest, "order_id and driver_id are required")
+		return
+	}
+	decision := strings.ToLower(strings.TrimSpace(req.Decision))
+	if decision != "accept" && decision != "decline" {
+		writeError(w, http.StatusBadRequest, "decision must be accept or decline")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.ordersRepo.Get(ctx, req.OrderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "order lookup failed")
+		return
+	}
+	if order.PassengerID != passengerID {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	if order.Status != "searching" {
+		writeError(w, http.StatusConflict, "order not searching")
+		return
+	}
+
+	switch decision {
+	case "accept":
+		closedDrivers, pricePtr, err := s.offersRepo.AcceptOffer(ctx, req.OrderID, req.DriverID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeError(w, http.StatusConflict, "offer not available")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "accept failed")
+			return
+		}
+
+		if pricePtr != nil && *pricePtr > 0 && order.ClientPrice != *pricePtr {
+			if err := s.ordersRepo.UpdatePrice(ctx, req.OrderID, order.ClientPrice, *pricePtr); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Errorf("update price failed: %v", err)
+			} else {
+				order.ClientPrice = *pricePtr
+			}
+		}
+
+		if err := s.ordersRepo.AssignDriver(ctx, req.OrderID, req.DriverID); err != nil {
+			writeError(w, http.StatusInternalServerError, "assign failed")
+			return
+		}
+
+		s.driverHub.NotifyPriceResponse(req.DriverID, ws.DriverPriceResponsePayload{OrderID: req.OrderID, Status: "accepted", Price: order.ClientPrice})
+
+		s.passengerHub.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "order_assigned", OrderID: order.ID, Status: "accepted"})
+
+		if len(closedDrivers) > 0 {
+			s.driverHub.NotifyOfferClosed(req.OrderID, closedDrivers, "accepted_by_other")
+		}
+
+		writeJSON(w, http.StatusOK, map[string]string{"status": "accepted"})
+	case "decline":
+		pricePtr, err := s.offersRepo.DeclineOffer(ctx, req.OrderID, req.DriverID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeError(w, http.StatusConflict, "offer not available")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "decline failed")
+			return
+		}
+
+		price := 0
+		if pricePtr != nil {
+			price = *pricePtr
+		}
+		s.driverHub.NotifyPriceResponse(req.DriverID, ws.DriverPriceResponsePayload{OrderID: req.OrderID, Status: "declined", Price: price})
+		s.passengerHub.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "offer_price_declined", OrderID: order.ID, DriverID: req.DriverID, Price: price})
+
+		writeJSON(w, http.StatusOK, map[string]string{"status": "declined"})
+	}
+}
+
 func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -1602,7 +1777,17 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	closedDrivers, err := s.offersRepo.AcceptOffer(ctx, req.OrderID, driverID)
+	order, err := s.ordersRepo.Get(ctx, req.OrderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "order lookup failed")
+		return
+	}
+
+	closedDrivers, pricePtr, err := s.offersRepo.AcceptOffer(ctx, req.OrderID, driverID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeError(w, http.StatusConflict, "offer not available")
@@ -1611,15 +1796,19 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "accept failed")
 		return
 	}
+	if pricePtr != nil && *pricePtr > 0 && order.ClientPrice != *pricePtr {
+		if err := s.ordersRepo.UpdatePrice(ctx, req.OrderID, order.ClientPrice, *pricePtr); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			s.logger.Errorf("update price failed: %v", err)
+		} else {
+			order.ClientPrice = *pricePtr
+		}
+	}
 	if err := s.ordersRepo.AssignDriver(ctx, req.OrderID, driverID); err != nil {
 		writeError(w, http.StatusInternalServerError, "assign failed")
 		return
 	}
 
-	order, err := s.ordersRepo.Get(ctx, req.OrderID)
-	if err == nil {
-		s.passengerHub.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "order_assigned", OrderID: order.ID, Status: "accepted"})
-	}
+	s.passengerHub.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "order_assigned", OrderID: order.ID, Status: "accepted"})
 
 	if len(closedDrivers) > 0 {
 		s.driverHub.NotifyOfferClosed(req.OrderID, closedDrivers, "accepted_by_other")

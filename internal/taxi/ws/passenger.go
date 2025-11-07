@@ -11,11 +11,13 @@ import (
 
 // PassengerEvent is message for passengers.
 type PassengerEvent struct {
-	Type    string `json:"type"`
-	OrderID int64  `json:"order_id"`
-	Status  string `json:"status,omitempty"`
-	Radius  int    `json:"radius,omitempty"`
-	Message string `json:"message,omitempty"`
+	Type     string `json:"type"`
+	OrderID  int64  `json:"order_id"`
+	Status   string `json:"status,omitempty"`
+	Radius   int    `json:"radius,omitempty"`
+	Message  string `json:"message,omitempty"`
+	DriverID int64  `json:"driver_id,omitempty"`
+	Price    int    `json:"price,omitempty"`
 }
 
 // PassengerHub manages passenger WS connections.

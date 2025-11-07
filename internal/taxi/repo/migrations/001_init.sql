@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS driver_order_offers (
   driver_id BIGINT NOT NULL,
   state ENUM('pending','accepted','declined','expired','closed') NOT NULL DEFAULT 'pending',
   ttl_at TIMESTAMP NOT NULL,
+  driver_price INT,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_offer_order FOREIGN KEY (order_id) REFERENCES orders(id) ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_offer_driver FOREIGN KEY (driver_id) REFERENCES drivers(id) ON UPDATE CASCADE ON DELETE RESTRICT
