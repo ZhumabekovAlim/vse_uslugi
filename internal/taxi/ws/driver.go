@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"math" // 👈 добавь для проверки "near-zero"
 	"naimuBack/internal/taxi/geo"
@@ -160,9 +161,15 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 	})
 
 	type payloadT struct {
-		Lon    float64 `json:"lon"`
-		Lat    float64 `json:"lat"`
-		Status string  `json:"status"`
+		Lon    float64
+		Lat    float64
+		Status string
+	}
+
+	type payloadRaw struct {
+		Lon    interface{} `json:"lon"`
+		Lat    interface{} `json:"lat"`
+		Status string      `json:"status"`
 	}
 
 	for {
@@ -183,10 +190,29 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 			continue
 		}
 
-		var payload payloadT
-		if err := json.Unmarshal([]byte(trimmed), &payload); err != nil {
+		var raw payloadRaw
+		dec := json.NewDecoder(strings.NewReader(trimmed))
+		dec.UseNumber()
+		if err := dec.Decode(&raw); err != nil {
 			h.logger.Errorf("driver %d invalid payload: %v", driverID, err)
 			continue
+		}
+
+		lon, err := parseCoordinate(raw.Lon)
+		if err != nil {
+			h.logger.Errorf("driver %d invalid lon %v: %v", driverID, raw.Lon, err)
+			continue
+		}
+		lat, err := parseCoordinate(raw.Lat)
+		if err != nil {
+			h.logger.Errorf("driver %d invalid lat %v: %v", driverID, raw.Lat, err)
+			continue
+		}
+
+		payload := payloadT{
+			Lon:    lon,
+			Lat:    lat,
+			Status: raw.Status,
 		}
 
 		// валидация координат (защита от near-zero/мусора)
@@ -319,6 +345,44 @@ func (h *DriverHub) BroadcastEvent(event interface{}) {
 		if err := recipient.conn.WriteMessage(websocket.TextMessage, data); err != nil {
 			h.logger.Errorf("driver broadcast to %d failed: %v", recipient.id, err)
 		}
+	}
+}
+
+func parseCoordinate(value interface{}) (float64, error) {
+	switch v := value.(type) {
+	case nil:
+		return 0, fmt.Errorf("missing coordinate")
+	case float64:
+		return v, nil
+	case float32:
+		return float64(v), nil
+	case json.Number:
+		return v.Float64()
+	case int:
+		return float64(v), nil
+	case int32:
+		return float64(v), nil
+	case int64:
+		return float64(v), nil
+	case uint:
+		return float64(v), nil
+	case uint32:
+		return float64(v), nil
+	case uint64:
+		return float64(v), nil
+	case string:
+		s := strings.TrimSpace(v)
+		if s == "" {
+			return 0, fmt.Errorf("empty coordinate string")
+		}
+		s = strings.ReplaceAll(s, ",", ".")
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return 0, err
+		}
+		return f, nil
+	default:
+		return 0, fmt.Errorf("unsupported coordinate type %T", value)
 	}
 }
 
