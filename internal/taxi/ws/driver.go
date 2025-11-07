@@ -87,6 +87,7 @@ type DriverHub struct {
 
 	mu         sync.RWMutex
 	conns      map[int64]*websocket.Conn
+	wmu        map[int64]*sync.Mutex
 	cities     map[int64]string
 	lastStatus map[int64]string // 👈 добавь это поле
 }
@@ -98,6 +99,7 @@ func NewDriverHub(locator *geo.DriverLocator, logger Logger) *DriverHub {
 		locator:    locator,
 		logger:     logger,
 		conns:      make(map[int64]*websocket.Conn),
+		wmu:        make(map[int64]*sync.Mutex),
 		cities:     make(map[int64]string),
 		lastStatus: make(map[int64]string), // 👈
 	}
@@ -124,6 +126,9 @@ func (h *DriverHub) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 	h.mu.Lock()
 	h.conns[driverID] = conn
+	if _, ok := h.wmu[driverID]; !ok {
+		h.wmu[driverID] = &sync.Mutex{}
+	}
 	h.cities[driverID] = city
 	if _, ok := h.lastStatus[driverID]; !ok {
 		h.lastStatus[driverID] = "free"
@@ -140,6 +145,7 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 		conn.Close()
 		h.mu.Lock()
 		delete(h.conns, driverID)
+		delete(h.wmu, driverID)
 		delete(h.cities, driverID)
 		delete(h.lastStatus, driverID) // 👈 чистим
 		h.mu.Unlock()
@@ -235,45 +241,38 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 // SendOffer sends an order offer to a driver.
 func (h *DriverHub) SendOffer(driverID int64, payload DriverOfferPayload) {
 	payload.Type = "order_offer"
-	h.mu.RLock()
-	conn := h.conns[driverID]
-	h.mu.RUnlock()
-	if conn == nil {
-		return
-	}
-	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	if err := conn.WriteJSON(payload); err != nil {
-		h.logger.Errorf("send offer to driver %d failed: %v", driverID, err)
-	}
+	h.safeWrite(driverID, func(c *websocket.Conn) error {
+		return c.WriteJSON(payload)
+	})
 }
 
 // NotifyOfferClosed informs specific drivers that the offer is no longer available.
 func (h *DriverHub) NotifyOfferClosed(orderID int64, driverIDs []int64, reason string) {
 	if len(driverIDs) == 0 {
+		h.logger.Errorf("NotifyOfferClosed: order=%d reason=%s, driverIDs is EMPTY", orderID, reason)
 		return
 	}
 	payload := DriverOfferClosedPayload{Type: "order_offer_closed", OrderID: orderID, Reason: reason}
 
+	// собрать получателей под RLock как сейчас — ок
 	h.mu.RLock()
-	recipients := make([]struct {
-		id   int64
-		conn *websocket.Conn
-	}, 0, len(driverIDs))
+	ids := make([]int64, 0, len(driverIDs))
 	for _, id := range driverIDs {
-		if conn, ok := h.conns[id]; ok {
-			recipients = append(recipients, struct {
-				id   int64
-				conn *websocket.Conn
-			}{id: id, conn: conn})
+		if _, ok := h.conns[id]; ok {
+			ids = append(ids, id)
 		}
 	}
 	h.mu.RUnlock()
 
-	for _, recipient := range recipients {
-		recipient.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		if err := recipient.conn.WriteJSON(payload); err != nil {
-			h.logger.Errorf("notify offer closed to driver %d failed: %v", recipient.id, err)
-		}
+	h.logger.Infof("NotifyOfferClosed: order=%d reason=%s, driverIDs=%v, recipients=%d",
+		orderID, reason, driverIDs, len(ids))
+
+	for _, id := range ids {
+		pid := payload // копия на случай гонок
+		h.safeWrite(id, func(c *websocket.Conn) error {
+			return c.WriteJSON(pid)
+		})
+		h.logger.Infof("NotifyOfferClosed: sent to driver %d", id)
 	}
 }
 
@@ -331,4 +330,20 @@ func parseIDParam(r *http.Request, name string) (int64, error) {
 		return strconv.ParseInt(v, 10, 64)
 	}
 	return 0, strconv.ErrSyntax
+}
+
+func (h *DriverHub) safeWrite(driverID int64, writer func(*websocket.Conn) error) {
+	h.mu.RLock()
+	conn := h.conns[driverID]
+	mu := h.wmu[driverID]
+	h.mu.RUnlock()
+	if conn == nil || mu == nil {
+		return
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	if err := writer(conn); err != nil {
+		h.logger.Errorf("driver %d write failed: %v", driverID, err)
+	}
 }
