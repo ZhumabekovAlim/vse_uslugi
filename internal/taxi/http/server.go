@@ -1602,7 +1602,8 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.offersRepo.AcceptOffer(ctx, req.OrderID, driverID); err != nil {
+	closedDrivers, err := s.offersRepo.AcceptOffer(ctx, req.OrderID, driverID)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeError(w, http.StatusConflict, "offer not available")
 			return
@@ -1618,6 +1619,10 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 	order, err := s.ordersRepo.Get(ctx, req.OrderID)
 	if err == nil {
 		s.passengerHub.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "order_assigned", OrderID: order.ID, Status: "accepted"})
+	}
+
+	if len(closedDrivers) > 0 {
+		s.driverHub.NotifyOfferClosed(req.OrderID, closedDrivers, "accepted_by_other")
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "accepted"})

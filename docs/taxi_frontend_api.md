@@ -123,7 +123,8 @@
 - **Подключение**: GET `wss://<домен>/ws/driver?driver_id=<id>&city=<slug>`. ID обязателен; город опционален (по умолчанию `default`). 【F:internal/taxi/ws/driver.go†L55-L86】
 - **Исходящие сообщения клиента**: периодические JSON с координатами и статусом водителя. Статус по умолчанию `free`, если не передан. 【F:internal/taxi/ws/driver.go†L112-L147】
 - **Входящие сообщения сервера**:
-  - события `order_offer` со структурой `DriverOfferPayload` (ID заказа, маршрут, цена, ETA, срок действия, карточка пассажира); 【F:internal/taxi/ws/driver.go†L22-L147】
+  - события `order_offer` со структурой `DriverOfferPayload` (ID заказа, маршрут, цена, ETA, срок действия, карточка пассажира); 【F:internal/taxi/ws/driver.go†L22-L166】
+  - события `order_offer_closed` с полями `order_id` и `reason`, которые приходят сразу после того, как другой водитель подтвердил заказ, чтобы моментально убрать карточку из списка офферов. 【F:internal/taxi/ws/driver.go†L168-L204】【F:internal/taxi/http/server.go†L884-L918】【F:internal/taxi/repo/orders.go†L476-L509】
   - широковещательные уведомления `intercity_order` о создании и закрытии объявлений. Поле `action` может быть `created` или `closed`, объект `order` соответствует `intercityOrderResponse`. 【F:internal/taxi/ws/intercity.go†L3-L8】【F:internal/taxi/http/server.go†L1489-L1577】
 
 ### `/ws/passenger`
