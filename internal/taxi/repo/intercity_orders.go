@@ -30,7 +30,14 @@ type IntercityOrder struct {
 	DriverFullName     sql.NullString
 	DriverRating       sql.NullFloat64
 	DriverPhoto        sql.NullString
+	DriverAvatar       sql.NullString
 	DriverProfileStamp sql.NullTime
+
+	PassengerFullName     sql.NullString
+	PassengerAvatar       sql.NullString
+	PassengerPhone        sql.NullString
+	PassengerRating       sql.NullFloat64
+	PassengerProfileStamp sql.NullTime
 }
 
 // IntercityOrdersRepo provides CRUD helpers for intercity taxi requests.
@@ -96,7 +103,13 @@ d.car_model,
 CONCAT_WS(' ', du.surname, du.name, du.middlename) AS driver_full_name,
 d.rating,
 d.driver_photo,
-d.updated_at
+du.avatar_path,
+d.updated_at,
+CONCAT_WS(' ', pu.surname, pu.name, pu.middlename) AS passenger_full_name,
+pu.avatar_path AS passenger_avatar_path,
+pu.phone AS passenger_phone,
+pu.review_rating AS passenger_rating,
+pu.updated_at AS passenger_profile_updated_at
 FROM intercity_orders io
 LEFT JOIN users pu ON io.passenger_id = pu.id
 LEFT JOIN drivers d ON io.driver_id = d.id
@@ -124,7 +137,13 @@ WHERE io.id = ?`, id)
 		&order.DriverFullName,
 		&order.DriverRating,
 		&order.DriverPhoto,
+		&order.DriverAvatar,
 		&order.DriverProfileStamp,
+		&order.PassengerFullName,
+		&order.PassengerAvatar,
+		&order.PassengerPhone,
+		&order.PassengerRating,
+		&order.PassengerProfileStamp,
 	)
 	if err != nil {
 		return IntercityOrder{}, err
@@ -148,7 +167,21 @@ type IntercityOrdersFilter struct {
 // List returns orders matching the filter.
 func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFilter) ([]IntercityOrder, error) {
 	var (
-		parts = []string{"SELECT io.id, io.passenger_id, io.driver_id, io.from_location, io.to_location, io.trip_type, io.comment, io.price, COALESCE(pu.phone, d.phone, '') AS contact_phone, io.departure_date, io.departure_time, io.status, io.created_at, io.updated_at, io.closed_at, io.creator_role, d.car_model, CONCAT_WS(' ', du.surname, du.name, du.middlename) AS driver_full_name, d.rating, d.driver_photo, d.updated_at FROM intercity_orders io LEFT JOIN users pu ON io.passenger_id = pu.id LEFT JOIN drivers d ON io.driver_id = d.id LEFT JOIN users du ON d.user_id = du.id"}
+		parts = []string{`
+SELECT io.id, io.passenger_id, io.driver_id, io.from_location, io.to_location, io.trip_type, io.comment, io.price,
+       COALESCE(pu.phone, d.phone, '') AS contact_phone, io.departure_date, io.departure_time, io.status,
+       io.created_at, io.updated_at, io.closed_at, io.creator_role, d.car_model,
+       CONCAT_WS(' ', du.surname, du.name, du.middlename) AS driver_full_name, d.rating, d.driver_photo, du.avatar_path,
+       d.updated_at,
+       CONCAT_WS(' ', pu.surname, pu.name, pu.middlename) AS passenger_full_name,
+       pu.avatar_path AS passenger_avatar_path,
+       pu.phone AS passenger_phone,
+       pu.review_rating AS passenger_rating,
+       pu.updated_at AS passenger_profile_updated_at
+FROM intercity_orders io
+LEFT JOIN users pu ON io.passenger_id = pu.id
+LEFT JOIN drivers d ON io.driver_id = d.id
+LEFT JOIN users du ON d.user_id = du.id`}
 		where []string
 		args  []interface{}
 	)
@@ -227,7 +260,13 @@ func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFi
 			&order.DriverFullName,
 			&order.DriverRating,
 			&order.DriverPhoto,
+			&order.DriverAvatar,
 			&order.DriverProfileStamp,
+			&order.PassengerFullName,
+			&order.PassengerAvatar,
+			&order.PassengerPhone,
+			&order.PassengerRating,
+			&order.PassengerProfileStamp,
 		); err != nil {
 			return nil, err
 		}

@@ -317,23 +317,24 @@ func (p intercityOrderPayload) validate() string {
 }
 
 type intercityOrderResponse struct {
-	ID            int64                    `json:"id"`
-	PassengerID   int64                    `json:"passenger_id"`
-	DriverID      *int64                   `json:"driver_id,omitempty"`
-	FromLocation  string                   `json:"from"`
-	ToLocation    string                   `json:"to"`
-	TripType      string                   `json:"trip_type"`
-	Comment       string                   `json:"comment,omitempty"`
-	Price         int                      `json:"price"`
-	ContactPhone  string                   `json:"contact_phone"`
-	DepartureDate string                   `json:"departure_date"`
-	DepartureTime string                   `json:"departure_time,omitempty"`
-	Status        string                   `json:"status"`
-	CreatedAt     time.Time                `json:"created_at"`
-	UpdatedAt     time.Time                `json:"updated_at"`
-	ClosedAt      *time.Time               `json:"closed_at,omitempty"`
-	CreatorRole   string                   `json:"creator_role"`
-	Driver        *intercityDriverResponse `json:"driver,omitempty"`
+	ID            int64                       `json:"id"`
+	PassengerID   int64                       `json:"passenger_id"`
+	DriverID      *int64                      `json:"driver_id,omitempty"`
+	FromLocation  string                      `json:"from"`
+	ToLocation    string                      `json:"to"`
+	TripType      string                      `json:"trip_type"`
+	Comment       string                      `json:"comment,omitempty"`
+	Price         int                         `json:"price"`
+	ContactPhone  string                      `json:"contact_phone"`
+	DepartureDate string                      `json:"departure_date"`
+	DepartureTime string                      `json:"departure_time,omitempty"`
+	Status        string                      `json:"status"`
+	CreatedAt     time.Time                   `json:"created_at"`
+	UpdatedAt     time.Time                   `json:"updated_at"`
+	ClosedAt      *time.Time                  `json:"closed_at,omitempty"`
+	CreatorRole   string                      `json:"creator_role"`
+	Driver        *intercityDriverResponse    `json:"driver,omitempty"`
+	Passenger     *intercityPassengerResponse `json:"passenger,omitempty"`
 }
 
 type intercityDriverResponse struct {
@@ -342,6 +343,16 @@ type intercityDriverResponse struct {
 	FullName         string     `json:"full_name,omitempty"`
 	Rating           *float64   `json:"rating,omitempty"`
 	Photo            string     `json:"photo,omitempty"`
+	AvatarPath       string     `json:"avatar_path,omitempty"`
+	ProfileUpdatedAt *time.Time `json:"profile_updated_at,omitempty"`
+}
+
+type intercityPassengerResponse struct {
+	ID               int64      `json:"id"`
+	FullName         string     `json:"full_name,omitempty"`
+	AvatarPath       string     `json:"avatar_path,omitempty"`
+	Phone            string     `json:"phone,omitempty"`
+	Rating           *float64   `json:"rating,omitempty"`
 	ProfileUpdatedAt *time.Time `json:"profile_updated_at,omitempty"`
 }
 
@@ -362,6 +373,27 @@ func newIntercityOrderResponse(o repo.IntercityOrder) intercityOrderResponse {
 	}
 	if o.PassengerID.Valid {
 		resp.PassengerID = o.PassengerID.Int64
+		if strings.EqualFold(o.CreatorRole, "passenger") {
+			passenger := intercityPassengerResponse{ID: o.PassengerID.Int64}
+			if o.PassengerFullName.Valid {
+				passenger.FullName = strings.TrimSpace(o.PassengerFullName.String)
+			}
+			if o.PassengerAvatar.Valid {
+				passenger.AvatarPath = o.PassengerAvatar.String
+			}
+			if o.PassengerPhone.Valid {
+				passenger.Phone = strings.TrimSpace(o.PassengerPhone.String)
+			}
+			if o.PassengerRating.Valid {
+				rating := o.PassengerRating.Float64
+				passenger.Rating = &rating
+			}
+			if o.PassengerProfileStamp.Valid {
+				ts := o.PassengerProfileStamp.Time
+				passenger.ProfileUpdatedAt = &ts
+			}
+			resp.Passenger = &passenger
+		}
 	}
 	if o.DepartureTime.Valid {
 		t := strings.TrimSpace(o.DepartureTime.String)
@@ -397,6 +429,9 @@ func newIntercityOrderResponse(o repo.IntercityOrder) intercityOrderResponse {
 		}
 		if o.DriverPhoto.Valid {
 			driver.Photo = o.DriverPhoto.String
+		}
+		if o.DriverAvatar.Valid {
+			driver.AvatarPath = o.DriverAvatar.String
 		}
 		if o.DriverProfileStamp.Valid {
 			ts := o.DriverProfileStamp.Time
