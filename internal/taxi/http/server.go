@@ -1924,20 +1924,19 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 	passengerID, err := parseAuthID(r, "X-Passenger-ID")
 	if err != nil {
 		msg := "missing passenger id"
-		s.logger.Errorf("passenger cancel order %d failed: %s", order.ID, msg)
+		s.logger.Errorf("cancel %d failed: %s", order.ID, msg)
 		s.pushPassengerError(order.PassengerID, order.ID, msg)
 		writeError(w, http.StatusUnauthorized, msg)
 		return
 	}
 	if passengerID != order.PassengerID {
 		msg := "access denied"
-		s.logger.Infof("passenger %d attempted to cancel order %d they do not own", passengerID, order.ID)
+		s.logger.Infof("passenger %d tried to cancel order %d they do not own", passengerID, order.ID)
 		s.pushPassengerError(passengerID, order.ID, msg)
 		writeError(w, http.StatusForbidden, msg)
 		return
 	}
 
-	// Разрешённые статусы для отмены
 	switch order.Status {
 	case "searching", "accepted", "arrived":
 	default:
@@ -1947,44 +1946,45 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 		writeError(w, http.StatusConflict, "cannot cancel in current status")
 		return
 	}
-
 	if !fsm.CanTransition(order.Status, targetStatus) {
 		msg := "invalid transition"
-		s.logger.Errorf("passenger %d cancel order %d invalid transition from %s", passengerID, order.ID, order.Status)
+		s.logger.Errorf("passenger %d cancel %d invalid transition from %s", passengerID, order.ID, order.Status)
 		s.pushPassengerError(passengerID, order.ID, msg)
 		writeError(w, http.StatusConflict, msg)
 		return
 	}
 
-	// === Единственный CAS ===
+	// === единственный CAS ===
 	if err := s.ordersRepo.UpdateStatusCAS(ctx, order.ID, order.Status, targetStatus); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			msg := "order status changed"
-			s.logger.Infof("passenger %d cancel order %d conflict: %v", passengerID, order.ID, err)
+			s.logger.Infof("passenger %d cancel %d conflict: %v", passengerID, order.ID, err)
 			s.pushPassengerError(passengerID, order.ID, msg)
 			writeError(w, http.StatusConflict, msg)
 			return
 		}
 		msg := "update status failed"
-		s.logger.Errorf("passenger %d cancel order %d failed: %v", passengerID, order.ID, err)
+		s.logger.Errorf("passenger %d cancel %d failed: %v", passengerID, order.ID, err)
 		s.pushPassengerError(passengerID, order.ID, msg)
 		writeError(w, http.StatusInternalServerError, msg)
 		return
 	}
 
-	s.logger.Infof("passenger %d canceled order %d (previous status: %s)", passengerID, order.ID, order.Status)
+	s.logger.Infof("passenger %d canceled order %d (prev=%s)", passengerID, order.ID, order.Status)
 
-	// 1) Событие совместимости — многие фронты слушают общий "order_status"
+	// 1) совместимость
 	if s.passengerHub != nil {
+		s.logger.Infof("WS → passenger %d: order_status canceled (order=%d)", passengerID, order.ID)
 		s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{
 			Type:    "order_status",
 			OrderID: order.ID,
-			Status:  targetStatus, // "canceled"
+			Status:  targetStatus,
 		})
 	}
 
-	// 2) Явное событие — фронты, которые ждут именно "order_canceled"
+	// 2) явное событие
 	if s.passengerHub != nil {
+		s.logger.Infof("WS → passenger %d: order_canceled (order=%d)", passengerID, order.ID)
 		s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{
 			Type:    "order_canceled",
 			OrderID: order.ID,
@@ -1992,16 +1992,17 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 		})
 	}
 
-	// 3) Водителям: закрываем висящие офферы по этому заказу
+	// 3) закрыть офферы у драйверов
 	if s.driverHub != nil && s.offersRepo != nil {
-		if driverIDs, err := s.offersRepo.GetActiveOfferDriverIDs(ctx, order.ID); err == nil && len(driverIDs) > 0 {
-			s.driverHub.NotifyOfferClosed(order.ID, driverIDs, "canceled_by_passenger")
-		} else if err != nil {
+		driverIDs, err := s.offersRepo.GetActiveOfferDriverIDs(ctx, order.ID)
+		if err != nil {
 			s.logger.Errorf("list active offer drivers for order %d failed: %v", order.ID, err)
+		} else if len(driverIDs) > 0 {
+			s.logger.Infof("WS → drivers %v: offer_closed (order=%d reason=canceled_by_passenger)", driverIDs, order.ID)
+			s.driverHub.NotifyOfferClosed(order.ID, driverIDs, "canceled_by_passenger")
 		}
 	}
 
-	// Ответ клиенту
 	writeJSON(w, http.StatusOK, map[string]string{"status": targetStatus})
 }
 
