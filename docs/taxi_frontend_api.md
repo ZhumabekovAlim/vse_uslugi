@@ -120,15 +120,19 @@
 
 ### `/ws/driver`
 
-- **Подключение**: GET `wss://<домен>/ws/driver?driver_id=<id>&city=<slug>`. ID обязателен; город опционален (по умолчанию `default`). 【F:internal/taxi/ws/driver.go†L66-L92】
-- **Исходящие сообщения клиента**: периодические JSON с координатами и статусом водителя. Статус по умолчанию `free`, если не передан. 【F:internal/taxi/ws/driver.go†L112-L133】
-- **Входящие сообщения сервера**: события `order_offer` со структурой `DriverOfferPayload` (ID заказа, маршрут, цена, ETA, срок действия). 【F:internal/taxi/ws/driver.go†L29-L147】
+- **Подключение**: GET `wss://<домен>/ws/driver?driver_id=<id>&city=<slug>`. ID обязателен; город опционален (по умолчанию `default`). 【F:internal/taxi/ws/driver.go†L55-L86】
+- **Исходящие сообщения клиента**: периодические JSON с координатами и статусом водителя. Статус по умолчанию `free`, если не передан. 【F:internal/taxi/ws/driver.go†L112-L147】
+- **Входящие сообщения сервера**:
+  - события `order_offer` со структурой `DriverOfferPayload` (ID заказа, маршрут, цена, ETA, срок действия); 【F:internal/taxi/ws/driver.go†L20-L147】
+  - широковещательные уведомления `intercity_order` о создании и закрытии объявлений. Поле `action` может быть `created` или `closed`, объект `order` соответствует `intercityOrderResponse`. 【F:internal/taxi/ws/intercity.go†L3-L8】【F:internal/taxi/http/server.go†L1489-L1577】
 
 ### `/ws/passenger`
 
-- **Подключение**: GET `wss://<домен>/ws/passenger?passenger_id=<id>`. 【F:internal/taxi/ws/passenger.go†L39-L57】
-- **Сообщения сервера**: объекты `PassengerEvent` с типами `order_assigned`, `order_status` и т. д., содержащие статус, радиус поиска или текстовое сообщение. 【F:internal/taxi/ws/passenger.go†L12-L97】
-- **Назначение**: доставка событий о назначении водителя, изменении статуса заказа, расширении радиуса поиска.
+- **Подключение**: GET `wss://<домен>/ws/passenger?passenger_id=<id>`. 【F:internal/taxi/ws/passenger.go†L35-L53】
+- **Сообщения сервера**: два канала данных приходят на одном соединении:
+  - события `PassengerEvent` с типами `order_assigned`, `order_status`, расширением радиуса поиска и произвольными сообщениями; 【F:internal/taxi/ws/passenger.go†L12-L97】
+  - широковещательные уведомления `intercity_order` с полями `action: created|closed` и вложенной карточкой объявления, отправляемые при создании и закрытии межгородских заказов. 【F:internal/taxi/ws/intercity.go†L3-L8】【F:internal/taxi/http/server.go†L1489-L1577】
+- **Назначение**: доставка статусов текущих поездок и моментальное обновление межгородских объявлений без повторных HTTP-запросов.
 
 ## Потоки взаимодействия
 
