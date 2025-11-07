@@ -1937,18 +1937,17 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 		return
 	}
 
-	allowedStatuses := map[string]struct{}{
-		"searching": {},
-		"accepted":  {},
-		"arrived":   {},
-	}
-	if _, ok := allowedStatuses[order.Status]; !ok {
+	// Разрешённые статусы для отмены
+	switch order.Status {
+	case "searching", "accepted", "arrived":
+	default:
 		msg := fmt.Sprintf("order cannot be canceled in status %s", order.Status)
 		s.logger.Infof("passenger %d tried to cancel order %d in status %s", passengerID, order.ID, order.Status)
 		s.pushPassengerError(passengerID, order.ID, msg)
 		writeError(w, http.StatusConflict, "cannot cancel in current status")
 		return
 	}
+
 	if !fsm.CanTransition(order.Status, targetStatus) {
 		msg := "invalid transition"
 		s.logger.Errorf("passenger %d cancel order %d invalid transition from %s", passengerID, order.ID, order.Status)
@@ -1957,6 +1956,7 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 		return
 	}
 
+	// === Единственный CAS ===
 	if err := s.ordersRepo.UpdateStatusCAS(ctx, order.ID, order.Status, targetStatus); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			msg := "order status changed"
@@ -1972,28 +1972,27 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 		return
 	}
 
-	if err := s.ordersRepo.UpdateStatusCAS(ctx, order.ID, order.Status, targetStatus); err != nil {
-		// обработка ошибок...
-		return
-	}
-
 	s.logger.Infof("passenger %d canceled order %d (previous status: %s)", passengerID, order.ID, order.Status)
 
-	// 1) событие совместимости
-	s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{
-		Type:    "order_status",
-		OrderID: order.ID,
-		Status:  targetStatus, // "canceled"
-	})
+	// 1) Событие совместимости — многие фронты слушают общий "order_status"
+	if s.passengerHub != nil {
+		s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{
+			Type:    "order_status",
+			OrderID: order.ID,
+			Status:  targetStatus, // "canceled"
+		})
+	}
 
-	// 2) явное событие отмены (многие фронты ловят именно его)
-	s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{
-		Type:    "order_canceled",
-		OrderID: order.ID,
-		Status:  targetStatus,
-	})
+	// 2) Явное событие — фронты, которые ждут именно "order_canceled"
+	if s.passengerHub != nil {
+		s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{
+			Type:    "order_canceled",
+			OrderID: order.ID,
+			Status:  targetStatus,
+		})
+	}
 
-	// 3) уведомим водителей: закроем офферы, если ещё висят
+	// 3) Водителям: закрываем висящие офферы по этому заказу
 	if s.driverHub != nil && s.offersRepo != nil {
 		if driverIDs, err := s.offersRepo.GetActiveOfferDriverIDs(ctx, order.ID); err == nil && len(driverIDs) > 0 {
 			s.driverHub.NotifyOfferClosed(order.ID, driverIDs, "canceled_by_passenger")
@@ -2002,7 +2001,7 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 		}
 	}
 
-	// ответ клиенту как и раньше
+	// Ответ клиенту
 	writeJSON(w, http.StatusOK, map[string]string{"status": targetStatus})
 }
 
