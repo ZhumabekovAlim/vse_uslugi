@@ -278,6 +278,10 @@ type intercityClosePayload struct {
 	PassengerID int64 `json:"passenger_id"`
 }
 
+type intercityCancelPayload struct {
+	DriverID int64 `json:"driver_id"`
+}
+
 func (p *intercityOrderPayload) normalize() {
 	p.FromLocation = strings.TrimSpace(p.FromLocation)
 	p.ToLocation = strings.TrimSpace(p.ToLocation)
@@ -1413,6 +1417,16 @@ func (s *Server) handleIntercityOrderSubroutes(w http.ResponseWriter, r *http.Re
 		s.closeIntercityOrder(w, r, id)
 		return
 	}
+
+	if len(parts) == 2 && parts[1] == "cancel" {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		s.cancelIntercityOrder(w, r, id)
+		return
+	}
+
 	w.WriteHeader(http.StatusNotFound)
 }
 
@@ -1596,6 +1610,43 @@ func (s *Server) closeIntercityOrder(w http.ResponseWriter, r *http.Request, id 
 		writeError(w, http.StatusInternalServerError, "close failed")
 		return
 	}
+	order, err := s.intercityRepo.Get(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "fetch failed")
+		return
+	}
+
+	resp := newIntercityOrderResponse(order)
+	event := ws.IntercityEvent{Type: "intercity_order", Action: "closed", Order: resp}
+	s.passengerHub.BroadcastEvent(event)
+	s.driverHub.BroadcastEvent(event)
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) cancelIntercityOrder(w http.ResponseWriter, r *http.Request, id int64) {
+	var payload intercityCancelPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if payload.DriverID <= 0 {
+		writeError(w, http.StatusBadRequest, "driver_id is required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	if err := s.intercityRepo.CancelByDriver(ctx, id, payload.DriverID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "cancel failed")
+		return
+	}
+
 	order, err := s.intercityRepo.Get(ctx, id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "fetch failed")
