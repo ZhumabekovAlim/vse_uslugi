@@ -12,13 +12,30 @@ import (
 
 // PassengerEvent is message for passengers.
 type PassengerEvent struct {
-	Type     string `json:"type"`
-	OrderID  int64  `json:"order_id"`
-	Status   string `json:"status,omitempty"`
-	Radius   int    `json:"radius,omitempty"`
-	Message  string `json:"message,omitempty"`
-	DriverID int64  `json:"driver_id,omitempty"`
-	Price    int    `json:"price,omitempty"`
+	Type     string           `json:"type"`
+	OrderID  int64            `json:"order_id"`
+	Status   string           `json:"status,omitempty"`
+	Radius   int              `json:"radius,omitempty"`
+	Message  string           `json:"message,omitempty"`
+	DriverID int64            `json:"driver_id,omitempty"`
+	Price    int              `json:"price,omitempty"`
+	Driver   *PassengerDriver `json:"driver,omitempty"`
+}
+
+// PassengerDriver describes driver card sent to passengers with offer events.
+type PassengerDriver struct {
+	ID            int64   `json:"id"`
+	Status        string  `json:"status"`
+	CarModel      string  `json:"car_model,omitempty"`
+	CarColor      string  `json:"car_color,omitempty"`
+	CarNumber     string  `json:"car_number,omitempty"`
+	DriverPhoto   string  `json:"driver_photo,omitempty"`
+	Phone         string  `json:"phone,omitempty"`
+	Rating        float64 `json:"rating"`
+	CarPhotoFront string  `json:"car_photo_front,omitempty"`
+	CarPhotoBack  string  `json:"car_photo_back,omitempty"`
+	CarPhotoLeft  string  `json:"car_photo_left,omitempty"`
+	CarPhotoRight string  `json:"car_photo_right,omitempty"`
 }
 
 // PassengerHub manages passenger WS connections.

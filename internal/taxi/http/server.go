@@ -175,6 +175,36 @@ func newDriverResponse(d repo.Driver) driverResponse {
 	}
 }
 
+func newPassengerDriver(d repo.Driver) ws.PassengerDriver {
+	driver := ws.PassengerDriver{
+		ID:          d.ID,
+		Status:      d.Status,
+		CarNumber:   d.CarNumber,
+		DriverPhoto: d.DriverPhoto,
+		Phone:       d.Phone,
+		Rating:      d.Rating,
+	}
+	if d.CarModel.Valid {
+		driver.CarModel = d.CarModel.String
+	}
+	if d.CarColor.Valid {
+		driver.CarColor = d.CarColor.String
+	}
+	if d.CarPhotoFront != "" {
+		driver.CarPhotoFront = d.CarPhotoFront
+	}
+	if d.CarPhotoBack != "" {
+		driver.CarPhotoBack = d.CarPhotoBack
+	}
+	if d.CarPhotoLeft != "" {
+		driver.CarPhotoLeft = d.CarPhotoLeft
+	}
+	if d.CarPhotoRight != "" {
+		driver.CarPhotoRight = d.CarPhotoRight
+	}
+	return driver
+}
+
 type orderAddressResponse struct {
 	ID      int64   `json:"id"`
 	Seq     int     `json:"seq"`
@@ -1691,7 +1721,8 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	if _, err := s.driversRepo.Get(ctx, driverID); err != nil {
+	driver, err := s.driversRepo.Get(ctx, driverID)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeError(w, http.StatusUnauthorized, "driver not found")
 			return
@@ -1723,7 +1754,8 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.passengerHub.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "offer_price", OrderID: req.OrderID, DriverID: driverID, Price: req.Price})
+	driverInfo := newPassengerDriver(driver)
+	s.passengerHub.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "offer_price", OrderID: req.OrderID, DriverID: driverID, Price: req.Price, Driver: &driverInfo})
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "price_proposed"})
 }
