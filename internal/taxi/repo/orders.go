@@ -474,7 +474,7 @@ func (r *OffersRepo) CreateOffer(ctx context.Context, orderID, driverID int64, t
 
 // SetDriverPrice stores driver's proposed price for an offer.
 func (r *OffersRepo) SetDriverPrice(ctx context.Context, orderID, driverID int64, price int) error {
-	res, err := r.db.ExecContext(ctx, `UPDATE driver_order_offers SET driver_price = ?, state = 'pending' WHERE order_id = ? AND driver_id = ? AND state IN ('pending','declined') AND ttl_at >= CURRENT_TIMESTAMP`, price, orderID, driverID)
+	res, err := r.db.ExecContext(ctx, `UPDATE driver_order_offers SET driver_price = ?, state = 'pending' WHERE order_id = ? AND driver_id = ? AND state IN ('pending','declined')`, price, orderID, driverID)
 	if err != nil {
 		return err
 	}
@@ -594,7 +594,6 @@ func (r *OffersRepo) GetActiveOfferDriverIDs(ctx context.Context, orderID int64)
 		FROM driver_order_offers
 		WHERE order_id = ?
 		  AND state = 'pending'
-		  AND ttl_at >= CURRENT_TIMESTAMP
 	`, orderID)
 	if err != nil {
 		return nil, err
