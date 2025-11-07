@@ -149,7 +149,7 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 		if err != nil {
 			return
 		}
-		conn.SetReadDeadline(time.Now().Add(1000 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 		trimmed := strings.TrimSpace(string(message))
 		if trimmed == "" {
