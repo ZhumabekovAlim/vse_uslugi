@@ -2044,13 +2044,31 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 	}
 
 	// 3) закрыть офферы у драйверов
-	if s.driverHub != nil && s.offersRepo != nil {
-		driverIDs, err := s.offersRepo.GetActiveOfferDriverIDs(ctx, order.ID)
-		if err != nil {
-			s.logger.Errorf("list active offer drivers for order %d failed: %v", order.ID, err)
-		} else if len(driverIDs) > 0 {
-			s.logger.Infof("WS → drivers %v: offer_closed (order=%d reason=canceled_by_passenger)", driverIDs, order.ID)
-			s.driverHub.NotifyOfferClosed(order.ID, driverIDs, "canceled_by_passenger")
+	if s.driverHub != nil {
+		const reason = "canceled_by_passenger"
+
+		recipients := make(map[int64]struct{})
+		if s.offersRepo != nil {
+			driverIDs, err := s.offersRepo.GetActiveOfferDriverIDs(ctx, order.ID)
+			if err != nil {
+				s.logger.Errorf("list active offer drivers for order %d failed: %v", order.ID, err)
+			} else {
+				for _, id := range driverIDs {
+					recipients[id] = struct{}{}
+				}
+			}
+		}
+		if order.DriverID.Valid {
+			recipients[order.DriverID.Int64] = struct{}{}
+		}
+
+		if len(recipients) > 0 {
+			ids := make([]int64, 0, len(recipients))
+			for id := range recipients {
+				ids = append(ids, id)
+			}
+			s.logger.Infof("WS → drivers %v: offer_closed (order=%d reason=%s)", ids, order.ID, reason)
+			s.driverHub.NotifyOfferClosed(order.ID, ids, reason)
 		}
 	}
 
