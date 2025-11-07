@@ -62,6 +62,16 @@ func (stubOffers) CreateOffer(ctx context.Context, orderID, driverID int64, ttl 
 	return nil
 }
 
+type stubOffersExisting struct{}
+
+func (stubOffersExisting) AlreadyOffered(ctx context.Context, orderID, driverID int64) (bool, error) {
+	return true, nil
+}
+
+func (stubOffersExisting) CreateOffer(ctx context.Context, orderID, driverID int64, ttl time.Time) error {
+	return nil
+}
+
 type stubDriverHub struct{ sent int }
 
 func (s *stubDriverHub) SendOffer(driverID int64, payload ws.DriverOfferPayload) { s.sent++ }
@@ -134,6 +144,50 @@ func TestDispatcherRadiusExpansion(t *testing.T) {
 	}
 	if len(passengerHub.events) == 0 || passengerHub.events[0].Type != "search_progress" {
 		t.Fatalf("expected search_progress event")
+	}
+}
+
+func TestDispatcherDuplicatesExpandRadius(t *testing.T) {
+	locator := &stubLocator{drivers: []geo.NearbyDriver{{ID: 42}}}
+	orders := &stubOrders{order: repo.Order{ID: 1, PassengerID: 11, FromLon: 10.0, FromLat: 20.0, Status: "searching"}}
+	dispatchRepo := &stubDispatch{}
+	offers := &stubOffersExisting{}
+	driverHub := &stubDriverHub{}
+	passengers := &stubPassengers{}
+	passengerHub := &stubPassengerHub{}
+
+	cfg := ConfigAdapter{
+		PricePerKM:        300,
+		MinPrice:          1200,
+		SearchRadiusStart: 500,
+		SearchRadiusStep:  200,
+		SearchRadiusMax:   1000,
+		DispatchTick:      time.Minute,
+		OfferTTL:          20 * time.Second,
+		RegionID:          "test",
+		SearchTimeout:     time.Hour,
+	}
+
+	d := New(orders, dispatchRepo, offers, passengers, locator, driverHub, passengerHub, testLogger{}, cfg)
+
+	now := time.Now()
+	rec := repo.DispatchRecord{OrderID: 1, RadiusM: cfg.SearchRadiusStart, NextTickAt: now, CreatedAt: now}
+	if err := d.processRecord(context.Background(), rec, now); err != nil {
+		t.Fatalf("processRecord error: %v", err)
+	}
+
+	expectedRadius := cfg.SearchRadiusStart + cfg.SearchRadiusStep
+	if dispatchRepo.radius != expectedRadius {
+		t.Fatalf("expected radius %d, got %d", expectedRadius, dispatchRepo.radius)
+	}
+
+	expectedNext := now.Add(cfg.DispatchTick / 2)
+	if dispatchRepo.next.Before(expectedNext.Add(-time.Second)) || dispatchRepo.next.After(expectedNext.Add(time.Second)) {
+		t.Fatalf("expected next tick around %v, got %v", expectedNext, dispatchRepo.next)
+	}
+
+	if len(passengerHub.events) == 0 || passengerHub.events[0].Type != "search_progress" {
+		t.Fatalf("expected search_progress event, got %+v", passengerHub.events)
 	}
 }
 
