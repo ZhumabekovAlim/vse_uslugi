@@ -264,6 +264,7 @@ var allowedIntercityStatuses = map[string]struct{}{
 
 type intercityOrderPayload struct {
 	PassengerID   int64  `json:"passenger_id"`
+	DriverID      int64  `json:"driver_id"`
 	FromLocation  string `json:"from"`
 	ToLocation    string `json:"to"`
 	TripType      string `json:"trip_type"`
@@ -287,8 +288,10 @@ func (p *intercityOrderPayload) normalize() {
 }
 
 func (p intercityOrderPayload) validate() string {
-	if p.PassengerID <= 0 {
-		return "passenger_id is required"
+	hasPassenger := p.PassengerID > 0
+	hasDriver := p.DriverID > 0
+	if hasPassenger == hasDriver {
+		return "either passenger_id or driver_id is required"
 	}
 	if p.FromLocation == "" {
 		return "from is required"
@@ -314,26 +317,38 @@ func (p intercityOrderPayload) validate() string {
 }
 
 type intercityOrderResponse struct {
-	ID            int64      `json:"id"`
-	PassengerID   int64      `json:"passenger_id"`
-	FromLocation  string     `json:"from"`
-	ToLocation    string     `json:"to"`
-	TripType      string     `json:"trip_type"`
-	Comment       string     `json:"comment,omitempty"`
-	Price         int        `json:"price"`
-	ContactPhone  string     `json:"contact_phone"`
-	DepartureDate string     `json:"departure_date"`
-	DepartureTime string     `json:"departure_time,omitempty"`
-	Status        string     `json:"status"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-	ClosedAt      *time.Time `json:"closed_at,omitempty"`
+	ID            int64                    `json:"id"`
+	PassengerID   int64                    `json:"passenger_id"`
+	DriverID      *int64                   `json:"driver_id,omitempty"`
+	FromLocation  string                   `json:"from"`
+	ToLocation    string                   `json:"to"`
+	TripType      string                   `json:"trip_type"`
+	Comment       string                   `json:"comment,omitempty"`
+	Price         int                      `json:"price"`
+	ContactPhone  string                   `json:"contact_phone"`
+	DepartureDate string                   `json:"departure_date"`
+	DepartureTime string                   `json:"departure_time,omitempty"`
+	Status        string                   `json:"status"`
+	CreatedAt     time.Time                `json:"created_at"`
+	UpdatedAt     time.Time                `json:"updated_at"`
+	ClosedAt      *time.Time               `json:"closed_at,omitempty"`
+	CreatorRole   string                   `json:"creator_role"`
+	Driver        *intercityDriverResponse `json:"driver,omitempty"`
+}
+
+type intercityDriverResponse struct {
+	ID               int64      `json:"id"`
+	CarModel         string     `json:"car_model,omitempty"`
+	FullName         string     `json:"full_name,omitempty"`
+	Rating           *float64   `json:"rating,omitempty"`
+	Photo            string     `json:"photo,omitempty"`
+	ProfileUpdatedAt *time.Time `json:"profile_updated_at,omitempty"`
 }
 
 func newIntercityOrderResponse(o repo.IntercityOrder) intercityOrderResponse {
 	resp := intercityOrderResponse{
 		ID:            o.ID,
-		PassengerID:   o.PassengerID,
+		PassengerID:   0,
 		FromLocation:  o.FromLocation,
 		ToLocation:    o.ToLocation,
 		TripType:      o.TripType,
@@ -343,6 +358,10 @@ func newIntercityOrderResponse(o repo.IntercityOrder) intercityOrderResponse {
 		Status:        o.Status,
 		CreatedAt:     o.CreatedAt,
 		UpdatedAt:     o.UpdatedAt,
+		CreatorRole:   o.CreatorRole,
+	}
+	if o.PassengerID.Valid {
+		resp.PassengerID = o.PassengerID.Int64
 	}
 	if o.DepartureTime.Valid {
 		t := strings.TrimSpace(o.DepartureTime.String)
@@ -363,6 +382,28 @@ func newIntercityOrderResponse(o repo.IntercityOrder) intercityOrderResponse {
 		closedAt := o.ClosedAt.Time
 		resp.ClosedAt = &closedAt
 	}
+	if o.DriverID.Valid {
+		resp.DriverID = &o.DriverID.Int64
+		driver := intercityDriverResponse{ID: o.DriverID.Int64}
+		if o.DriverCarModel.Valid {
+			driver.CarModel = o.DriverCarModel.String
+		}
+		if o.DriverFullName.Valid {
+			driver.FullName = strings.TrimSpace(o.DriverFullName.String)
+		}
+		if o.DriverRating.Valid {
+			rating := o.DriverRating.Float64
+			driver.Rating = &rating
+		}
+		if o.DriverPhoto.Valid {
+			driver.Photo = o.DriverPhoto.String
+		}
+		if o.DriverProfileStamp.Valid {
+			ts := o.DriverProfileStamp.Time
+			driver.ProfileUpdatedAt = &ts
+		}
+		resp.Driver = &driver
+	}
 	return resp
 }
 
@@ -373,6 +414,7 @@ type intercityListPayload struct {
 	Time        string `json:"time"`
 	Status      string `json:"status"`
 	PassengerID *int64 `json:"passenger_id"`
+	DriverID    *int64 `json:"driver_id"`
 	Limit       *int   `json:"limit"`
 	Offset      *int   `json:"offset"`
 }
@@ -394,6 +436,9 @@ func (p intercityListPayload) validate() string {
 	}
 	if p.PassengerID != nil && *p.PassengerID <= 0 {
 		return "invalid passenger_id"
+	}
+	if p.DriverID != nil && *p.DriverID <= 0 {
+		return "invalid driver_id"
 	}
 	if p.Date != "" {
 		if _, err := time.Parse("2006-01-02", p.Date); err != nil {
@@ -1301,6 +1346,9 @@ func (s *Server) listIntercityOrders(w http.ResponseWriter, r *http.Request) {
 	if payload.PassengerID != nil {
 		filter.PassengerID = *payload.PassengerID
 	}
+	if payload.DriverID != nil {
+		filter.DriverID = *payload.DriverID
+	}
 	if payload.Date != "" {
 		date, _ := time.Parse("2006-01-02", payload.Date)
 		filter.Date = &date
@@ -1353,13 +1401,20 @@ func (s *Server) createIntercityOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	order := repo.IntercityOrder{
-		PassengerID:   payload.PassengerID,
 		FromLocation:  payload.FromLocation,
 		ToLocation:    payload.ToLocation,
 		TripType:      payload.TripType,
 		Price:         payload.Price,
 		DepartureDate: departure,
 		Status:        "open",
+	}
+	if payload.PassengerID > 0 {
+		order.PassengerID = sql.NullInt64{Int64: payload.PassengerID, Valid: true}
+		order.CreatorRole = "passenger"
+	}
+	if payload.DriverID > 0 {
+		order.DriverID = sql.NullInt64{Int64: payload.DriverID, Valid: true}
+		order.CreatorRole = "driver"
 	}
 	if payload.DepartureTime != "" {
 		departureTime, err := time.Parse("15:04", payload.DepartureTime)

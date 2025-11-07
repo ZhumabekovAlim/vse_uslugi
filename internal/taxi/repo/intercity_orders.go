@@ -10,7 +10,8 @@ import (
 // IntercityOrder represents a long-distance taxi request made as an advertisement.
 type IntercityOrder struct {
 	ID            int64
-	PassengerID   int64
+	PassengerID   sql.NullInt64
+	DriverID      sql.NullInt64
 	FromLocation  string
 	ToLocation    string
 	TripType      string
@@ -23,6 +24,13 @@ type IntercityOrder struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	ClosedAt      sql.NullTime
+	CreatorRole   string
+
+	DriverCarModel     sql.NullString
+	DriverFullName     sql.NullString
+	DriverRating       sql.NullFloat64
+	DriverPhoto        sql.NullString
+	DriverProfileStamp sql.NullTime
 }
 
 // IntercityOrdersRepo provides CRUD helpers for intercity taxi requests.
@@ -37,10 +45,15 @@ func NewIntercityOrdersRepo(db *sql.DB) *IntercityOrdersRepo {
 
 // Create inserts a new intercity order and returns its identifier.
 func (r *IntercityOrdersRepo) Create(ctx context.Context, order IntercityOrder) (int64, error) {
+	if order.CreatorRole == "" {
+		order.CreatorRole = "passenger"
+	}
 	res, err := r.db.ExecContext(ctx, `INSERT INTO intercity_orders
-(passenger_id, from_location, to_location, trip_type, comment, price, departure_date, departure_time, status)
-VALUES (?,?,?,?,?,?,?,?,?)`,
+(passenger_id, driver_id, creator_role, from_location, to_location, trip_type, comment, price, departure_date, departure_time, status)
+VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		order.PassengerID,
+		order.DriverID,
+		order.CreatorRole,
 		order.FromLocation,
 		order.ToLocation,
 		order.TripType,
@@ -63,15 +76,37 @@ VALUES (?,?,?,?,?,?,?,?,?)`,
 // Get returns a single intercity order by id.
 func (r *IntercityOrdersRepo) Get(ctx context.Context, id int64) (IntercityOrder, error) {
 	row := r.db.QueryRowContext(ctx, `SELECT
-io.id, io.passenger_id, io.from_location, io.to_location, io.trip_type, io.comment, io.price, u.phone AS contact_phone,
-io.departure_date, io.departure_time, io.status, io.created_at, io.updated_at, io.closed_at
+io.id,
+io.passenger_id,
+io.driver_id,
+io.from_location,
+io.to_location,
+io.trip_type,
+io.comment,
+io.price,
+COALESCE(pu.phone, d.phone, '') AS contact_phone,
+io.departure_date,
+io.departure_time,
+io.status,
+io.created_at,
+io.updated_at,
+io.closed_at,
+io.creator_role,
+d.car_model,
+CONCAT_WS(' ', du.surname, du.name, du.middlename) AS driver_full_name,
+d.rating,
+d.driver_photo,
+d.updated_at
 FROM intercity_orders io
-JOIN users u ON io.passenger_id = u.id
+LEFT JOIN users pu ON io.passenger_id = pu.id
+LEFT JOIN drivers d ON io.driver_id = d.id
+LEFT JOIN users du ON d.user_id = du.id
 WHERE io.id = ?`, id)
 	var order IntercityOrder
 	err := row.Scan(
 		&order.ID,
 		&order.PassengerID,
+		&order.DriverID,
 		&order.FromLocation,
 		&order.ToLocation,
 		&order.TripType,
@@ -84,6 +119,12 @@ WHERE io.id = ?`, id)
 		&order.CreatedAt,
 		&order.UpdatedAt,
 		&order.ClosedAt,
+		&order.CreatorRole,
+		&order.DriverCarModel,
+		&order.DriverFullName,
+		&order.DriverRating,
+		&order.DriverPhoto,
+		&order.DriverProfileStamp,
 	)
 	if err != nil {
 		return IntercityOrder{}, err
@@ -99,6 +140,7 @@ type IntercityOrdersFilter struct {
 	Time        *time.Time
 	Status      string
 	PassengerID int64
+	DriverID    int64
 	Limit       int
 	Offset      int
 }
@@ -106,7 +148,7 @@ type IntercityOrdersFilter struct {
 // List returns orders matching the filter.
 func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFilter) ([]IntercityOrder, error) {
 	var (
-		parts = []string{"SELECT io.id, io.passenger_id, io.from_location, io.to_location, io.trip_type, io.comment, io.price, u.phone AS contact_phone, io.departure_date, io.departure_time, io.status, io.created_at, io.updated_at, io.closed_at FROM intercity_orders io JOIN users u ON io.passenger_id = u.id"}
+		parts = []string{"SELECT io.id, io.passenger_id, io.driver_id, io.from_location, io.to_location, io.trip_type, io.comment, io.price, COALESCE(pu.phone, d.phone, '') AS contact_phone, io.departure_date, io.departure_time, io.status, io.created_at, io.updated_at, io.closed_at, io.creator_role, d.car_model, CONCAT_WS(' ', du.surname, du.name, du.middlename) AS driver_full_name, d.rating, d.driver_photo, d.updated_at FROM intercity_orders io LEFT JOIN users pu ON io.passenger_id = pu.id LEFT JOIN drivers d ON io.driver_id = d.id LEFT JOIN users du ON d.user_id = du.id"}
 		where []string
 		args  []interface{}
 	)
@@ -134,6 +176,10 @@ func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFi
 	if filter.PassengerID > 0 {
 		where = append(where, "io.passenger_id = ?")
 		args = append(args, filter.PassengerID)
+	}
+	if filter.DriverID > 0 {
+		where = append(where, "io.driver_id = ?")
+		args = append(args, filter.DriverID)
 	}
 	if len(where) > 0 {
 		parts = append(parts, "WHERE "+strings.Join(where, " AND "))
@@ -163,6 +209,7 @@ func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFi
 		if err := rows.Scan(
 			&order.ID,
 			&order.PassengerID,
+			&order.DriverID,
 			&order.FromLocation,
 			&order.ToLocation,
 			&order.TripType,
@@ -175,6 +222,12 @@ func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFi
 			&order.CreatedAt,
 			&order.UpdatedAt,
 			&order.ClosedAt,
+			&order.CreatorRole,
+			&order.DriverCarModel,
+			&order.DriverFullName,
+			&order.DriverRating,
+			&order.DriverPhoto,
+			&order.DriverProfileStamp,
 		); err != nil {
 			return nil, err
 		}
