@@ -151,8 +151,19 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 		}
 		conn.SetReadDeadline(time.Now().Add(1000 * time.Second))
 
+		trimmed := strings.TrimSpace(string(message))
+		if trimmed == "" {
+			continue
+		}
+		if strings.EqualFold(trimmed, "ping") {
+			if err := conn.WriteMessage(websocket.TextMessage, []byte("pong")); err != nil {
+				h.logger.Errorf("driver %d pong failed: %v", driverID, err)
+			}
+			continue
+		}
+
 		var payload payloadT
-		if err := json.Unmarshal(message, &payload); err != nil {
+		if err := json.Unmarshal([]byte(trimmed), &payload); err != nil {
 			h.logger.Errorf("driver %d invalid payload: %v", driverID, err)
 			continue
 		}
