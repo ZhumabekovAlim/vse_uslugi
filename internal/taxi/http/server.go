@@ -1875,6 +1875,11 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 		writeError(w, http.StatusInternalServerError, "fetch failed")
 		return
 	}
+
+	if req.Status == "canceled" {
+		s.handlePassengerCancel(ctx, w, r, order)
+		return
+	}
 	if !fsm.CanTransition(order.Status, req.Status) {
 		writeError(w, http.StatusConflict, "invalid transition")
 		return
@@ -1911,6 +1916,72 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": req.Status})
+}
+
+func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWriter, r *http.Request, order repo.Order) {
+	const targetStatus = "canceled"
+
+	passengerID, err := parseAuthID(r, "X-Passenger-ID")
+	if err != nil {
+		msg := "missing passenger id"
+		s.logger.Errorf("passenger cancel order %d failed: %s", order.ID, msg)
+		s.pushPassengerError(order.PassengerID, order.ID, msg)
+		writeError(w, http.StatusUnauthorized, msg)
+		return
+	}
+	if passengerID != order.PassengerID {
+		msg := "access denied"
+		s.logger.Infof("passenger %d attempted to cancel order %d they do not own", passengerID, order.ID)
+		s.pushPassengerError(passengerID, order.ID, msg)
+		writeError(w, http.StatusForbidden, msg)
+		return
+	}
+
+	allowedStatuses := map[string]struct{}{
+		"searching": {},
+		"accepted":  {},
+		"arrived":   {},
+	}
+	if _, ok := allowedStatuses[order.Status]; !ok {
+		msg := fmt.Sprintf("order cannot be canceled in status %s", order.Status)
+		s.logger.Infof("passenger %d tried to cancel order %d in status %s", passengerID, order.ID, order.Status)
+		s.pushPassengerError(passengerID, order.ID, msg)
+		writeError(w, http.StatusConflict, "cannot cancel in current status")
+		return
+	}
+	if !fsm.CanTransition(order.Status, targetStatus) {
+		msg := "invalid transition"
+		s.logger.Errorf("passenger %d cancel order %d invalid transition from %s", passengerID, order.ID, order.Status)
+		s.pushPassengerError(passengerID, order.ID, msg)
+		writeError(w, http.StatusConflict, msg)
+		return
+	}
+
+	if err := s.ordersRepo.UpdateStatusCAS(ctx, order.ID, order.Status, targetStatus); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			msg := "order status changed"
+			s.logger.Infof("passenger %d cancel order %d conflict: %v", passengerID, order.ID, err)
+			s.pushPassengerError(passengerID, order.ID, msg)
+			writeError(w, http.StatusConflict, msg)
+			return
+		}
+		msg := "update status failed"
+		s.logger.Errorf("passenger %d cancel order %d failed: %v", passengerID, order.ID, err)
+		s.pushPassengerError(passengerID, order.ID, msg)
+		writeError(w, http.StatusInternalServerError, msg)
+		return
+	}
+
+	s.logger.Infof("passenger %d canceled order %d (previous status: %s)", passengerID, order.ID, order.Status)
+	s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{Type: "order_status", OrderID: order.ID, Status: targetStatus})
+	writeJSON(w, http.StatusOK, map[string]string{"status": targetStatus})
+}
+
+func (s *Server) pushPassengerError(passengerID, orderID int64, message string) {
+	if passengerID <= 0 || message == "" {
+		return
+	}
+	s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{Type: "error", OrderID: orderID, Message: message})
 }
 
 func distanceMeters(lon1, lat1, lon2, lat2 float64) float64 {
