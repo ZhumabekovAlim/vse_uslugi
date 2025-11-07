@@ -198,6 +198,35 @@ func (h *DriverHub) SendOffer(driverID int64, payload DriverOfferPayload) {
 	}
 }
 
+// BroadcastEvent sends the same payload to every connected driver.
+func (h *DriverHub) BroadcastEvent(event interface{}) {
+	data, err := json.Marshal(event)
+	if err != nil {
+		h.logger.Errorf("driver broadcast marshal failed: %v", err)
+		return
+	}
+
+	h.mu.RLock()
+	recipients := make([]struct {
+		id   int64
+		conn *websocket.Conn
+	}, 0, len(h.conns))
+	for id, conn := range h.conns {
+		recipients = append(recipients, struct {
+			id   int64
+			conn *websocket.Conn
+		}{id: id, conn: conn})
+	}
+	h.mu.RUnlock()
+
+	for _, recipient := range recipients {
+		recipient.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		if err := recipient.conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			h.logger.Errorf("driver broadcast to %d failed: %v", recipient.id, err)
+		}
+	}
+}
+
 func parseIDParam(r *http.Request, name string) (int64, error) {
 	if v := r.URL.Query().Get(name); v != "" {
 		return strconv.ParseInt(v, 10, 64)

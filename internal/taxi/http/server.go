@@ -1512,7 +1512,13 @@ func (s *Server) createIntercityOrder(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "fetch failed")
 		return
 	}
-	writeJSON(w, http.StatusCreated, newIntercityOrderResponse(created))
+
+	resp := newIntercityOrderResponse(created)
+	event := ws.IntercityEvent{Type: "intercity_order", Action: "created", Order: resp}
+	s.passengerHub.BroadcastEvent(event)
+	s.driverHub.BroadcastEvent(event)
+
+	writeJSON(w, http.StatusCreated, resp)
 }
 
 func (s *Server) getIntercityOrder(w http.ResponseWriter, r *http.Request, id int64) {
@@ -1558,7 +1564,13 @@ func (s *Server) closeIntercityOrder(w http.ResponseWriter, r *http.Request, id 
 		writeError(w, http.StatusInternalServerError, "fetch failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, newIntercityOrderResponse(order))
+
+	resp := newIntercityOrderResponse(order)
+	event := ws.IntercityEvent{Type: "intercity_order", Action: "closed", Order: resp}
+	s.passengerHub.BroadcastEvent(event)
+	s.driverHub.BroadcastEvent(event)
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
