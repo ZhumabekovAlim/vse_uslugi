@@ -58,6 +58,10 @@ type PassengerNotifier interface {
 	PushOrderEvent(passengerID int64, event ws.PassengerEvent)
 }
 
+type PassengerRepository interface {
+	Get(ctx context.Context, id int64) (repo.Passenger, error)
+}
+
 type driverLocator interface {
 	Nearby(ctx context.Context, lon, lat float64, radiusMeters float64, limit int, city string) ([]geo.NearbyDriver, error)
 }
@@ -66,6 +70,7 @@ type Dispatcher struct {
 	orders      OrdersRepository
 	dispatch    DispatchRepository
 	offers      OffersRepository
+	passengers  PassengerRepository
 	locator     driverLocator
 	driverWS    DriverNotifier
 	passengerWS PassengerNotifier
@@ -74,8 +79,8 @@ type Dispatcher struct {
 }
 
 // New creates a dispatcher instance.
-func New(orders OrdersRepository, dispatch DispatchRepository, offers OffersRepository, locator driverLocator, driverWS DriverNotifier, passengerWS PassengerNotifier, logger Logger, cfg Config) *Dispatcher {
-	return &Dispatcher{orders: orders, dispatch: dispatch, offers: offers, locator: locator, driverWS: driverWS, passengerWS: passengerWS, logger: logger, cfg: cfg}
+func New(orders OrdersRepository, dispatch DispatchRepository, offers OffersRepository, passengers PassengerRepository, locator driverLocator, driverWS DriverNotifier, passengerWS PassengerNotifier, logger Logger, cfg Config) *Dispatcher {
+	return &Dispatcher{orders: orders, dispatch: dispatch, offers: offers, passengers: passengers, locator: locator, driverWS: driverWS, passengerWS: passengerWS, logger: logger, cfg: cfg}
 }
 
 // Run starts the dispatcher loop.
@@ -153,6 +158,19 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 	sentOffers := 0
 	skippedExisting := 0
 
+	var passengerPayload *ws.DriverPassenger
+	if d.passengers != nil {
+		passenger, err := d.passengers.Get(ctx, order.PassengerID)
+		if err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				d.logger.Errorf("dispatch: load passenger %d failed: %v", order.PassengerID, err)
+			}
+		} else {
+			payload := mapPassengerToWS(passenger)
+			passengerPayload = &payload
+		}
+	}
+
 	for _, driver := range drivers {
 		offered, err := d.offers.AlreadyOffered(ctx, order.ID, driver.ID)
 		if err != nil {
@@ -181,6 +199,7 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 			DistanceM:    order.DistanceM,
 			EtaSeconds:   order.EtaSeconds,
 			ExpiresInSec: int(d.cfg.GetOfferTTL().Seconds()),
+			Passenger:    passengerPayload,
 		}
 		if len(order.Addresses) > 0 {
 			route := make([]ws.DriverRoutePoint, 0, len(order.Addresses))
@@ -236,6 +255,59 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 	}
 
 	return nil
+}
+
+func mapPassengerToWS(p repo.Passenger) ws.DriverPassenger {
+	result := ws.DriverPassenger{
+		ID:        p.ID,
+		Name:      p.Name,
+		Surname:   p.Surname,
+		Phone:     p.Phone,
+		Email:     p.Email,
+		CreatedAt: p.CreatedAt,
+	}
+	if p.Middlename.Valid {
+		result.Middlename = p.Middlename.String
+	}
+	if p.CityID.Valid {
+		id := p.CityID.Int64
+		result.CityID = &id
+	}
+	if p.YearsOfExp.Valid {
+		exp := p.YearsOfExp.Int64
+		result.YearsOfExp = &exp
+	}
+	if p.DocOfProof.Valid {
+		result.DocOfProof = p.DocOfProof.String
+	}
+	if p.ReviewRating.Valid {
+		rating := p.ReviewRating.Float64
+		result.ReviewRating = &rating
+	}
+	if p.Role.Valid {
+		result.Role = p.Role.String
+	}
+	if p.Latitude.Valid {
+		result.Latitude = p.Latitude.String
+	}
+	if p.Longitude.Valid {
+		result.Longitude = p.Longitude.String
+	}
+	if p.AvatarPath.Valid {
+		result.AvatarPath = p.AvatarPath.String
+	}
+	if p.Skills.Valid {
+		result.Skills = p.Skills.String
+	}
+	if p.IsOnline.Valid {
+		online := p.IsOnline.Bool
+		result.IsOnline = &online
+	}
+	if p.UpdatedAt.Valid {
+		updated := p.UpdatedAt.Time
+		result.UpdatedAt = &updated
+	}
+	return result
 }
 
 // TriggerImmediate schedules an order for immediate dispatch tick.
