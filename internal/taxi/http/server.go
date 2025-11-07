@@ -819,17 +819,18 @@ func (s *Server) handleRouteQuote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	type quotePoint struct {
+		Lon     float64 `json:"lon"`
+		Lat     float64 `json:"lat"`
+		Address string  `json:"address"`
+	}
+
 	var req struct {
-		FromAddress string `json:"from_address"`
-		ToAddress   string `json:"to_address"`
-		From        *struct {
-			Lon float64 `json:"lon"`
-			Lat float64 `json:"lat"`
-		} `json:"from"`
-		To *struct {
-			Lon float64 `json:"lon"`
-			Lat float64 `json:"lat"`
-		} `json:"to"`
+		FromAddress string       `json:"from_address"`
+		ToAddress   string       `json:"to_address"`
+		From        *quotePoint  `json:"from"`
+		To          *quotePoint  `json:"to"`
+		Stops       []quotePoint `json:"stops"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -841,44 +842,99 @@ func (s *Server) handleRouteQuote(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// helper: получить lon/lat либо из координат, либо геокодировать адрес
-	resolvePoint := func(addr string, pt *struct {
-		Lon float64 `json:"lon"`
-		Lat float64 `json:"lat"`
-	}) (lon, lat float64, err error) {
-		// Если пришли валидные координаты — используем их
-		if pt != nil && pt.Lon != 0 && pt.Lat != 0 {
-			return pt.Lon, pt.Lat, nil
-		}
-		// Иначе, если есть адрес — геокодируем
-		if strings.TrimSpace(addr) != "" {
-			return s.geoClient.Geocode(ctx, addr)
-		}
-		// Ни координат, ни адреса — ошибка
-		return 0, 0, errors.New("point required: pass either coordinates or address")
+	type resolvedPoint struct {
+		lon     float64
+		lat     float64
+		address string
 	}
 
-	fromLon, fromLat, err := resolvePoint(req.FromAddress, req.From)
+	resolvePoint := func(fallbackAddr string, pt *quotePoint) (resolvedPoint, error) {
+		var (
+			addr   = strings.TrimSpace(fallbackAddr)
+			hasPt  = pt != nil
+			result resolvedPoint
+		)
+
+		if hasPt {
+			if pt.Lon != 0 && pt.Lat != 0 {
+				result.lon = pt.Lon
+				result.lat = pt.Lat
+				result.address = strings.TrimSpace(pt.Address)
+				if result.address == "" {
+					result.address = addr
+				}
+				return result, nil
+			}
+			if trimmed := strings.TrimSpace(pt.Address); trimmed != "" {
+				addr = trimmed
+			}
+		}
+
+		if addr != "" {
+			lon, lat, err := s.geoClient.Geocode(ctx, addr)
+			if err != nil {
+				return resolvedPoint{}, err
+			}
+			result.lon = lon
+			result.lat = lat
+			result.address = addr
+			return result, nil
+		}
+
+		return resolvedPoint{}, errors.New("point required: pass either coordinates or address")
+	}
+
+	points := make([]resolvedPoint, 0, len(req.Stops)+2)
+
+	from, err := resolvePoint(req.FromAddress, req.From)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "from: "+err.Error())
 		return
 	}
-	toLon, toLat, err := resolvePoint(req.ToAddress, req.To)
+	points = append(points, from)
+
+	for i := range req.Stops {
+		stop := req.Stops[i]
+		resolved, err := resolvePoint(stop.Address, &stop)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("stop %d: %v", i, err))
+			return
+		}
+		points = append(points, resolved)
+	}
+
+	to, err := resolvePoint(req.ToAddress, req.To)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "to: "+err.Error())
 		return
 	}
+	points = append(points, to)
 
-	// Лог на всякий случай
-	fmt.Println("RouteQuote FROM:", fromLon, fromLat, "TO:", toLon, toLat)
-
-	distance, eta, err := s.geoClient.RouteMatrix(ctx, fromLon, fromLat, toLon, toLat)
-	if err != nil {
-		// Оставляю подробный ответ — удобно для дебага.
-		writeError(w, http.StatusBadGateway, fmt.Sprintf("route matrix failed: %v", err))
+	if len(points) < 2 {
+		writeError(w, http.StatusBadRequest, "at least two points required")
 		return
 	}
 
-	rec := pricing.Recommended(distance, s.cfg.GetPricePerKM(), s.cfg.GetMinPrice())
+	// Лог на всякий случай
+	fmt.Println("RouteQuote points:")
+	for idx, p := range points {
+		fmt.Printf("  #%d: %.6f %.6f\n", idx, p.lon, p.lat)
+	}
+
+	totalDistance := 0
+	totalEta := 0
+	for i := 0; i < len(points)-1; i++ {
+		distance, eta, err := s.geoClient.RouteMatrix(ctx, points[i].lon, points[i].lat, points[i+1].lon, points[i+1].lat)
+		if err != nil {
+			// Оставляю подробный ответ — удобно для дебага.
+			writeError(w, http.StatusBadGateway, fmt.Sprintf("route matrix failed: %v", err))
+			return
+		}
+		totalDistance += distance
+		totalEta += eta
+	}
+
+	rec := pricing.Recommended(totalDistance, s.cfg.GetPricePerKM(), s.cfg.GetMinPrice())
 	minPrice := s.cfg.GetMinPrice()
 	if rec <= minPrice {
 		rec = minPrice // не опускаем ниже минимума
@@ -888,13 +944,28 @@ func (s *Server) handleRouteQuote(w http.ResponseWriter, r *http.Request) {
 			rec = minPrice
 		}
 	}
+	makePayloadPoint := func(p resolvedPoint) map[string]interface{} {
+		point := map[string]interface{}{"lon": p.lon, "lat": p.lat}
+		if p.address != "" {
+			point["address"] = p.address
+		}
+		return point
+	}
+
 	resp := map[string]interface{}{
-		"from":              map[string]float64{"lon": fromLon, "lat": fromLat},
-		"to":                map[string]float64{"lon": toLon, "lat": toLat},
-		"distance_m":        distance,
-		"eta_s":             eta,
+		"from":              makePayloadPoint(points[0]),
+		"to":                makePayloadPoint(points[len(points)-1]),
+		"distance_m":        totalDistance,
+		"eta_s":             totalEta,
 		"recommended_price": rec,
 		"min_price":         s.cfg.GetMinPrice(),
+	}
+	if len(points) > 2 {
+		stops := make([]map[string]interface{}, 0, len(points)-2)
+		for _, p := range points[1 : len(points)-1] {
+			stops = append(stops, makePayloadPoint(p))
+		}
+		resp["stops"] = stops
 	}
 
 	writeJSON(w, http.StatusOK, resp)
