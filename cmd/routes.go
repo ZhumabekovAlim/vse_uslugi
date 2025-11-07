@@ -223,6 +223,8 @@ func (app *application) routes() http.Handler {
 	mux.Post("/api/v1/orders/:id/status", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
 	mux.Get("/api/v1/driver/orders", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
 	mux.Post("/api/v1/offers/accept", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
+	mux.Post("/api/v1/offers/propose_price", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
+	mux.Post("/api/v1/offers/respond", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
 	mux.Post("/api/v1/payments/airbapay/webhook", standardMiddleware.Then(app.taxiMux))
 	mux.Post("/api/v1/intercity/orders", standardMiddleware.Then(app.taxiMux))
 	mux.Post("/api/v1/intercity/orders/list", standardMiddleware.Then(app.taxiMux))
