@@ -233,16 +233,25 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 		d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "search_progress", OrderID: order.ID, Radius: newRadius})
 
 	case sentOffers == 0 && skippedExisting > 0:
-		// водители есть, но все уже имеют офферы (дубликаты) — быстрый повтор
+		// все найденные водители уже получили оффер — расширяем радиус, чтобы найти новых
+		newRadius := rec.RadiusM + d.cfg.GetSearchRadiusStep()
+		if newRadius > d.cfg.GetSearchRadiusMax() {
+			newRadius = d.cfg.GetSearchRadiusMax()
+		}
 		next := now.Add(d.cfg.GetDispatchTick() / 2)
 		if next.Before(now.Add(1 * time.Second)) {
 			next = now.Add(1 * time.Second)
 		}
-		if err := d.dispatch.UpdateRadius(ctx, rec.OrderID, rec.RadiusM, next); err != nil {
+		if err := d.dispatch.UpdateRadius(ctx, rec.OrderID, newRadius, next); err != nil {
 			return err
 		}
-		d.logger.Infof("dispatch: only duplicates; keep radius=%d; next_tick=%s", rec.RadiusM, next.Format(time.RFC3339))
-		d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "searching", OrderID: order.ID, Radius: rec.RadiusM})
+		if newRadius > rec.RadiusM {
+			d.logger.Infof("dispatch: only duplicates; radius ↑ to %d; next_tick=%s", newRadius, next.Format(time.RFC3339))
+			d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "search_progress", OrderID: order.ID, Radius: newRadius})
+		} else {
+			d.logger.Infof("dispatch: only duplicates; keep radius=%d (max); next_tick=%s", rec.RadiusM, next.Format(time.RFC3339))
+			d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "searching", OrderID: order.ID, Radius: rec.RadiusM})
+		}
 
 	default:
 		// офферы отправлены — оставляем радиус, ставим обычный next_tick
