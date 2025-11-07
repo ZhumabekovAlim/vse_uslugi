@@ -42,6 +42,13 @@ type DriverOfferPayload struct {
 	Passenger    *DriverPassenger   `json:"passenger,omitempty"`
 }
 
+// DriverOfferClosedPayload notifies driver that offer is no longer available.
+type DriverOfferClosedPayload struct {
+	Type    string `json:"type"`
+	OrderID int64  `json:"order_id"`
+	Reason  string `json:"reason,omitempty"`
+}
+
 // DriverPassenger describes passenger data included with order offers.
 type DriverPassenger struct {
 	ID           int64      `json:"id"`
@@ -229,6 +236,36 @@ func (h *DriverHub) SendOffer(driverID int64, payload DriverOfferPayload) {
 	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	if err := conn.WriteJSON(payload); err != nil {
 		h.logger.Errorf("send offer to driver %d failed: %v", driverID, err)
+	}
+}
+
+// NotifyOfferClosed informs specific drivers that the offer is no longer available.
+func (h *DriverHub) NotifyOfferClosed(orderID int64, driverIDs []int64, reason string) {
+	if len(driverIDs) == 0 {
+		return
+	}
+	payload := DriverOfferClosedPayload{Type: "order_offer_closed", OrderID: orderID, Reason: reason}
+
+	h.mu.RLock()
+	recipients := make([]struct {
+		id   int64
+		conn *websocket.Conn
+	}, 0, len(driverIDs))
+	for _, id := range driverIDs {
+		if conn, ok := h.conns[id]; ok {
+			recipients = append(recipients, struct {
+				id   int64
+				conn *websocket.Conn
+			}{id: id, conn: conn})
+		}
+	}
+	h.mu.RUnlock()
+
+	for _, recipient := range recipients {
+		recipient.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		if err := recipient.conn.WriteJSON(payload); err != nil {
+			h.logger.Errorf("notify offer closed to driver %d failed: %v", recipient.id, err)
+		}
 	}
 }
 

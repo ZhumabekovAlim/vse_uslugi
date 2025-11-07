@@ -473,10 +473,10 @@ func (r *OffersRepo) CreateOffer(ctx context.Context, orderID, driverID int64, t
 }
 
 // AcceptOffer sets offer as accepted and closes others.
-func (r *OffersRepo) AcceptOffer(ctx context.Context, orderID, driverID int64) error {
+func (r *OffersRepo) AcceptOffer(ctx context.Context, orderID, driverID int64) ([]int64, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer func() {
 		if err != nil {
@@ -486,19 +486,41 @@ func (r *OffersRepo) AcceptOffer(ctx context.Context, orderID, driverID int64) e
 
 	res, err := tx.ExecContext(ctx, `UPDATE driver_order_offers SET state = 'accepted' WHERE order_id = ? AND driver_id = ? AND state = 'pending'`, orderID, driverID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	rows, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if rows == 0 {
-		return sql.ErrNoRows
+		return nil, sql.ErrNoRows
 	}
+
+	rowsClosed, err := tx.QueryContext(ctx, `SELECT driver_id FROM driver_order_offers WHERE order_id = ? AND driver_id <> ? AND state = 'pending'`, orderID, driverID)
+	if err != nil {
+		return nil, err
+	}
+	defer rowsClosed.Close()
+
+	var closedDrivers []int64
+	for rowsClosed.Next() {
+		var id int64
+		if err = rowsClosed.Scan(&id); err != nil {
+			return nil, err
+		}
+		closedDrivers = append(closedDrivers, id)
+	}
+	if err = rowsClosed.Err(); err != nil {
+		return nil, err
+	}
+
 	if _, err = tx.ExecContext(ctx, `UPDATE driver_order_offers SET state = 'closed' WHERE order_id = ? AND driver_id <> ? AND state = 'pending'`, orderID, driverID); err != nil {
-		return err
+		return nil, err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return closedDrivers, nil
 }
 
 // ExpireOffers marks offers as expired when TTL passed.
