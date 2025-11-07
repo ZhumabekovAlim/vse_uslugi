@@ -18,6 +18,7 @@ type IntercityOrder struct {
 	Price         int
 	ContactPhone  string
 	DepartureDate time.Time
+	DepartureTime sql.NullString
 	Status        string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
@@ -37,8 +38,8 @@ func NewIntercityOrdersRepo(db *sql.DB) *IntercityOrdersRepo {
 // Create inserts a new intercity order and returns its identifier.
 func (r *IntercityOrdersRepo) Create(ctx context.Context, order IntercityOrder) (int64, error) {
 	res, err := r.db.ExecContext(ctx, `INSERT INTO intercity_orders
-(passenger_id, from_location, to_location, trip_type, comment, price, contact_phone, departure_date, status)
-VALUES (?,?,?,?,?,?,?,?,?)`,
+(passenger_id, from_location, to_location, trip_type, comment, price, contact_phone, departure_date, departure_time, status)
+VALUES (?,?,?,?,?,?,?,?,?,?)`,
 		order.PassengerID,
 		order.FromLocation,
 		order.ToLocation,
@@ -47,6 +48,7 @@ VALUES (?,?,?,?,?,?,?,?,?)`,
 		order.Price,
 		order.ContactPhone,
 		order.DepartureDate,
+		order.DepartureTime,
 		order.Status,
 	)
 	if err != nil {
@@ -63,7 +65,7 @@ VALUES (?,?,?,?,?,?,?,?,?)`,
 func (r *IntercityOrdersRepo) Get(ctx context.Context, id int64) (IntercityOrder, error) {
 	row := r.db.QueryRowContext(ctx, `SELECT
 id, passenger_id, from_location, to_location, trip_type, comment, price, contact_phone,
-departure_date, status, created_at, updated_at, closed_at
+departure_date, departure_time, status, created_at, updated_at, closed_at
 FROM intercity_orders WHERE id = ?`, id)
 	var order IntercityOrder
 	err := row.Scan(
@@ -76,6 +78,7 @@ FROM intercity_orders WHERE id = ?`, id)
 		&order.Price,
 		&order.ContactPhone,
 		&order.DepartureDate,
+		&order.DepartureTime,
 		&order.Status,
 		&order.CreatedAt,
 		&order.UpdatedAt,
@@ -92,6 +95,7 @@ type IntercityOrdersFilter struct {
 	From        string
 	To          string
 	Date        *time.Time
+	Time        *time.Time
 	Status      string
 	PassengerID int64
 	Limit       int
@@ -101,7 +105,7 @@ type IntercityOrdersFilter struct {
 // List returns orders matching the filter.
 func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFilter) ([]IntercityOrder, error) {
 	var (
-		parts = []string{"SELECT id, passenger_id, from_location, to_location, trip_type, comment, price, contact_phone, departure_date, status, created_at, updated_at, closed_at FROM intercity_orders"}
+		parts = []string{"SELECT id, passenger_id, from_location, to_location, trip_type, comment, price, contact_phone, departure_date, departure_time, status, created_at, updated_at, closed_at FROM intercity_orders"}
 		where []string
 		args  []interface{}
 	)
@@ -118,6 +122,10 @@ func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFi
 		where = append(where, "departure_date = ?")
 		args = append(args, filter.Date.Format("2006-01-02"))
 	}
+	if filter.Time != nil {
+		where = append(where, "departure_time = ?")
+		args = append(args, filter.Time.Format("15:04:05"))
+	}
 	if filter.Status != "" {
 		where = append(where, "status = ?")
 		args = append(args, filter.Status)
@@ -130,7 +138,7 @@ func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFi
 		parts = append(parts, "WHERE "+strings.Join(where, " AND "))
 	}
 
-	parts = append(parts, "ORDER BY departure_date ASC, created_at DESC")
+	parts = append(parts, "ORDER BY departure_date ASC, departure_time ASC, created_at DESC")
 
 	if filter.Limit > 0 {
 		parts = append(parts, "LIMIT ?")
@@ -161,6 +169,7 @@ func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFi
 			&order.Price,
 			&order.ContactPhone,
 			&order.DepartureDate,
+			&order.DepartureTime,
 			&order.Status,
 			&order.CreatedAt,
 			&order.UpdatedAt,

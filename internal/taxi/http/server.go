@@ -271,6 +271,7 @@ type intercityOrderPayload struct {
 	Price         int    `json:"price"`
 	ContactPhone  string `json:"contact_phone"`
 	DepartureDate string `json:"departure_date"`
+	DepartureTime string `json:"departure_time"`
 }
 
 type intercityClosePayload struct {
@@ -284,6 +285,7 @@ func (p *intercityOrderPayload) normalize() {
 	p.Comment = strings.TrimSpace(p.Comment)
 	p.ContactPhone = strings.TrimSpace(p.ContactPhone)
 	p.DepartureDate = strings.TrimSpace(p.DepartureDate)
+	p.DepartureTime = strings.TrimSpace(p.DepartureTime)
 }
 
 func (p intercityOrderPayload) validate() string {
@@ -305,6 +307,11 @@ func (p intercityOrderPayload) validate() string {
 	if p.DepartureDate == "" {
 		return "departure_date is required"
 	}
+	if p.DepartureTime != "" {
+		if _, err := time.Parse("15:04", p.DepartureTime); err != nil {
+			return "invalid departure_time"
+		}
+	}
 	if p.Price < 0 {
 		return "price must be >= 0"
 	}
@@ -321,6 +328,7 @@ type intercityOrderResponse struct {
 	Price         int        `json:"price"`
 	ContactPhone  string     `json:"contact_phone"`
 	DepartureDate string     `json:"departure_date"`
+	DepartureTime string     `json:"departure_time,omitempty"`
 	Status        string     `json:"status"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
@@ -341,6 +349,18 @@ func newIntercityOrderResponse(o repo.IntercityOrder) intercityOrderResponse {
 		CreatedAt:     o.CreatedAt,
 		UpdatedAt:     o.UpdatedAt,
 	}
+	if o.DepartureTime.Valid {
+		t := strings.TrimSpace(o.DepartureTime.String)
+		if t != "" {
+			if parsed, err := time.Parse("15:04:05", t); err == nil {
+				resp.DepartureTime = parsed.Format("15:04")
+			} else if parsed, err := time.Parse("15:04", t); err == nil {
+				resp.DepartureTime = parsed.Format("15:04")
+			} else {
+				resp.DepartureTime = t
+			}
+		}
+	}
 	if o.Comment.Valid {
 		resp.Comment = o.Comment.String
 	}
@@ -351,6 +371,53 @@ func newIntercityOrderResponse(o repo.IntercityOrder) intercityOrderResponse {
 	return resp
 }
 
+type intercityListPayload struct {
+	From        string `json:"from"`
+	To          string `json:"to"`
+	Date        string `json:"date"`
+	Time        string `json:"time"`
+	Status      string `json:"status"`
+	PassengerID *int64 `json:"passenger_id"`
+	Limit       *int   `json:"limit"`
+	Offset      *int   `json:"offset"`
+}
+
+func (p *intercityListPayload) normalize() {
+	p.From = strings.TrimSpace(p.From)
+	p.To = strings.TrimSpace(p.To)
+	p.Date = strings.TrimSpace(p.Date)
+	p.Time = strings.TrimSpace(p.Time)
+	p.Status = strings.TrimSpace(strings.ToLower(p.Status))
+}
+
+func (p intercityListPayload) validate() string {
+	if p.Limit != nil && *p.Limit < 0 {
+		return "invalid limit"
+	}
+	if p.Offset != nil && *p.Offset < 0 {
+		return "invalid offset"
+	}
+	if p.PassengerID != nil && *p.PassengerID <= 0 {
+		return "invalid passenger_id"
+	}
+	if p.Date != "" {
+		if _, err := time.Parse("2006-01-02", p.Date); err != nil {
+			return "invalid date"
+		}
+	}
+	if p.Time != "" {
+		if _, err := time.Parse("15:04", p.Time); err != nil {
+			return "invalid time"
+		}
+	}
+	if p.Status != "" && p.Status != "all" {
+		if _, ok := allowedIntercityStatuses[p.Status]; !ok {
+			return "invalid status"
+		}
+	}
+	return ""
+}
+
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/drivers", s.handleDrivers)
 	mux.HandleFunc("/api/v1/drivers/", s.handleDriver)
@@ -359,6 +426,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/driver/orders", s.handleDriverOrders)
 	mux.HandleFunc("/api/v1/orders/", s.handleOrderSubroutes)
 	mux.HandleFunc("/api/v1/intercity/orders", s.handleIntercityOrders)
+	mux.HandleFunc("/api/v1/intercity/orders/list", s.listIntercityOrders)
 	mux.HandleFunc("/api/v1/intercity/orders/", s.handleIntercityOrderSubroutes)
 	mux.HandleFunc("/api/v1/offers/accept", s.handleOfferAccept)
 	mux.HandleFunc("/api/v1/payments/airbapay/webhook", s.handleAirbaPayWebhook)
@@ -1161,8 +1229,6 @@ func (s *Server) handleReprice(w http.ResponseWriter, r *http.Request, orderID i
 
 func (s *Server) handleIntercityOrders(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-	case http.MethodGet:
-		s.listIntercityOrders(w, r)
 	case http.MethodPost:
 		s.createIntercityOrder(w, r)
 	default:
@@ -1203,64 +1269,58 @@ func (s *Server) handleIntercityOrderSubroutes(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) listIntercityOrders(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	limit := 100
-	if v := query.Get("limit"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil || n < 0 {
-			writeError(w, http.StatusBadRequest, "invalid limit")
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var payload intercityListPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		if !errors.Is(err, io.EOF) {
+			writeError(w, http.StatusBadRequest, "invalid json")
 			return
 		}
-		limit = n
+	}
+	payload.normalize()
+	if msg := payload.validate(); msg != "" {
+		writeError(w, http.StatusBadRequest, msg)
+		return
+	}
+
+	limit := 100
+	if payload.Limit != nil {
+		limit = *payload.Limit
 	}
 	offset := 0
-	if v := query.Get("offset"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil || n < 0 {
-			writeError(w, http.StatusBadRequest, "invalid offset")
-			return
-		}
-		offset = n
+	if payload.Offset != nil {
+		offset = *payload.Offset
 	}
 
 	filter := repo.IntercityOrdersFilter{
 		Limit:  limit,
 		Offset: offset,
+		From:   payload.From,
+		To:     payload.To,
 	}
 
-	if from := strings.TrimSpace(query.Get("from")); from != "" {
-		filter.From = from
+	if payload.PassengerID != nil {
+		filter.PassengerID = *payload.PassengerID
 	}
-	if to := strings.TrimSpace(query.Get("to")); to != "" {
-		filter.To = to
-	}
-	if passenger := strings.TrimSpace(query.Get("passenger_id")); passenger != "" {
-		passengerID, err := strconv.ParseInt(passenger, 10, 64)
-		if err != nil || passengerID <= 0 {
-			writeError(w, http.StatusBadRequest, "invalid passenger_id")
-			return
-		}
-		filter.PassengerID = passengerID
-	}
-	if dateStr := strings.TrimSpace(query.Get("date")); dateStr != "" {
-		date, err := time.Parse("2006-01-02", dateStr)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "invalid date")
-			return
-		}
+	if payload.Date != "" {
+		date, _ := time.Parse("2006-01-02", payload.Date)
 		filter.Date = &date
 	}
+	if payload.Time != "" {
+		departureTime, _ := time.Parse("15:04", payload.Time)
+		filter.Time = &departureTime
+	}
 
-	status := strings.TrimSpace(strings.ToLower(query.Get("status")))
+	status := payload.Status
 	if status == "" {
 		filter.Status = "open"
 	} else if status == "all" {
 		filter.Status = ""
 	} else {
-		if _, ok := allowedIntercityStatuses[status]; !ok {
-			writeError(w, http.StatusBadRequest, "invalid status")
-			return
-		}
 		filter.Status = status
 	}
 
@@ -1297,7 +1357,6 @@ func (s *Server) createIntercityOrder(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid departure_date")
 		return
 	}
-
 	order := repo.IntercityOrder{
 		PassengerID:   payload.PassengerID,
 		FromLocation:  payload.FromLocation,
@@ -1307,6 +1366,14 @@ func (s *Server) createIntercityOrder(w http.ResponseWriter, r *http.Request) {
 		ContactPhone:  payload.ContactPhone,
 		DepartureDate: departure,
 		Status:        "open",
+	}
+	if payload.DepartureTime != "" {
+		departureTime, err := time.Parse("15:04", payload.DepartureTime)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid departure_time")
+			return
+		}
+		order.DepartureTime = sql.NullString{String: departureTime.Format("15:04:05"), Valid: true}
 	}
 	if payload.Comment != "" {
 		order.Comment = sql.NullString{String: payload.Comment, Valid: true}

@@ -1,4 +1,3 @@
--- +migrate Up
 CREATE TABLE IF NOT EXISTS intercity_orders (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   passenger_id BIGINT NOT NULL,
@@ -19,6 +18,3 @@ CREATE TABLE IF NOT EXISTS intercity_orders (
 CREATE INDEX idx_intercity_orders_status ON intercity_orders(status);
 CREATE INDEX idx_intercity_orders_departure_date ON intercity_orders(departure_date);
 CREATE INDEX idx_intercity_orders_departure_time ON intercity_orders(departure_time);
-
--- +migrate Down
-DROP TABLE IF EXISTS intercity_orders;
