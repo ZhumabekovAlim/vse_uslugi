@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS intercity_orders (
   trip_type ENUM('companions','parcel','solo') NOT NULL,
   comment TEXT,
   price INT NOT NULL,
-  contact_phone VARCHAR(32) NOT NULL,
   departure_date DATE NOT NULL,
   departure_time TIME NULL,
   status ENUM('open','closed') NOT NULL DEFAULT 'open',
