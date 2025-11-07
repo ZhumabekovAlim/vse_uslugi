@@ -125,9 +125,9 @@ func (h *PassengerHub) PushOrderEvent(passengerID int64, event PassengerEvent) {
 		return
 	}
 	h.mu.RLock()
-	conn := h.conns[passengerID]
+	_, ok := h.conns[passengerID]
 	h.mu.RUnlock()
-	if conn == nil {
+	if !ok {
 		return
 	}
 
@@ -136,10 +136,9 @@ func (h *PassengerHub) PushOrderEvent(passengerID int64, event PassengerEvent) {
 		h.logger.Infof("WS → passenger %d: %s", passengerID, string(eventBytes))
 	}
 
-	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	if err := conn.WriteMessage(websocket.TextMessage, eventBytes); err != nil {
-		h.logger.Errorf("passenger send failed: %v", err)
-	}
+	h.safeWrite(passengerID, func(conn *websocket.Conn) error {
+		return conn.WriteMessage(websocket.TextMessage, eventBytes)
+	})
 }
 
 // BroadcastEvent sends the same payload to all connected passengers.
