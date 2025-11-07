@@ -41,6 +41,13 @@ type Server struct {
 	payClient     *pay.Client
 }
 
+func nstr(v sql.NullString) string {
+	if v.Valid {
+		return v.String
+	}
+	return ""
+}
+
 // NewServer constructs Server.
 func NewServer(logger dispatch.Logger, cfg dispatch.Config, geoClient *geo.DGISClient, drivers *repo.DriversRepo, orders *repo.OrdersRepo, intercity *repo.IntercityOrdersRepo, offers *repo.OffersRepo, payments *repo.PaymentsRepo, driverHub *ws.DriverHub, passengerHub *ws.PassengerHub, dispatcher *dispatch.Dispatcher, payClient *pay.Client) *Server {
 	return &Server{
@@ -1753,9 +1760,25 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "set price failed")
 		return
 	}
-
 	driverInfo := newPassengerDriver(driver)
-	s.passengerHub.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "offer_price", OrderID: req.OrderID, DriverID: driverID, Price: req.Price, Driver: &driverInfo})
+	ev := ws.PassengerEvent{
+		Type:     "offer_price",
+		OrderID:  req.OrderID,
+		DriverID: driverID,
+		Price:    req.Price,
+		Driver:   &driverInfo,
+	}
+	if s.logger != nil {
+		s.logger.Infof("HTTP handleOfferPrice → WS queue: passenger_id=%d payload=%+v", order.PassengerID, ev)
+	}
+
+	// фактическая отправка в WS
+	s.passengerHub.PushOrderEvent(order.PassengerID, ev)
+
+	// 👇👇 (опционально) лог «после попытки отправки»
+	if s.logger != nil {
+		s.logger.Infof("HTTP handleOfferPrice → WS dispatched: passenger_id=%d order_id=%d driver_id=%d", order.PassengerID, req.OrderID, driverID)
+	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "price_proposed"})
 }
