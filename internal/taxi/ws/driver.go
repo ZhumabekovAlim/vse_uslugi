@@ -49,6 +49,14 @@ type DriverOfferClosedPayload struct {
 	Reason  string `json:"reason,omitempty"`
 }
 
+// DriverPriceResponsePayload notifies driver about passenger decision on custom price.
+type DriverPriceResponsePayload struct {
+	Type    string `json:"type"`
+	OrderID int64  `json:"order_id"`
+	Status  string `json:"status"`
+	Price   int    `json:"price,omitempty"`
+}
+
 // DriverPassenger describes passenger data included with order offers.
 type DriverPassenger struct {
 	ID           int64      `json:"id"`
@@ -266,6 +274,23 @@ func (h *DriverHub) NotifyOfferClosed(orderID int64, driverIDs []int64, reason s
 		if err := recipient.conn.WriteJSON(payload); err != nil {
 			h.logger.Errorf("notify offer closed to driver %d failed: %v", recipient.id, err)
 		}
+	}
+}
+
+// NotifyPriceResponse informs driver about passenger decision on price proposal.
+func (h *DriverHub) NotifyPriceResponse(driverID int64, payload DriverPriceResponsePayload) {
+	payload.Type = "order_offer_price_response"
+
+	h.mu.RLock()
+	conn, ok := h.conns[driverID]
+	h.mu.RUnlock()
+	if !ok {
+		return
+	}
+
+	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	if err := conn.WriteJSON(payload); err != nil {
+		h.logger.Errorf("notify price response to driver %d failed: %v", driverID, err)
 	}
 }
 
