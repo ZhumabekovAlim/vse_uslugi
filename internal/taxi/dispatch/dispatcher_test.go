@@ -66,6 +66,21 @@ type stubDriverHub struct{ sent int }
 
 func (s *stubDriverHub) SendOffer(driverID int64, payload ws.DriverOfferPayload) { s.sent++ }
 
+type stubPassengers struct {
+	passenger repo.Passenger
+	err       error
+}
+
+func (s *stubPassengers) Get(ctx context.Context, id int64) (repo.Passenger, error) {
+	if s.err != nil {
+		return repo.Passenger{}, s.err
+	}
+	if s.passenger.ID == 0 {
+		s.passenger.ID = id
+	}
+	return s.passenger, nil
+}
+
 type stubPassengerHub struct {
 	events []ws.PassengerEvent
 }
@@ -88,6 +103,7 @@ func TestDispatcherRadiusExpansion(t *testing.T) {
 	dispatchRepo := &stubDispatch{}
 	offers := &stubOffers{}
 	driverHub := &stubDriverHub{}
+	passengers := &stubPassengers{}
 	passengerHub := &stubPassengerHub{}
 
 	cfg := ConfigAdapter{
@@ -102,7 +118,7 @@ func TestDispatcherRadiusExpansion(t *testing.T) {
 		SearchTimeout:     time.Hour,
 	}
 
-	d := New(orders, dispatchRepo, offers, locator, driverHub, passengerHub, testLogger{}, cfg)
+	d := New(orders, dispatchRepo, offers, passengers, locator, driverHub, passengerHub, testLogger{}, cfg)
 
 	now := time.Now()
 	rec := repo.DispatchRecord{OrderID: 1, RadiusM: cfg.SearchRadiusStart, NextTickAt: now, CreatedAt: now}
@@ -128,6 +144,7 @@ func TestDispatcherTimeoutCancelsOrder(t *testing.T) {
 	dispatchRepo := &stubDispatch{}
 	offers := &stubOffers{}
 	driverHub := &stubDriverHub{}
+	passengers := &stubPassengers{}
 	passengerHub := &stubPassengerHub{}
 
 	cfg := ConfigAdapter{
@@ -142,7 +159,7 @@ func TestDispatcherTimeoutCancelsOrder(t *testing.T) {
 		SearchTimeout:     timeout,
 	}
 
-	d := New(orders, dispatchRepo, offers, locator, driverHub, passengerHub, testLogger{}, cfg)
+	d := New(orders, dispatchRepo, offers, passengers, locator, driverHub, passengerHub, testLogger{}, cfg)
 
 	now := time.Now()
 	rec := repo.DispatchRecord{OrderID: 1, RadiusM: cfg.SearchRadiusStart, NextTickAt: now, CreatedAt: now.Add(-timeout - time.Minute)}

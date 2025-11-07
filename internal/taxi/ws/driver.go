@@ -39,6 +39,29 @@ type DriverOfferPayload struct {
 	EtaSeconds   int                `json:"eta_s"`
 	ExpiresInSec int                `json:"expires_in"`
 	Route        []DriverRoutePoint `json:"route,omitempty"`
+	Passenger    *DriverPassenger   `json:"passenger,omitempty"`
+}
+
+// DriverPassenger describes passenger data included with order offers.
+type DriverPassenger struct {
+	ID           int64      `json:"id"`
+	Name         string     `json:"name"`
+	Surname      string     `json:"surname"`
+	Middlename   string     `json:"middlename,omitempty"`
+	Phone        string     `json:"phone"`
+	Email        string     `json:"email"`
+	CityID       *int64     `json:"city_id,omitempty"`
+	YearsOfExp   *int64     `json:"years_of_exp,omitempty"`
+	DocOfProof   string     `json:"doc_of_proof,omitempty"`
+	ReviewRating *float64   `json:"review_rating,omitempty"`
+	Role         string     `json:"role,omitempty"`
+	Latitude     string     `json:"latitude,omitempty"`
+	Longitude    string     `json:"longitude,omitempty"`
+	AvatarPath   string     `json:"avatar_path,omitempty"`
+	Skills       string     `json:"skills,omitempty"`
+	IsOnline     *bool      `json:"is_online,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
 }
 
 // DriverHub manages driver websocket connections.
