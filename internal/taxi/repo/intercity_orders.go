@@ -295,3 +295,21 @@ WHERE id = ? AND passenger_id = ? AND status = 'open'`, id, passengerID)
 	}
 	return nil
 }
+
+// CancelByDriver closes an order initiated or accepted by the specified driver.
+func (r *IntercityOrdersRepo) CancelByDriver(ctx context.Context, id, driverID int64) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE intercity_orders
+SET status = 'closed', closed_at = NOW()
+WHERE id = ? AND driver_id = ? AND status = 'open'`, id, driverID)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}

@@ -140,14 +140,14 @@
   - события `order_offer` со структурой `DriverOfferPayload` (ID заказа, маршрут, цена, ETA, срок действия, карточка пассажира); 【F:internal/taxi/ws/driver.go†L22-L166】
   - события `order_offer_closed` с полями `order_id` и `reason`, которые приходят сразу после того, как другой водитель подтвердил заказ, чтобы моментально убрать карточку из списка офферов. 【F:internal/taxi/ws/driver.go†L168-L204】【F:internal/taxi/http/server.go†L884-L918】【F:internal/taxi/repo/orders.go†L476-L509】
   - события `order_offer_price_response` с итогом (`accepted|declined`) и согласованной ценой — отправляются после решения пассажира по предложенной стоимости. 【F:internal/taxi/ws/driver.go†L232-L293】【F:internal/taxi/http/server.go†L1674-L1745】
-  - широковещательные уведомления `intercity_order` о создании и закрытии объявлений. Поле `action` может быть `created` или `closed`, объект `order` соответствует `intercityOrderResponse`. 【F:internal/taxi/ws/intercity.go†L3-L8】【F:internal/taxi/http/server.go†L1489-L1577】
+  - широковещательные уведомления `intercity_order` о создании и закрытии объявлений (включая отмену водителем). Поле `action` может быть `created` или `closed`, объект `order` соответствует `intercityOrderResponse`. 【F:internal/taxi/ws/intercity.go†L3-L8】【F:internal/taxi/http/server.go†L1565-L1657】
 
 ### `/ws/passenger`
 
 - **Подключение**: GET `wss://<домен>/ws/passenger?passenger_id=<id>`. 【F:internal/taxi/ws/passenger.go†L35-L53】
 - **Сообщения сервера**: два канала данных приходят на одном соединении:
   - события `PassengerEvent` с типами `order_assigned`, `order_status`, расширением радиуса поиска, произвольными сообщениями, а также уведомлениями `offer_price` и `offer_price_declined` для переговоров о цене. 【F:internal/taxi/ws/passenger.go†L12-L97】【F:internal/taxi/http/server.go†L1621-L1745】
-  - широковещательные уведомления `intercity_order` с полями `action: created|closed` и вложенной карточкой объявления, отправляемые при создании и закрытии межгородских заказов. 【F:internal/taxi/ws/intercity.go†L3-L8】【F:internal/taxi/http/server.go†L1489-L1577】
+  - широковещательные уведомления `intercity_order` с полями `action: created|closed` и вложенной карточкой объявления, отправляемые при создании и закрытии межгородских заказов. 【F:internal/taxi/ws/intercity.go†L3-L8】【F:internal/taxi/http/server.go†L1565-L1657】
 - **Назначение**: доставка статусов текущих поездок и моментальное обновление межгородских объявлений без повторных HTTP-запросов.
 
 ## Потоки взаимодействия
