@@ -1768,17 +1768,9 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 		Price:    req.Price,
 		Driver:   &driverInfo,
 	}
-	if s.logger != nil {
-		s.logger.Infof("HTTP handleOfferPrice → WS queue: passenger_id=%d payload=%+v", order.PassengerID, ev)
-	}
 
 	// фактическая отправка в WS
 	s.passengerHub.PushOrderEvent(order.PassengerID, ev)
-
-	// 👇👇 (опционально) лог «после попытки отправки»
-	if s.logger != nil {
-		s.logger.Infof("HTTP handleOfferPrice → WS dispatched: passenger_id=%d order_id=%d driver_id=%d", order.PassengerID, req.OrderID, driverID)
-	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "price_proposed"})
 }
@@ -2030,14 +2022,12 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 	passengerID, err := parseAuthID(r, "X-Passenger-ID")
 	if err != nil {
 		msg := "missing passenger id"
-		s.logger.Errorf("cancel %d failed: %s", order.ID, msg)
 		s.pushPassengerError(order.PassengerID, order.ID, msg)
 		writeError(w, http.StatusUnauthorized, msg)
 		return
 	}
 	if passengerID != order.PassengerID {
 		msg := "access denied"
-		s.logger.Infof("passenger %d tried to cancel order %d they do not own", passengerID, order.ID)
 		s.pushPassengerError(passengerID, order.ID, msg)
 		writeError(w, http.StatusForbidden, msg)
 		return
@@ -2047,14 +2037,12 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 	case "searching", "accepted", "arrived":
 	default:
 		msg := fmt.Sprintf("order cannot be canceled in status %s", order.Status)
-		s.logger.Infof("passenger %d tried to cancel order %d in status %s", passengerID, order.ID, order.Status)
 		s.pushPassengerError(passengerID, order.ID, msg)
 		writeError(w, http.StatusConflict, "cannot cancel in current status")
 		return
 	}
 	if !fsm.CanTransition(order.Status, targetStatus) {
 		msg := "invalid transition"
-		s.logger.Errorf("passenger %d cancel %d invalid transition from %s", passengerID, order.ID, order.Status)
 		s.pushPassengerError(passengerID, order.ID, msg)
 		writeError(w, http.StatusConflict, msg)
 		return
@@ -2064,23 +2052,18 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 	if err := s.ordersRepo.UpdateStatusCAS(ctx, order.ID, order.Status, targetStatus); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			msg := "order status changed"
-			s.logger.Infof("passenger %d cancel %d conflict: %v", passengerID, order.ID, err)
 			s.pushPassengerError(passengerID, order.ID, msg)
 			writeError(w, http.StatusConflict, msg)
 			return
 		}
 		msg := "update status failed"
-		s.logger.Errorf("passenger %d cancel %d failed: %v", passengerID, order.ID, err)
 		s.pushPassengerError(passengerID, order.ID, msg)
 		writeError(w, http.StatusInternalServerError, msg)
 		return
 	}
 
-	s.logger.Infof("passenger %d canceled order %d (prev=%s)", passengerID, order.ID, order.Status)
-
 	// 1) совместимость
 	if s.passengerHub != nil {
-		s.logger.Infof("WS → passenger %d: order_status canceled (order=%d)", passengerID, order.ID)
 		s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{
 			Type:    "order_status",
 			OrderID: order.ID,
@@ -2090,7 +2073,6 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 
 	// 2) явное событие
 	if s.passengerHub != nil {
-		s.logger.Infof("WS → passenger %d: order_canceled (order=%d)", passengerID, order.ID)
 		s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{
 			Type:    "order_canceled",
 			OrderID: order.ID,
@@ -2122,7 +2104,6 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 			for id := range recipients {
 				ids = append(ids, id)
 			}
-			s.logger.Infof("WS → drivers %v: offer_closed (order=%d reason=%s)", ids, order.ID, reason)
 			s.driverHub.NotifyOfferClosed(order.ID, ids, reason)
 		}
 	}
