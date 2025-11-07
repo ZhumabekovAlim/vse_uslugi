@@ -269,7 +269,6 @@ type intercityOrderPayload struct {
 	TripType      string `json:"trip_type"`
 	Comment       string `json:"comment"`
 	Price         int    `json:"price"`
-	ContactPhone  string `json:"contact_phone"`
 	DepartureDate string `json:"departure_date"`
 	DepartureTime string `json:"departure_time"`
 }
@@ -283,7 +282,6 @@ func (p *intercityOrderPayload) normalize() {
 	p.ToLocation = strings.TrimSpace(p.ToLocation)
 	p.TripType = strings.TrimSpace(strings.ToLower(p.TripType))
 	p.Comment = strings.TrimSpace(p.Comment)
-	p.ContactPhone = strings.TrimSpace(p.ContactPhone)
 	p.DepartureDate = strings.TrimSpace(p.DepartureDate)
 	p.DepartureTime = strings.TrimSpace(p.DepartureTime)
 }
@@ -300,9 +298,6 @@ func (p intercityOrderPayload) validate() string {
 	}
 	if _, ok := allowedIntercityTripTypes[p.TripType]; !ok {
 		return "invalid trip_type"
-	}
-	if p.ContactPhone == "" {
-		return "contact_phone is required"
 	}
 	if p.DepartureDate == "" {
 		return "departure_date is required"
@@ -1363,7 +1358,6 @@ func (s *Server) createIntercityOrder(w http.ResponseWriter, r *http.Request) {
 		ToLocation:    payload.ToLocation,
 		TripType:      payload.TripType,
 		Price:         payload.Price,
-		ContactPhone:  payload.ContactPhone,
 		DepartureDate: departure,
 		Status:        "open",
 	}

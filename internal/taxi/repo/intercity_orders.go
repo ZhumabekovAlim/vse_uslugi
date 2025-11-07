@@ -38,15 +38,14 @@ func NewIntercityOrdersRepo(db *sql.DB) *IntercityOrdersRepo {
 // Create inserts a new intercity order and returns its identifier.
 func (r *IntercityOrdersRepo) Create(ctx context.Context, order IntercityOrder) (int64, error) {
 	res, err := r.db.ExecContext(ctx, `INSERT INTO intercity_orders
-(passenger_id, from_location, to_location, trip_type, comment, price, contact_phone, departure_date, departure_time, status)
-VALUES (?,?,?,?,?,?,?,?,?,?)`,
+(passenger_id, from_location, to_location, trip_type, comment, price, departure_date, departure_time, status)
+VALUES (?,?,?,?,?,?,?,?,?)`,
 		order.PassengerID,
 		order.FromLocation,
 		order.ToLocation,
 		order.TripType,
 		order.Comment,
 		order.Price,
-		order.ContactPhone,
 		order.DepartureDate,
 		order.DepartureTime,
 		order.Status,
@@ -64,9 +63,11 @@ VALUES (?,?,?,?,?,?,?,?,?,?)`,
 // Get returns a single intercity order by id.
 func (r *IntercityOrdersRepo) Get(ctx context.Context, id int64) (IntercityOrder, error) {
 	row := r.db.QueryRowContext(ctx, `SELECT
-id, passenger_id, from_location, to_location, trip_type, comment, price, contact_phone,
-departure_date, departure_time, status, created_at, updated_at, closed_at
-FROM intercity_orders WHERE id = ?`, id)
+io.id, io.passenger_id, io.from_location, io.to_location, io.trip_type, io.comment, io.price, u.phone AS contact_phone,
+io.departure_date, io.departure_time, io.status, io.created_at, io.updated_at, io.closed_at
+FROM intercity_orders io
+JOIN users u ON io.passenger_id = u.id
+WHERE io.id = ?`, id)
 	var order IntercityOrder
 	err := row.Scan(
 		&order.ID,
@@ -105,40 +106,40 @@ type IntercityOrdersFilter struct {
 // List returns orders matching the filter.
 func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFilter) ([]IntercityOrder, error) {
 	var (
-		parts = []string{"SELECT id, passenger_id, from_location, to_location, trip_type, comment, price, contact_phone, departure_date, departure_time, status, created_at, updated_at, closed_at FROM intercity_orders"}
+		parts = []string{"SELECT io.id, io.passenger_id, io.from_location, io.to_location, io.trip_type, io.comment, io.price, u.phone AS contact_phone, io.departure_date, io.departure_time, io.status, io.created_at, io.updated_at, io.closed_at FROM intercity_orders io JOIN users u ON io.passenger_id = u.id"}
 		where []string
 		args  []interface{}
 	)
 
 	if filter.From != "" {
-		where = append(where, "LOWER(from_location) LIKE ?")
+		where = append(where, "LOWER(io.from_location) LIKE ?")
 		args = append(args, "%"+strings.ToLower(filter.From)+"%")
 	}
 	if filter.To != "" {
-		where = append(where, "LOWER(to_location) LIKE ?")
+		where = append(where, "LOWER(io.to_location) LIKE ?")
 		args = append(args, "%"+strings.ToLower(filter.To)+"%")
 	}
 	if filter.Date != nil {
-		where = append(where, "departure_date = ?")
+		where = append(where, "io.departure_date = ?")
 		args = append(args, filter.Date.Format("2006-01-02"))
 	}
 	if filter.Time != nil {
-		where = append(where, "departure_time = ?")
+		where = append(where, "io.departure_time = ?")
 		args = append(args, filter.Time.Format("15:04:05"))
 	}
 	if filter.Status != "" {
-		where = append(where, "status = ?")
+		where = append(where, "io.status = ?")
 		args = append(args, filter.Status)
 	}
 	if filter.PassengerID > 0 {
-		where = append(where, "passenger_id = ?")
+		where = append(where, "io.passenger_id = ?")
 		args = append(args, filter.PassengerID)
 	}
 	if len(where) > 0 {
 		parts = append(parts, "WHERE "+strings.Join(where, " AND "))
 	}
 
-	parts = append(parts, "ORDER BY departure_date ASC, departure_time ASC, created_at DESC")
+	parts = append(parts, "ORDER BY io.departure_date ASC, io.departure_time ASC, io.created_at DESC")
 
 	if filter.Limit > 0 {
 		parts = append(parts, "LIMIT ?")
