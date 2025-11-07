@@ -586,6 +586,7 @@ func (r *OffersRepo) ExpireOffers(ctx context.Context, now time.Time) error {
 
 var ErrNoRows = errors.New("not found")
 
+// GetActiveOfferDriverIDs возвращает id водителей, у кого по заказу висит актуальный оффер.
 func (r *OffersRepo) GetActiveOfferDriverIDs(ctx context.Context, orderID int64) ([]int64, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT driver_id

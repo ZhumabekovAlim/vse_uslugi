@@ -1977,22 +1977,23 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 		return
 	}
 
-	// ДОБАВЬ ЭТО ↓↓↓
 	s.logger.Infof("passenger %d canceled order %d (previous status: %s)", passengerID, order.ID, order.Status)
 
-	// 1) два события пассажиру (совместимость + “явный” тип)
+	// 1) событие совместимости
 	s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{
 		Type:    "order_status",
 		OrderID: order.ID,
 		Status:  targetStatus, // "canceled"
 	})
+
+	// 2) явное событие отмены (многие фронты ловят именно его)
 	s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{
 		Type:    "order_canceled",
 		OrderID: order.ID,
 		Status:  targetStatus,
 	})
 
-	// 2) закрыть офферы водителям, кому рассылали, чтобы у них исчезло предложение
+	// 3) уведомим водителей: закроем офферы, если ещё висят
 	if s.driverHub != nil && s.offersRepo != nil {
 		if driverIDs, err := s.offersRepo.GetActiveOfferDriverIDs(ctx, order.ID); err == nil && len(driverIDs) > 0 {
 			s.driverHub.NotifyOfferClosed(order.ID, driverIDs, "canceled_by_passenger")

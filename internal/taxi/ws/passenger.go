@@ -120,14 +120,26 @@ func (h *PassengerHub) safeWrite(passengerID int64, writer func(*websocket.Conn)
 
 // PushOrderEvent sends event to passenger.
 func (h *PassengerHub) PushOrderEvent(passengerID int64, event PassengerEvent) {
-	data, err := json.Marshal(event)
+	eventBytes, err := json.Marshal(event)
 	if err != nil {
 		return
 	}
-	h.safeWrite(passengerID, func(conn *websocket.Conn) error {
-		h.logger.Infof("WS → passenger %d: %s", passengerID, string(data)) // <<< лог
-		return conn.WriteMessage(websocket.TextMessage, data)
-	})
+	h.mu.RLock()
+	conn := h.conns[passengerID]
+	h.mu.RUnlock()
+	if conn == nil {
+		return
+	}
+
+	// ДОБАВЬ ЭТО:
+	if h.logger != nil {
+		h.logger.Infof("WS → passenger %d: %s", passengerID, string(eventBytes))
+	}
+
+	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	if err := conn.WriteMessage(websocket.TextMessage, eventBytes); err != nil {
+		h.logger.Errorf("passenger send failed: %v", err)
+	}
 }
 
 // BroadcastEvent sends the same payload to all connected passengers.
