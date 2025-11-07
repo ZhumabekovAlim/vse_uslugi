@@ -224,6 +224,10 @@ func (app *application) routes() http.Handler {
 	mux.Get("/api/v1/driver/orders", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
 	mux.Post("/api/v1/offers/accept", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
 	mux.Post("/api/v1/payments/airbapay/webhook", standardMiddleware.Then(app.taxiMux))
+	mux.Post("/api/v1/intercity/orders", standardMiddleware.Then(app.taxiMux))
+	mux.Post("/api/v1/intercity/orders/list", standardMiddleware.Then(app.taxiMux))
+	mux.Get("/api/v1/intercity/orders/:id", standardMiddleware.Then(app.taxiMux))
+	mux.Post("/api/v1/intercity/orders/:id/close", standardMiddleware.Then(app.taxiMux))
 	mux.Get("/ws/passenger", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("client")).Then(app.wsWithQueryUserID(app.taxiMux, "passenger_id")))
 	mux.Get("/ws/driver", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("worker")).Then(app.wsWithQueryUserID(app.taxiMux, "driver_id")))
 
