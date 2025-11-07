@@ -108,7 +108,21 @@
 - **Метод**: `POST`
 - **Заголовок**: `X-Driver-ID`.
 - **Вход**: `order_id`.
-- **Логика**: проверяет существование водителя, подтверждает оффер, назначает водителя заказу и уведомляет пассажира о назначении. 【F:internal/taxi/http/server.go†L884-L920】
+- **Логика**: проверяет существование водителя, подтверждает оффер, назначает водителя заказу и, если согласованная цена отличается от первоначальной, обновляет стоимость поездки для обоих участников. 【F:internal/taxi/http/server.go†L1751-L1817】
+
+### `/api/v1/offers/propose_price`
+
+- **Метод**: `POST`
+- **Заголовок**: `X-Driver-ID`.
+- **Вход**: `order_id`, `price` (целое число в тенге).
+- **Особенности**: допускается только для активных офферов в статусе `searching`; цена сохраняется в оффере и отправляется пассажиру отдельным событием `offer_price` по WebSocket. 【F:internal/taxi/http/server.go†L1588-L1645】
+
+### `/api/v1/offers/respond`
+
+- **Метод**: `POST`
+- **Заголовок**: `X-Passenger-ID`.
+- **Вход**: `order_id`, `driver_id`, `decision: accept|decline`.
+- **Результат**: при `accept` закрепляет водителя за заказом, обновляет цену (если водитель предложил новую) и закрывает остальные офферы; при `decline` информирует водителя и оставляет заказ в поиске. Все решения транслируются событиями `order_offer_price_response` водителю и `offer_price_declined` пассажиру. 【F:internal/taxi/http/server.go†L1647-L1745】
 
 ### `/api/v1/payments/airbapay/webhook`
 
@@ -125,13 +139,14 @@
 - **Входящие сообщения сервера**:
   - события `order_offer` со структурой `DriverOfferPayload` (ID заказа, маршрут, цена, ETA, срок действия, карточка пассажира); 【F:internal/taxi/ws/driver.go†L22-L166】
   - события `order_offer_closed` с полями `order_id` и `reason`, которые приходят сразу после того, как другой водитель подтвердил заказ, чтобы моментально убрать карточку из списка офферов. 【F:internal/taxi/ws/driver.go†L168-L204】【F:internal/taxi/http/server.go†L884-L918】【F:internal/taxi/repo/orders.go†L476-L509】
+  - события `order_offer_price_response` с итогом (`accepted|declined`) и согласованной ценой — отправляются после решения пассажира по предложенной стоимости. 【F:internal/taxi/ws/driver.go†L232-L293】【F:internal/taxi/http/server.go†L1674-L1745】
   - широковещательные уведомления `intercity_order` о создании и закрытии объявлений. Поле `action` может быть `created` или `closed`, объект `order` соответствует `intercityOrderResponse`. 【F:internal/taxi/ws/intercity.go†L3-L8】【F:internal/taxi/http/server.go†L1489-L1577】
 
 ### `/ws/passenger`
 
 - **Подключение**: GET `wss://<домен>/ws/passenger?passenger_id=<id>`. 【F:internal/taxi/ws/passenger.go†L35-L53】
 - **Сообщения сервера**: два канала данных приходят на одном соединении:
-  - события `PassengerEvent` с типами `order_assigned`, `order_status`, расширением радиуса поиска и произвольными сообщениями; 【F:internal/taxi/ws/passenger.go†L12-L97】
+  - события `PassengerEvent` с типами `order_assigned`, `order_status`, расширением радиуса поиска, произвольными сообщениями, а также уведомлениями `offer_price` и `offer_price_declined` для переговоров о цене. 【F:internal/taxi/ws/passenger.go†L12-L97】【F:internal/taxi/http/server.go†L1621-L1745】
   - широковещательные уведомления `intercity_order` с полями `action: created|closed` и вложенной карточкой объявления, отправляемые при создании и закрытии межгородских заказов. 【F:internal/taxi/ws/intercity.go†L3-L8】【F:internal/taxi/http/server.go†L1489-L1577】
 - **Назначение**: доставка статусов текущих поездок и моментальное обновление межгородских объявлений без повторных HTTP-запросов.
 
@@ -142,12 +157,13 @@
 1. Клиент рассчитывает цену через `/api/v1/route/quote` (опционально). 【F:internal/taxi/http/server.go†L477-L561】
 2. Отправляет `/api/v1/orders` с выбранной ценой и маршрутом. 【F:internal/taxi/http/server.go†L629-L761】
 3. Подписывается на `/ws/passenger` для получения статусов. 【F:internal/taxi/http/server.go†L249-L258】【F:internal/taxi/ws/passenger.go†L39-L97】
-4. Получает push о назначении водителя и дальнейших изменениях.
+4. При поступлении предложений цены от водителей получает событие `offer_price` с идентификаторами водителя и суммой. 【F:internal/taxi/http/server.go†L1621-L1653】
+5. После собственного решения или автоматического назначения видит `order_assigned` и дальнейшие обновления статуса поездки. 【F:internal/taxi/http/server.go†L1674-L1745】【F:internal/taxi/http/server.go†L1751-L1812】
 
 ### Работа водителя
 
 1. Подключается к `/ws/driver`, передаёт координаты и статус. 【F:internal/taxi/ws/driver.go†L66-L134】
-2. Получает `order_offer`, подтверждает его через `/api/v1/offers/accept`. 【F:internal/taxi/ws/driver.go†L29-L147】【F:internal/taxi/http/server.go†L884-L920】
+2. Получает `order_offer`, при необходимости отправляет свою цену через `/api/v1/offers/propose_price` и ожидает решение пассажира по событию `order_offer_price_response`, либо сразу подтверждает заказ через `/api/v1/offers/accept`. 【F:internal/taxi/http/server.go†L1588-L1817】【F:internal/taxi/ws/driver.go†L22-L293】
 3. По мере выполнения заказа отправляет обновления статуса через `/api/v1/orders/{id}/status` (например, `arrived`, `picked_up`, `completed`). 【F:internal/taxi/http/server.go†L948-L992】【F:internal/taxi/fsm/fsm.go†L9-L33】
 
 ### Онлайн-оплата
