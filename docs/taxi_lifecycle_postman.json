@@ -19,6 +19,18 @@
       "key": "orderId",
       "value": "f1a2b3c4-d5e6-7890-abcd-ef1234567890",
       "type": "string"
+    },
+    {
+      "key": "driver_token",
+      "value": "<jwt_for_worker>",
+      "type": "string",
+      "description": "JWT токен авторизованного водителя"
+    },
+    {
+      "key": "passenger_token",
+      "value": "<jwt_for_passenger>",
+      "type": "string",
+      "description": "JWT токен авторизованного пассажира"
     }
   ],
   "item": [
@@ -27,6 +39,10 @@
       "request": {
         "method": "POST",
         "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driver_token}}"
+          },
           {
             "key": "Content-Type",
             "value": "application/json"
@@ -55,7 +71,12 @@
       "name": "Advance waiting window",
       "request": {
         "method": "POST",
-        "header": [],
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driver_token}}"
+          }
+        ],
         "url": {
           "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/waiting/advance",
           "host": [
@@ -77,6 +98,10 @@
       "request": {
         "method": "POST",
         "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driver_token}}"
+          },
           {
             "key": "Content-Type",
             "value": "application/json"
@@ -106,6 +131,10 @@
       "request": {
         "method": "POST",
         "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driver_token}}"
+          },
           {
             "key": "Content-Type",
             "value": "application/json"
@@ -137,6 +166,10 @@
         "method": "POST",
         "header": [
           {
+            "key": "Authorization",
+            "value": "Bearer {{driver_token}}"
+          },
+          {
             "key": "Content-Type",
             "value": "application/json"
           }
@@ -165,6 +198,10 @@
       "request": {
         "method": "POST",
         "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driver_token}}"
+          },
           {
             "key": "Content-Type",
             "value": "application/json"
@@ -195,6 +232,10 @@
         "method": "POST",
         "header": [
           {
+            "key": "Authorization",
+            "value": "Bearer {{driver_token}}"
+          },
+          {
             "key": "Content-Type",
             "value": "application/json"
           }
@@ -223,6 +264,10 @@
       "request": {
         "method": "POST",
         "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driver_token}}"
+          },
           {
             "key": "Content-Type",
             "value": "application/json"
@@ -253,6 +298,10 @@
         "method": "POST",
         "header": [
           {
+            "key": "Authorization",
+            "value": "Bearer {{passenger_token}}"
+          },
+          {
             "key": "Content-Type",
             "value": "application/json"
           }
@@ -282,6 +331,10 @@
         "method": "POST",
         "header": [
           {
+            "key": "Authorization",
+            "value": "Bearer {{driver_token}}"
+          },
+          {
             "key": "Content-Type",
             "value": "application/json"
           }
@@ -310,6 +363,10 @@
       "request": {
         "method": "POST",
         "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driver_token}}"
+          },
           {
             "key": "Content-Type",
             "value": "application/json"
