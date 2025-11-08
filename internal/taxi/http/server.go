@@ -2514,10 +2514,6 @@ func (s *Server) closeIntercityOrder(w http.ResponseWriter, r *http.Request, id 
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	if payload.PassengerID <= 0 {
-		writeError(w, http.StatusBadRequest, "passenger_id is required")
-		return
-	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
