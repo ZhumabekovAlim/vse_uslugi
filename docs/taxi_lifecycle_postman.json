@@ -1,0 +1,338 @@
+{
+  "info": {
+    "name": "Taxi Lifecycle Driver Actions",
+    "description": "Collection of driver lifecycle API calls covering arrival, waiting, trip management, completion, and cancellations.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.example.com",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "f1a2b3c4-d5e6-7890-abcd-ef1234567890",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Arrive at pickup",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timestamp\": \"2023-10-05T10:10:00Z\",\n  \"position\": {\n    \"lat\": 43.250000,\n    \"lon\": 76.900000\n  },\n  \"speed_kph\": 2.0\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/arrive",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "taxi",
+            "orders",
+            "{{orderId}}",
+            "arrive"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Advance waiting window",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/waiting/advance",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "taxi",
+            "orders",
+            "{{orderId}}",
+            "waiting",
+            "advance"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Start trip",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timestamp\": \"2023-10-05T10:15:00Z\",\n  \"position\": {\n    \"lat\": 43.250000,\n    \"lon\": 76.900000\n  },\n  \"speed_kph\": 0.5,\n  \"pin_confirmed\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/start",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "taxi",
+            "orders",
+            "{{orderId}}",
+            "start"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Reach next waypoint",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timestamp\": \"2023-10-05T10:25:00Z\",\n  \"position\": {\n    \"lat\": 43.255000,\n    \"lon\": 76.905000\n  },\n  \"speed_kph\": 10.0\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/waypoints/next",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "taxi",
+            "orders",
+            "{{orderId}}",
+            "waypoints",
+            "next"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Start in-trip pause",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timestamp\": \"2023-10-05T10:28:00Z\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/pause",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "taxi",
+            "orders",
+            "{{orderId}}",
+            "pause"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Resume after pause",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timestamp\": \"2023-10-05T10:30:00Z\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/resume",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "taxi",
+            "orders",
+            "{{orderId}}",
+            "resume"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Finish trip",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timestamp\": \"2023-10-05T10:35:00Z\",\n  \"position\": {\n    \"lat\": 43.260000,\n    \"lon\": 76.910000\n  },\n  \"speed_kph\": 1.0\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/finish",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "taxi",
+            "orders",
+            "{{orderId}}",
+            "finish"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Confirm cash payment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timestamp\": \"2023-10-05T10:36:00Z\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/confirm-cash",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "taxi",
+            "orders",
+            "{{orderId}}",
+            "confirm-cash"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Cancel by passenger",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"by\": \"passenger\",\n  \"reason\": \"changed plans\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "taxi",
+            "orders",
+            "{{orderId}}",
+            "cancel"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Cancel by driver",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"by\": \"driver\",\n  \"reason\": \"flat tire\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "taxi",
+            "orders",
+            "{{orderId}}",
+            "cancel"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Mark no-show",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timestamp\": \"2023-10-05T10:20:00Z\",\n  \"position\": {\n    \"lat\": 43.250500,\n    \"lon\": 76.900500\n  },\n  \"speed_kph\": 0.3,\n  \"contact_attempts\": 2\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/taxi/orders/{{orderId}}/no-show",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "taxi",
+            "orders",
+            "{{orderId}}",
+            "no-show"
+          ]
+        }
+      }
+    }
+  ]
+}

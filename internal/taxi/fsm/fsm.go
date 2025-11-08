@@ -6,17 +6,113 @@ import (
 	"errors"
 )
 
+// Status constants used by the taxi order state machine.
+const (
+	StatusCreated             = "created"
+	StatusSearching           = "searching"
+	StatusAccepted            = "accepted"
+	StatusArrived             = "arrived"
+	StatusPickedUp            = "picked_up"
+	StatusCompleted           = "completed"
+	StatusPaid                = "paid"
+	StatusClosed              = "closed"
+	StatusNotFound            = "not_found"
+	StatusCanceled            = "canceled"
+	StatusAssigned            = "assigned"
+	StatusDriverAtPickup      = "driver_at_pickup"
+	StatusWaitingFree         = "waiting_free"
+	StatusWaitingPaid         = "waiting_paid"
+	StatusInProgress          = "in_progress"
+	StatusAtLastPoint         = "at_last_point"
+	StatusCanceledByPassenger = "canceled_by_passenger"
+	StatusCanceledByDriver    = "canceled_by_driver"
+	StatusNoShow              = "no_show"
+)
+
 var transitions = map[string]map[string]struct{}{
-	"created":   {"searching": {}},
-	"searching": {"accepted": {}, "not_found": {}, "canceled": {}},
-	"accepted":  {"arrived": {}, "canceled": {}},
-	"arrived":   {"picked_up": {}, "canceled": {}},
-	"picked_up": {"completed": {}, "canceled": {}},
-	"completed": {"paid": {}, "closed": {}},
-	"paid":      {"closed": {}},
-	"closed":    {},
-	"not_found": {"closed": {}},
-	"canceled":  {"closed": {}},
+	StatusCreated:   {StatusSearching: {}},
+	StatusSearching: {StatusAccepted: {}, StatusNotFound: {}, StatusCanceled: {}},
+	StatusAccepted: {
+		StatusArrived:             {},
+		StatusAssigned:            {},
+		StatusCanceled:            {},
+		StatusCanceledByPassenger: {},
+		StatusCanceledByDriver:    {},
+	},
+	StatusAssigned: {
+		StatusDriverAtPickup:      {},
+		StatusArrived:             {},
+		StatusWaitingFree:         {},
+		StatusWaitingPaid:         {},
+		StatusCanceledByPassenger: {},
+		StatusCanceledByDriver:    {},
+	},
+	StatusDriverAtPickup: {
+		StatusWaitingFree:         {},
+		StatusWaitingPaid:         {},
+		StatusCanceledByPassenger: {},
+		StatusCanceledByDriver:    {},
+	},
+	StatusWaitingFree: {
+		StatusWaitingPaid:         {},
+		StatusInProgress:          {},
+		StatusPickedUp:            {},
+		StatusCanceledByPassenger: {},
+		StatusCanceledByDriver:    {},
+		StatusNoShow:              {},
+	},
+	StatusWaitingPaid: {
+		StatusInProgress:          {},
+		StatusPickedUp:            {},
+		StatusCanceledByPassenger: {},
+		StatusCanceledByDriver:    {},
+		StatusNoShow:              {},
+	},
+	StatusArrived: {
+		StatusPickedUp:            {},
+		StatusCanceled:            {},
+		StatusCanceledByPassenger: {},
+		StatusCanceledByDriver:    {},
+	},
+	StatusPickedUp: {
+		StatusCompleted:           {},
+		StatusInProgress:          {},
+		StatusCanceled:            {},
+		StatusCanceledByPassenger: {},
+		StatusCanceledByDriver:    {},
+	},
+	StatusInProgress: {
+		StatusAtLastPoint:         {},
+		StatusCompleted:           {},
+		StatusCanceled:            {},
+		StatusCanceledByPassenger: {},
+		StatusCanceledByDriver:    {},
+	},
+	StatusAtLastPoint: {
+		StatusCompleted:        {},
+		StatusCanceledByDriver: {},
+	},
+	StatusCompleted: {
+		StatusPaid:   {},
+		StatusClosed: {},
+	},
+	StatusPaid:   {StatusClosed: {}},
+	StatusClosed: {},
+	StatusNotFound: {
+		StatusClosed: {},
+	},
+	StatusCanceled: {
+		StatusClosed: {},
+	},
+	StatusCanceledByPassenger: {
+		StatusClosed: {},
+	},
+	StatusCanceledByDriver: {
+		StatusClosed: {},
+	},
+	StatusNoShow: {
+		StatusClosed: {},
+	},
 }
 
 // CanTransition returns whether the order can transition from the current status to the target status.
