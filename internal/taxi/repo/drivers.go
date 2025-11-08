@@ -10,6 +10,9 @@ import (
 type Driver struct {
 	ID            int64
 	UserID        int64
+	Name          string
+	Surname       string
+	Middlename    sql.NullString
 	Status        string
 	CarModel      sql.NullString
 	CarColor      sql.NullString
@@ -59,13 +62,17 @@ func (r *DriversRepo) Create(ctx context.Context, d Driver) (int64, error) {
 func (r *DriversRepo) Get(ctx context.Context, id int64) (Driver, error) {
 	var d Driver
 	row := r.db.QueryRowContext(ctx, `SELECT
-        id, user_id, status, car_model, car_color, car_number, tech_passport,
-        car_photo_front, car_photo_back, car_photo_left, car_photo_right,
-        driver_photo, phone, iin, id_card_front, id_card_back, rating, updated_at
-    FROM drivers WHERE id = ?`, id)
+        d.id, d.user_id, d.status, d.car_model, d.car_color, d.car_number, d.tech_passport,
+        d.car_photo_front, d.car_photo_back, d.car_photo_left, d.car_photo_right,
+        d.driver_photo, d.phone, d.iin, d.id_card_front, d.id_card_back, d.rating, d.updated_at,
+        u.name, u.surname, u.middlename
+    FROM drivers d
+    JOIN users u ON u.id = d.user_id
+    WHERE d.id = ?`, id)
 	err := row.Scan(&d.ID, &d.UserID, &d.Status, &d.CarModel, &d.CarColor, &d.CarNumber, &d.TechPassport,
 		&d.CarPhotoFront, &d.CarPhotoBack, &d.CarPhotoLeft, &d.CarPhotoRight,
-		&d.DriverPhoto, &d.Phone, &d.IIN, &d.IDCardFront, &d.IDCardBack, &d.Rating, &d.UpdatedAt)
+		&d.DriverPhoto, &d.Phone, &d.IIN, &d.IDCardFront, &d.IDCardBack, &d.Rating, &d.UpdatedAt,
+		&d.Name, &d.Surname, &d.Middlename)
 	if err != nil {
 		return Driver{}, err
 	}
@@ -81,10 +88,14 @@ func (r *DriversRepo) List(ctx context.Context, limit, offset int) ([]Driver, er
 		offset = 0
 	}
 	rows, err := r.db.QueryContext(ctx, `SELECT
-        id, user_id, status, car_model, car_color, car_number, tech_passport,
-        car_photo_front, car_photo_back, car_photo_left, car_photo_right,
-        driver_photo, phone, iin, id_card_front, id_card_back, rating, updated_at
-    FROM drivers ORDER BY id LIMIT ? OFFSET ?`, limit, offset)
+        d.id, d.user_id, d.status, d.car_model, d.car_color, d.car_number, d.tech_passport,
+        d.car_photo_front, d.car_photo_back, d.car_photo_left, d.car_photo_right,
+        d.driver_photo, d.phone, d.iin, d.id_card_front, d.id_card_back, d.rating, d.updated_at,
+        u.name, u.surname, u.middlename
+    FROM drivers d
+    JOIN users u ON u.id = d.user_id
+    ORDER BY d.id
+    LIMIT ? OFFSET ?`, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +106,8 @@ func (r *DriversRepo) List(ctx context.Context, limit, offset int) ([]Driver, er
 		var d Driver
 		if err := rows.Scan(&d.ID, &d.UserID, &d.Status, &d.CarModel, &d.CarColor, &d.CarNumber, &d.TechPassport,
 			&d.CarPhotoFront, &d.CarPhotoBack, &d.CarPhotoLeft, &d.CarPhotoRight,
-			&d.DriverPhoto, &d.Phone, &d.IIN, &d.IDCardFront, &d.IDCardBack, &d.Rating, &d.UpdatedAt); err != nil {
+			&d.DriverPhoto, &d.Phone, &d.IIN, &d.IDCardFront, &d.IDCardBack, &d.Rating, &d.UpdatedAt,
+			&d.Name, &d.Surname, &d.Middlename); err != nil {
 			return nil, err
 		}
 		drivers = append(drivers, d)
