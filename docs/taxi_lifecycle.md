@@ -38,6 +38,20 @@ cfg := lifecycle.Config{
 svc := lifecycle.NewService(cfg)
 ```
 
+## Аутентификация и заголовки
+
+Маршруты жизненного цикла теперь проброшены в основной HTTP-роутер приложения под префиксом `/api/taxi/orders`. Для доступа
+нужно вызывать их с пользовательским JWT, как и остальные REST-методы:
+
+* водитель (роль `worker`) отправляет запросы с `Authorization: Bearer {{driver_token}}`; middleware добавит `X-Driver-ID`
+  по `user_id` из токена;
+* пассажир (роль `client`) обращается с `Authorization: Bearer {{passenger_token}}`; `X-Passenger-ID` подставится автоматически
+  и позволяет отменять поездки через общий роут;
+* администратор может вызывать методы для диагностики, но `X-*` заголовки не выставляются автоматически, поэтому для имперсонации
+  их нужно указать вручную.
+
+В примерах ниже показаны новые URL и необходимые заголовки.
+
 ## Жизненный цикл заказа
 
 ### Создание
@@ -90,6 +104,13 @@ Unit-тесты демонстрируют: полный happy-path (прибы�
 
 `POST /api/taxi/orders/{orderId}/arrive`
 
+Заголовки:
+
+```
+Authorization: Bearer {{driver_token}}
+Content-Type: application/json
+```
+
 ```json
 {
   "timestamp": "2023-10-05T10:10:00Z",
@@ -104,11 +125,24 @@ Backend вызывает `Service.MarkDriverAtPickup`, который прове
 
 `POST /api/taxi/orders/{orderId}/waiting/advance`
 
+Заголовок:
+
+```
+Authorization: Bearer {{driver_token}}
+```
+
 Без тела: достаточно серверного времени. Роут вызывает `Service.AdvanceWaiting` и при возврате `true` оповещает клиента о переходе к платному ожиданию. 【F:internal/taxi/lifecycle/service.go†L102-L122】
 
 ### 3. Старт поездки
 
 `POST /api/taxi/orders/{orderId}/start`
+
+Заголовки:
+
+```
+Authorization: Bearer {{driver_token}}
+Content-Type: application/json
+```
 
 ```json
 {
@@ -125,6 +159,13 @@ Backend вызывает `Service.MarkDriverAtPickup`, который прове
 
 `POST /api/taxi/orders/{orderId}/waypoints/next`
 
+Заголовки:
+
+```
+Authorization: Bearer {{driver_token}}
+Content-Type: application/json
+```
+
 ```json
 {
   "timestamp": "2023-10-05T10:25:00Z",
@@ -140,11 +181,25 @@ Backend вызывает `Service.MarkDriverAtPickup`, который прове
 * `POST /api/taxi/orders/{orderId}/pause`
 * `POST /api/taxi/orders/{orderId}/resume`
 
+Для обоих методов:
+
+```
+Authorization: Bearer {{driver_token}}
+Content-Type: application/json
+```
+
 Тела могут содержать только отметку времени. Эти действия открывают и закрывают сессию ожидания в пути, начисляя стоимость по ставке `PauseRatePerMinute`. 【F:internal/taxi/lifecycle/service.go†L186-L216】【F:internal/taxi/lifecycle/order.go†L238-L281】
 
 ### 6. Завершение поездки
 
 `POST /api/taxi/orders/{orderId}/finish`
+
+Заголовки:
+
+```
+Authorization: Bearer {{driver_token}}
+Content-Type: application/json
+```
 
 ```json
 {
@@ -160,6 +215,12 @@ Backend вызывает `Service.MarkDriverAtPickup`, который прове
 
 `POST /api/taxi/orders/{orderId}/confirm-cash`
 
+Заголовок:
+
+```
+Authorization: Bearer {{driver_token}}
+```
+
 ```json
 {
   "timestamp": "2023-10-05T10:36:00Z"
@@ -171,10 +232,10 @@ Backend вызывает `Service.MarkDriverAtPickup`, который прове
 ### 8. Отмены и no-show
 
 * `POST /api/taxi/orders/{orderId}/cancel`
-  * Тело: `{ "by": "passenger", "reason": "changed plans" }` → `CancelByPassenger`
-  * Тело: `{ "by": "driver", "reason": "flat tire" }` → `CancelByDriver`
+  * Пассажир: `Authorization: Bearer {{passenger_token}}`, тело `{ "by": "passenger", "reason": "changed plans" }`.
+  * Водитель: `Authorization: Bearer {{driver_token}}`, тело `{ "by": "driver", "reason": "flat tire" }`.
 * `POST /api/taxi/orders/{orderId}/no-show`
-  * Тело содержит телеметрию прибытия водителя для валидации радиуса и времени.
+  * Заголовки `Authorization: Bearer {{driver_token}}` и `Content-Type: application/json`, тело содержит телеметрию прибытия для валидации радиуса и времени.
 
 Эти маршруты фиксируют статус отмены или `no_show`, закрывая ожидания и добавляя причину в таймлайн. 【F:internal/taxi/lifecycle/service.go†L276-L347】
 
