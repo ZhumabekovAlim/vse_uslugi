@@ -117,7 +117,6 @@ func (d *Dispatcher) tick(ctx context.Context) {
 }
 
 func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord, now time.Time) error {
-	d.logger.Infof("🚕 dispatch: start order=%d state=%s radius=%dm", rec.OrderID, rec.State, rec.RadiusM)
 
 	order, err := d.orders.Get(ctx, rec.OrderID)
 	if err != nil {
@@ -142,8 +141,6 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 	}
 
 	cityKey := d.cfg.GetRegionID()
-	d.logger.Infof("dispatch: search city=%q lon=%.6f lat=%.6f radius=%dm",
-		cityKey, order.FromLon, order.FromLat, rec.RadiusM)
 	if strings.TrimSpace(cityKey) == "" {
 		cityKey = "astana" // fallback на время отладки
 	}
@@ -246,10 +243,9 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 			return err
 		}
 		if newRadius > rec.RadiusM {
-			d.logger.Infof("dispatch: only duplicates; radius ↑ to %d; next_tick=%s", newRadius, next.Format(time.RFC3339))
+
 			d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "search_progress", OrderID: order.ID, Radius: newRadius})
 		} else {
-			d.logger.Infof("dispatch: only duplicates; keep radius=%d (max); next_tick=%s", rec.RadiusM, next.Format(time.RFC3339))
 			d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "searching", OrderID: order.ID, Radius: rec.RadiusM})
 		}
 
@@ -259,7 +255,6 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 		if err := d.dispatch.UpdateRadius(ctx, rec.OrderID, rec.RadiusM, next); err != nil {
 			return err
 		}
-		d.logger.Infof("dispatch: sent_offers=%d; keep radius=%d; next_tick=%s", sentOffers, rec.RadiusM, next.Format(time.RFC3339))
 		d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "searching", OrderID: order.ID, Radius: rec.RadiusM})
 	}
 

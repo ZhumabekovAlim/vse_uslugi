@@ -149,7 +149,6 @@ func (l *DriverLocator) GoOffline(ctx context.Context, driverID int64, city stri
 // Nearby returns drivers within radius sorted by distance (ascending).
 func (l *DriverLocator) Nearby(ctx context.Context, lon, lat float64, radiusMeters float64, limit int, city string) ([]NearbyDriver, error) {
 	key := redisKey(city, "free")
-	fmt.Printf("redis Nearby key=%s radius=%.0fm lon=%.6f lat=%.6f\n", key, radiusMeters, lon, lat)
 
 	res, err := l.rdb.GeoSearchLocation(ctx, key, &redis.GeoSearchLocationQuery{
 		GeoSearchQuery: redis.GeoSearchQuery{
@@ -172,11 +171,6 @@ func (l *DriverLocator) Nearby(ctx context.Context, lon, lat float64, radiusMete
 	}
 
 	drivers := make([]NearbyDriver, 0, len(res))
-	if len(res) == 0 {
-		fmt.Println("redis Nearby: no drivers in radius")
-	} else {
-		fmt.Printf("redis Nearby: found %d drivers:\n", len(res))
-	}
 
 	for _, item := range res {
 		id, err := parseDriverMember(item.Name)
