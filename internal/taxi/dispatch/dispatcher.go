@@ -149,7 +149,6 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 		d.logger.Errorf("dispatch: Nearby failed: %v", err)
 		return err
 	}
-	d.logger.Infof("dispatch: found %d drivers near order=%d", len(drivers), order.ID)
 
 	ttl := now.Add(d.cfg.GetOfferTTL())
 	sentOffers := 0
