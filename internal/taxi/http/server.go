@@ -1877,7 +1877,7 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleOfferResponse(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("handleOfferResponse called", r)
+	fmt.Println("handleOfferResponse called")
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
