@@ -1877,6 +1877,7 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleOfferResponse(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("handleOfferResponse called", r)
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -1891,8 +1892,6 @@ func (s *Server) handleOfferResponse(w http.ResponseWriter, r *http.Request) {
 		DriverID int64  `json:"driver_id"`
 		Decision string `json:"decision"`
 	}
-
-	fmt.Println("handleOfferResponse called", req)
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
