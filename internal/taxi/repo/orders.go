@@ -5,7 +5,44 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+
+	"naimuBack/internal/taxi/fsm"
+)
+
+var (
+	passengerActiveStatuses = []string{
+		fsm.StatusSearching,
+		fsm.StatusAccepted,
+		fsm.StatusAssigned,
+		fsm.StatusDriverAtPickup,
+		fsm.StatusArrived,
+		fsm.StatusWaitingFree,
+		fsm.StatusWaitingPaid,
+		fsm.StatusInProgress,
+		fsm.StatusPickedUp,
+		fsm.StatusAtLastPoint,
+	}
+	driverActiveStatuses = []string{
+		fsm.StatusAccepted,
+		fsm.StatusAssigned,
+		fsm.StatusDriverAtPickup,
+		fsm.StatusArrived,
+		fsm.StatusWaitingFree,
+		fsm.StatusWaitingPaid,
+		fsm.StatusInProgress,
+		fsm.StatusPickedUp,
+		fsm.StatusAtLastPoint,
+	}
+	activePassengerQuery = fmt.Sprintf(
+		`SELECT id FROM orders WHERE passenger_id = ? AND status IN (%s) ORDER BY created_at DESC LIMIT 1`,
+		placeholders(len(passengerActiveStatuses)),
+	)
+	activeDriverQuery = fmt.Sprintf(
+		`SELECT id FROM orders WHERE driver_id = ? AND status IN (%s) ORDER BY created_at DESC LIMIT 1`,
+		placeholders(len(driverActiveStatuses)),
+	)
 )
 
 // Order represents the orders table.
@@ -47,6 +84,13 @@ type OrdersRepo struct {
 // NewOrdersRepo constructs an OrdersRepo.
 func NewOrdersRepo(db *sql.DB) *OrdersRepo {
 	return &OrdersRepo{db: db}
+}
+
+func placeholders(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
 }
 
 // CreateWithDispatch creates an order and its dispatch record within a transaction.
@@ -297,6 +341,36 @@ func (r *OrdersRepo) ListByDriver(ctx context.Context, driverID int64, limit, of
 		orders[i].Addresses = addresses
 	}
 	return orders, nil
+}
+
+// GetActiveOrderIDByPassenger returns the most recent active order ID for the passenger.
+func (r *OrdersRepo) GetActiveOrderIDByPassenger(ctx context.Context, passengerID int64) (int64, error) {
+	args := make([]interface{}, 0, len(passengerActiveStatuses)+1)
+	args = append(args, passengerID)
+	for _, status := range passengerActiveStatuses {
+		args = append(args, status)
+	}
+
+	var orderID int64
+	if err := r.db.QueryRowContext(ctx, activePassengerQuery, args...).Scan(&orderID); err != nil {
+		return 0, err
+	}
+	return orderID, nil
+}
+
+// GetActiveOrderIDByDriver returns the most recent active order ID for the driver.
+func (r *OrdersRepo) GetActiveOrderIDByDriver(ctx context.Context, driverID int64) (int64, error) {
+	args := make([]interface{}, 0, len(driverActiveStatuses)+1)
+	args = append(args, driverID)
+	for _, status := range driverActiveStatuses {
+		args = append(args, status)
+	}
+
+	var orderID int64
+	if err := r.db.QueryRowContext(ctx, activeDriverQuery, args...).Scan(&orderID); err != nil {
+		return 0, err
+	}
+	return orderID, nil
 }
 
 func insertOrderAddresses(ctx context.Context, tx *sql.Tx, orderID int64, addresses []OrderAddress) error {
