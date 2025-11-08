@@ -29,6 +29,27 @@ func (app *application) withHeaderFromCtx(next http.Handler, header string) http
 	})
 }
 
+func (app *application) withTaxiRoleHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		role, _ := r.Context().Value("role").(string)
+		id, _ := r.Context().Value("user_id").(int)
+		switch role {
+		case "worker":
+			r = r.Clone(r.Context())
+			r.Header.Set("X-Driver-ID", fmt.Sprintf("%d", id))
+		case "client":
+			r = r.Clone(r.Context())
+			r.Header.Set("X-Passenger-ID", fmt.Sprintf("%d", id))
+		case "admin":
+			// admins can observe without impersonation
+		default:
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Для WS: дописать ?passenger_id=... или ?driver_id=... в URL
 func (app *application) wsWithQueryUserID(next http.Handler, param string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -231,6 +252,16 @@ func (app *application) routes() http.Handler {
 	mux.Post("/api/v1/intercity/orders/list", standardMiddleware.Then(app.taxiMux))
 	mux.Get("/api/v1/intercity/orders/:id", standardMiddleware.Then(app.taxiMux))
 	mux.Post("/api/v1/intercity/orders/:id/close", standardMiddleware.Then(app.taxiMux))
+	mux.Post("/api/taxi/orders/:id/arrive", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
+	mux.Post("/api/taxi/orders/:id/waiting/advance", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
+	mux.Post("/api/taxi/orders/:id/start", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
+	mux.Post("/api/taxi/orders/:id/waypoints/next", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
+	mux.Post("/api/taxi/orders/:id/pause", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
+	mux.Post("/api/taxi/orders/:id/resume", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
+	mux.Post("/api/taxi/orders/:id/finish", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
+	mux.Post("/api/taxi/orders/:id/confirm-cash", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
+	mux.Post("/api/taxi/orders/:id/cancel", authMiddleware.Append(app.withTaxiRoleHeaders).Then(app.taxiMux))
+	mux.Post("/api/taxi/orders/:id/no-show", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
 	mux.Get("/ws/passenger", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("client")).Then(app.wsWithQueryUserID(app.taxiMux, "passenger_id")))
 	mux.Get("/ws/driver", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("worker")).Then(app.wsWithQueryUserID(app.taxiMux, "driver_id")))
 
