@@ -1790,6 +1790,9 @@ func (s *Server) handleOfferResponse(w http.ResponseWriter, r *http.Request) {
 		DriverID int64  `json:"driver_id"`
 		Decision string `json:"decision"`
 	}
+
+	fmt.Println("handleOfferResponse called", req)
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
