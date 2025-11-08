@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -177,6 +178,34 @@ type driverResponse struct {
 	Rating        float64   `json:"rating"`
 	Balance       int       `json:"balance"`
 	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+type driverProfileResponse struct {
+	Driver         driverResponse `json:"driver"`
+	CompletedTrips int            `json:"completed_trips"`
+	Balance        int            `json:"balance"`
+}
+
+type driverReviewResponse struct {
+	Rating    *float64      `json:"rating,omitempty"`
+	Comment   string        `json:"comment,omitempty"`
+	CreatedAt time.Time     `json:"created_at"`
+	Order     orderResponse `json:"order"`
+}
+
+type driverDayStatsResponse struct {
+	Date        string          `json:"date"`
+	OrdersCount int             `json:"orders_count"`
+	TotalAmount int             `json:"total_amount"`
+	NetProfit   int             `json:"net_profit"`
+	Orders      []orderResponse `json:"orders"`
+}
+
+type driverStatsResponse struct {
+	TotalOrders int                      `json:"total_orders"`
+	TotalAmount int                      `json:"total_amount"`
+	NetProfit   int                      `json:"net_profit"`
+	Days        []driverDayStatsResponse `json:"days"`
 }
 
 func newDriverResponse(d repo.Driver) driverResponse {
@@ -645,6 +674,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/drivers/", s.handleDriver)
 	mux.HandleFunc("/api/v1/driver/balance/deposit", s.handleDriverBalanceDeposit)
 	mux.HandleFunc("/api/v1/driver/balance/withdraw", s.handleDriverBalanceWithdraw)
+	mux.HandleFunc("/api/v1/driver/", s.handleDriverInfoRoutes)
 	mux.HandleFunc("/api/v1/route/quote", s.handleRouteQuote)
 	mux.HandleFunc("/api/v1/orders", s.handleOrders)
 	mux.HandleFunc("/api/v1/orders/active", s.handlePassengerActiveOrder)
@@ -698,6 +728,48 @@ func (s *Server) handleDriver(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleDriverInfoRoutes(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/driver/")
+	path = strings.TrimSuffix(path, "/")
+	if path == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	id, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	switch parts[1] {
+	case "profile":
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		s.getDriverProfile(w, r, id)
+	case "reviews":
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		s.listDriverReviews(w, r, id)
+	case "stats":
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		s.getDriverStats(w, r, id)
+	default:
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
 func (s *Server) handleDriverBalanceDeposit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -733,6 +805,193 @@ func (s *Server) handleDriverBalanceDeposit(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"balance": balance})
+}
+
+func (s *Server) getDriverProfile(w http.ResponseWriter, r *http.Request, id int64) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	driver, err := s.driversRepo.Get(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "driver not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to load driver")
+		return
+	}
+
+	completed, err := s.ordersRepo.CountCompletedByDriver(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to count completed trips")
+		return
+	}
+
+	resp := driverProfileResponse{
+		Driver:         newDriverResponse(driver),
+		CompletedTrips: completed,
+		Balance:        driver.Balance,
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) listDriverReviews(w http.ResponseWriter, r *http.Request, id int64) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	driver, err := s.driversRepo.Get(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "driver not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to load driver")
+		return
+	}
+
+	reviews, err := s.ordersRepo.ListDriverReviews(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list driver reviews")
+		return
+	}
+
+	passengerCache := make(map[int64]repo.Passenger)
+	resp := make([]driverReviewResponse, 0, len(reviews))
+	for _, review := range reviews {
+		var passenger *repo.Passenger
+		if cached, ok := passengerCache[review.Order.PassengerID]; ok {
+			cachedPassenger := cached
+			passenger = &cachedPassenger
+		} else {
+			if p, err := s.passengersRepo.Get(ctx, review.Order.PassengerID); err == nil {
+				passengerCache[review.Order.PassengerID] = p
+				passenger = &p
+			}
+		}
+
+		orderResp := newOrderResponse(review.Order, &driver, passenger)
+		reviewResp := driverReviewResponse{
+			CreatedAt: review.CreatedAt,
+			Order:     orderResp,
+		}
+		if review.Rating.Valid {
+			v := review.Rating.Float64
+			reviewResp.Rating = &v
+		}
+		if review.Comment.Valid {
+			reviewResp.Comment = review.Comment.String
+		}
+		resp = append(resp, reviewResp)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"reviews": resp})
+}
+
+func (s *Server) getDriverStats(w http.ResponseWriter, r *http.Request, id int64) {
+	fromStr := strings.TrimSpace(r.URL.Query().Get("from"))
+	toStr := strings.TrimSpace(r.URL.Query().Get("to"))
+	if toStr == "" {
+		toStr = strings.TrimSpace(r.URL.Query().Get("until"))
+	}
+	if fromStr == "" || toStr == "" {
+		writeError(w, http.StatusBadRequest, "from and to parameters are required")
+		return
+	}
+
+	fromDate, err := time.Parse("2006-01-02", fromStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid from date")
+		return
+	}
+	toDate, err := time.Parse("2006-01-02", toStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid to date")
+		return
+	}
+	if toDate.Before(fromDate) {
+		writeError(w, http.StatusBadRequest, "to date must be on or after from date")
+		return
+	}
+
+	// include the entire "to" day by shifting exclusive upper bound by one day
+	toExclusive := toDate.AddDate(0, 0, 1)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	driver, err := s.driversRepo.Get(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "driver not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to load driver")
+		return
+	}
+
+	orders, err := s.ordersRepo.ListCompletedByDriverBetween(ctx, id, fromDate, toExclusive)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list driver orders")
+		return
+	}
+
+	passengerCache := make(map[int64]repo.Passenger)
+	dayMap := make(map[string]*driverDayStatsResponse)
+	stats := driverStatsResponse{}
+
+	for _, order := range orders {
+		var passenger *repo.Passenger
+		if cached, ok := passengerCache[order.PassengerID]; ok {
+			cachedPassenger := cached
+			passenger = &cachedPassenger
+		} else {
+			if p, err := s.passengersRepo.Get(ctx, order.PassengerID); err == nil {
+				passengerCache[order.PassengerID] = p
+				passenger = &p
+			}
+		}
+
+		orderResp := newOrderResponse(order, &driver, passenger)
+
+		commission := calculateCommission(order.ClientPrice)
+		netProfit := order.ClientPrice - commission
+		stats.TotalOrders++
+		stats.TotalAmount += order.ClientPrice
+		stats.NetProfit += netProfit
+
+		dayKey := order.UpdatedAt.Format("2006-01-02")
+		if day, ok := dayMap[dayKey]; ok {
+			day.OrdersCount++
+			day.TotalAmount += order.ClientPrice
+			day.NetProfit += netProfit
+			day.Orders = append(day.Orders, orderResp)
+		} else {
+			dayMap[dayKey] = &driverDayStatsResponse{
+				Date:        dayKey,
+				OrdersCount: 1,
+				TotalAmount: order.ClientPrice,
+				NetProfit:   netProfit,
+				Orders:      []orderResponse{orderResp},
+			}
+		}
+	}
+
+	if len(dayMap) > 0 {
+		keys := make([]string, 0, len(dayMap))
+		for k := range dayMap {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		stats.Days = make([]driverDayStatsResponse, 0, len(keys))
+		for _, k := range keys {
+			stats.Days = append(stats.Days, *dayMap[k])
+		}
+	} else {
+		stats.Days = []driverDayStatsResponse{}
+	}
+
+	writeJSON(w, http.StatusOK, stats)
 }
 
 func (s *Server) handleDriverBalanceWithdraw(w http.ResponseWriter, r *http.Request) {
