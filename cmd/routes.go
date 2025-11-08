@@ -219,7 +219,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/api/v1/route/quote", standardMiddleware.Then(app.taxiMux))
 	mux.Get("/api/v1/orders", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
 	mux.Post("/api/v1/orders", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
-	mux.Get("/api/v1/orders/:id", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
+	mux.Get("/api/v1/orders/:id", standardMiddleware.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
 	mux.Post("/api/v1/orders/:id/reprice", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
 	mux.Post("/api/v1/orders/:id/status", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
 	mux.Get("/api/v1/driver/orders", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
