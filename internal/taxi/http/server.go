@@ -143,6 +143,9 @@ func (p driverPayload) validate() string {
 type driverResponse struct {
 	ID            int64     `json:"id"`
 	UserID        int64     `json:"user_id"`
+	Name          string    `json:"name"`
+	Surname       string    `json:"surname"`
+	Middlename    string    `json:"middlename,omitempty"`
 	Status        string    `json:"status"`
 	CarModel      string    `json:"car_model,omitempty"`
 	CarColor      string    `json:"car_color,omitempty"`
@@ -162,9 +165,11 @@ type driverResponse struct {
 }
 
 func newDriverResponse(d repo.Driver) driverResponse {
-	return driverResponse{
+	resp := driverResponse{
 		ID:            d.ID,
 		UserID:        d.UserID,
+		Name:          d.Name,
+		Surname:       d.Surname,
 		Status:        d.Status,
 		CarModel:      d.CarModel.String,
 		CarColor:      d.CarColor.String,
@@ -182,6 +187,10 @@ func newDriverResponse(d repo.Driver) driverResponse {
 		Rating:        d.Rating,
 		UpdatedAt:     d.UpdatedAt,
 	}
+	if d.Middlename.Valid {
+		resp.Middlename = d.Middlename.String
+	}
+	return resp
 }
 
 type passengerResponse struct {

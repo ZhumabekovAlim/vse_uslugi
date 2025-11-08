@@ -123,6 +123,9 @@ func (r *OrdersRepo) GetWithDriver(ctx context.Context, id int64) (Order, *Drive
 		driverIDCardBack   sql.NullString
 		driverRating       sql.NullFloat64
 		driverUpdatedAt    sql.NullTime
+		driverName         sql.NullString
+		driverSurname      sql.NullString
+		driverMiddlename   sql.NullString
 	)
 
 	row := r.db.QueryRowContext(ctx, `SELECT
@@ -131,9 +134,11 @@ func (r *OrdersRepo) GetWithDriver(ctx context.Context, id int64) (Order, *Drive
         o.status, o.notes, o.created_at, o.updated_at,
         d.id, d.user_id, d.status, d.car_model, d.car_color, d.car_number,
         d.tech_passport, d.car_photo_front, d.car_photo_back, d.car_photo_left, d.car_photo_right,
-        d.driver_photo, d.phone, d.iin, d.id_card_front, d.id_card_back, d.rating, d.updated_at
+        d.driver_photo, d.phone, d.iin, d.id_card_front, d.id_card_back, d.rating, d.updated_at,
+        u.name, u.surname, u.middlename
     FROM orders o
     LEFT JOIN drivers d ON d.id = o.driver_id
+    LEFT JOIN users u ON u.id = d.user_id
     WHERE o.id = ?`, id)
 	err := row.Scan(
 		&o.ID, &o.PassengerID, &o.DriverID, &o.FromLon, &o.FromLat, &o.ToLon, &o.ToLat,
@@ -142,6 +147,7 @@ func (r *OrdersRepo) GetWithDriver(ctx context.Context, id int64) (Order, *Drive
 		&driverID, &driverUserID, &driverStatus, &driverCarModel, &driverCarColor, &driverCarNumber,
 		&driverTechPassport, &driverPhotoFront, &driverPhotoBack, &driverPhotoLeft, &driverPhotoRight,
 		&driverDriverPhoto, &driverPhone, &driverIIN, &driverIDCardFront, &driverIDCardBack, &driverRating, &driverUpdatedAt,
+		&driverName, &driverSurname, &driverMiddlename,
 	)
 	if err != nil {
 		return Order{}, nil, err
@@ -163,6 +169,15 @@ func (r *OrdersRepo) GetWithDriver(ctx context.Context, id int64) (Order, *Drive
 	}
 	if driverUserID.Valid {
 		driver.UserID = driverUserID.Int64
+	}
+	if driverName.Valid {
+		driver.Name = driverName.String
+	}
+	if driverSurname.Valid {
+		driver.Surname = driverSurname.String
+	}
+	if driverMiddlename.Valid {
+		driver.Middlename = driverMiddlename
 	}
 	if driverStatus.Valid {
 		driver.Status = driverStatus.String
