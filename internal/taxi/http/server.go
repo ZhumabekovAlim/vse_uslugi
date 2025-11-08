@@ -27,18 +27,19 @@ import (
 
 // Server handles HTTP endpoints for taxi module.
 type Server struct {
-	logger        dispatch.Logger
-	cfg           dispatch.Config
-	geoClient     *geo.DGISClient
-	driversRepo   *repo.DriversRepo
-	ordersRepo    *repo.OrdersRepo
-	intercityRepo *repo.IntercityOrdersRepo
-	offersRepo    *repo.OffersRepo
-	paymentsRepo  *repo.PaymentsRepo
-	driverHub     *ws.DriverHub
-	passengerHub  *ws.PassengerHub
-	dispatcher    *dispatch.Dispatcher
-	payClient     *pay.Client
+	logger         dispatch.Logger
+	cfg            dispatch.Config
+	geoClient      *geo.DGISClient
+	driversRepo    *repo.DriversRepo
+	ordersRepo     *repo.OrdersRepo
+	passengersRepo *repo.PassengersRepo
+	intercityRepo  *repo.IntercityOrdersRepo
+	offersRepo     *repo.OffersRepo
+	paymentsRepo   *repo.PaymentsRepo
+	driverHub      *ws.DriverHub
+	passengerHub   *ws.PassengerHub
+	dispatcher     *dispatch.Dispatcher
+	payClient      *pay.Client
 }
 
 func nstr(v sql.NullString) string {
@@ -49,20 +50,21 @@ func nstr(v sql.NullString) string {
 }
 
 // NewServer constructs Server.
-func NewServer(logger dispatch.Logger, cfg dispatch.Config, geoClient *geo.DGISClient, drivers *repo.DriversRepo, orders *repo.OrdersRepo, intercity *repo.IntercityOrdersRepo, offers *repo.OffersRepo, payments *repo.PaymentsRepo, driverHub *ws.DriverHub, passengerHub *ws.PassengerHub, dispatcher *dispatch.Dispatcher, payClient *pay.Client) *Server {
+func NewServer(logger dispatch.Logger, cfg dispatch.Config, geoClient *geo.DGISClient, drivers *repo.DriversRepo, orders *repo.OrdersRepo, passengers *repo.PassengersRepo, intercity *repo.IntercityOrdersRepo, offers *repo.OffersRepo, payments *repo.PaymentsRepo, driverHub *ws.DriverHub, passengerHub *ws.PassengerHub, dispatcher *dispatch.Dispatcher, payClient *pay.Client) *Server {
 	return &Server{
-		logger:        logger,
-		cfg:           cfg,
-		geoClient:     geoClient,
-		driversRepo:   drivers,
-		ordersRepo:    orders,
-		intercityRepo: intercity,
-		offersRepo:    offers,
-		paymentsRepo:  payments,
-		driverHub:     driverHub,
-		passengerHub:  passengerHub,
-		dispatcher:    dispatcher,
-		payClient:     payClient,
+		logger:         logger,
+		cfg:            cfg,
+		geoClient:      geoClient,
+		driversRepo:    drivers,
+		ordersRepo:     orders,
+		passengersRepo: passengers,
+		intercityRepo:  intercity,
+		offersRepo:     offers,
+		paymentsRepo:   payments,
+		driverHub:      driverHub,
+		passengerHub:   passengerHub,
+		dispatcher:     dispatcher,
+		payClient:      payClient,
 	}
 }
 
@@ -182,6 +184,80 @@ func newDriverResponse(d repo.Driver) driverResponse {
 	}
 }
 
+type passengerResponse struct {
+	ID           int64      `json:"id"`
+	Name         string     `json:"name"`
+	Surname      string     `json:"surname"`
+	Middlename   string     `json:"middlename,omitempty"`
+	Phone        string     `json:"phone"`
+	Email        string     `json:"email,omitempty"`
+	CityID       *int64     `json:"city_id,omitempty"`
+	YearsOfExp   *int64     `json:"years_of_exp,omitempty"`
+	DocOfProof   string     `json:"doc_of_proof,omitempty"`
+	ReviewRating *float64   `json:"review_rating,omitempty"`
+	Role         string     `json:"role,omitempty"`
+	Latitude     string     `json:"latitude,omitempty"`
+	Longitude    string     `json:"longitude,omitempty"`
+	AvatarPath   string     `json:"avatar_path,omitempty"`
+	Skills       string     `json:"skills,omitempty"`
+	IsOnline     *bool      `json:"is_online,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
+}
+
+func newPassengerResponse(p repo.Passenger) passengerResponse {
+	resp := passengerResponse{
+		ID:        p.ID,
+		Name:      p.Name,
+		Surname:   p.Surname,
+		Phone:     p.Phone,
+		Email:     p.Email,
+		CreatedAt: p.CreatedAt,
+	}
+	if p.Middlename.Valid {
+		resp.Middlename = p.Middlename.String
+	}
+	if p.CityID.Valid {
+		v := p.CityID.Int64
+		resp.CityID = &v
+	}
+	if p.YearsOfExp.Valid {
+		v := p.YearsOfExp.Int64
+		resp.YearsOfExp = &v
+	}
+	if p.DocOfProof.Valid {
+		resp.DocOfProof = p.DocOfProof.String
+	}
+	if p.ReviewRating.Valid {
+		v := p.ReviewRating.Float64
+		resp.ReviewRating = &v
+	}
+	if p.Role.Valid {
+		resp.Role = p.Role.String
+	}
+	if p.Latitude.Valid {
+		resp.Latitude = p.Latitude.String
+	}
+	if p.Longitude.Valid {
+		resp.Longitude = p.Longitude.String
+	}
+	if p.AvatarPath.Valid {
+		resp.AvatarPath = p.AvatarPath.String
+	}
+	if p.Skills.Valid {
+		resp.Skills = p.Skills.String
+	}
+	if p.IsOnline.Valid {
+		v := p.IsOnline.Bool
+		resp.IsOnline = &v
+	}
+	if p.UpdatedAt.Valid {
+		ts := p.UpdatedAt.Time
+		resp.UpdatedAt = &ts
+	}
+	return resp
+}
+
 func newPassengerDriver(d repo.Driver) ws.PassengerDriver {
 	driver := ws.PassengerDriver{
 		ID:          d.ID,
@@ -239,9 +315,10 @@ type orderResponse struct {
 	UpdatedAt        time.Time              `json:"updated_at"`
 	Addresses        []orderAddressResponse `json:"addresses"`
 	Driver           *driverResponse        `json:"driver,omitempty"`
+	Passenger        *passengerResponse     `json:"passenger,omitempty"`
 }
 
-func newOrderResponse(o repo.Order, driver *repo.Driver) orderResponse {
+func newOrderResponse(o repo.Order, driver *repo.Driver, passenger *repo.Passenger) orderResponse {
 	var driverID *int64
 	if o.DriverID.Valid {
 		driverID = &o.DriverID.Int64
@@ -284,6 +361,10 @@ func newOrderResponse(o repo.Order, driver *repo.Driver) orderResponse {
 	if driver != nil {
 		d := newDriverResponse(*driver)
 		resp.Driver = &d
+	}
+	if passenger != nil {
+		p := newPassengerResponse(*passenger)
+		resp.Passenger = &p
 	}
 	return resp
 }
@@ -1102,6 +1183,11 @@ func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var passenger *repo.Passenger
+	if p, err := s.passengersRepo.Get(ctx, passengerID); err == nil {
+		passenger = &p
+	}
+
 	driverCache := make(map[int64]repo.Driver)
 	resp := make([]orderResponse, 0, len(orders))
 	for _, order := range orders {
@@ -1117,7 +1203,7 @@ func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		resp = append(resp, newOrderResponse(order, driver))
+		resp = append(resp, newOrderResponse(order, driver, passenger))
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"orders": resp, "limit": limit, "offset": offset})
@@ -1162,9 +1248,20 @@ func (s *Server) handleListDriverOrders(w http.ResponseWriter, r *http.Request) 
 		driver = &d
 	}
 
+	passengerCache := make(map[int64]repo.Passenger)
 	resp := make([]orderResponse, 0, len(orders))
 	for _, order := range orders {
-		resp = append(resp, newOrderResponse(order, driver))
+		var passenger *repo.Passenger
+		if cached, ok := passengerCache[order.PassengerID]; ok {
+			cachedPassenger := cached
+			passenger = &cachedPassenger
+		} else {
+			if p, err := s.passengersRepo.Get(ctx, order.PassengerID); err == nil {
+				passengerCache[order.PassengerID] = p
+				passenger = &p
+			}
+		}
+		resp = append(resp, newOrderResponse(order, driver, passenger))
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"orders": resp, "limit": limit, "offset": offset})
@@ -1378,7 +1475,11 @@ func (s *Server) handleGetOrder(w http.ResponseWriter, r *http.Request, orderID 
 		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
-	writeJSON(w, http.StatusOK, newOrderResponse(order, driver))
+	var passenger *repo.Passenger
+	if p, err := s.passengersRepo.Get(ctx, order.PassengerID); err == nil {
+		passenger = &p
+	}
+	writeJSON(w, http.StatusOK, newOrderResponse(order, driver, passenger))
 }
 
 func (s *Server) handleReprice(w http.ResponseWriter, r *http.Request, orderID int64) {

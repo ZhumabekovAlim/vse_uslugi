@@ -66,7 +66,7 @@ func ensureModule(deps *TaxiDeps) (*moduleState, error) {
 
 	dispatcher := dispatch.New(ordersRepo, dispatchRepo, offersRepo, passengersRepo, locator, driverHub, passengerHub, deps.Logger, cfgAdapter)
 	payClient := pay.NewClient(deps.HTTPClient, deps.Config.AirbaPayMerchant, deps.Config.AirbaPaySecret, deps.Config.AirbaPayCallback)
-	server := taxihttp.NewServer(deps.Logger, cfgAdapter, geoClient, driversRepo, ordersRepo, intercityRepo, offersRepo, paymentsRepo, driverHub, passengerHub, dispatcher, payClient)
+	server := taxihttp.NewServer(deps.Logger, cfgAdapter, geoClient, driversRepo, ordersRepo, passengersRepo, intercityRepo, offersRepo, paymentsRepo, driverHub, passengerHub, dispatcher, payClient)
 
 	deps.module = &moduleState{
 		geoClient:     geoClient,
