@@ -641,7 +641,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/drivers/", s.handleDriver)
 	mux.HandleFunc("/api/v1/route/quote", s.handleRouteQuote)
 	mux.HandleFunc("/api/v1/orders", s.handleOrders)
+	mux.HandleFunc("/api/v1/orders/active", s.handlePassengerActiveOrder)
 	mux.HandleFunc("/api/v1/driver/orders", s.handleDriverOrders)
+	mux.HandleFunc("/api/v1/driver/orders/active", s.handleDriverActiveOrder)
 	mux.HandleFunc("/api/v1/orders/", s.handleOrderSubroutes)
 	mux.HandleFunc("/api/v1/intercity/orders", s.handleIntercityOrders)
 	mux.HandleFunc("/api/v1/intercity/orders/list", s.listIntercityOrders)
@@ -1772,6 +1774,34 @@ func (s *Server) handleOrders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handlePassengerActiveOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	passengerID, err := parseAuthID(r, "X-Passenger-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing passenger id")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	orderID, err := s.ordersRepo.GetActiveOrderIDByPassenger(ctx, passengerID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch active order failed")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]int64{"order_id": orderID})
+}
+
 func (s *Server) handleDriverOrders(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -1779,6 +1809,34 @@ func (s *Server) handleDriverOrders(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+func (s *Server) handleDriverActiveOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	orderID, err := s.ordersRepo.GetActiveOrderIDByDriver(ctx, driverID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch active order failed")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]int64{"order_id": orderID})
 }
 
 func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
