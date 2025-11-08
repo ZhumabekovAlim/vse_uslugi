@@ -187,7 +187,6 @@ func (l *DriverLocator) Nearby(ctx context.Context, lon, lat float64, radiusMete
 		}
 		drivers = append(drivers, d)
 
-		fmt.Printf("  driverID=%d dist=%.1fm lon=%.6f lat=%.6f\n", d.ID, d.Dist, d.Lon, d.Lat)
 	}
 
 	return drivers, nil
