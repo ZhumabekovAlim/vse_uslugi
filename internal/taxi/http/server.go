@@ -48,6 +48,8 @@ const (
 	lifecycleWaypointRadiusMeters = 50.0
 	lifecycleFinishRadiusMeters   = 100.0
 	lifecycleStationarySpeedKPH   = 5.0
+	minDriverBalanceTenge         = 1000
+	driverCommissionPercent       = 10
 )
 
 const lifecycleTelemetryFreshness = 5 * time.Minute
@@ -173,6 +175,7 @@ type driverResponse struct {
 	IDCardFront   string    `json:"id_card_front"`
 	IDCardBack    string    `json:"id_card_back"`
 	Rating        float64   `json:"rating"`
+	Balance       int       `json:"balance"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
@@ -197,6 +200,7 @@ func newDriverResponse(d repo.Driver) driverResponse {
 		IDCardFront:   d.IDCardFront,
 		IDCardBack:    d.IDCardBack,
 		Rating:        d.Rating,
+		Balance:       d.Balance,
 		UpdatedAt:     d.UpdatedAt,
 	}
 	if d.Middlename.Valid {
@@ -639,6 +643,8 @@ func (p intercityListPayload) validate() string {
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/drivers", s.handleDrivers)
 	mux.HandleFunc("/api/v1/drivers/", s.handleDriver)
+	mux.HandleFunc("/api/v1/driver/balance/deposit", s.handleDriverBalanceDeposit)
+	mux.HandleFunc("/api/v1/driver/balance/withdraw", s.handleDriverBalanceWithdraw)
 	mux.HandleFunc("/api/v1/route/quote", s.handleRouteQuote)
 	mux.HandleFunc("/api/v1/orders", s.handleOrders)
 	mux.HandleFunc("/api/v1/orders/active", s.handlePassengerActiveOrder)
@@ -690,6 +696,85 @@ func (s *Server) handleDriver(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+func (s *Server) handleDriverBalanceDeposit(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+	var payload struct {
+		Amount int `json:"amount"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if payload.Amount <= 0 {
+		writeError(w, http.StatusBadRequest, "amount must be positive")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	balance, err := s.driversRepo.Deposit(ctx, driverID, payload.Amount)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusUnauthorized, "driver not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "deposit failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"balance": balance})
+}
+
+func (s *Server) handleDriverBalanceWithdraw(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+	var payload struct {
+		Amount int `json:"amount"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if payload.Amount <= 0 {
+		writeError(w, http.StatusBadRequest, "amount must be positive")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	balance, err := s.driversRepo.Withdraw(ctx, driverID, payload.Amount)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			writeError(w, http.StatusUnauthorized, "driver not found")
+			return
+		case errors.Is(err, repo.ErrInsufficientBalance):
+			writeError(w, http.StatusBadRequest, "insufficient balance")
+			return
+		default:
+			writeError(w, http.StatusInternalServerError, "withdraw failed")
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"balance": balance})
 }
 
 func (s *Server) listDrivers(w http.ResponseWriter, r *http.Request) {
@@ -1604,6 +1689,13 @@ func roundDownToStep(n, step int) int {
 		return -roundDownToStep(-n, step)
 	}
 	return (n / step) * step
+}
+
+func calculateCommission(amount int) int {
+	if amount <= 0 || driverCommissionPercent <= 0 {
+		return 0
+	}
+	return (amount*driverCommissionPercent + 99) / 100
 }
 
 func (s *Server) handleRouteQuote(w http.ResponseWriter, r *http.Request) {
@@ -2618,6 +2710,20 @@ func (s *Server) handleOfferResponse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	driver, err := s.driversRepo.Get(ctx, req.DriverID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "driver not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "driver lookup failed")
+		return
+	}
+	if driver.Balance < minDriverBalanceTenge {
+		writeError(w, http.StatusForbidden, "insufficient driver balance")
+		return
+	}
+
 	switch decision {
 	case "accept":
 		closedDrivers, pricePtr, err := s.offersRepo.AcceptOffer(ctx, req.OrderID, req.DriverID)
@@ -2694,12 +2800,17 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	if _, err := s.driversRepo.Get(ctx, driverID); err != nil {
+	driver, err := s.driversRepo.Get(ctx, driverID)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeError(w, http.StatusUnauthorized, "driver not found")
 			return
 		}
 		writeError(w, http.StatusInternalServerError, "driver lookup failed")
+		return
+	}
+	if driver.Balance < minDriverBalanceTenge {
+		writeError(w, http.StatusForbidden, "insufficient driver balance")
 		return
 	}
 
@@ -2791,8 +2902,19 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 		}
 	}
 
-	if err := s.ordersRepo.UpdateStatusCAS(ctx, orderID, order.Status, req.Status); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+	var updateErr error
+	if req.Status == fsm.StatusCompleted {
+		commission := calculateCommission(order.ClientPrice)
+		driverID := int64(0)
+		if order.DriverID.Valid {
+			driverID = order.DriverID.Int64
+		}
+		updateErr = s.ordersRepo.UpdateStatusWithDriverCharge(ctx, orderID, order.Status, req.Status, driverID, commission)
+	} else {
+		updateErr = s.ordersRepo.UpdateStatusCAS(ctx, orderID, order.Status, req.Status)
+	}
+	if updateErr != nil {
+		if errors.Is(updateErr, sql.ErrNoRows) {
 			writeError(w, http.StatusConflict, "order status changed")
 			return
 		}

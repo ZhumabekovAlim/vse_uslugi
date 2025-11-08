@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -28,6 +29,7 @@ type Driver struct {
 	IDCardFront   string
 	IDCardBack    string
 	Rating        float64
+	Balance       int
 	UpdatedAt     time.Time
 }
 
@@ -35,6 +37,9 @@ type Driver struct {
 type DriversRepo struct {
 	db *sql.DB
 }
+
+// ErrInsufficientBalance is returned when balance adjustments would drop below zero.
+var ErrInsufficientBalance = errors.New("insufficient balance")
 
 // NewDriversRepo constructs a DriversRepo.
 func NewDriversRepo(db *sql.DB) *DriversRepo {
@@ -64,14 +69,14 @@ func (r *DriversRepo) Get(ctx context.Context, id int64) (Driver, error) {
 	row := r.db.QueryRowContext(ctx, `SELECT
         d.id, d.user_id, d.status, d.car_model, d.car_color, d.car_number, d.tech_passport,
         d.car_photo_front, d.car_photo_back, d.car_photo_left, d.car_photo_right,
-        d.driver_photo, d.phone, d.iin, d.id_card_front, d.id_card_back, d.rating, d.updated_at,
+        d.driver_photo, d.phone, d.iin, d.id_card_front, d.id_card_back, d.rating, d.balance, d.updated_at,
         u.name, u.surname, u.middlename
     FROM drivers d
     JOIN users u ON u.id = d.user_id
     WHERE d.id = ?`, id)
 	err := row.Scan(&d.ID, &d.UserID, &d.Status, &d.CarModel, &d.CarColor, &d.CarNumber, &d.TechPassport,
 		&d.CarPhotoFront, &d.CarPhotoBack, &d.CarPhotoLeft, &d.CarPhotoRight,
-		&d.DriverPhoto, &d.Phone, &d.IIN, &d.IDCardFront, &d.IDCardBack, &d.Rating, &d.UpdatedAt,
+		&d.DriverPhoto, &d.Phone, &d.IIN, &d.IDCardFront, &d.IDCardBack, &d.Rating, &d.Balance, &d.UpdatedAt,
 		&d.Name, &d.Surname, &d.Middlename)
 	if err != nil {
 		return Driver{}, err
@@ -90,7 +95,7 @@ func (r *DriversRepo) List(ctx context.Context, limit, offset int) ([]Driver, er
 	rows, err := r.db.QueryContext(ctx, `SELECT
         d.id, d.user_id, d.status, d.car_model, d.car_color, d.car_number, d.tech_passport,
         d.car_photo_front, d.car_photo_back, d.car_photo_left, d.car_photo_right,
-        d.driver_photo, d.phone, d.iin, d.id_card_front, d.id_card_back, d.rating, d.updated_at,
+        d.driver_photo, d.phone, d.iin, d.id_card_front, d.id_card_back, d.rating, d.balance, d.updated_at,
         u.name, u.surname, u.middlename
     FROM drivers d
     JOIN users u ON u.id = d.user_id
@@ -106,7 +111,7 @@ func (r *DriversRepo) List(ctx context.Context, limit, offset int) ([]Driver, er
 		var d Driver
 		if err := rows.Scan(&d.ID, &d.UserID, &d.Status, &d.CarModel, &d.CarColor, &d.CarNumber, &d.TechPassport,
 			&d.CarPhotoFront, &d.CarPhotoBack, &d.CarPhotoLeft, &d.CarPhotoRight,
-			&d.DriverPhoto, &d.Phone, &d.IIN, &d.IDCardFront, &d.IDCardBack, &d.Rating, &d.UpdatedAt,
+			&d.DriverPhoto, &d.Phone, &d.IIN, &d.IDCardFront, &d.IDCardBack, &d.Rating, &d.Balance, &d.UpdatedAt,
 			&d.Name, &d.Surname, &d.Middlename); err != nil {
 			return nil, err
 		}
@@ -156,4 +161,63 @@ func (r *DriversRepo) Delete(ctx context.Context, id int64) error {
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+// Deposit increases driver's balance by amount and returns new balance.
+func (r *DriversRepo) Deposit(ctx context.Context, driverID int64, amount int) (int, error) {
+	if amount <= 0 {
+		return 0, errors.New("amount must be positive")
+	}
+	return r.adjustBalance(ctx, driverID, amount, true)
+}
+
+// Withdraw decreases driver's balance by amount when sufficient funds are available.
+func (r *DriversRepo) Withdraw(ctx context.Context, driverID int64, amount int) (int, error) {
+	if amount <= 0 {
+		return 0, errors.New("amount must be positive")
+	}
+	return r.adjustBalance(ctx, driverID, -amount, false)
+}
+
+// Charge deducts amount from balance allowing it to go negative (for commissions).
+func (r *DriversRepo) Charge(ctx context.Context, driverID int64, amount int) (int, error) {
+	if amount < 0 {
+		return 0, errors.New("amount must be non-negative")
+	}
+	if amount == 0 {
+		driver, err := r.Get(ctx, driverID)
+		if err != nil {
+			return 0, err
+		}
+		return driver.Balance, nil
+	}
+	return r.adjustBalance(ctx, driverID, -amount, true)
+}
+
+func (r *DriversRepo) adjustBalance(ctx context.Context, driverID int64, delta int, allowNegative bool) (int, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	var balance int
+	if err = tx.QueryRowContext(ctx, `SELECT balance FROM drivers WHERE id = ? FOR UPDATE`, driverID).Scan(&balance); err != nil {
+		return 0, err
+	}
+	newBalance := balance + delta
+	if !allowNegative && newBalance < 0 {
+		return 0, ErrInsufficientBalance
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE drivers SET balance = ? WHERE id = ?`, newBalance, driverID); err != nil {
+		return 0, err
+	}
+	if err = tx.Commit(); err != nil {
+		return 0, err
+	}
+	return newBalance, nil
 }

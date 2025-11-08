@@ -476,6 +476,47 @@ func (r *OrdersRepo) UpdateStatusCAS(ctx context.Context, orderID int64, fromSta
 	return nil
 }
 
+// UpdateStatusWithDriverCharge atomically updates order status and deducts commission from driver.
+func (r *OrdersRepo) UpdateStatusWithDriverCharge(ctx context.Context, orderID int64, fromStatus, toStatus string, driverID int64, commission int) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	res, err := tx.ExecContext(ctx, `UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = ?`, toStatus, orderID, fromStatus)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	if commission > 0 && driverID > 0 {
+		res, err = tx.ExecContext(ctx, `UPDATE drivers SET balance = balance - ? WHERE id = ?`, commission, driverID)
+		if err != nil {
+			return err
+		}
+		rows, err = res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rows == 0 {
+			return sql.ErrNoRows
+		}
+	}
+
+	return tx.Commit()
+}
+
 // DispatchRecord represents order_dispatch row.
 type DispatchRecord struct {
 	ID         int64
