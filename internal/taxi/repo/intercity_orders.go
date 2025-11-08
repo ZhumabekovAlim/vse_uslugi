@@ -169,7 +169,7 @@ func (r *IntercityOrdersRepo) List(ctx context.Context, filter IntercityOrdersFi
 	var (
 		parts = []string{`
 SELECT io.id, io.passenger_id, io.driver_id, io.from_location, io.to_location, io.trip_type, io.comment, io.price,
-       COALESCE(pu.phone, d.phone, '') AS contact_phone, io.departure_date, io.departure_time, io.status,
+       pu.phone as contact_phone, io.departure_date, io.departure_time, io.status,
        io.created_at, io.updated_at, io.closed_at, io.creator_role, d.car_model,
        CONCAT_WS(' ', du.surname, du.name, du.middlename) AS driver_full_name, d.rating, d.driver_photo, du.avatar_path,
        d.updated_at,
