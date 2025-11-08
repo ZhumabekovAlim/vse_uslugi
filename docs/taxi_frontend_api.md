@@ -49,6 +49,72 @@
 | `PUT` | Полное обновление данных. | Требуются все поля; выполняется повторная валидация. 【F:internal/taxi/http/server.go†L393-L442】 |
 | `DELETE` | Удаление водителя. | Ответ без тела, код 204. 【F:internal/taxi/http/server.go†L444-L457】 |
 
+### `/api/v1/driver/{id}/profile`
+
+- **Метод**: `GET`
+- **Ответ**: объект
+  ```json
+  {
+    "driver": { "id": 1, "user_id": 1, "name": "...", "status": "free", "car_model": "...", "rating": 4.7, ... },
+    "completed_trips": 42,
+    "balance": 12500
+  }
+  ```
+  Где `driver` повторяет структуру `driverResponse` с полной карточкой из базы, `completed_trips` — количество заказов в статусе `completed`, `balance` — текущий баланс водителя. 【F:internal/taxi/http/server.go†L810-L838】
+- **Ошибки**: `404`, если водитель не найден. 【F:internal/taxi/http/server.go†L815-L819】
+
+### `/api/v1/driver/{id}/reviews`
+
+- **Метод**: `GET`
+- **Ответ**: объект
+  ```json
+  {
+    "reviews": [
+      {
+        "rating": 5,
+        "comment": "Быстро и аккуратно",
+        "created_at": "2024-05-09T12:00:00Z",
+        "order": { "id": 112, "client_price": 1500, "driver": { ... }, "passenger": { ... }, ... }
+      }
+    ]
+  }
+  ```
+  Для каждого заказа добавляется полный `orderResponse`, включая вложенные профили водителя и пассажира. Рейтинг и комментарий опциональны. 【F:internal/taxi/http/server.go†L839-L887】
+- **Ошибки**: `404`, если водитель не найден. 【F:internal/taxi/http/server.go†L845-L849】
+
+### `/api/v1/driver/{id}/stats`
+
+- **Метод**: `GET`
+- **Параметры**: `from=YYYY-MM-DD`, `to=YYYY-MM-DD` (включительно; можно использовать `until`). Оба обязательны. 【F:internal/taxi/http/server.go†L891-L916】
+- **Ответ**: агрегированная статистика
+  ```json
+  {
+    "total_orders": 12,
+    "total_amount": 18000,
+    "net_profit": 16200,
+    "days": [
+      {
+        "date": "2024-05-10",
+        "orders_count": 3,
+        "total_amount": 4500,
+        "net_profit": 4050,
+        "orders": [
+          {
+            "id": 221,
+            "client_price": 1500,
+            "status": "completed",
+            "driver": { ... },
+            "passenger": { ... },
+            "addresses": [ ... ]
+          }
+        ]
+      }
+    ]
+  }
+  ```
+  Комиссия вычисляется как 10% от `client_price`, `net_profit` — сумма после удержания комиссии. Для каждого дня возвращается список заказов с подробными данными (`orderResponse`). 【F:internal/taxi/http/server.go†L916-L986】
+- **Ошибки**: `400` при некорректных датах, `404`, если водитель не найден. 【F:internal/taxi/http/server.go†L897-L934】
+
 ### `/api/v1/route/quote`
 
 - **Метод**: `POST`

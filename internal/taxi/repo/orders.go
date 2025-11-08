@@ -43,6 +43,11 @@ var (
 		`SELECT id FROM orders WHERE driver_id = ? AND status IN (%s) ORDER BY created_at DESC LIMIT 1`,
 		placeholders(len(driverActiveStatuses)),
 	)
+	driverCompletedStatuses = []string{
+		fsm.StatusCompleted,
+		fsm.StatusPaid,
+		fsm.StatusClosed,
+	}
 )
 
 // Order represents the orders table.
@@ -371,6 +376,162 @@ func (r *OrdersRepo) GetActiveOrderIDByDriver(ctx context.Context, driverID int6
 		return 0, err
 	}
 	return orderID, nil
+}
+
+// CountCompletedByDriver returns the number of completed orders assigned to the driver.
+func (r *OrdersRepo) CountCompletedByDriver(ctx context.Context, driverID int64) (int, error) {
+	if driverID <= 0 {
+		return 0, errors.New("invalid driver id")
+	}
+
+	args := make([]interface{}, 0, len(driverCompletedStatuses)+1)
+	args = append(args, driverID)
+	for _, status := range driverCompletedStatuses {
+		args = append(args, status)
+	}
+
+	query := fmt.Sprintf(`SELECT COUNT(*) FROM orders WHERE driver_id = ? AND status IN (%s)`, placeholders(len(driverCompletedStatuses)))
+	var count int
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// ListCompletedByDriverBetween returns completed orders for the driver in the [from, to) interval based on updated_at.
+func (r *OrdersRepo) ListCompletedByDriverBetween(ctx context.Context, driverID int64, from, to time.Time) ([]Order, error) {
+	if driverID <= 0 {
+		return nil, errors.New("invalid driver id")
+	}
+	if to.Before(from) {
+		return nil, errors.New("invalid date range")
+	}
+
+	args := make([]interface{}, 0, len(driverCompletedStatuses)+3)
+	args = append(args, driverID)
+	for _, status := range driverCompletedStatuses {
+		args = append(args, status)
+	}
+	args = append(args, from, to)
+
+	query := fmt.Sprintf(`SELECT id, passenger_id, driver_id, from_lon, from_lat, to_lon, to_lat, distance_m, eta_s, recommended_price, client_price, payment_method, status, notes, created_at, updated_at FROM orders WHERE driver_id = ? AND status IN (%s) AND updated_at >= ? AND updated_at < ? ORDER BY updated_at ASC`, placeholders(len(driverCompletedStatuses)))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []Order
+	for rows.Next() {
+		var o Order
+		if err := rows.Scan(&o.ID, &o.PassengerID, &o.DriverID, &o.FromLon, &o.FromLat, &o.ToLon, &o.ToLat, &o.DistanceM, &o.EtaSeconds, &o.RecommendedPrice, &o.ClientPrice, &o.PaymentMethod, &o.Status, &o.Notes, &o.CreatedAt, &o.UpdatedAt); err != nil {
+			return nil, err
+		}
+		orders = append(orders, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for i := range orders {
+		addresses, err := r.listAddresses(ctx, orders[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		orders[i].Addresses = addresses
+	}
+
+	return orders, nil
+}
+
+// DriverReview represents a review left for a driver for a specific order.
+type DriverReview struct {
+	ID        int64
+	Rating    sql.NullFloat64
+	Comment   sql.NullString
+	CreatedAt time.Time
+	Order     Order
+}
+
+// ListDriverReviews returns reviews for the specified driver ordered by review creation time.
+func (r *OrdersRepo) ListDriverReviews(ctx context.Context, driverID int64) ([]DriverReview, error) {
+	if driverID <= 0 {
+		return nil, errors.New("invalid driver id")
+	}
+
+	rows, err := r.db.QueryContext(ctx, `SELECT
+        rv.id,
+        rv.rating,
+        rv.comment,
+        rv.created_at,
+        o.id,
+        o.passenger_id,
+        o.driver_id,
+        o.from_lon,
+        o.from_lat,
+        o.to_lon,
+        o.to_lat,
+        o.distance_m,
+        o.eta_s,
+        o.recommended_price,
+        o.client_price,
+        o.payment_method,
+        o.status,
+        o.notes,
+        o.created_at,
+        o.updated_at
+    FROM driver_reviews rv
+    JOIN orders o ON o.id = rv.order_id
+    WHERE rv.driver_id = ?
+    ORDER BY rv.created_at DESC`, driverID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reviews []DriverReview
+	for rows.Next() {
+		var review DriverReview
+		if err := rows.Scan(
+			&review.ID,
+			&review.Rating,
+			&review.Comment,
+			&review.CreatedAt,
+			&review.Order.ID,
+			&review.Order.PassengerID,
+			&review.Order.DriverID,
+			&review.Order.FromLon,
+			&review.Order.FromLat,
+			&review.Order.ToLon,
+			&review.Order.ToLat,
+			&review.Order.DistanceM,
+			&review.Order.EtaSeconds,
+			&review.Order.RecommendedPrice,
+			&review.Order.ClientPrice,
+			&review.Order.PaymentMethod,
+			&review.Order.Status,
+			&review.Order.Notes,
+			&review.Order.CreatedAt,
+			&review.Order.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, review)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for i := range reviews {
+		addresses, err := r.listAddresses(ctx, reviews[i].Order.ID)
+		if err != nil {
+			return nil, err
+		}
+		reviews[i].Order.Addresses = addresses
+	}
+
+	return reviews, nil
 }
 
 func insertOrderAddresses(ctx context.Context, tx *sql.Tx, orderID int64, addresses []OrderAddress) error {
