@@ -35,6 +35,10 @@ var transitions = map[string]map[string]struct{}{
 	StatusAccepted: {
 		StatusArrived:             {},
 		StatusAssigned:            {},
+		StatusDriverAtPickup:      {},
+		StatusWaitingFree:         {},
+		StatusWaitingPaid:         {},
+		StatusInProgress:          {},
 		StatusCanceled:            {},
 		StatusCanceledByPassenger: {},
 		StatusCanceledByDriver:    {},

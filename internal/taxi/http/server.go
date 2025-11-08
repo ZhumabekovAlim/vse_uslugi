@@ -42,6 +42,18 @@ type Server struct {
 	payClient      *pay.Client
 }
 
+const (
+	lifecycleArrivalRadiusMeters  = 100.0
+	lifecycleStartRadiusMeters    = 100.0
+	lifecycleWaypointRadiusMeters = 50.0
+	lifecycleFinishRadiusMeters   = 100.0
+	lifecycleStationarySpeedKPH   = 5.0
+)
+
+const lifecycleTelemetryFreshness = 5 * time.Minute
+
+var errOrderStatusConflict = errors.New("order status changed")
+
 func nstr(v sql.NullString) string {
 	if v.Valid {
 		return v.String
@@ -634,6 +646,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/intercity/orders", s.handleIntercityOrders)
 	mux.HandleFunc("/api/v1/intercity/orders/list", s.listIntercityOrders)
 	mux.HandleFunc("/api/v1/intercity/orders/", s.handleIntercityOrderSubroutes)
+	mux.HandleFunc("/api/taxi/orders/", s.handleTaxiLifecycle)
 	mux.HandleFunc("/api/v1/offers/accept", s.handleOfferAccept)
 	mux.HandleFunc("/api/v1/offers/propose_price", s.handleOfferPrice)
 	mux.HandleFunc("/api/v1/offers/respond", s.handleOfferResponse)
@@ -710,6 +723,616 @@ func (s *Server) listDrivers(w http.ResponseWriter, r *http.Request) {
 		resp = append(resp, newDriverResponse(d))
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"drivers": resp})
+}
+
+func (s *Server) handleTaxiLifecycle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	path := strings.TrimPrefix(r.URL.Path, "/api/taxi/orders/")
+	path = strings.Trim(path, "/")
+	if path == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	orderID, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid order id")
+		return
+	}
+	switch parts[1] {
+	case "arrive":
+		s.handleLifecycleArrive(w, r, orderID)
+	case "waiting":
+		if len(parts) == 3 && parts[2] == "advance" {
+			s.handleLifecycleWaitingAdvance(w, r, orderID)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	case "start":
+		s.handleLifecycleStart(w, r, orderID)
+	case "waypoints":
+		if len(parts) == 3 && parts[2] == "next" {
+			s.handleLifecycleWaypointNext(w, r, orderID)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	case "pause":
+		s.handleLifecyclePause(w, r, orderID)
+	case "resume":
+		s.handleLifecycleResume(w, r, orderID)
+	case "finish":
+		s.handleLifecycleFinish(w, r, orderID)
+	case "confirm-cash":
+		s.handleLifecycleConfirmCash(w, r, orderID)
+	case "cancel":
+		s.handleLifecycleCancel(w, r, orderID)
+	case "no-show":
+		s.handleLifecycleNoShow(w, r, orderID)
+	default:
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+type telemetryPayload struct {
+	Timestamp string `json:"timestamp"`
+	Position  struct {
+		Lat float64 `json:"lat"`
+		Lon float64 `json:"lon"`
+	} `json:"position"`
+	SpeedKPH float64 `json:"speed_kph"`
+}
+
+func (p telemetryPayload) parseTimestamp() (time.Time, error) {
+	if strings.TrimSpace(p.Timestamp) == "" {
+		return time.Time{}, errors.New("timestamp required")
+	}
+	return time.Parse(time.RFC3339, p.Timestamp)
+}
+
+func (s *Server) handleLifecycleArrive(w http.ResponseWriter, r *http.Request, orderID int64) {
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+	var payload telemetryPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	ts, err := payload.parseTimestamp()
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if time.Since(ts) > lifecycleTelemetryFreshness {
+		writeError(w, http.StatusBadRequest, "outdated telemetry")
+		return
+	}
+	if payload.SpeedKPH > lifecycleStationarySpeedKPH {
+		writeError(w, http.StatusBadRequest, "driver must be stationary")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.ordersRepo.Get(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch order failed")
+		return
+	}
+	if !order.DriverID.Valid || order.DriverID.Int64 != driverID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+	distance := distanceMeters(order.FromLon, order.FromLat, payload.Position.Lon, payload.Position.Lat)
+	if distance > lifecycleArrivalRadiusMeters {
+		writeError(w, http.StatusBadRequest, "driver outside pickup radius")
+		return
+	}
+
+	switch order.Status {
+	case fsm.StatusWaitingFree, fsm.StatusWaitingPaid, fsm.StatusInProgress:
+		writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+		return
+	}
+
+	sequence := []string{fsm.StatusDriverAtPickup, fsm.StatusWaitingFree}
+	if order.Status == fsm.StatusDriverAtPickup {
+		sequence = sequence[1:]
+	}
+
+	if err := s.applyStatusSequence(ctx, &order, sequence...); err != nil {
+		if errors.Is(err, errOrderStatusConflict) {
+			writeError(w, http.StatusConflict, "order status changed")
+			return
+		}
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.notifyPassengerStatus(order.PassengerID, order.ID, order.Status)
+	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+}
+
+func (s *Server) applyStatusSequence(ctx context.Context, order *repo.Order, statuses ...string) error {
+	current := order.Status
+	for _, target := range statuses {
+		if target == "" || current == target {
+			continue
+		}
+		if !fsm.CanTransition(current, target) {
+			return fmt.Errorf("invalid transition %s -> %s", current, target)
+		}
+		if err := s.ordersRepo.UpdateStatusCAS(ctx, order.ID, current, target); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return errOrderStatusConflict
+			}
+			return err
+		}
+		current = target
+	}
+	order.Status = current
+	return nil
+}
+
+func (s *Server) notifyPassengerStatus(passengerID, orderID int64, status string) {
+	if s.passengerHub == nil || passengerID == 0 {
+		return
+	}
+	s.passengerHub.PushOrderEvent(passengerID, ws.PassengerEvent{Type: "order_status", OrderID: orderID, Status: status})
+}
+
+func (s *Server) handleLifecycleWaitingAdvance(w http.ResponseWriter, r *http.Request, orderID int64) {
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.ordersRepo.Get(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch order failed")
+		return
+	}
+	if !order.DriverID.Valid || order.DriverID.Int64 != driverID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+	if order.Status == fsm.StatusWaitingPaid || order.Status == fsm.StatusInProgress {
+		writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+		return
+	}
+	if order.Status != fsm.StatusWaitingFree {
+		writeError(w, http.StatusConflict, "order not in waiting state")
+		return
+	}
+
+	if err := s.applyStatusSequence(ctx, &order, fsm.StatusWaitingPaid); err != nil {
+		if errors.Is(err, errOrderStatusConflict) {
+			writeError(w, http.StatusConflict, "order status changed")
+			return
+		}
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.notifyPassengerStatus(order.PassengerID, order.ID, order.Status)
+	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+}
+
+func (s *Server) handleLifecycleStart(w http.ResponseWriter, r *http.Request, orderID int64) {
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+	var payload struct {
+		telemetryPayload
+		PinConfirmed bool `json:"pin_confirmed"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	ts, err := payload.telemetryPayload.parseTimestamp()
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if time.Since(ts) > lifecycleTelemetryFreshness {
+		writeError(w, http.StatusBadRequest, "outdated telemetry")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.ordersRepo.Get(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch order failed")
+		return
+	}
+	if !order.DriverID.Valid || order.DriverID.Int64 != driverID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+
+	distance := distanceMeters(order.FromLon, order.FromLat, payload.Position.Lon, payload.Position.Lat)
+	if distance > lifecycleStartRadiusMeters {
+		writeError(w, http.StatusBadRequest, "driver outside start radius")
+		return
+	}
+
+	switch order.Status {
+	case fsm.StatusInProgress, fsm.StatusAtLastPoint, fsm.StatusCompleted:
+		writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+		return
+	case fsm.StatusWaitingFree, fsm.StatusWaitingPaid, fsm.StatusDriverAtPickup, fsm.StatusAccepted, fsm.StatusAssigned:
+	default:
+		writeError(w, http.StatusConflict, "order cannot be started in current status")
+		return
+	}
+
+	if err := s.applyStatusSequence(ctx, &order, fsm.StatusInProgress); err != nil {
+		if errors.Is(err, errOrderStatusConflict) {
+			writeError(w, http.StatusConflict, "order status changed")
+			return
+		}
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.notifyPassengerStatus(order.PassengerID, order.ID, order.Status)
+	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+}
+
+func (s *Server) handleLifecycleWaypointNext(w http.ResponseWriter, r *http.Request, orderID int64) {
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.ordersRepo.Get(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch order failed")
+		return
+	}
+	if !order.DriverID.Valid || order.DriverID.Int64 != driverID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+	if order.Status != fsm.StatusInProgress {
+		writeError(w, http.StatusConflict, "order not in progress")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+}
+
+func (s *Server) handleLifecyclePause(w http.ResponseWriter, r *http.Request, orderID int64) {
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.ordersRepo.Get(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch order failed")
+		return
+	}
+	if !order.DriverID.Valid || order.DriverID.Int64 != driverID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+	if order.Status != fsm.StatusInProgress {
+		writeError(w, http.StatusConflict, "order not in progress")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+}
+
+func (s *Server) handleLifecycleResume(w http.ResponseWriter, r *http.Request, orderID int64) {
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.ordersRepo.Get(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch order failed")
+		return
+	}
+	if !order.DriverID.Valid || order.DriverID.Int64 != driverID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+	if order.Status != fsm.StatusInProgress {
+		writeError(w, http.StatusConflict, "order not in progress")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+}
+
+func (s *Server) handleLifecycleFinish(w http.ResponseWriter, r *http.Request, orderID int64) {
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+	var payload telemetryPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	ts, err := payload.parseTimestamp()
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if time.Since(ts) > lifecycleTelemetryFreshness {
+		writeError(w, http.StatusBadRequest, "outdated telemetry")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.ordersRepo.Get(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch order failed")
+		return
+	}
+	if !order.DriverID.Valid || order.DriverID.Int64 != driverID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+
+	distance := distanceMeters(order.ToLon, order.ToLat, payload.Position.Lon, payload.Position.Lat)
+	if distance > lifecycleFinishRadiusMeters {
+		writeError(w, http.StatusBadRequest, "driver outside finish radius")
+		return
+	}
+
+	switch order.Status {
+	case fsm.StatusAtLastPoint, fsm.StatusCompleted:
+		writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+		return
+	case fsm.StatusInProgress:
+	default:
+		writeError(w, http.StatusConflict, "order not in progress")
+		return
+	}
+
+	if err := s.applyStatusSequence(ctx, &order, fsm.StatusAtLastPoint); err != nil {
+		if errors.Is(err, errOrderStatusConflict) {
+			writeError(w, http.StatusConflict, "order status changed")
+			return
+		}
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.notifyPassengerStatus(order.PassengerID, order.ID, order.Status)
+	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+}
+
+func (s *Server) handleLifecycleConfirmCash(w http.ResponseWriter, r *http.Request, orderID int64) {
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.ordersRepo.Get(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch order failed")
+		return
+	}
+	if !order.DriverID.Valid || order.DriverID.Int64 != driverID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+	if order.Status == fsm.StatusCompleted {
+		writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+		return
+	}
+	if order.Status != fsm.StatusAtLastPoint {
+		writeError(w, http.StatusConflict, "order not ready for completion")
+		return
+	}
+
+	if err := s.applyStatusSequence(ctx, &order, fsm.StatusCompleted); err != nil {
+		if errors.Is(err, errOrderStatusConflict) {
+			writeError(w, http.StatusConflict, "order status changed")
+			return
+		}
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.notifyPassengerStatus(order.PassengerID, order.ID, order.Status)
+	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+}
+
+func (s *Server) handleLifecycleCancel(w http.ResponseWriter, r *http.Request, orderID int64) {
+	var payload struct {
+		By     string `json:"by"`
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && !errors.Is(err, io.EOF) {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	by := strings.ToLower(strings.TrimSpace(payload.By))
+	switch by {
+	case "passenger":
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		order, err := s.ordersRepo.Get(ctx, orderID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "order not found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "fetch order failed")
+			return
+		}
+		s.handlePassengerCancel(ctx, w, r, order, payload.Reason)
+	case "driver":
+		driverID, err := parseAuthID(r, "X-Driver-ID")
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "missing driver id")
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		order, err := s.ordersRepo.Get(ctx, orderID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "order not found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "fetch order failed")
+			return
+		}
+		if !order.DriverID.Valid || order.DriverID.Int64 != driverID {
+			writeError(w, http.StatusForbidden, "access denied")
+			return
+		}
+		if err := s.applyStatusSequence(ctx, &order, fsm.StatusCanceledByDriver); err != nil {
+			if errors.Is(err, errOrderStatusConflict) {
+				writeError(w, http.StatusConflict, "order status changed")
+				return
+			}
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		s.notifyPassengerStatus(order.PassengerID, order.ID, order.Status)
+		writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+	default:
+		writeError(w, http.StatusBadRequest, "invalid cancel initiator")
+	}
+}
+
+func (s *Server) handleLifecycleNoShow(w http.ResponseWriter, r *http.Request, orderID int64) {
+	driverID, err := parseAuthID(r, "X-Driver-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing driver id")
+		return
+	}
+	var payload telemetryPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	ts, err := payload.parseTimestamp()
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if time.Since(ts) > lifecycleTelemetryFreshness {
+		writeError(w, http.StatusBadRequest, "outdated telemetry")
+		return
+	}
+	if payload.SpeedKPH > lifecycleStationarySpeedKPH {
+		writeError(w, http.StatusBadRequest, "driver must be stationary")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	order, err := s.ordersRepo.Get(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch order failed")
+		return
+	}
+	if !order.DriverID.Valid || order.DriverID.Int64 != driverID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+	if order.Status == fsm.StatusNoShow {
+		writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+		return
+	}
+	if order.Status != fsm.StatusWaitingFree && order.Status != fsm.StatusWaitingPaid {
+		writeError(w, http.StatusConflict, "order not in waiting state")
+		return
+	}
+	distance := distanceMeters(order.FromLon, order.FromLat, payload.Position.Lon, payload.Position.Lat)
+	if distance > lifecycleArrivalRadiusMeters {
+		writeError(w, http.StatusBadRequest, "driver outside pickup radius")
+		return
+	}
+
+	if err := s.applyStatusSequence(ctx, &order, fsm.StatusNoShow); err != nil {
+		if errors.Is(err, errOrderStatusConflict) {
+			writeError(w, http.StatusConflict, "order status changed")
+			return
+		}
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.notifyPassengerStatus(order.PassengerID, order.ID, order.Status)
+	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
 }
 
 func (s *Server) createDriver(w http.ResponseWriter, r *http.Request) {
@@ -2087,7 +2710,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 	}
 
 	if req.Status == "canceled" {
-		s.handlePassengerCancel(ctx, w, r, order)
+		s.handlePassengerCancel(ctx, w, r, order, "")
 		return
 	}
 	if !fsm.CanTransition(order.Status, req.Status) {
@@ -2128,8 +2751,8 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 	writeJSON(w, http.StatusOK, map[string]string{"status": req.Status})
 }
 
-func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWriter, r *http.Request, order repo.Order) {
-	const targetStatus = "canceled"
+func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWriter, r *http.Request, order repo.Order, note string) {
+	const targetStatus = fsm.StatusCanceledByPassenger
 
 	passengerID, err := parseAuthID(r, "X-Passenger-ID")
 	if err != nil {
@@ -2145,8 +2768,12 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 		return
 	}
 
+	if trimmed := strings.TrimSpace(note); trimmed != "" && s.logger != nil {
+		s.logger.Infof("passenger %d canceled order %d: %s", passengerID, order.ID, trimmed)
+	}
+
 	switch order.Status {
-	case "searching", "accepted", "arrived":
+	case fsm.StatusSearching, fsm.StatusAccepted, fsm.StatusArrived, fsm.StatusWaitingFree, fsm.StatusWaitingPaid:
 	default:
 		msg := fmt.Sprintf("order cannot be canceled in status %s", order.Status)
 		s.pushPassengerError(passengerID, order.ID, msg)
