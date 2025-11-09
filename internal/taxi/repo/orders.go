@@ -348,6 +348,43 @@ func (r *OrdersRepo) ListByDriver(ctx context.Context, driverID int64, limit, of
 	return orders, nil
 }
 
+// ListAll returns orders across all passengers sorted by creation date.
+func (r *OrdersRepo) ListAll(ctx context.Context, limit, offset int) ([]Order, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	rows, err := r.db.QueryContext(ctx, `SELECT id, passenger_id, driver_id, from_lon, from_lat, to_lon, to_lat, distance_m, eta_s, recommended_price, client_price, payment_method, status, notes, created_at, updated_at FROM orders ORDER BY created_at DESC LIMIT ? OFFSET ?`, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []Order
+	for rows.Next() {
+		var o Order
+		if err := rows.Scan(&o.ID, &o.PassengerID, &o.DriverID, &o.FromLon, &o.FromLat, &o.ToLon, &o.ToLat, &o.DistanceM, &o.EtaSeconds, &o.RecommendedPrice, &o.ClientPrice, &o.PaymentMethod, &o.Status, &o.Notes, &o.CreatedAt, &o.UpdatedAt); err != nil {
+			return nil, err
+		}
+		orders = append(orders, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for i := range orders {
+		addresses, err := r.listAddresses(ctx, orders[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		orders[i].Addresses = addresses
+	}
+	return orders, nil
+}
+
 // GetActiveOrderIDByPassenger returns the most recent active order ID for the passenger.
 func (r *OrdersRepo) GetActiveOrderIDByPassenger(ctx context.Context, passengerID int64) (int64, error) {
 	args := make([]interface{}, 0, len(passengerActiveStatuses)+1)
