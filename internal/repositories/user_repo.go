@@ -199,32 +199,13 @@ func (r *UserRepository) DeleteUser(ctx context.Context, id int) error {
 func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (models.User, error) {
 	var user models.User
 	query := `
-		SELECT
-		  id,
-		  COALESCE(name, '')        AS name,
-		  COALESCE(surname, '')     AS surname,
-		  COALESCE(middlename, '')  AS middlename,
-		  COALESCE(phone, '')       AS phone,
-		  COALESCE(email, '')       AS email,
-		  COALESCE(password, '')    AS password,
-		  COALESCE(city_id, 0)      AS city_id,
-		  COALESCE(years_of_exp, 0) AS years_of_exp,
-		  COALESCE(doc_of_proof, '') AS doc_of_proof,
-		  COALESCE(avatar_path, '') AS avatar_path,
-		  COALESCE(review_rating, 0) AS review_rating,
-		  COALESCE(role, '')        AS role,
-		  COALESCE(latitude, 0)     AS latitude,
-		  COALESCE(longitude, 0)    AS longitude,
-		  COALESCE(created_at, '1970-01-01 00:00:00') AS created_at,
-		  COALESCE(updated_at, '1970-01-01 00:00:00') AS updated_at
-		FROM users
-		WHERE phone = ?
+       SELECT id, name, surname, phone, email, password, city_id, role
+        FROM users
+        WHERE phone = ?
     `
 	fmt.Println(query)
 	err := r.DB.QueryRowContext(ctx, query, phone).Scan(
-		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-		&user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
-		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
+		&user.ID, &user.Name, &user.Surname, &user.Phone, &user.Email, &user.Password, &user.CityID, &user.Role,
 	)
 	fmt.Println(user)
 	if errors.Is(err, sql.ErrNoRows) {
