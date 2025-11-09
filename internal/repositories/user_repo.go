@@ -51,7 +51,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.Us
 	var user models.User
 
 	// Получаем основную информацию о пользователе
-	query := `SELECT id, name, middlename, surname, phone, email, password, city_id, role,
+	query := `SELECT id, name, COALESCE(middlename, ''), surname, phone, email, password, city_id, role,
                years_of_exp,  COALESCE(skills, '') AS skills, doc_of_proof, avatar_path, created_at, updated_at
                FROM users WHERE id = ?`
 
