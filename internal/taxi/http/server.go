@@ -55,7 +55,13 @@ const (
 
 const lifecycleTelemetryFreshness = 5 * time.Minute
 
-var errOrderStatusConflict = errors.New("order status changed")
+var (
+	errOrderStatusConflict = errors.New("order status changed")
+	errDriverBanned        = errors.New("driver banned")
+	errDriverNotApproved   = errors.New("driver not approved")
+	errInvalidLimit        = errors.New("invalid limit")
+	errInvalidOffset       = errors.New("invalid offset")
+)
 
 func nstr(v sql.NullString) string {
 	if v.Valid {
@@ -156,28 +162,30 @@ func (p driverPayload) validate() string {
 }
 
 type driverResponse struct {
-	ID            int64     `json:"id"`
-	UserID        int64     `json:"user_id"`
-	Name          string    `json:"name"`
-	Surname       string    `json:"surname"`
-	Middlename    string    `json:"middlename,omitempty"`
-	Status        string    `json:"status"`
-	CarModel      string    `json:"car_model,omitempty"`
-	CarColor      string    `json:"car_color,omitempty"`
-	CarNumber     string    `json:"car_number"`
-	TechPassport  string    `json:"tech_passport"`
-	CarPhotoFront string    `json:"car_photo_front"`
-	CarPhotoBack  string    `json:"car_photo_back"`
-	CarPhotoLeft  string    `json:"car_photo_left"`
-	CarPhotoRight string    `json:"car_photo_right"`
-	DriverPhoto   string    `json:"driver_photo"`
-	Phone         string    `json:"phone"`
-	IIN           string    `json:"iin"`
-	IDCardFront   string    `json:"id_card_front"`
-	IDCardBack    string    `json:"id_card_back"`
-	Rating        float64   `json:"rating"`
-	Balance       int       `json:"balance"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID             int64     `json:"id"`
+	UserID         int64     `json:"user_id"`
+	Name           string    `json:"name"`
+	Surname        string    `json:"surname"`
+	Middlename     string    `json:"middlename,omitempty"`
+	Status         string    `json:"status"`
+	ApprovalStatus string    `json:"approval_status"`
+	IsBanned       bool      `json:"is_banned"`
+	CarModel       string    `json:"car_model,omitempty"`
+	CarColor       string    `json:"car_color,omitempty"`
+	CarNumber      string    `json:"car_number"`
+	TechPassport   string    `json:"tech_passport"`
+	CarPhotoFront  string    `json:"car_photo_front"`
+	CarPhotoBack   string    `json:"car_photo_back"`
+	CarPhotoLeft   string    `json:"car_photo_left"`
+	CarPhotoRight  string    `json:"car_photo_right"`
+	DriverPhoto    string    `json:"driver_photo"`
+	Phone          string    `json:"phone"`
+	IIN            string    `json:"iin"`
+	IDCardFront    string    `json:"id_card_front"`
+	IDCardBack     string    `json:"id_card_back"`
+	Rating         float64   `json:"rating"`
+	Balance        int       `json:"balance"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type driverProfileResponse struct {
@@ -210,32 +218,86 @@ type driverStatsResponse struct {
 
 func newDriverResponse(d repo.Driver) driverResponse {
 	resp := driverResponse{
-		ID:            d.ID,
-		UserID:        d.UserID,
-		Name:          d.Name,
-		Surname:       d.Surname,
-		Status:        d.Status,
-		CarModel:      d.CarModel.String,
-		CarColor:      d.CarColor.String,
-		CarNumber:     d.CarNumber,
-		TechPassport:  d.TechPassport,
-		CarPhotoFront: d.CarPhotoFront,
-		CarPhotoBack:  d.CarPhotoBack,
-		CarPhotoLeft:  d.CarPhotoLeft,
-		CarPhotoRight: d.CarPhotoRight,
-		DriverPhoto:   d.DriverPhoto,
-		Phone:         d.Phone,
-		IIN:           d.IIN,
-		IDCardFront:   d.IDCardFront,
-		IDCardBack:    d.IDCardBack,
-		Rating:        d.Rating,
-		Balance:       d.Balance,
-		UpdatedAt:     d.UpdatedAt,
+		ID:             d.ID,
+		UserID:         d.UserID,
+		Name:           d.Name,
+		Surname:        d.Surname,
+		Status:         d.Status,
+		ApprovalStatus: d.ApprovalStatus,
+		IsBanned:       d.IsBanned,
+		CarModel:       d.CarModel.String,
+		CarColor:       d.CarColor.String,
+		CarNumber:      d.CarNumber,
+		TechPassport:   d.TechPassport,
+		CarPhotoFront:  d.CarPhotoFront,
+		CarPhotoBack:   d.CarPhotoBack,
+		CarPhotoLeft:   d.CarPhotoLeft,
+		CarPhotoRight:  d.CarPhotoRight,
+		DriverPhoto:    d.DriverPhoto,
+		Phone:          d.Phone,
+		IIN:            d.IIN,
+		IDCardFront:    d.IDCardFront,
+		IDCardBack:     d.IDCardBack,
+		Rating:         d.Rating,
+		Balance:        d.Balance,
+		UpdatedAt:      d.UpdatedAt,
 	}
 	if d.Middlename.Valid {
 		resp.Middlename = d.Middlename.String
 	}
 	return resp
+}
+
+func (s *Server) ensureDriverEligible(ctx context.Context, driverID int64) (repo.Driver, error) {
+	driver, err := s.driversRepo.Get(ctx, driverID)
+	if err != nil {
+		return repo.Driver{}, err
+	}
+	if driver.IsBanned {
+		return driver, errDriverBanned
+	}
+	if driver.ApprovalStatus != "approved" {
+		return driver, errDriverNotApproved
+	}
+	return driver, nil
+}
+
+func (s *Server) getDriverForAction(w http.ResponseWriter, ctx context.Context, driverID int64) (repo.Driver, bool) {
+	driver, err := s.ensureDriverEligible(ctx, driverID)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			writeError(w, http.StatusUnauthorized, "driver not found")
+		case errors.Is(err, errDriverBanned):
+			writeError(w, http.StatusForbidden, "driver is banned")
+		case errors.Is(err, errDriverNotApproved):
+			writeError(w, http.StatusForbidden, "driver not approved")
+		default:
+			writeError(w, http.StatusInternalServerError, "driver lookup failed")
+		}
+		return repo.Driver{}, false
+	}
+	return driver, true
+}
+
+func parseLimitOffset(r *http.Request, defaultLimit int) (int, int, error) {
+	limit := defaultLimit
+	if v := r.URL.Query().Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n <= 0 {
+			return 0, 0, errInvalidLimit
+		}
+		limit = n
+	}
+	offset := 0
+	if v := r.URL.Query().Get("offset"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			return 0, 0, errInvalidOffset
+		}
+		offset = n
+	}
+	return limit, offset, nil
 }
 
 type passengerResponse struct {
@@ -670,6 +732,10 @@ func (p intercityListPayload) validate() string {
 }
 
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/api/v1/admin/taxi/drivers", s.handleAdminTaxiDrivers)
+	mux.HandleFunc("/api/v1/admin/taxi/drivers/", s.handleAdminTaxiDriver)
+	mux.HandleFunc("/api/v1/admin/taxi/orders", s.handleAdminTaxiOrders)
+	mux.HandleFunc("/api/v1/admin/taxi/intercity/orders", s.handleAdminTaxiIntercityOrders)
 	mux.HandleFunc("/api/v1/drivers", s.handleDrivers)
 	mux.HandleFunc("/api/v1/drivers/", s.handleDriver)
 	mux.HandleFunc("/api/v1/driver/balance/deposit", s.handleDriverBalanceDeposit)
@@ -691,6 +757,220 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/payments/airbapay/webhook", s.handleAirbaPayWebhook)
 	mux.HandleFunc("/ws/driver", s.handleDriverWS)
 	mux.HandleFunc("/ws/passenger", s.handlePassengerWS)
+}
+
+func (s *Server) handleAdminTaxiDrivers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	limit, offset, err := parseLimitOffset(r, 100)
+	if err != nil {
+		switch {
+		case errors.Is(err, errInvalidLimit):
+			writeError(w, http.StatusBadRequest, "invalid limit")
+		case errors.Is(err, errInvalidOffset):
+			writeError(w, http.StatusBadRequest, "invalid offset")
+		default:
+			writeError(w, http.StatusBadRequest, "invalid pagination")
+		}
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	drivers, err := s.driversRepo.List(ctx, limit, offset)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "list drivers failed")
+		return
+	}
+	resp := make([]driverResponse, 0, len(drivers))
+	for _, d := range drivers {
+		resp = append(resp, newDriverResponse(d))
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"drivers": resp, "limit": limit, "offset": offset})
+}
+
+func (s *Server) handleAdminTaxiDriver(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/taxi/drivers/")
+	path = strings.Trim(path, "/")
+	if path == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	parts := strings.Split(path, "/")
+	id, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	if len(parts) < 2 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	switch parts[1] {
+	case "ban":
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var payload struct {
+			Banned bool `json:"banned"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid json")
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		if err := s.driversRepo.SetBanStatus(ctx, id, payload.Banned); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "driver not found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "update driver failed")
+			return
+		}
+		driver, err := s.driversRepo.Get(ctx, id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "fetch driver failed")
+			return
+		}
+		writeJSON(w, http.StatusOK, newDriverResponse(driver))
+	case "approval":
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var payload struct {
+			Status string `json:"status"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid json")
+			return
+		}
+		status := strings.ToLower(strings.TrimSpace(payload.Status))
+		if status != "approved" && status != "rejected" {
+			writeError(w, http.StatusBadRequest, "status must be approved or rejected")
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		if err := s.driversRepo.UpdateApprovalStatus(ctx, id, status); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "driver not found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "update driver failed")
+			return
+		}
+		driver, err := s.driversRepo.Get(ctx, id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "fetch driver failed")
+			return
+		}
+		writeJSON(w, http.StatusOK, newDriverResponse(driver))
+	default:
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+func (s *Server) handleAdminTaxiOrders(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	limit, offset, err := parseLimitOffset(r, 100)
+	if err != nil {
+		switch {
+		case errors.Is(err, errInvalidLimit):
+			writeError(w, http.StatusBadRequest, "invalid limit")
+		case errors.Is(err, errInvalidOffset):
+			writeError(w, http.StatusBadRequest, "invalid offset")
+		default:
+			writeError(w, http.StatusBadRequest, "invalid pagination")
+		}
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	orders, err := s.ordersRepo.ListAll(ctx, limit, offset)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "list orders failed")
+		return
+	}
+
+	passengerCache := make(map[int64]repo.Passenger)
+	driverCache := make(map[int64]repo.Driver)
+	resp := make([]orderResponse, 0, len(orders))
+	for _, order := range orders {
+		var passenger *repo.Passenger
+		if cached, ok := passengerCache[order.PassengerID]; ok {
+			cachedPassenger := cached
+			passenger = &cachedPassenger
+		} else {
+			if p, err := s.passengersRepo.Get(ctx, order.PassengerID); err == nil {
+				passengerCache[order.PassengerID] = p
+				passenger = &p
+			}
+		}
+
+		var driver *repo.Driver
+		if order.DriverID.Valid {
+			if cached, ok := driverCache[order.DriverID.Int64]; ok {
+				cachedDriver := cached
+				driver = &cachedDriver
+			} else {
+				if d, err := s.driversRepo.Get(ctx, order.DriverID.Int64); err == nil {
+					driverCache[order.DriverID.Int64] = d
+					driver = &d
+				}
+			}
+		}
+
+		resp = append(resp, newOrderResponse(order, driver, passenger))
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"orders": resp, "limit": limit, "offset": offset})
+}
+
+func (s *Server) handleAdminTaxiIntercityOrders(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	limit, offset, err := parseLimitOffset(r, 100)
+	if err != nil {
+		switch {
+		case errors.Is(err, errInvalidLimit):
+			writeError(w, http.StatusBadRequest, "invalid limit")
+		case errors.Is(err, errInvalidOffset):
+			writeError(w, http.StatusBadRequest, "invalid offset")
+		default:
+			writeError(w, http.StatusBadRequest, "invalid pagination")
+		}
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	orders, err := s.intercityRepo.List(ctx, repo.IntercityOrdersFilter{Limit: limit, Offset: offset})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "list orders failed")
+		return
+	}
+
+	resp := make([]intercityOrderResponse, 0, len(orders))
+	for _, order := range orders {
+		resp = append(resp, newIntercityOrderResponse(order))
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"orders": resp, "limit": limit, "offset": offset})
 }
 
 func (s *Server) handleDrivers(w http.ResponseWriter, r *http.Request) {
@@ -1170,6 +1450,10 @@ func (s *Server) handleLifecycleArrive(w http.ResponseWriter, r *http.Request, o
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
+	if _, ok := s.getDriverForAction(w, ctx, driverID); !ok {
+		return
+	}
+
 	order, err := s.ordersRepo.Get(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1250,6 +1534,10 @@ func (s *Server) handleLifecycleWaitingAdvance(w http.ResponseWriter, r *http.Re
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
+	if _, ok := s.getDriverForAction(w, ctx, driverID); !ok {
+		return
+	}
+
 	order, err := s.ordersRepo.Get(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1311,6 +1599,10 @@ func (s *Server) handleLifecycleStart(w http.ResponseWriter, r *http.Request, or
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
+	if _, ok := s.getDriverForAction(w, ctx, driverID); !ok {
+		return
+	}
+
 	order, err := s.ordersRepo.Get(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1363,6 +1655,10 @@ func (s *Server) handleLifecycleWaypointNext(w http.ResponseWriter, r *http.Requ
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
+	if _, ok := s.getDriverForAction(w, ctx, driverID); !ok {
+		return
+	}
+
 	order, err := s.ordersRepo.Get(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1394,6 +1690,10 @@ func (s *Server) handleLifecyclePause(w http.ResponseWriter, r *http.Request, or
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
+	if _, ok := s.getDriverForAction(w, ctx, driverID); !ok {
+		return
+	}
+
 	order, err := s.ordersRepo.Get(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1423,6 +1723,10 @@ func (s *Server) handleLifecycleResume(w http.ResponseWriter, r *http.Request, o
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+
+	if _, ok := s.getDriverForAction(w, ctx, driverID); !ok {
+		return
+	}
 
 	order, err := s.ordersRepo.Get(ctx, orderID)
 	if err != nil {
@@ -1467,6 +1771,10 @@ func (s *Server) handleLifecycleFinish(w http.ResponseWriter, r *http.Request, o
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+
+	if _, ok := s.getDriverForAction(w, ctx, driverID); !ok {
+		return
+	}
 
 	order, err := s.ordersRepo.Get(ctx, orderID)
 	if err != nil {
@@ -1519,6 +1827,10 @@ func (s *Server) handleLifecycleConfirmCash(w http.ResponseWriter, r *http.Reque
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+
+	if _, ok := s.getDriverForAction(w, ctx, driverID); !ok {
+		return
+	}
 
 	order, err := s.ordersRepo.Get(ctx, orderID)
 	if err != nil {
@@ -1586,6 +1898,9 @@ func (s *Server) handleLifecycleCancel(w http.ResponseWriter, r *http.Request, o
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
+		if _, ok := s.getDriverForAction(w, ctx, driverID); !ok {
+			return
+		}
 		order, err := s.ordersRepo.Get(ctx, orderID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -1641,6 +1956,10 @@ func (s *Server) handleLifecycleNoShow(w http.ResponseWriter, r *http.Request, o
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+
+	if _, ok := s.getDriverForAction(w, ctx, driverID); !ok {
+		return
+	}
 
 	order, err := s.ordersRepo.Get(ctx, orderID)
 	if err != nil {
@@ -1768,7 +2087,7 @@ func (s *Server) createDriver(w http.ResponseWriter, r *http.Request) {
 
 	driver := repo.Driver{
 		UserID:        payload.UserID,
-		Status:        payload.Status,
+		Status:        "offline",
 		CarModel:      toNullString(payload.CarModel),
 		CarColor:      toNullString(payload.CarColor),
 		CarNumber:     payload.CarNumber,
@@ -1827,6 +2146,24 @@ func (s *Server) updateDriver(w http.ResponseWriter, r *http.Request, id int64) 
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+
+	current, err := s.driversRepo.Get(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "driver not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "fetch driver failed")
+		return
+	}
+	if current.IsBanned && payload.Status != "offline" {
+		writeError(w, http.StatusForbidden, "driver is banned")
+		return
+	}
+	if current.ApprovalStatus != "approved" && payload.Status != "offline" {
+		writeError(w, http.StatusForbidden, "driver not approved")
+		return
+	}
 
 	driver := repo.Driver{
 		ID:            id,
@@ -2871,13 +3208,8 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	driver, err := s.driversRepo.Get(ctx, driverID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			writeError(w, http.StatusUnauthorized, "driver not found")
-			return
-		}
-		writeError(w, http.StatusInternalServerError, "driver lookup failed")
+	driver, ok := s.getDriverForAction(w, ctx, driverID)
+	if !ok {
 		return
 	}
 
@@ -2970,13 +3302,16 @@ func (s *Server) handleOfferResponse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	driver, err := s.driversRepo.Get(ctx, req.DriverID)
+	driver, err := s.ensureDriverEligible(ctx, req.DriverID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
 			writeError(w, http.StatusNotFound, "driver not found")
-			return
+		case errors.Is(err, errDriverBanned), errors.Is(err, errDriverNotApproved):
+			writeError(w, http.StatusConflict, "driver not available")
+		default:
+			writeError(w, http.StatusInternalServerError, "driver lookup failed")
 		}
-		writeError(w, http.StatusInternalServerError, "driver lookup failed")
 		return
 	}
 	if driver.Balance < minDriverBalanceTenge {
@@ -3060,13 +3395,8 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	driver, err := s.driversRepo.Get(ctx, driverID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			writeError(w, http.StatusUnauthorized, "driver not found")
-			return
-		}
-		writeError(w, http.StatusInternalServerError, "driver lookup failed")
+	driver, ok := s.getDriverForAction(w, ctx, driverID)
+	if !ok {
 		return
 	}
 	if driver.Balance < minDriverBalanceTenge {
