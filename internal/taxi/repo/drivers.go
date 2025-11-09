@@ -73,7 +73,7 @@ func (r *DriversRepo) Get(ctx context.Context, id int64) (Driver, error) {
         d.id, d.user_id, d.status, d.approval_status, d.is_banned, d.car_model, d.car_color, d.car_number, d.tech_passport,
         d.car_photo_front, d.car_photo_back, d.car_photo_left, d.car_photo_right,
         d.driver_photo, d.phone, d.iin, d.id_card_front, d.id_card_back, d.rating, d.balance, d.updated_at,
-        u.name, u.surname, u.middlename
+        u.name, u.surname, COALESCE(u.middlename, '')
     FROM drivers d
     JOIN users u ON u.id = d.user_id
     WHERE d.id = ?`, id)
