@@ -203,11 +203,13 @@ func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (mode
         FROM users
         WHERE phone = ?
     `
+	fmt.Println(query)
 	err := r.DB.QueryRowContext(ctx, query, phone).Scan(
 		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
 		&user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
 		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 	)
+	fmt.Println(user)
 	if err == sql.ErrNoRows {
 		return models.User{}, ErrUserNotFound
 	}
