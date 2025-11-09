@@ -3072,11 +3072,37 @@ func (s *Server) createIntercityOrder(w http.ResponseWriter, r *http.Request) {
 		order.Comment = sql.NullString{String: payload.Comment, Valid: true}
 	}
 
+	commission := 0
+	if payload.DriverID > 0 {
+		commission = calculateCommission(order.Price)
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
+	if commission > 0 {
+		if _, err := s.driversRepo.Withdraw(ctx, payload.DriverID, commission); err != nil {
+			switch {
+			case errors.Is(err, sql.ErrNoRows):
+				writeError(w, http.StatusBadRequest, "driver not found")
+				return
+			case errors.Is(err, repo.ErrInsufficientBalance):
+				writeError(w, http.StatusBadRequest, "insufficient balance")
+				return
+			default:
+				writeError(w, http.StatusInternalServerError, "commission charge failed")
+				return
+			}
+		}
+	}
+
 	id, err := s.intercityRepo.Create(ctx, order)
 	if err != nil {
+		if commission > 0 {
+			if _, depErr := s.driversRepo.Deposit(ctx, payload.DriverID, commission); depErr != nil {
+				s.logger.Errorf("failed to refund intercity commission for driver %d: %v", payload.DriverID, depErr)
+			}
+		}
 		writeError(w, http.StatusInternalServerError, "create failed")
 		return
 	}
