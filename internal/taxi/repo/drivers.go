@@ -78,7 +78,6 @@ func (r *DriversRepo) Get(ctx context.Context, id int64) (Driver, error) {
     JOIN users u ON u.id = d.user_id
     WHERE d.id = ?`, id)
 	err := row.Scan(&d.ID, &d.UserID, &d.Status, &d.ApprovalStatus, &d.IsBanned, &d.CarModel, &d.CarColor, &d.CarNumber, &d.TechPassport,
-=
 		&d.CarPhotoFront, &d.CarPhotoBack, &d.CarPhotoLeft, &d.CarPhotoRight,
 		&d.DriverPhoto, &d.Phone, &d.IIN, &d.IDCardFront, &d.IDCardBack, &d.Rating, &d.Balance, &d.UpdatedAt,
 		&d.Name, &d.Surname, &d.Middlename)
