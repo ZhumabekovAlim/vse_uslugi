@@ -199,16 +199,16 @@ func (r *UserRepository) DeleteUser(ctx context.Context, id int) error {
 func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (models.User, error) {
 	var user models.User
 	query := `
-       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
+       SELECT id, name, surname, phone, email, password, city_id, role
         FROM users
         WHERE phone = ?
     `
+	fmt.Println(query)
 	err := r.DB.QueryRowContext(ctx, query, phone).Scan(
-		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-		&user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
-		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
+		&user.ID, &user.Name, &user.Surname, &user.Phone, &user.Email, &user.Password, &user.CityID, &user.Role,
 	)
-	if err == sql.ErrNoRows {
+	fmt.Println(user)
+	if errors.Is(err, sql.ErrNoRows) {
 		return models.User{}, ErrUserNotFound
 	}
 	if err != nil {
