@@ -253,7 +253,7 @@ func (r *UserRepository) GetUsersByRole(ctx context.Context, role string) ([]mod
 
 func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	query := `
-       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
+       SELECT id, name, surname, COALESCE(middlename,''), phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
         FROM users
     `
 	rows, err := r.DB.QueryContext(ctx, query)
