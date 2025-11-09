@@ -736,25 +736,31 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/admin/taxi/drivers/", s.handleAdminTaxiDriver)
 	mux.HandleFunc("/api/v1/admin/taxi/orders", s.handleAdminTaxiOrders)
 	mux.HandleFunc("/api/v1/admin/taxi/intercity/orders", s.handleAdminTaxiIntercityOrders)
+
 	mux.HandleFunc("/api/v1/drivers", s.handleDrivers)
 	mux.HandleFunc("/api/v1/drivers/", s.handleDriver)
 	mux.HandleFunc("/api/v1/driver/balance/deposit", s.handleDriverBalanceDeposit)
 	mux.HandleFunc("/api/v1/driver/balance/withdraw", s.handleDriverBalanceWithdraw)
 	mux.HandleFunc("/api/v1/driver/", s.handleDriverInfoRoutes)
+
 	mux.HandleFunc("/api/v1/route/quote", s.handleRouteQuote)
 	mux.HandleFunc("/api/v1/orders", s.handleOrders)
 	mux.HandleFunc("/api/v1/orders/active", s.handlePassengerActiveOrder)
 	mux.HandleFunc("/api/v1/driver/orders", s.handleDriverOrders)
 	mux.HandleFunc("/api/v1/driver/orders/active", s.handleDriverActiveOrder)
 	mux.HandleFunc("/api/v1/orders/", s.handleOrderSubroutes)
+
 	mux.HandleFunc("/api/v1/intercity/orders", s.handleIntercityOrders)
 	mux.HandleFunc("/api/v1/intercity/orders/list", s.listIntercityOrders)
 	mux.HandleFunc("/api/v1/intercity/orders/", s.handleIntercityOrderSubroutes)
+
 	mux.HandleFunc("/api/taxi/orders/", s.handleTaxiLifecycle)
 	mux.HandleFunc("/api/v1/offers/accept", s.handleOfferAccept)
 	mux.HandleFunc("/api/v1/offers/propose_price", s.handleOfferPrice)
 	mux.HandleFunc("/api/v1/offers/respond", s.handleOfferResponse)
+
 	mux.HandleFunc("/api/v1/payments/airbapay/webhook", s.handleAirbaPayWebhook)
+
 	mux.HandleFunc("/ws/driver", s.handleDriverWS)
 	mux.HandleFunc("/ws/passenger", s.handlePassengerWS)
 }
@@ -2193,7 +2199,7 @@ func (s *Server) updateDriver(w http.ResponseWriter, r *http.Request, id int64) 
 		return
 	}
 
-	driver, err := s.driversRepo.Get(ctx, id)
+	driver, err = s.driversRepo.Get(ctx, id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "fetch driver failed")
 		return
