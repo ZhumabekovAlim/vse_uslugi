@@ -217,7 +217,7 @@ func (s *Service) EndPause(order *Order, now time.Time) error {
 
 // FinishTrip handles the "Finish" button at the final destination.
 func (s *Service) FinishTrip(order *Order, now time.Time, telemetry Telemetry) error {
-	if order.Status == fsm.StatusAtLastPoint || order.Status == fsm.StatusCompleted || order.Status == fsm.StatusInProgress {
+	if order.Status == fsm.StatusAtLastPoint || order.Status == fsm.StatusCompleted {
 		return nil
 	}
 	//if order.Status != fsm.StatusInProgress {
