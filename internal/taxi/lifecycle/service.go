@@ -220,9 +220,9 @@ func (s *Service) FinishTrip(order *Order, now time.Time, telemetry Telemetry) e
 	if order.Status == fsm.StatusAtLastPoint || order.Status == fsm.StatusCompleted {
 		return nil
 	}
-	//if order.Status != fsm.StatusInProgress {
-	//	return ErrInvalidOperation
-	//}
+	if order.Status != fsm.StatusInProgress {
+		return ErrInvalidOperation
+	}
 	if err := s.ensureActionAllowed(order, ActionFinish, now); err != nil {
 		return err
 	}
@@ -248,9 +248,9 @@ func (s *Service) FinishTrip(order *Order, now time.Time, telemetry Telemetry) e
 	order.recordTelemetry(telemetry)
 	order.closeActiveWaiting(now, s.cfg)
 	order.ensureWaypointReached(index, now)
-	//if !fsm.CanTransition(order.Status, fsm.StatusAtLastPoint) {
-	//	return ErrInvalidOperation
-	//}
+	if !fsm.CanTransition(order.Status, fsm.StatusAtLastPoint) {
+		return ErrInvalidOperation
+	}
 	order.appendStatus(fsm.StatusAtLastPoint, now, "arrived at final point")
 	order.FinishedAt = &now
 	return nil
