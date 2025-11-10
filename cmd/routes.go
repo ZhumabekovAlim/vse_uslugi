@@ -19,8 +19,18 @@ func (app *application) JWTMiddlewareWithRole(requiredRole string) func(http.Han
 // Пробросить user_id из контекста в заголовок для downstream (такси-хендлеров)
 func (app *application) withHeaderFromCtx(next http.Handler, header string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var idValue interface{}
 		if v := r.Context().Value("driver_id"); v != nil {
-			if id, ok := v.(int); ok {
+			idValue = v
+		} else if v := r.Context().Value("courier_id"); v != nil {
+			idValue = v
+		} else if v := r.Context().Value("sender_id"); v != nil {
+			idValue = v
+		} else if v := r.Context().Value("user_id"); v != nil {
+			idValue = v
+		}
+		if idValue != nil {
+			if id, ok := idValue.(int); ok {
 				r = r.Clone(r.Context())
 				r.Header.Set(header, fmt.Sprintf("%d", id))
 			}
@@ -42,6 +52,27 @@ func (app *application) withTaxiRoleHeaders(next http.Handler) http.Handler {
 			r.Header.Set("X-Passenger-ID", fmt.Sprintf("%d", id))
 		case "admin":
 			// admins can observe without impersonation
+		default:
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *application) withCourierRoleHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		role, _ := r.Context().Value("role").(string)
+		id, _ := r.Context().Value("user_id").(int)
+		switch role {
+		case "worker":
+			r = r.Clone(r.Context())
+			r.Header.Set("X-Courier-ID", fmt.Sprintf("%d", id))
+		case "client":
+			r = r.Clone(r.Context())
+			r.Header.Set("X-Sender-ID", fmt.Sprintf("%d", id))
+		case "admin":
+			// admins can read without impersonation
 		default:
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
@@ -236,6 +267,25 @@ func (app *application) routes() http.Handler {
 	// Chat
 	mux.Get("/ws", wsMiddleware.ThenFunc(app.WebSocketHandler))
 	mux.Get("/ws/location", wsMiddleware.ThenFunc(app.LocationWebSocketHandler))
+
+	// === Courier API & WS ===
+	mux.Post("/api/v1/courier/route/quote", standardMiddleware.Then(app.courierMux))
+	mux.Post("/api/v1/courier/orders", clientAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Sender-ID")))
+	mux.Get("/api/v1/courier/orders", clientAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Sender-ID")))
+	mux.Get("/api/v1/courier/orders", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
+	mux.Get("/api/v1/courier/orders/:id", clientAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Sender-ID")))
+	mux.Get("/api/v1/courier/orders/:id", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
+	mux.Post("/api/v1/courier/orders/:id/cancel", clientAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/orders/:id/cancel", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
+	mux.Post("/api/v1/courier/orders/:id/arrive", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
+	mux.Post("/api/v1/courier/orders/:id/start", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
+	mux.Post("/api/v1/courier/orders/:id/finish", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
+	mux.Post("/api/v1/courier/orders/:id/confirm-cash", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
+	mux.Post("/api/v1/courier/offers/price", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
+	mux.Post("/api/v1/courier/offers/accept", clientAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/offers/decline", clientAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Sender-ID")))
+	mux.Get("/ws/courier", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("worker")).Then(app.courierMux))
+	mux.Get("/ws/sender", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("client")).Then(app.courierMux))
 
 	// === Taxi API & WS ===
 	mux.Get("/api/v1/admin/taxi/orders/stats", adminAuthMiddleware.Then(app.taxiMux))

@@ -9,6 +9,7 @@ import (
 	"github.com/rs/cors"
 	"log"
 	"naimuBack/internal/config"
+	"naimuBack/internal/courier"
 	"naimuBack/internal/taxi"
 	"net/http"
 	"os"
@@ -71,6 +72,12 @@ func main() {
 		errorLog.Fatal(err)
 	}
 
+	// === Конфиг Courier из ENV (ошибка — фатал)
+	courierCfg, err := courier.LoadConfig()
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
 	// === Собираем зависимости Taxi
 	deps := &taxi.TaxiDeps{
 		DB:         db,
@@ -89,6 +96,20 @@ func main() {
 	// === Прокидываем в app, чтобы routes() мог смонтировать такси-маршруты
 	app.taxiMux = taxiMux
 	app.taxiDeps = deps
+
+	// === Собираем и регистрируем Courier
+	courierMux := http.NewServeMux()
+	courierDeps := &courier.Deps{
+		DB:         db,
+		Logger:     taxiLogger{infoLog, errorLog},
+		Config:     courierCfg,
+		HTTPClient: &http.Client{Timeout: 5 * time.Second},
+	}
+	if err := courier.RegisterCourierRoutes(courierMux, courierDeps); err != nil {
+		errorLog.Fatal(err)
+	}
+	app.courierMux = courierMux
+	app.courierDeps = courierDeps
 
 	// === Запускаем фоновые воркеры такси
 	ctx, cancel := context.WithCancel(context.Background())
@@ -116,7 +137,8 @@ func main() {
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, origin string) bool {
 			if r.URL.Path == "/ws" || r.URL.Path == "/ws/location" ||
-				r.URL.Path == "/ws/driver" || r.URL.Path == "/ws/passenger" {
+				r.URL.Path == "/ws/driver" || r.URL.Path == "/ws/passenger" ||
+				r.URL.Path == "/ws/courier" || r.URL.Path == "/ws/sender" {
 				return true
 			}
 			_, ok := allowedOrigins[origin]
