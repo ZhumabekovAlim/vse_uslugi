@@ -1,7 +1,7 @@
 CREATE TABLE courier_reviews (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    courier_id BIGINT UNSIGNED NOT NULL,
-    order_id BIGINT UNSIGNED NOT NULL,
+    id INT  NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    courier_id INT  NOT NULL,
+    order_id INT  NOT NULL,
     rating DECIMAL(3, 2) NULL,
     comment TEXT NULL,
     courier_rating DECIMAL(3, 2) NULL,

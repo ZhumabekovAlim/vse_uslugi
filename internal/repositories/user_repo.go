@@ -52,16 +52,17 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.Us
 
 	// Получаем основную информацию о пользователе
 	query := `SELECT users.id, name, COALESCE(middlename, ''), surname, users.phone, email, password, city_id, role,
-               years_of_exp,  COALESCE(skills, '') AS skills, doc_of_proof, avatar_path, created_at, users.updated_at, drivers.id AS driver_id
+               years_of_exp,  COALESCE(skills, '') AS skills, doc_of_proof, avatar_path, users.created_at, users.updated_at, drivers.id AS driver_id, couriers.id AS courier_id
                FROM users 
-               LEFT JOIN drivers ON users.id = drivers.user_id 
+               LEFT JOIN drivers ON users.id = drivers.user_id
+               LEFT JOIN couriers ON users.id = couriers.user_id
 			   WHERE users.id = ?
                `
 
 	err := r.DB.QueryRowContext(ctx, query, userID).Scan(
 		&user.ID, &user.Name, &user.Middlename, &user.Surname, &user.Phone, &user.Email, &user.Password,
 		&user.CityID, &user.Role, &user.YearsOfExp, &user.Skills, &user.DocOfProof, &user.AvatarPath,
-		&user.CreatedAt, &user.UpdatedAt, &user.DriverID,
+		&user.CreatedAt, &user.UpdatedAt, &user.DriverID, &user.CourierID,
 	)
 	if err != nil {
 		return models.User{}, err

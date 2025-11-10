@@ -653,10 +653,7 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 		query += " ORDER BY s.created_at DESC"
 		log.Println("[DEBUG] Sorting by created_at DESC (default)")
 	}
-
-	log.Printf("[DEBUG] Final SQL Query: %s", query)
-	log.Printf("[DEBUG] Query Args: %+v", args)
-
+	
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		log.Printf("[ERROR] Query execution failed: %v", err)
