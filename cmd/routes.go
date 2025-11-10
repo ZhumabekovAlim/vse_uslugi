@@ -20,9 +20,9 @@ func (app *application) JWTMiddlewareWithRole(requiredRole string) func(http.Han
 func (app *application) withHeaderFromCtx(next http.Handler, header string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if v := r.Context().Value("user_id"); v != nil {
-			if id, ok := v.(int); ok {
+			if _, ok := v.(int); ok {
 				r = r.Clone(r.Context())
-				r.Header.Set(header, fmt.Sprintf("%d", id))
+				//r.Header.Set(header, fmt.Sprintf("%d", id))
 			}
 		}
 		next.ServeHTTP(w, r)

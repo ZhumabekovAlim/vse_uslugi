@@ -3756,7 +3756,6 @@ func (s *Server) handlePassengerWS(w http.ResponseWriter, r *http.Request) {
 
 func parseAuthID(r *http.Request, header string) (int64, error) {
 	v := r.Header.Get(header)
-	fmt.Println("parseAuthID header ", header, ": ", v)
 	if v == "" {
 		return 0, errors.New("missing header")
 	}
