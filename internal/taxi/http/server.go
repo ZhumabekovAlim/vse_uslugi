@@ -732,6 +732,9 @@ func (p intercityListPayload) validate() string {
 }
 
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/api/v1/admin/taxi/orders/stats", s.handleAdminTaxiOrdersStats)
+	mux.HandleFunc("/api/v1/admin/taxi/drivers/stats", s.handleAdminTaxiDriversStats)
+	mux.HandleFunc("/api/v1/admin/taxi/intercity/orders/stats", s.handleAdminTaxiIntercityOrdersStats)
 	mux.HandleFunc("/api/v1/admin/taxi/drivers", s.handleAdminTaxiDrivers)
 	mux.HandleFunc("/api/v1/admin/taxi/drivers/", s.handleAdminTaxiDriver)
 	mux.HandleFunc("/api/v1/admin/taxi/orders", s.handleAdminTaxiOrders)
@@ -763,6 +766,57 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/ws/driver", s.handleDriverWS)
 	mux.HandleFunc("/ws/passenger", s.handlePassengerWS)
+}
+
+func (s *Server) handleAdminTaxiOrdersStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	stats, err := s.ordersRepo.Stats(ctx)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to fetch orders stats")
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
+}
+
+func (s *Server) handleAdminTaxiDriversStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	stats, err := s.driversRepo.Stats(ctx)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to fetch drivers stats")
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
+}
+
+func (s *Server) handleAdminTaxiIntercityOrdersStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	stats, err := s.intercityRepo.Stats(ctx)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to fetch intercity orders stats")
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
 }
 
 func (s *Server) handleAdminTaxiDrivers(w http.ResponseWriter, r *http.Request) {
