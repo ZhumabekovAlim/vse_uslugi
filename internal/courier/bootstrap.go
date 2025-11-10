@@ -16,6 +16,7 @@ func RegisterCourierRoutes(mux *http.ServeMux, deps *Deps) error {
 
 	ordersRepo := repo.NewOrdersRepo(deps.DB)
 	offersRepo := repo.NewOffersRepo(deps.DB)
+	couriersRepo := repo.NewCouriersRepo(deps.DB)
 
 	courierHub := deps.CourierHub
 	if courierHub == nil {
@@ -32,7 +33,7 @@ func RegisterCourierRoutes(mux *http.ServeMux, deps *Deps) error {
 		PricePerKM: deps.Config.PricePerKM,
 		MinPrice:   deps.Config.MinPrice,
 	}
-	server := courierhttp.NewServer(httpCfg, deps.Logger, ordersRepo, offersRepo, courierHub, senderHub)
+	server := courierhttp.NewServer(httpCfg, deps.Logger, ordersRepo, offersRepo, couriersRepo, courierHub, senderHub)
 	server.Register(mux)
 	return nil
 }

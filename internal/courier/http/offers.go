@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"naimuBack/internal/courier/lifecycle"
@@ -170,4 +171,82 @@ func (s *Server) handleOfferDecline(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.OfferStatusDeclined})
+}
+
+func (s *Server) handleOfferRespond(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if _, err := parseAuthID(r, "X-Sender-ID"); err != nil {
+		writeError(w, http.StatusUnauthorized, "missing sender id")
+		return
+	}
+	var req struct {
+		OrderID   int64  `json:"order_id"`
+		CourierID int64  `json:"courier_id"`
+		Decision  string `json:"decision"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if req.OrderID == 0 || req.CourierID == 0 {
+		writeError(w, http.StatusBadRequest, "order_id and courier_id are required")
+		return
+	}
+	decision := strings.ToLower(strings.TrimSpace(req.Decision))
+	if decision != "accept" && decision != "decline" {
+		writeError(w, http.StatusBadRequest, "decision must be accept or decline")
+		return
+	}
+
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	if decision == "accept" {
+		if err := s.offers.UpdateStatus(ctx, req.OrderID, req.CourierID, repo.OfferStatusAccepted); err != nil {
+			if errors.Is(err, repo.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "offer not found")
+				return
+			}
+			s.logger.Errorf("courier: respond offer accept failed: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to update offer")
+			return
+		}
+		if err := s.orders.AssignCourier(ctx, req.OrderID, req.CourierID, lifecycle.StatusAssigned); err != nil {
+			if errors.Is(err, repo.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "order not found")
+				return
+			}
+			s.logger.Errorf("courier: assign courier on respond failed: %v", err)
+			writeError(w, http.StatusConflict, err.Error())
+			return
+		}
+	} else {
+		if err := s.offers.UpdateStatus(ctx, req.OrderID, req.CourierID, repo.OfferStatusDeclined); err != nil {
+			if errors.Is(err, repo.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "offer not found")
+				return
+			}
+			s.logger.Errorf("courier: respond offer decline failed: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to update offer")
+			return
+		}
+	}
+
+	if order, err := s.orders.Get(ctx, req.OrderID); err == nil {
+		status := repo.OfferStatusDeclined
+		if decision == "accept" {
+			status = repo.OfferStatusAccepted
+			s.emitOrder(order, orderEventTypeUpdated)
+		}
+		s.emitOffer(order, req.CourierID, status, nil)
+	}
+
+	respStatus := map[string]string{"status": "declined"}
+	if decision == "accept" {
+		respStatus["status"] = string(repo.StatusAssigned)
+	}
+	writeJSON(w, http.StatusOK, respStatus)
 }

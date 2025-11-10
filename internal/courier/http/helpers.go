@@ -1,12 +1,14 @@
 package http
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func parseAuthID(r *http.Request, header string) (int64, error) {
@@ -70,4 +72,8 @@ func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func contextWithTimeout(r *http.Request) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(r.Context(), 5*time.Second)
 }
