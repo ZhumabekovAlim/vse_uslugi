@@ -3278,6 +3278,8 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 		Driver:   &driverInfo,
 	}
 
+	fmt.Println("\n\nEV: ", ev)
+
 	// фактическая отправка в WS
 	s.passengerHub.PushOrderEvent(order.PassengerID, ev)
 
