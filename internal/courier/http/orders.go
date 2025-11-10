@@ -115,7 +115,7 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		"status":            repo.StatusNew,
 	}
 	writeJSON(w, http.StatusCreated, resp)
-	s.emitOrderEvent(ctx, orderID, orderEventTypeCreated)
+	s.emitOrderEvent(ctx, orderID, orderEventTypeCreated, originSender)
 }
 
 func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
@@ -346,12 +346,12 @@ func (s *Server) handleReprice(w http.ResponseWriter, r *http.Request, orderID i
 	order, err := s.orders.Get(ctx, orderID)
 	if err != nil {
 		s.logger.Errorf("courier: fetch order after reprice failed: %v", err)
-	} else {
-		s.emitOrder(order, orderEventTypeUpdated)
-		writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(order)})
+		s.emitOrderEvent(context.WithoutCancel(ctx), orderID, orderEventTypeUpdated, originSender)
+		writeJSON(w, http.StatusOK, map[string]int{"client_price": req.ClientPrice})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]int{"client_price": req.ClientPrice})
+	s.emitOrder(order, orderEventTypeUpdated, originSender)
+	writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(order)})
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID int64) {
@@ -383,11 +383,13 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 		return
 	}
 
+	origin := originCourier
 	if status == lifecycle.StatusCanceledBySender {
 		if _, err := parseAuthID(r, "X-Sender-ID"); err != nil {
 			writeError(w, http.StatusUnauthorized, "missing sender id")
 			return
 		}
+		origin = originSender
 	} else {
 		if _, err := parseAuthID(r, "X-Courier-ID"); err != nil {
 			writeError(w, http.StatusUnauthorized, "missing courier id")
@@ -411,10 +413,13 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 	}
 
 	if updated, err := s.orders.Get(ctx, orderID); err == nil {
-		s.emitOrder(updated, orderEventTypeUpdated)
+		s.emitOrder(updated, orderEventTypeUpdated, origin)
 		writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(updated)})
 		return
+	} else if err != nil {
+		s.logger.Errorf("courier: fetch order after status update failed: %v", err)
 	}
+	s.emitOrderEvent(context.WithoutCancel(ctx), orderID, orderEventTypeUpdated, origin)
 	writeJSON(w, http.StatusOK, map[string]string{"status": status})
 }
 
@@ -569,7 +574,7 @@ func (s *Server) handleLifecycleWaitingAdvance(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusInternalServerError, "failed to advance order")
 		return
 	}
-	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated)
+	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated, originCourier)
 	writeJSON(w, http.StatusOK, map[string]string{"status": next})
 }
 
@@ -610,7 +615,7 @@ func (s *Server) handleLifecycleWaypointNext(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusInternalServerError, "failed to advance order")
 		return
 	}
-	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated)
+	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated, originCourier)
 	writeJSON(w, http.StatusOK, map[string]string{"status": lifecycle.StatusDelivered})
 }
 
@@ -686,10 +691,13 @@ func (s *Server) handleGetOrder(w http.ResponseWriter, r *http.Request, orderID 
 
 func (s *Server) handleCancelOrder(w http.ResponseWriter, r *http.Request, orderID int64) {
 	actorStatus := ""
+	origin := originUnknown
 	if _, err := parseAuthID(r, "X-Sender-ID"); err == nil {
 		actorStatus = lifecycle.StatusCanceledBySender
+		origin = originSender
 	} else if _, err := parseAuthID(r, "X-Courier-ID"); err == nil {
 		actorStatus = lifecycle.StatusCanceledByCourier
+		origin = originCourier
 	} else {
 		writeError(w, http.StatusUnauthorized, "missing sender or courier id")
 		return
@@ -713,7 +721,7 @@ func (s *Server) handleCancelOrder(w http.ResponseWriter, r *http.Request, order
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": actorStatus})
-	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated)
+	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated, origin)
 }
 
 func (s *Server) handleStartOrder(w http.ResponseWriter, r *http.Request, orderID int64) {
@@ -739,15 +747,22 @@ func (s *Server) handleStartOrder(w http.ResponseWriter, r *http.Request, orderI
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": lifecycle.StatusDeliveryStarted})
-	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated)
+	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated, originCourier)
 }
 
 func (s *Server) handleLifecycleUpdate(w http.ResponseWriter, r *http.Request, orderID int64, status string) {
+	origin := originCourier
 	if status != lifecycle.StatusCanceledBySender {
 		if _, err := parseAuthID(r, "X-Courier-ID"); err != nil {
 			writeError(w, http.StatusUnauthorized, "missing courier id")
 			return
 		}
+	} else {
+		if _, err := parseAuthID(r, "X-Sender-ID"); err != nil {
+			writeError(w, http.StatusUnauthorized, "missing sender id")
+			return
+		}
+		origin = originSender
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -764,5 +779,5 @@ func (s *Server) handleLifecycleUpdate(w http.ResponseWriter, r *http.Request, o
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": status})
-	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated)
+	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated, origin)
 }
