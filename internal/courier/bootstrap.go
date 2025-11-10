@@ -5,6 +5,7 @@ import (
 
 	courierhttp "naimuBack/internal/courier/http"
 	"naimuBack/internal/courier/repo"
+	"naimuBack/internal/courier/ws"
 )
 
 // RegisterCourierRoutes wires the HTTP handlers into the provided mux.
@@ -16,11 +17,22 @@ func RegisterCourierRoutes(mux *http.ServeMux, deps *Deps) error {
 	ordersRepo := repo.NewOrdersRepo(deps.DB)
 	offersRepo := repo.NewOffersRepo(deps.DB)
 
+	courierHub := deps.CourierHub
+	if courierHub == nil {
+		courierHub = ws.NewCourierHub(deps.Logger)
+		deps.CourierHub = courierHub
+	}
+	senderHub := deps.SenderHub
+	if senderHub == nil {
+		senderHub = ws.NewSenderHub(deps.Logger)
+		deps.SenderHub = senderHub
+	}
+
 	httpCfg := courierhttp.Config{
 		PricePerKM: deps.Config.PricePerKM,
 		MinPrice:   deps.Config.MinPrice,
 	}
-	server := courierhttp.NewServer(httpCfg, deps.Logger, ordersRepo, offersRepo)
+	server := courierhttp.NewServer(httpCfg, deps.Logger, ordersRepo, offersRepo, courierHub, senderHub)
 	server.Register(mux)
 	return nil
 }

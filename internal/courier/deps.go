@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+
+	"naimuBack/internal/courier/ws"
 )
 
 // Logger is the minimal logging interface required by the courier module.
@@ -18,6 +20,8 @@ type Deps struct {
 	Logger     Logger
 	Config     Config
 	HTTPClient *http.Client
+	CourierHub *ws.CourierHub
+	SenderHub  *ws.SenderHub
 }
 
 // Validate ensures that the deps struct contains the essentials before bootstrapping services.

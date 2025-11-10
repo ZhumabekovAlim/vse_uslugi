@@ -57,6 +57,13 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 		s.logger.Infof("courier: skipping status update after offer: %v", err)
 	}
 
+	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
+		s.logger.Errorf("courier: load order %d after offer price failed: %v", req.OrderID, err)
+	} else {
+		price := req.Price
+		s.emitOffer(order, courierID, repo.OfferStatusProposed, &price)
+		s.emitOrder(order, orderEventTypeUpdated)
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusOffered})
 }
 
@@ -110,6 +117,14 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
+		s.logger.Errorf("courier: load order %d after offer accept failed: %v", req.OrderID, err)
+	} else {
+		price := req.Price
+		s.emitOffer(order, req.CourierID, repo.OfferStatusAccepted, &price)
+		s.emitOrder(order, orderEventTypeUpdated)
+	}
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusAssigned})
 }
 
@@ -146,6 +161,12 @@ func (s *Server) handleOfferDecline(w http.ResponseWriter, r *http.Request) {
 		s.logger.Errorf("courier: decline offer failed: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to decline offer")
 		return
+	}
+
+	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
+		s.logger.Errorf("courier: load order %d after offer decline failed: %v", req.OrderID, err)
+	} else {
+		s.emitOffer(order, req.CourierID, repo.OfferStatusDeclined, nil)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.OfferStatusDeclined})
