@@ -58,12 +58,15 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 		s.logger.Infof("courier: skipping status update after offer: %v", err)
 	}
 
+	price := req.Price
 	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
 		s.logger.Errorf("courier: load order %d after offer price failed: %v", req.OrderID, err)
+		detached := context.WithoutCancel(ctx)
+		s.emitOfferEvent(detached, req.OrderID, courierID, repo.OfferStatusProposed, &price, originCourier)
+		s.emitOrderEvent(detached, req.OrderID, orderEventTypeUpdated, originCourier)
 	} else {
-		price := req.Price
-		s.emitOffer(order, courierID, repo.OfferStatusProposed, &price)
-		s.emitOrder(order, orderEventTypeUpdated)
+		s.emitOffer(order, courierID, repo.OfferStatusProposed, &price, originCourier)
+		s.emitOrder(order, orderEventTypeUpdated, originCourier)
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusOffered})
 }
@@ -118,12 +121,15 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	price := req.Price
 	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
 		s.logger.Errorf("courier: load order %d after offer accept failed: %v", req.OrderID, err)
+		detached := context.WithoutCancel(ctx)
+		s.emitOfferEvent(detached, req.OrderID, req.CourierID, repo.OfferStatusAccepted, &price, originSender)
+		s.emitOrderEvent(detached, req.OrderID, orderEventTypeUpdated, originSender)
 	} else {
-		price := req.Price
-		s.emitOffer(order, req.CourierID, repo.OfferStatusAccepted, &price)
-		s.emitOrder(order, orderEventTypeUpdated)
+		s.emitOffer(order, req.CourierID, repo.OfferStatusAccepted, &price, originSender)
+		s.emitOrder(order, orderEventTypeUpdated, originSender)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusAssigned})
@@ -166,8 +172,9 @@ func (s *Server) handleOfferDecline(w http.ResponseWriter, r *http.Request) {
 
 	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
 		s.logger.Errorf("courier: load order %d after offer decline failed: %v", req.OrderID, err)
+		s.emitOfferEvent(context.WithoutCancel(ctx), req.OrderID, req.CourierID, repo.OfferStatusDeclined, nil, originSender)
 	} else {
-		s.emitOffer(order, req.CourierID, repo.OfferStatusDeclined, nil)
+		s.emitOffer(order, req.CourierID, repo.OfferStatusDeclined, nil, originSender)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.OfferStatusDeclined})
@@ -239,9 +246,17 @@ func (s *Server) handleOfferRespond(w http.ResponseWriter, r *http.Request) {
 		status := repo.OfferStatusDeclined
 		if decision == "accept" {
 			status = repo.OfferStatusAccepted
-			s.emitOrder(order, orderEventTypeUpdated)
+			s.emitOrder(order, orderEventTypeUpdated, originSender)
 		}
-		s.emitOffer(order, req.CourierID, status, nil)
+		s.emitOffer(order, req.CourierID, status, nil, originSender)
+	} else {
+		detached := context.WithoutCancel(ctx)
+		status := repo.OfferStatusDeclined
+		if decision == "accept" {
+			status = repo.OfferStatusAccepted
+			s.emitOrderEvent(detached, req.OrderID, orderEventTypeUpdated, originSender)
+		}
+		s.emitOfferEvent(detached, req.OrderID, req.CourierID, status, nil, originSender)
 	}
 
 	respStatus := map[string]string{"status": "declined"}
