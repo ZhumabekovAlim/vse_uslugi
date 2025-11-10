@@ -20,13 +20,13 @@ func (app *application) JWTMiddlewareWithRole(requiredRole string) func(http.Han
 func (app *application) withHeaderFromCtx(next http.Handler, header string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var idValue interface{}
-		if v := r.Context().Value("driver_id"); v != nil {
+		if v := r.Context().Value("user_id"); v != nil {
 			idValue = v
 		} else if v := r.Context().Value("courier_id"); v != nil {
 			idValue = v
 		} else if v := r.Context().Value("sender_id"); v != nil {
 			idValue = v
-		} else if v := r.Context().Value("user_id"); v != nil {
+		} else if v := r.Context().Value("driver_id"); v != nil {
 			idValue = v
 		}
 
