@@ -108,7 +108,6 @@ func NewDriverHub(locator *geo.DriverLocator, logger Logger) *DriverHub {
 
 // ServeWS handles driver websocket connections.
 func (h *DriverHub) ServeWS(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("ServeWS called", r)
 	driverID, err := parseIDParam(r, "driver_id")
 	if err != nil {
 		http.Error(w, "missing driver_id", http.StatusUnauthorized)

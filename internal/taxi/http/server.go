@@ -3745,6 +3745,7 @@ func (s *Server) handleAirbaPayWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDriverWS(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("handleDriverWS called", r)
 	s.driverHub.ServeWS(w, r)
 }
 
