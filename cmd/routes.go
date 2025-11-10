@@ -252,7 +252,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/api/v1/orders/:id/reprice", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
 	mux.Post("/api/v1/orders/:id/status", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
 	// Taxi: driver profile extras.
-	mux.Get("/api/v1/drivers", authMiddleware.Then(app.taxiMux))            // Возвращает {"driver": {...}, "completed_trips": int, "balance": int}
+	mux.Post("/api/v1/drivers", authMiddleware.Then(app.taxiMux))           // Возвращает {"driver": {...}, "completed_trips": int, "balance": int}
 	mux.Get("/api/v1/driver/:id/profile", authMiddleware.Then(app.taxiMux)) // Возвращает {"driver": {...}, "completed_trips": int, "balance": int}
 	mux.Get("/api/v1/driver/:id/reviews", authMiddleware.Then(app.taxiMux)) // Возвращает {"reviews": [{"rating": number|null, "comment": string, "created_at": string, "order": {...}}]}
 	mux.Get("/api/v1/driver/:id/stats", authMiddleware.Then(app.taxiMux))   // Возвращает {"total_orders": int, "total_amount": int, "net_profit": int, "days": [{"date": "YYYY-MM-DD", "orders_count": int, "total_amount": int, "net_profit": int, "orders": [...]}]}

@@ -390,6 +390,7 @@ func parseCoordinate(value interface{}) (float64, error) {
 func parseIDParam(r *http.Request, name string) (int64, error) {
 	fmt.Println("Parsing ID param:", r)
 	if v := r.URL.Query().Get(name); v != "" {
+		fmt.Println("Found ID param in URL:", v)
 		return strconv.ParseInt(v, 10, 64)
 	}
 	//if v := r.Header.Get("X-" + name); v != "" {
