@@ -29,6 +29,8 @@ func (app *application) withHeaderFromCtx(next http.Handler, header string) http
 		} else if v := r.Context().Value("user_id"); v != nil {
 			idValue = v
 		}
+
+		fmt.Println("withHeaderFromCtx:", header, idValue)
 		if idValue != nil {
 			if id, ok := idValue.(int); ok {
 				r = r.Clone(r.Context())
