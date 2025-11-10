@@ -81,6 +81,8 @@ func (h *AirbapayHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("Airbapay callback received: ", r)
+
 	payload, err := h.Service.ParseCallback(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
