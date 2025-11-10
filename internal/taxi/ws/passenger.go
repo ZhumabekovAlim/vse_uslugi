@@ -81,22 +81,32 @@ func (h *PassengerHub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 	h.mu.Unlock()
 
+	go func(id int64, c *websocket.Conn) {
+		ticker := time.NewTicker(30 * time.Second) // heartbeat
+		defer ticker.Stop()
+		for range ticker.C {
+			h.safeWrite(id, func(conn *websocket.Conn) error {
+				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				return conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second))
+			})
+		}
+	}(passengerID, conn)
+
 	go h.readLoop(passengerID, conn)
 }
 
 func (h *PassengerHub) readLoop(passengerID int64, conn *websocket.Conn) {
-	defer func() {
-		conn.Close()
-		h.mu.Lock()
-		delete(h.conns, passengerID)
-		delete(h.wmu, passengerID)
-		h.mu.Unlock()
-	}()
-
-	conn.SetReadLimit(1024)
+	defer func() { h.closeConn(passengerID, conn) }()
+	conn.SetReadLimit(16 << 10) // 16KB
 	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
+	conn.SetCloseHandler(func(code int, text string) error {
+		if h.logger != nil {
+			h.logger.Infof("passenger %d closed: %d %s", passengerID, code, text)
+		}
 		return nil
 	})
 
@@ -106,15 +116,19 @@ func (h *PassengerHub) readLoop(passengerID int64, conn *websocket.Conn) {
 			return
 		}
 		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-
-		// Обрабатываем текстовый "ping" как в DriverHub
-		if mt == websocket.TextMessage {
-			trimmed := strings.TrimSpace(string(msg))
-			if strings.EqualFold(trimmed, "ping") {
-				_ = conn.WriteMessage(websocket.TextMessage, []byte("pong"))
-			}
+		if mt == websocket.TextMessage && strings.EqualFold(strings.TrimSpace(string(msg)), "ping") {
+			// optional: отвечаем для совместимости
+			_ = conn.WriteMessage(websocket.TextMessage, []byte("pong"))
 		}
 	}
+}
+
+func (h *PassengerHub) closeConn(passengerID int64, conn *websocket.Conn) {
+	_ = conn.Close()
+	h.mu.Lock()
+	delete(h.conns, passengerID)
+	delete(h.wmu, passengerID)
+	h.mu.Unlock()
 }
 
 func (h *PassengerHub) safeWrite(passengerID int64, writer func(*websocket.Conn) error) {
