@@ -73,6 +73,10 @@ type Order struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Points           []OrderPoint
+	Name             sql.NullString
+	Surname          sql.NullString
+	Phone            sql.NullString
+	ReviewRating     sql.NullFloat64
 }
 
 // OrderPoint describes a delivery waypoint.
@@ -179,8 +183,12 @@ func (r *OrdersRepo) Create(ctx context.Context, order Order) (int64, error) {
 // Get returns an order with its points by identifier.
 func (r *OrdersRepo) Get(ctx context.Context, id int64) (Order, error) {
 	var o Order
-	row := r.db.QueryRowContext(ctx, `SELECT id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, created_at, updated_at FROM courier_orders WHERE id = ?`, id)
-	err := row.Scan(&o.ID, &o.SenderID, &o.CourierID, &o.DistanceM, &o.EtaSeconds, &o.RecommendedPrice, &o.ClientPrice, &o.PaymentMethod, &o.Status, &o.Comment, &o.CreatedAt, &o.UpdatedAt)
+	row := r.db.QueryRowContext(ctx, `
+	SELECT courier_orders.id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, courier_orders.created_at, courier_orders.updated_at, users.name, users.surname, users.phone, users.review_rating, users.avatar_path
+	FROM courier_orders 
+	LEFT JOIN users ON users.id = courier_orders.courier_id
+	WHERE courier_orders.id = ?`, id)
+	err := row.Scan(&o.ID, &o.SenderID, &o.CourierID, &o.DistanceM, &o.EtaSeconds, &o.RecommendedPrice, &o.ClientPrice, &o.PaymentMethod, &o.Status, &o.Comment, &o.CreatedAt, &o.UpdatedAt, &o.Name, &o.Surname, &o.Phone, &o.ReviewRating)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Order{}, ErrNotFound
 	}
