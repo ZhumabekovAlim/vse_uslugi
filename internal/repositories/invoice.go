@@ -33,6 +33,16 @@ func (r *InvoiceRepo) UpdateStatus(ctx context.Context, invID int, status string
 	return err
 }
 
+func (r *InvoiceRepo) GetByID(ctx context.Context, invID int) (models.Invoice, error) {
+	const q = `SELECT inv_id, user_id, amount, description, status, created_at FROM invoices WHERE inv_id = ?`
+	var inv models.Invoice
+	err := r.DB.QueryRowContext(ctx, q, invID).Scan(&inv.ID, &inv.UserID, &inv.Amount, &inv.Description, &inv.Status, &inv.CreatedAt)
+	if err != nil {
+		return models.Invoice{}, err
+	}
+	return inv, nil
+}
+
 func (r *InvoiceRepo) GetByUser(ctx context.Context, userID int) ([]models.Invoice, error) {
 	const q = `SELECT inv_id, user_id, amount, description, status, created_at FROM invoices WHERE user_id = ? ORDER BY created_at DESC`
 	rows, err := r.DB.QueryContext(ctx, q, userID)

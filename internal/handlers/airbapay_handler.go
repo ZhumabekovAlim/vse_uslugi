@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,17 +9,19 @@ import (
 	"strconv"
 	"strings"
 
+	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 	"naimuBack/internal/services"
 )
 
 type AirbapayHandler struct {
-	Service     *services.AirbapayService
-	InvoiceRepo *repositories.InvoiceRepo
+	Service          *services.AirbapayService
+	InvoiceRepo      *repositories.InvoiceRepo
+	SubscriptionRepo *repositories.SubscriptionRepository
 }
 
-func NewAirbapayHandler(s *services.AirbapayService, r *repositories.InvoiceRepo) *AirbapayHandler {
-	return &AirbapayHandler{Service: s, InvoiceRepo: r}
+func NewAirbapayHandler(s *services.AirbapayService, r *repositories.InvoiceRepo, sub *repositories.SubscriptionRepository) *AirbapayHandler {
+	return &AirbapayHandler{Service: s, InvoiceRepo: r, SubscriptionRepo: sub}
 }
 
 func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
@@ -106,10 +109,18 @@ func (h *AirbapayHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	status := strings.ToLower(payload.Status)
 	switch status {
-	case "success", "succeeded", "paid", "done", "approved":
+	case "success", "succeeded", "paid", "done", "approved", "auth":
+		invoice, err := h.InvoiceRepo.GetByID(r.Context(), invID)
+		if err != nil {
+			http.Error(w, "get invoice: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 		if err := h.InvoiceRepo.MarkPaid(r.Context(), invID); err != nil {
 			http.Error(w, "mark paid: "+err.Error(), http.StatusInternalServerError)
 			return
+		}
+		if err := h.applyInvoiceReward(r.Context(), invoice); err != nil {
+			fmt.Println("airbapay: apply reward failed:", err)
 		}
 	case "failure", "failed", "cancelled", "rejected", "error":
 		if err := h.InvoiceRepo.UpdateStatus(r.Context(), invID, "failed"); err != nil {
@@ -128,6 +139,50 @@ func (h *AirbapayHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		"status":     "ok",
 		"invoice_id": payload.InvoiceID,
 	})
+}
+
+func (h *AirbapayHandler) applyInvoiceReward(ctx context.Context, invoice models.Invoice) error {
+	if h.SubscriptionRepo == nil {
+		return nil
+	}
+
+	product, quantity := classifyInvoiceDescription(invoice.Description)
+	switch product {
+	case productResponses:
+		if quantity == 0 {
+			quantity = 10
+		}
+		return h.SubscriptionRepo.AddResponsesBalance(ctx, invoice.UserID, quantity)
+	case productSlots:
+		if quantity == 0 {
+			quantity = 1
+		}
+		return h.SubscriptionRepo.AddListingSlots(ctx, invoice.UserID, quantity)
+	default:
+		return nil
+	}
+}
+
+const (
+	productUnknown   = ""
+	productResponses = "responses"
+	productSlots     = "slots"
+)
+
+func classifyInvoiceDescription(description string) (string, int) {
+	normalized := strings.ToLower(strings.TrimSpace(description))
+	if normalized == "" {
+		return productUnknown, 0
+	}
+
+	if strings.Contains(normalized, "10") && (strings.Contains(normalized, "отклик") || strings.Contains(normalized, "response")) {
+		return productResponses, 10
+	}
+	if strings.Contains(normalized, "subscription") || strings.Contains(normalized, "1 объяв") || strings.Contains(normalized, "1 ad") || strings.Contains(normalized, "1 listing") {
+		return productSlots, 1
+	}
+
+	return productUnknown, 0
 }
 func (h *AirbapayHandler) SuccessRedirect(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

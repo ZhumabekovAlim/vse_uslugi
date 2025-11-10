@@ -324,7 +324,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adResponseHandler := &handlers.AdResponseHandler{Service: adResponseService}
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
 	subscriptionHandler := &handlers.SubscriptionHandler{Service: subscriptionService}
-	airbapayHandler := handlers.NewAirbapayHandler(airbapayService, invoiceRepo)
+	airbapayHandler := handlers.NewAirbapayHandler(airbapayService, invoiceRepo, &subscriptionRepo)
 	locationHandler := &handlers.LocationHandler{Service: locationService}
 	assistantHandler := handlers.NewAssistantHandler(assistantService)
 
