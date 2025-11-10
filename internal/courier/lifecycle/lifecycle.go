@@ -2,7 +2,7 @@ package lifecycle
 
 // List of courier lifecycle statuses.
 const (
-	StatusNew             = "new"
+	StatusNew             = "searching"
 	StatusOffered         = "offered"
 	StatusAssigned        = "assigned"
 	StatusCourierArrived  = "courier_arrived"
