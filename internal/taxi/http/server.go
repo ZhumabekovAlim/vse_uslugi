@@ -3215,6 +3215,7 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	fmt.Println("handleOfferPrice called: ", r)
 	driverID, err := parseAuthID(r, "X-Driver-ID")
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, "missing driver id")
