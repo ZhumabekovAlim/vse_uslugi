@@ -27,6 +27,7 @@ type User struct {
 	Categories   []Category `json:"categories,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
+	DriverID     *int       `json:"driver_id,omitempty"`
 }
 
 type Claims struct {
