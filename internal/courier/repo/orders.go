@@ -15,15 +15,12 @@ import (
 var (
 	activeStatuses = []string{
 		StatusNew,
-		StatusOffered,
-		StatusAssigned,
-		StatusCourierArrived,
-		StatusPickupStarted,
-		StatusPickupDone,
-		StatusDeliveryStarted,
+		StatusAccepted,
+		StatusWaitingFree,
+		StatusInProgress,
 	}
 	completedStatuses = []string{
-		StatusDelivered,
+		StatusCompleted,
 		StatusClosed,
 	}
 	canceledStatuses = []string{
@@ -45,13 +42,10 @@ var (
 // Order statuses mirror courier lifecycle events.
 const (
 	StatusNew               = lifecycle.StatusNew
-	StatusOffered           = lifecycle.StatusOffered
-	StatusAssigned          = lifecycle.StatusAssigned
-	StatusCourierArrived    = lifecycle.StatusCourierArrived
-	StatusPickupStarted     = lifecycle.StatusPickupStarted
-	StatusPickupDone        = lifecycle.StatusPickupDone
-	StatusDeliveryStarted   = lifecycle.StatusDeliveryStarted
-	StatusDelivered         = lifecycle.StatusDelivered
+	StatusAccepted          = lifecycle.StatusAccepted
+	StatusWaitingFree       = lifecycle.StatusWaitingFree
+	StatusInProgress        = lifecycle.StatusInProgress
+	StatusCompleted         = lifecycle.StatusCompleted
 	StatusClosed            = lifecycle.StatusClosed
 	StatusCanceledBySender  = lifecycle.StatusCanceledBySender
 	StatusCanceledByCourier = lifecycle.StatusCanceledByCourier

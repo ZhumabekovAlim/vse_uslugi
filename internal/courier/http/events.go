@@ -59,8 +59,12 @@ func (s *Server) emitOrder(order repo.Order, eventType string, origin eventOrigi
 	if s.sHub != nil && notifySender {
 		s.sHub.Push(order.SenderID, evt)
 	}
-	if s.cHub != nil && notifyCourier && order.CourierID.Valid {
-		s.cHub.Push(order.CourierID.Int64, evt)
+	if s.cHub != nil && notifyCourier {
+		if order.CourierID.Valid {
+			s.cHub.Push(order.CourierID.Int64, evt)
+		} else if eventType == orderEventTypeCreated {
+			s.cHub.Broadcast(evt)
+		}
 	}
 }
 
