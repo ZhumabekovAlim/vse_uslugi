@@ -71,6 +71,7 @@ type Order struct {
 	Surname          sql.NullString
 	Phone            sql.NullString
 	ReviewRating     sql.NullFloat64
+	AvatarPath       sql.NullString
 }
 
 // OrderPoint describes a delivery waypoint.
@@ -182,7 +183,7 @@ func (r *OrdersRepo) Get(ctx context.Context, id int64) (Order, error) {
 	FROM courier_orders 
 	LEFT JOIN users ON users.id = courier_orders.courier_id
 	WHERE courier_orders.id = ?`, id)
-	err := row.Scan(&o.ID, &o.SenderID, &o.CourierID, &o.DistanceM, &o.EtaSeconds, &o.RecommendedPrice, &o.ClientPrice, &o.PaymentMethod, &o.Status, &o.Comment, &o.CreatedAt, &o.UpdatedAt, &o.Name, &o.Surname, &o.Phone, &o.ReviewRating)
+	err := row.Scan(&o.ID, &o.SenderID, &o.CourierID, &o.DistanceM, &o.EtaSeconds, &o.RecommendedPrice, &o.ClientPrice, &o.PaymentMethod, &o.Status, &o.Comment, &o.CreatedAt, &o.UpdatedAt, &o.Name, &o.Surname, &o.Phone, &o.ReviewRating, &o.AvatarPath)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Order{}, ErrNotFound
 	}
