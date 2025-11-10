@@ -1,0 +1,1164 @@
+{
+  "info": {
+    "name": "Barlyq Qyzmet Courier API",
+    "description": "Полная коллекция запросов для курьерского API Barlyq Qyzmet.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Общие операции",
+      "item": [
+        {
+          "name": "Рассчитать рекомендуемую цену",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_m\": 12500\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/route/quote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "route",
+                "quote"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Заказы отправителя",
+      "item": [
+        {
+          "name": "Создать заказ",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Sender-ID",
+                "value": "912"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_m\": 12500,\n  \"eta_s\": 2400,\n  \"client_price\": 2000,\n  \"payment_method\": \"cash\",\n  \"comment\": \"Курьер позвонит за 10 минут\",\n  \"route_points\": [\n    {\n      \"address\": \"Алматы, Абая 10\",\n      \"lat\": 43.238949,\n      \"lon\": 76.889709,\n      \"entrance\": \"1\",\n      \"intercom\": \"12#34\",\n      \"phone\": \"+77001234567\"\n    },\n    {\n      \"address\": \"Алматы, Достык 50\",\n      \"lat\": 43.240101,\n      \"lon\": 76.913456,\n      \"floor\": \"3\",\n      \"apt\": \"15\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Список заказов отправителя",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Sender-ID",
+                "value": "912"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders?limit=20&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Активный заказ отправителя",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Sender-ID",
+                "value": "912"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "active"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Получить заказ отправителя",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Sender-ID",
+                "value": "912"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Отменить заказ (отправитель)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Sender-ID",
+                "value": "912"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Получатель отложил доставку\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "cancel"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Изменить цену заказа",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Sender-ID",
+                "value": "912"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_price\": 2200\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/reprice",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "reprice"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Установить статус вручную",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Sender-ID",
+                "value": "912"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"canceled_by_sender\",\n  \"note\": \"Покупатель не вышел на связь\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Заказы курьера",
+      "item": [
+        {
+          "name": "Список заказов курьера",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders?limit=20&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Активный заказ курьера",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "active"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Получить заказ курьера",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Отметить прибытие",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/arrive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "arrive"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Старт маршрута",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "start"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Завершить доставку",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/finish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "finish"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Подтвердить наличную оплату",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/confirm-cash",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "confirm-cash"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Перейти к следующему этапу ожидания",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/waiting/advance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "waiting",
+                "advance"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Следующая точка маршрута",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/waypoints/next",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "waypoints",
+                "next"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Пауза заказа",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/pause",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "pause"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Возобновить заказ",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/resume",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "resume"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Отменить заказ (курьер)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "cancel"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Отметить no-show",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/orders/4102/no-show",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "orders",
+                "4102",
+                "no-show"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Предложения",
+      "item": [
+        {
+          "name": "Предложить цену (курьер)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": 4102,\n  \"price\": 2100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/offers/price",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "offers",
+                "price"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Принять предложение",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Sender-ID",
+                "value": "912"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": 4102,\n  \"courier_id\": 305,\n  \"price\": 2100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/offers/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "offers",
+                "accept"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Отклонить предложение",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Sender-ID",
+                "value": "912"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": 4102,\n  \"courier_id\": 305\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/offers/decline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "offers",
+                "decline"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ответить на предложение (accept/decline)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Sender-ID",
+                "value": "912"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": 4102,\n  \"courier_id\": 305,\n  \"decision\": \"accept\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/offers/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "offers",
+                "respond"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Профиль курьера",
+      "item": [
+        {
+          "name": "Создать/обновить профиль курьера",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 5021,\n  \"first_name\": \"Айдар\",\n  \"last_name\": \"Курманов\",\n  \"middle_name\": \"Болатович\",\n  \"courier_photo\": \"https://cdn.example.com/courier/photo.jpg\",\n  \"iin\": \"900101300455\",\n  \"date_of_birth\": \"1990-01-01\",\n  \"id_card_front\": \"https://cdn.example.com/courier/id-front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/courier/id-back.jpg\",\n  \"phone\": \"+77005553322\",\n  \"rating\": 4.8,\n  \"status\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/couriers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "couriers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Профиль курьера",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/305/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "305",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Статистика курьера",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/305/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "305",
+                "stats"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Отзывы курьера",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/305/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "305",
+                "reviews"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Баланс курьера",
+      "item": [
+        {
+          "name": "Пополнить баланс (не реализовано)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/balance/deposit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "balance",
+                "deposit"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Вывести средства (не реализовано)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Courier-ID",
+                "value": "305"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/courier/balance/withdraw",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "courier",
+                "balance",
+                "withdraw"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Администрирование",
+      "item": [
+        {
+          "name": "Список заказов (админ)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/courier/orders?limit=50&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "courier",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Статистика заказов (админ)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/courier/orders/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "courier",
+                "orders",
+                "stats"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Список курьеров (админ)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/courier/couriers?limit=50&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "courier",
+                "couriers"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Статистика курьеров (админ)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/courier/couriers/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "courier",
+                "couriers",
+                "stats"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Блокировка/разблокировка курьера",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ban\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/courier/couriers/305/ban",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "courier",
+                "couriers",
+                "305",
+                "ban"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Обновить статус проверки курьера",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/courier/couriers/305/approval",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "courier",
+                "couriers",
+                "305",
+                "approval"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.barlyqqyzmet.kz"
+    },
+    {
+      "key": "adminToken",
+      "value": "REPLACE_WITH_TOKEN"
+    }
+  ]
+}
