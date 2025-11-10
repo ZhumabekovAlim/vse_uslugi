@@ -519,5 +519,5 @@ func (app *application) routes() http.Handler {
 	mux.Get("/rent_ad_favorites/check/user/:user_id/rent/:rent_ad_id", standardMiddleware.ThenFunc(app.rentAdFavoriteHandler.IsRentAdFavorite))
 	mux.Get("/rent_ad_favorites/:user_id", standardMiddleware.ThenFunc(app.rentAdFavoriteHandler.GetRentAdFavoritesByUser))
 
-	return standardMiddleware.Then(mux)
+	return mux
 }
