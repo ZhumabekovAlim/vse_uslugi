@@ -153,6 +153,98 @@ func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{"orders": resp})
 }
 
+func (s *Server) handleActiveOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	senderID, senderErr := parseAuthID(r, "X-Sender-ID")
+	courierID, courierErr := parseAuthID(r, "X-Courier-ID")
+	if senderErr != nil && courierErr != nil {
+		writeError(w, http.StatusUnauthorized, "missing sender or courier id")
+		return
+	}
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	var (
+		order repo.Order
+		err   error
+	)
+	if senderErr == nil {
+		order, err = s.orders.ActiveBySender(ctx, senderID)
+	} else {
+		order, err = s.orders.ActiveByCourier(ctx, courierID)
+	}
+	if errors.Is(err, repo.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "active order not found")
+		return
+	}
+	if err != nil {
+		s.logger.Errorf("courier: active order lookup failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load active order")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(order)})
+}
+
+func (s *Server) handleCourierOrders(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	courierID, err := parseAuthID(r, "X-Courier-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing courier id")
+		return
+	}
+	limit, offset, err := parsePaging(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	orders, err := s.orders.ListByCourier(ctx, courierID, limit, offset)
+	if err != nil {
+		s.logger.Errorf("courier: list my orders failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to list orders")
+		return
+	}
+	resp := make([]orderResponse, 0, len(orders))
+	for _, o := range orders {
+		resp = append(resp, makeOrderResponse(o))
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"orders": resp})
+}
+
+func (s *Server) handleCourierActiveOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	courierID, err := parseAuthID(r, "X-Courier-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing courier id")
+		return
+	}
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	order, err := s.orders.ActiveByCourier(ctx, courierID)
+	if errors.Is(err, repo.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "active order not found")
+		return
+	}
+	if err != nil {
+		s.logger.Errorf("courier: active courier order failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load active order")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(order)})
+}
+
 func (s *Server) handleOrderSubroutes(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/courier/orders/")
 	path = strings.Trim(path, "/")
@@ -193,9 +285,277 @@ func (s *Server) handleOrderSubroutes(w http.ResponseWriter, r *http.Request) {
 		s.handleLifecycleUpdate(w, r, id, lifecycle.StatusDelivered)
 	case "confirm-cash":
 		s.handleLifecycleUpdate(w, r, id, lifecycle.StatusClosed)
+	case "reprice":
+		s.handleReprice(w, r, id)
+	case "status":
+		s.handleStatus(w, r, id)
+	case "waiting":
+		if len(parts) == 3 && parts[2] == "advance" {
+			s.handleLifecycleWaitingAdvance(w, r, id)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	case "waypoints":
+		if len(parts) == 3 && parts[2] == "next" {
+			s.handleLifecycleWaypointNext(w, r, id)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	case "pause":
+		s.handleLifecyclePause(w, r, id)
+	case "resume":
+		s.handleLifecycleResume(w, r, id)
+	case "no-show":
+		s.handleLifecycleUpdate(w, r, id, lifecycle.StatusCanceledNoShow)
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
+}
+
+func (s *Server) handleReprice(w http.ResponseWriter, r *http.Request, orderID int64) {
+	if _, err := parseAuthID(r, "X-Sender-ID"); err != nil {
+		writeError(w, http.StatusUnauthorized, "missing sender id")
+		return
+	}
+	var req struct {
+		ClientPrice int `json:"client_price"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if req.ClientPrice < s.cfg.MinPrice {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("client price must be >= %d", s.cfg.MinPrice))
+		return
+	}
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	if err := s.orders.UpdatePrice(ctx, orderID, req.ClientPrice); err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "order not found")
+			return
+		}
+		s.logger.Errorf("courier: reprice order failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to update price")
+		return
+	}
+	order, err := s.orders.Get(ctx, orderID)
+	if err != nil {
+		s.logger.Errorf("courier: fetch order after reprice failed: %v", err)
+	} else {
+		s.emitOrder(order, orderEventTypeUpdated)
+		writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(order)})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"client_price": req.ClientPrice})
+}
+
+func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID int64) {
+	var req struct {
+		Status string  `json:"status"`
+		Note   *string `json:"note"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	status := strings.TrimSpace(strings.ToLower(req.Status))
+	if status == "" {
+		writeError(w, http.StatusBadRequest, "status is required")
+		return
+	}
+
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	order, err := s.orders.Get(ctx, orderID)
+	if errors.Is(err, repo.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "order not found")
+		return
+	}
+	if err != nil {
+		s.logger.Errorf("courier: load order for status update failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load order")
+		return
+	}
+
+	if status == lifecycle.StatusCanceledBySender {
+		if _, err := parseAuthID(r, "X-Sender-ID"); err != nil {
+			writeError(w, http.StatusUnauthorized, "missing sender id")
+			return
+		}
+	} else {
+		if _, err := parseAuthID(r, "X-Courier-ID"); err != nil {
+			writeError(w, http.StatusUnauthorized, "missing courier id")
+			return
+		}
+	}
+
+	if !lifecycle.CanTransition(order.Status, status) {
+		writeError(w, http.StatusConflict, "invalid status transition")
+		return
+	}
+
+	if err := s.orders.UpdateStatusWithNote(ctx, orderID, status, req.Note); err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			writeError(w, http.StatusConflict, "order status changed")
+			return
+		}
+		s.logger.Errorf("courier: update order status failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to update status")
+		return
+	}
+
+	if updated, err := s.orders.Get(ctx, orderID); err == nil {
+		s.emitOrder(updated, orderEventTypeUpdated)
+		writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(updated)})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": status})
+}
+
+func (s *Server) handleLifecycleWaitingAdvance(w http.ResponseWriter, r *http.Request, orderID int64) {
+	courierID, err := parseAuthID(r, "X-Courier-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing courier id")
+		return
+	}
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	order, err := s.orders.Get(ctx, orderID)
+	if errors.Is(err, repo.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "order not found")
+		return
+	}
+	if err != nil {
+		s.logger.Errorf("courier: load order for waiting advance failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load order")
+		return
+	}
+	if !order.CourierID.Valid || order.CourierID.Int64 != courierID {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	next := ""
+	switch order.Status {
+	case lifecycle.StatusAssigned, lifecycle.StatusCourierArrived:
+		next = lifecycle.StatusPickupStarted
+	case lifecycle.StatusPickupStarted:
+		next = lifecycle.StatusPickupDone
+	case lifecycle.StatusPickupDone:
+		next = lifecycle.StatusDeliveryStarted
+	default:
+		writeError(w, http.StatusConflict, "order not in waiting state")
+		return
+	}
+
+	if err := s.orders.UpdateStatus(ctx, orderID, next, sql.NullString{}); err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			writeError(w, http.StatusConflict, "order status changed")
+			return
+		}
+		s.logger.Errorf("courier: advance waiting failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to advance order")
+		return
+	}
+	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated)
+	writeJSON(w, http.StatusOK, map[string]string{"status": next})
+}
+
+func (s *Server) handleLifecycleWaypointNext(w http.ResponseWriter, r *http.Request, orderID int64) {
+	courierID, err := parseAuthID(r, "X-Courier-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing courier id")
+		return
+	}
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	order, err := s.orders.Get(ctx, orderID)
+	if errors.Is(err, repo.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "order not found")
+		return
+	}
+	if err != nil {
+		s.logger.Errorf("courier: load order for waypoint advance failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load order")
+		return
+	}
+	if !order.CourierID.Valid || order.CourierID.Int64 != courierID {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	if order.Status != lifecycle.StatusDeliveryStarted {
+		writeError(w, http.StatusConflict, "order not ready for next waypoint")
+		return
+	}
+	if err := s.orders.UpdateStatus(ctx, orderID, lifecycle.StatusDelivered, sql.NullString{}); err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			writeError(w, http.StatusConflict, "order status changed")
+			return
+		}
+		s.logger.Errorf("courier: advance waypoint failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to advance order")
+		return
+	}
+	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated)
+	writeJSON(w, http.StatusOK, map[string]string{"status": lifecycle.StatusDelivered})
+}
+
+func (s *Server) handleLifecyclePause(w http.ResponseWriter, r *http.Request, orderID int64) {
+	courierID, err := parseAuthID(r, "X-Courier-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing courier id")
+		return
+	}
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	order, err := s.orders.Get(ctx, orderID)
+	if errors.Is(err, repo.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "order not found")
+		return
+	}
+	if err != nil {
+		s.logger.Errorf("courier: load order for pause failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load order")
+		return
+	}
+	if !order.CourierID.Valid || order.CourierID.Int64 != courierID {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
+}
+
+func (s *Server) handleLifecycleResume(w http.ResponseWriter, r *http.Request, orderID int64) {
+	courierID, err := parseAuthID(r, "X-Courier-ID")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing courier id")
+		return
+	}
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	order, err := s.orders.Get(ctx, orderID)
+	if errors.Is(err, repo.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "order not found")
+		return
+	}
+	if err != nil {
+		s.logger.Errorf("courier: load order for resume failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load order")
+		return
+	}
+	if !order.CourierID.Valid || order.CourierID.Int64 != courierID {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
 }
 
 func (s *Server) handleGetOrder(w http.ResponseWriter, r *http.Request, orderID int64) {

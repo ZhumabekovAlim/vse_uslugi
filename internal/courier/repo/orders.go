@@ -11,6 +11,30 @@ import (
 	"naimuBack/internal/courier/lifecycle"
 )
 
+var (
+	activeStatuses = []string{
+		StatusNew,
+		StatusOffered,
+		StatusAssigned,
+		StatusCourierArrived,
+		StatusPickupStarted,
+		StatusPickupDone,
+		StatusDeliveryStarted,
+	}
+	completedStatuses = []string{
+		StatusDelivered,
+		StatusClosed,
+	}
+	canceledStatuses = []string{
+		StatusCanceledBySender,
+		StatusCanceledByCourier,
+		StatusCanceledNoShow,
+	}
+	activeStatusSet    = statusSet(activeStatuses)
+	completedStatusSet = statusSet(completedStatuses)
+	canceledStatusSet  = statusSet(canceledStatuses)
+)
+
 // Order statuses mirror courier lifecycle events.
 const (
 	StatusNew               = lifecycle.StatusNew
@@ -67,6 +91,22 @@ type StatusHistoryEntry struct {
 	Status    string
 	Note      sql.NullString
 	CreatedAt time.Time
+}
+
+// OrdersStats aggregates counts for admin dashboards.
+type OrdersStats struct {
+	Total     int `json:"total_orders"`
+	Active    int `json:"active_orders"`
+	Completed int `json:"completed_orders"`
+	Canceled  int `json:"canceled_orders"`
+}
+
+// CourierOrderStats aggregates orders metrics per courier profile.
+type CourierOrderStats struct {
+	Total     int `json:"total_orders"`
+	Active    int `json:"active_orders"`
+	Completed int `json:"completed_orders"`
+	Canceled  int `json:"canceled_orders"`
 }
 
 // OrdersRepo provides persistence for courier orders and their points.
@@ -363,4 +403,190 @@ func (r *OrdersRepo) UpdateStatusWithNote(ctx context.Context, orderID int64, ne
 		ns = sql.NullString{String: *note, Valid: true}
 	}
 	return r.UpdateStatus(ctx, orderID, nextStatus, ns)
+}
+
+// ActiveBySender returns the latest active order for sender.
+func (r *OrdersRepo) ActiveBySender(ctx context.Context, senderID int64) (Order, error) {
+	if senderID == 0 {
+		return Order{}, fmt.Errorf("sender id required")
+	}
+	query := fmt.Sprintf(`SELECT id FROM courier_orders WHERE sender_id = ? AND status IN (%s) ORDER BY created_at DESC LIMIT 1`, placeholders(len(activeStatuses)))
+	args := make([]interface{}, 0, len(activeStatuses)+1)
+	args = append(args, senderID)
+	for _, st := range activeStatuses {
+		args = append(args, st)
+	}
+	var orderID int64
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&orderID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Order{}, ErrNotFound
+		}
+		return Order{}, err
+	}
+	return r.Get(ctx, orderID)
+}
+
+// ActiveByCourier returns the latest active order for courier.
+func (r *OrdersRepo) ActiveByCourier(ctx context.Context, courierID int64) (Order, error) {
+	if courierID == 0 {
+		return Order{}, fmt.Errorf("courier id required")
+	}
+	query := fmt.Sprintf(`SELECT id FROM courier_orders WHERE courier_id = ? AND status IN (%s) ORDER BY created_at DESC LIMIT 1`, placeholders(len(activeStatuses)))
+	args := make([]interface{}, 0, len(activeStatuses)+1)
+	args = append(args, courierID)
+	for _, st := range activeStatuses {
+		args = append(args, st)
+	}
+	var orderID int64
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&orderID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Order{}, ErrNotFound
+		}
+		return Order{}, err
+	}
+	return r.Get(ctx, orderID)
+}
+
+// ListAll returns orders for admin usage.
+func (r *OrdersRepo) ListAll(ctx context.Context, limit, offset int) ([]Order, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, created_at, updated_at FROM courier_orders ORDER BY created_at DESC LIMIT ? OFFSET ?`, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	orders, err := r.scanOrders(rows)
+	if err != nil {
+		return nil, err
+	}
+	if err = r.attachPoints(ctx, orders); err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
+// Stats returns aggregated counts across courier orders.
+func (r *OrdersRepo) Stats(ctx context.Context) (OrdersStats, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT status, COUNT(*) FROM courier_orders GROUP BY status`)
+	if err != nil {
+		return OrdersStats{}, err
+	}
+	defer rows.Close()
+
+	var stats OrdersStats
+	for rows.Next() {
+		var (
+			status string
+			count  int
+		)
+		if err := rows.Scan(&status, &count); err != nil {
+			return OrdersStats{}, err
+		}
+		stats.Total += count
+		if _, ok := activeStatusSet[status]; ok {
+			stats.Active += count
+		}
+		if _, ok := completedStatusSet[status]; ok {
+			stats.Completed += count
+		}
+		if _, ok := canceledStatusSet[status]; ok {
+			stats.Canceled += count
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return OrdersStats{}, err
+	}
+	return stats, nil
+}
+
+// UpdatePrice overwrites the client price for the order.
+func (r *OrdersRepo) UpdatePrice(ctx context.Context, orderID int64, newPrice int) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE courier_orders SET client_price = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, newPrice, orderID)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// UpdateStatusCAS updates order status if current matches expected state.
+func (r *OrdersRepo) UpdateStatusCAS(ctx context.Context, orderID int64, current, next string) error {
+	if current == next {
+		return nil
+	}
+	if !lifecycle.CanTransition(current, next) {
+		return fmt.Errorf("invalid status transition from %s to %s", current, next)
+	}
+	res, err := r.db.ExecContext(ctx, `UPDATE courier_orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = ?`, next, orderID, current)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return r.insertHistoryEntry(ctx, orderID, next, sql.NullString{})
+}
+
+func (r *OrdersRepo) insertHistoryEntry(ctx context.Context, orderID int64, status string, note sql.NullString) error {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO courier_order_status_history (order_id, status, note, created_at) VALUES (?,?,?,CURRENT_TIMESTAMP)`, orderID, status, nullOrString(note))
+	return err
+}
+
+// CourierStats returns aggregated order counters for a specific courier.
+func (r *OrdersRepo) CourierStats(ctx context.Context, courierID int64) (CourierOrderStats, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT status, COUNT(*) FROM courier_orders WHERE courier_id = ? GROUP BY status`, courierID)
+	if err != nil {
+		return CourierOrderStats{}, err
+	}
+	defer rows.Close()
+
+	var stats CourierOrderStats
+	for rows.Next() {
+		var (
+			status string
+			count  int
+		)
+		if err := rows.Scan(&status, &count); err != nil {
+			return CourierOrderStats{}, err
+		}
+		stats.Total += count
+		if _, ok := activeStatusSet[status]; ok {
+			stats.Active += count
+		}
+		if _, ok := completedStatusSet[status]; ok {
+			stats.Completed += count
+		}
+		if _, ok := canceledStatusSet[status]; ok {
+			stats.Canceled += count
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return CourierOrderStats{}, err
+	}
+	return stats, nil
+}
+
+func placeholders(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
+}
+
+func statusSet(statuses []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(statuses))
+	for _, status := range statuses {
+		set[status] = struct{}{}
+	}
+	return set
 }
