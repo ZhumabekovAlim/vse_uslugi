@@ -53,6 +53,7 @@ func (app *application) withTaxiRoleHeaders(next http.Handler) http.Handler {
 // Для WS: дописать ?passenger_id=... или ?driver_id=... в URL
 func (app *application) wsWithQueryUserID(next http.Handler, param string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("wsWithQueryUserID called: ", r)
 		if v := r.Context().Value("user_id"); v != nil {
 			if id, ok := v.(int); ok {
 				q := r.URL.Query()
