@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -33,6 +34,12 @@ var (
 	activeStatusSet    = statusSet(activeStatuses)
 	completedStatusSet = statusSet(completedStatuses)
 	canceledStatusSet  = statusSet(canceledStatuses)
+)
+
+var (
+	ErrReviewForbidden        = errors.New("courier review forbidden")
+	ErrReviewOrderNotFinished = errors.New("courier order not completed")
+	ErrReviewCourierMissing   = errors.New("courier not assigned")
 )
 
 // Order statuses mirror courier lifecycle events.
@@ -91,6 +98,16 @@ type StatusHistoryEntry struct {
 	Status    string
 	Note      sql.NullString
 	CreatedAt time.Time
+}
+
+// CourierReview holds feedback exchanged between sender and courier.
+type CourierReview struct {
+	ID            int64
+	SenderRating  sql.NullFloat64
+	CourierRating sql.NullFloat64
+	Comment       sql.NullString
+	CreatedAt     time.Time
+	Order         Order
 }
 
 // OrdersStats aggregates counts for admin dashboards.
@@ -196,6 +213,86 @@ func (r *OrdersRepo) ListBySender(ctx context.Context, senderID int64, limit, of
 		return nil, err
 	}
 	return orders, nil
+}
+
+// ListCourierReviews returns reviews for a courier with latest feedback first.
+func (r *OrdersRepo) ListCourierReviews(ctx context.Context, courierID int64) ([]CourierReview, error) {
+	if courierID <= 0 {
+		return nil, errors.New("invalid courier id")
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT
+        cr.id,
+        cr.rating,
+        cr.comment,
+        cr.courier_rating,
+        cr.created_at,
+        o.id,
+        o.sender_id,
+        o.courier_id,
+        o.distance_m,
+        o.eta_seconds,
+        o.recommended_price,
+        o.client_price,
+        o.payment_method,
+        o.status,
+        o.comment,
+        o.created_at,
+        o.updated_at
+    FROM courier_reviews cr
+    JOIN courier_orders o ON o.id = cr.order_id
+    WHERE cr.courier_id = ?
+    ORDER BY cr.created_at DESC`, courierID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reviews []CourierReview
+	for rows.Next() {
+		var review CourierReview
+		if err := rows.Scan(
+			&review.ID,
+			&review.SenderRating,
+			&review.Comment,
+			&review.CourierRating,
+			&review.CreatedAt,
+			&review.Order.ID,
+			&review.Order.SenderID,
+			&review.Order.CourierID,
+			&review.Order.DistanceM,
+			&review.Order.EtaSeconds,
+			&review.Order.RecommendedPrice,
+			&review.Order.ClientPrice,
+			&review.Order.PaymentMethod,
+			&review.Order.Status,
+			&review.Order.Comment,
+			&review.Order.CreatedAt,
+			&review.Order.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, review)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(reviews) == 0 {
+		return reviews, nil
+	}
+
+	orders := make([]Order, len(reviews))
+	for i := range reviews {
+		orders[i] = reviews[i].Order
+	}
+	if err := r.attachPoints(ctx, orders); err != nil {
+		return nil, err
+	}
+	for i := range reviews {
+		reviews[i].Order.Points = orders[i].Points
+	}
+
+	return reviews, nil
 }
 
 // ListByCourier returns orders assigned to a courier.
@@ -313,6 +410,146 @@ func (r *OrdersRepo) scanOrders(rows *sql.Rows) ([]Order, error) {
 		return nil, err
 	}
 	return orders, nil
+}
+
+// SetSenderReview records sender feedback and refreshes courier rating.
+func (r *OrdersRepo) SetSenderReview(ctx context.Context, orderID, senderID int64, rating *float64, comment *string) (err error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	var (
+		dbSender  int64
+		dbCourier sql.NullInt64
+		status    string
+	)
+	if err = tx.QueryRowContext(ctx, `SELECT sender_id, courier_id, status FROM courier_orders WHERE id = ? FOR UPDATE`, orderID).
+		Scan(&dbSender, &dbCourier, &status); err != nil {
+		return err
+	}
+	if dbSender != senderID {
+		return ErrReviewForbidden
+	}
+	if _, ok := completedStatusSet[status]; !ok {
+		return ErrReviewOrderNotFinished
+	}
+	if !dbCourier.Valid {
+		return ErrReviewCourierMissing
+	}
+
+	var ratingValue interface{}
+	if rating != nil {
+		ratingValue = clampRating(*rating)
+	}
+	var commentValue interface{}
+	if comment != nil {
+		commentValue = *comment
+	}
+
+	if _, err = tx.ExecContext(ctx, `INSERT INTO courier_reviews (order_id, courier_id, rating, comment) VALUES (?,?,?,?)
+        ON DUPLICATE KEY UPDATE rating = VALUES(rating), comment = VALUES(comment), created_at = CURRENT_TIMESTAMP`,
+		orderID, dbCourier.Int64, ratingValue, commentValue); err != nil {
+		return err
+	}
+
+	if err = updateCourierAverageRatingTx(ctx, tx, dbCourier.Int64); err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	return err
+}
+
+// SetCourierReview records courier feedback about the sender and refreshes sender rating.
+func (r *OrdersRepo) SetCourierReview(ctx context.Context, orderID, courierID int64, rating *float64) (err error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	var (
+		dbSender  int64
+		dbCourier sql.NullInt64
+		status    string
+	)
+	if err = tx.QueryRowContext(ctx, `SELECT sender_id, courier_id, status FROM courier_orders WHERE id = ? FOR UPDATE`, orderID).
+		Scan(&dbSender, &dbCourier, &status); err != nil {
+		return err
+	}
+	if !dbCourier.Valid || dbCourier.Int64 != courierID {
+		return ErrReviewForbidden
+	}
+	if _, ok := completedStatusSet[status]; !ok {
+		return ErrReviewOrderNotFinished
+	}
+
+	var ratingValue interface{}
+	if rating != nil {
+		ratingValue = clampRating(*rating)
+	}
+
+	if _, err = tx.ExecContext(ctx, `INSERT INTO courier_reviews (order_id, courier_id, courier_rating) VALUES (?,?,?)
+        ON DUPLICATE KEY UPDATE courier_rating = VALUES(courier_rating), created_at = CURRENT_TIMESTAMP`,
+		orderID, courierID, ratingValue); err != nil {
+		return err
+	}
+
+	if err = updateSenderAverageRatingTx(ctx, tx, dbSender); err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	return err
+}
+
+func updateCourierAverageRatingTx(ctx context.Context, tx *sql.Tx, courierID int64) error {
+	var avg sql.NullFloat64
+	if err := tx.QueryRowContext(ctx, `SELECT AVG(rating) FROM courier_reviews WHERE courier_id = ? AND rating IS NOT NULL`, courierID).Scan(&avg); err != nil {
+		return err
+	}
+	var value interface{}
+	if avg.Valid {
+		value = clampRating(avg.Float64)
+	}
+	_, err := tx.ExecContext(ctx, `UPDATE couriers SET rating = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, value, courierID)
+	return err
+}
+
+func updateSenderAverageRatingTx(ctx context.Context, tx *sql.Tx, senderID int64) error {
+	var avg sql.NullFloat64
+	if err := tx.QueryRowContext(ctx, `SELECT AVG(cr.courier_rating)
+        FROM courier_reviews cr
+        JOIN courier_orders o ON o.id = cr.order_id
+        WHERE o.sender_id = ? AND cr.courier_rating IS NOT NULL`, senderID).Scan(&avg); err != nil {
+		return err
+	}
+	var value interface{}
+	if avg.Valid {
+		value = clampRating(avg.Float64)
+	}
+	_, err := tx.ExecContext(ctx, `UPDATE users SET review_rating = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, value, senderID)
+	return err
+}
+
+func clampRating(v float64) float64 {
+	if v < 0 {
+		v = 0
+	}
+	if v > 5 {
+		v = 5
+	}
+	return math.Round(v*100) / 100
 }
 
 func (r *OrdersRepo) attachPoints(ctx context.Context, orders []Order) error {

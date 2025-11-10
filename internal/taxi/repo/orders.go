@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -48,16 +49,20 @@ var (
 		fsm.StatusPaid,
 		fsm.StatusClosed,
 	}
-	adminActiveStatuses     = append([]string{fsm.StatusCreated}, passengerActiveStatuses...)
-	adminActiveStatusSet    = statusSet(adminActiveStatuses)
-	adminCompletedStatusSet = statusSet([]string{fsm.StatusCompleted, fsm.StatusPaid, fsm.StatusClosed})
-	adminCanceledStatusSet  = statusSet([]string{
+	driverCompletedStatusSet = statusSet(driverCompletedStatuses)
+	adminActiveStatuses      = append([]string{fsm.StatusCreated}, passengerActiveStatuses...)
+	adminActiveStatusSet     = statusSet(adminActiveStatuses)
+	adminCompletedStatusSet  = statusSet([]string{fsm.StatusCompleted, fsm.StatusPaid, fsm.StatusClosed})
+	adminCanceledStatusSet   = statusSet([]string{
 		fsm.StatusCanceled,
 		fsm.StatusCanceledByPassenger,
 		fsm.StatusCanceledByDriver,
 		fsm.StatusNotFound,
 		fsm.StatusNoShow,
 	})
+	ErrReviewForbidden        = errors.New("review forbidden")
+	ErrReviewOrderNotFinished = errors.New("order not completed")
+	ErrReviewDriverMissing    = errors.New("order has no driver")
 )
 
 type OrdersStats struct {
@@ -543,11 +548,12 @@ func (r *OrdersRepo) ListCompletedByDriverBetween(ctx context.Context, driverID 
 
 // DriverReview represents a review left for a driver for a specific order.
 type DriverReview struct {
-	ID        int64
-	Rating    sql.NullFloat64
-	Comment   sql.NullString
-	CreatedAt time.Time
-	Order     Order
+	ID              int64
+	PassengerRating sql.NullFloat64
+	DriverRating    sql.NullFloat64
+	Comment         sql.NullString
+	CreatedAt       time.Time
+	Order           Order
 }
 
 // ListDriverReviews returns reviews for the specified driver ordered by review creation time.
@@ -560,6 +566,7 @@ func (r *OrdersRepo) ListDriverReviews(ctx context.Context, driverID int64) ([]D
         rv.id,
         rv.rating,
         rv.comment,
+        rv.driver_rating,
         rv.created_at,
         o.id,
         o.passenger_id,
@@ -591,8 +598,9 @@ func (r *OrdersRepo) ListDriverReviews(ctx context.Context, driverID int64) ([]D
 		var review DriverReview
 		if err := rows.Scan(
 			&review.ID,
-			&review.Rating,
+			&review.PassengerRating,
 			&review.Comment,
+			&review.DriverRating,
 			&review.CreatedAt,
 			&review.Order.ID,
 			&review.Order.PassengerID,
@@ -668,6 +676,146 @@ func (r *OrdersRepo) listAddresses(ctx context.Context, orderID int64) ([]OrderA
 		return nil, err
 	}
 	return addresses, nil
+}
+
+// SetPassengerReview saves or updates a passenger review for a completed order and refreshes driver rating.
+func (r *OrdersRepo) SetPassengerReview(ctx context.Context, orderID, passengerID int64, rating *float64, comment *string) (err error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	var (
+		dbPassenger int64
+		dbDriver    sql.NullInt64
+		status      string
+	)
+	if err = tx.QueryRowContext(ctx, `SELECT passenger_id, driver_id, status FROM orders WHERE id = ? FOR UPDATE`, orderID).
+		Scan(&dbPassenger, &dbDriver, &status); err != nil {
+		return err
+	}
+	if dbPassenger != passengerID {
+		return ErrReviewForbidden
+	}
+	if _, ok := driverCompletedStatusSet[status]; !ok {
+		return ErrReviewOrderNotFinished
+	}
+	if !dbDriver.Valid {
+		return ErrReviewDriverMissing
+	}
+
+	var ratingValue interface{}
+	if rating != nil {
+		ratingValue = clampRating(*rating)
+	}
+	var commentValue interface{}
+	if comment != nil {
+		commentValue = *comment
+	}
+
+	if _, err = tx.ExecContext(ctx, `INSERT INTO driver_reviews (order_id, driver_id, rating, comment) VALUES (?,?,?,?)
+        ON DUPLICATE KEY UPDATE rating = VALUES(rating), comment = VALUES(comment), created_at = CURRENT_TIMESTAMP`,
+		orderID, dbDriver.Int64, ratingValue, commentValue); err != nil {
+		return err
+	}
+
+	if err = updateDriverAverageRatingTx(ctx, tx, dbDriver.Int64); err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	return err
+}
+
+// SetDriverReview saves or updates driver's rating for the passenger and refreshes passenger rating.
+func (r *OrdersRepo) SetDriverReview(ctx context.Context, orderID, driverID int64, rating *float64) (err error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	var (
+		dbPassenger int64
+		dbDriver    sql.NullInt64
+		status      string
+	)
+	if err = tx.QueryRowContext(ctx, `SELECT passenger_id, driver_id, status FROM orders WHERE id = ? FOR UPDATE`, orderID).
+		Scan(&dbPassenger, &dbDriver, &status); err != nil {
+		return err
+	}
+	if !dbDriver.Valid || dbDriver.Int64 != driverID {
+		return ErrReviewForbidden
+	}
+	if _, ok := driverCompletedStatusSet[status]; !ok {
+		return ErrReviewOrderNotFinished
+	}
+
+	var ratingValue interface{}
+	if rating != nil {
+		ratingValue = clampRating(*rating)
+	}
+
+	if _, err = tx.ExecContext(ctx, `INSERT INTO driver_reviews (order_id, driver_id, driver_rating) VALUES (?,?,?)
+        ON DUPLICATE KEY UPDATE driver_rating = VALUES(driver_rating), created_at = CURRENT_TIMESTAMP`,
+		orderID, driverID, ratingValue); err != nil {
+		return err
+	}
+
+	if err = updatePassengerAverageRatingTx(ctx, tx, dbPassenger); err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	return err
+}
+
+func updateDriverAverageRatingTx(ctx context.Context, tx *sql.Tx, driverID int64) error {
+	var avg sql.NullFloat64
+	if err := tx.QueryRowContext(ctx, `SELECT AVG(rating) FROM driver_reviews WHERE driver_id = ? AND rating IS NOT NULL`, driverID).Scan(&avg); err != nil {
+		return err
+	}
+	rating := 5.0
+	if avg.Valid {
+		rating = clampRating(avg.Float64)
+	}
+	_, err := tx.ExecContext(ctx, `UPDATE drivers SET rating = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, rating, driverID)
+	return err
+}
+
+func updatePassengerAverageRatingTx(ctx context.Context, tx *sql.Tx, passengerID int64) error {
+	var avg sql.NullFloat64
+	if err := tx.QueryRowContext(ctx, `SELECT AVG(rv.driver_rating)
+        FROM driver_reviews rv
+        JOIN orders o ON o.id = rv.order_id
+        WHERE o.passenger_id = ? AND rv.driver_rating IS NOT NULL`, passengerID).Scan(&avg); err != nil {
+		return err
+	}
+	var value interface{}
+	if avg.Valid {
+		value = clampRating(avg.Float64)
+	}
+	_, err := tx.ExecContext(ctx, `UPDATE users SET review_rating = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, value, passengerID)
+	return err
+}
+
+func clampRating(v float64) float64 {
+	if v < 0 {
+		v = 0
+	}
+	if v > 5 {
+		v = 5
+	}
+	return math.Round(v*100) / 100
 }
 
 // UpdatePrice updates the client price and logs history.

@@ -172,8 +172,51 @@ func (s *Server) handleCourierReviews(w http.ResponseWriter, r *http.Request, co
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	_ = courierID
-	writeJSON(w, http.StatusOK, map[string]interface{}{"reviews": []interface{}{}})
+	if s.couriers == nil {
+		http.Error(w, "courier repository unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	if _, err := s.couriers.Get(ctx, courierID); err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "courier not found")
+		} else {
+			s.logger.Errorf("courier: load courier for reviews failed: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to load courier")
+		}
+		return
+	}
+
+	reviews, err := s.orders.ListCourierReviews(ctx, courierID)
+	if err != nil {
+		s.logger.Errorf("courier: list reviews failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load reviews")
+		return
+	}
+
+	resp := make([]courierReviewResponse, 0, len(reviews))
+	for _, review := range reviews {
+		item := courierReviewResponse{
+			CreatedAt: review.CreatedAt,
+			Order:     makeOrderResponse(review.Order),
+		}
+		if review.SenderRating.Valid {
+			v := review.SenderRating.Float64
+			item.Rating = &v
+		}
+		if review.CourierRating.Valid {
+			v := review.CourierRating.Float64
+			item.CourierRating = &v
+		}
+		if review.Comment.Valid {
+			item.Comment = review.Comment.String
+		}
+		resp = append(resp, item)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"reviews": resp})
 }
 
 func (s *Server) handleCourierStats(w http.ResponseWriter, r *http.Request, courierID int64) {
