@@ -91,6 +91,14 @@ func (h *PassengerHub) ServeWS(w http.ResponseWriter, r *http.Request) {
 		ticker := time.NewTicker(pingPeriod)
 		defer ticker.Stop()
 		for range ticker.C {
+
+			h.mu.RLock()
+			alive := h.conns[id] == conn
+			h.mu.RUnlock()
+			if !alive {
+				return
+			}
+
 			h.safeWrite(id, func(c *websocket.Conn) error {
 				c.SetWriteDeadline(time.Now().Add(writeWait))
 				return c.WriteControl(websocket.PingMessage, nil, time.Now().Add(writeWait))
@@ -120,7 +128,7 @@ func (h *PassengerHub) readLoop(passengerID int64, conn *websocket.Conn) {
 		if err != nil {
 			return
 		}
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(pongWait))
 		if mt == websocket.TextMessage && strings.EqualFold(strings.TrimSpace(string(msg)), "ping") {
 			// optional: отвечаем для совместимости
 			_ = conn.WriteMessage(websocket.TextMessage, []byte("pong"))

@@ -126,6 +126,9 @@ func (h *DriverHub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.mu.Lock()
+	if old, ok := h.conns[driverID]; ok {
+		_ = old.Close()
+	}
 	h.conns[driverID] = conn
 	if _, ok := h.wmu[driverID]; !ok {
 		h.wmu[driverID] = &sync.Mutex{}
@@ -138,25 +141,44 @@ func (h *DriverHub) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 	h.logger.Infof("driver %d connected (city=%s)", driverID, city)
 
+	go func(id int64, born *websocket.Conn) {
+		ticker := time.NewTicker(pingPeriod)
+		defer ticker.Stop()
+		for range ticker.C {
+			// если соединились заново или закрылись — выходим
+			h.mu.RLock()
+			alive := h.conns[id] == born
+			h.mu.RUnlock()
+			if !alive {
+				return
+			}
+
+			h.safeWrite(id, func(c *websocket.Conn) error {
+				c.SetWriteDeadline(time.Now().Add(writeWait))
+				return c.WriteControl(websocket.PingMessage, nil, time.Now().Add(writeWait))
+			})
+		}
+	}(driverID, conn)
+
 	go h.readLoop(driverID, conn, city)
 }
 
 func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) {
 	defer func() {
-		conn.Close()
-		h.mu.Lock()
-		delete(h.conns, driverID)
-		delete(h.wmu, driverID)
-		delete(h.cities, driverID)
-		delete(h.lastStatus, driverID) // 👈 чистим
-		h.mu.Unlock()
-		h.logger.Infof("driver %d disconnected", driverID)
+		h.closeConn(driverID, conn) // 👈 используем единый close (см. ниже 4.4)
 	}()
 
-	conn.SetReadLimit(1024)
-	conn.SetReadDeadline(time.Now().Add(1000 * time.Second))
+	conn.SetReadLimit(16 << 10) // 16KB (чуть больше запаса)
+	conn.SetReadDeadline(time.Now().Add(pongWait))
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(1000 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+	conn.SetCloseHandler(func(code int, text string) error {
+		if h.logger != nil {
+			h.logger.Infof("driver %d closed ws (%d: %s)", driverID, code, text)
+		}
+		h.closeConn(driverID, conn)
 		return nil
 	})
 
@@ -177,7 +199,7 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 		if err != nil {
 			return
 		}
-		conn.SetReadDeadline(time.Now().Add(10000 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(pongWait))
 
 		trimmed := strings.TrimSpace(string(message))
 		if trimmed == "" {
@@ -186,6 +208,8 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 		if strings.EqualFold(trimmed, "ping") {
 			if err := conn.WriteMessage(websocket.TextMessage, []byte("pong")); err != nil {
 				h.logger.Errorf("driver %d pong failed: %v", driverID, err)
+				h.closeConn(driverID, conn) // 👈 важный фикс
+				return
 			}
 			continue
 		}
@@ -264,6 +288,19 @@ func (h *DriverHub) readLoop(driverID int64, conn *websocket.Conn, city string) 
 	}
 }
 
+func (h *DriverHub) closeConn(id int64, c *websocket.Conn) {
+	_ = c.Close()
+	h.mu.Lock()
+	delete(h.conns, id)
+	delete(h.wmu, id)
+	delete(h.cities, id)
+	delete(h.lastStatus, id)
+	h.mu.Unlock()
+	if h.logger != nil {
+		h.logger.Infof("🔌 closed ws driver=%d", id)
+	}
+}
+
 // SendOffer sends an order offer to a driver.
 func (h *DriverHub) SendOffer(driverID int64, payload DriverOfferPayload) {
 	payload.Type = "order_offer"
@@ -305,18 +342,9 @@ func (h *DriverHub) NotifyOfferClosed(orderID int64, driverIDs []int64, reason s
 // NotifyPriceResponse informs driver about passenger decision on price proposal.
 func (h *DriverHub) NotifyPriceResponse(driverID int64, payload DriverPriceResponsePayload) {
 	payload.Type = "order_offer_price_response"
-
-	h.mu.RLock()
-	conn, ok := h.conns[driverID]
-	h.mu.RUnlock()
-	if !ok {
-		return
-	}
-
-	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	if err := conn.WriteJSON(payload); err != nil {
-		h.logger.Errorf("notify price response to driver %d failed: %v", driverID, err)
-	}
+	h.safeWrite(driverID, func(c *websocket.Conn) error {
+		return c.WriteJSON(payload)
+	})
 }
 
 // BroadcastEvent sends the same payload to every connected driver.
@@ -326,25 +354,18 @@ func (h *DriverHub) BroadcastEvent(event interface{}) {
 		h.logger.Errorf("driver broadcast marshal failed: %v", err)
 		return
 	}
-
 	h.mu.RLock()
-	recipients := make([]struct {
-		id   int64
-		conn *websocket.Conn
-	}, 0, len(h.conns))
-	for id, conn := range h.conns {
-		recipients = append(recipients, struct {
-			id   int64
-			conn *websocket.Conn
-		}{id: id, conn: conn})
+	ids := make([]int64, 0, len(h.conns))
+	for id := range h.conns {
+		ids = append(ids, id)
 	}
 	h.mu.RUnlock()
-
-	for _, recipient := range recipients {
-		recipient.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		if err := recipient.conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			h.logger.Errorf("driver broadcast to %d failed: %v", recipient.id, err)
-		}
+	for _, id := range ids {
+		id := id
+		h.safeWrite(id, func(c *websocket.Conn) error {
+			c.SetWriteDeadline(time.Now().Add(writeWait))
+			return c.WriteMessage(websocket.TextMessage, data)
+		})
 	}
 }
 
@@ -404,10 +425,13 @@ func (h *DriverHub) safeWrite(driverID int64, writer func(*websocket.Conn) error
 	if conn == nil || mu == nil {
 		return
 	}
+
 	mu.Lock()
 	defer mu.Unlock()
-	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+
+	conn.SetWriteDeadline(time.Now().Add(writeWait))
 	if err := writer(conn); err != nil {
 		h.logger.Errorf("driver %d write failed: %v", driverID, err)
+		h.closeConn(driverID, conn) // 👈 критично
 	}
 }
