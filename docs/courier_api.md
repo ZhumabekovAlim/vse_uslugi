@@ -19,20 +19,17 @@
 
 | Этап | Код статуса | Кто устанавливает | Переходы |
 | ---- | ----------- | ----------------- | -------- |
-| Новый заказ создан | `new` | система при создании | `offered`, `canceled_by_sender` |
-| Предложение отправлено курьерам | `offered` | курьер после оценки стоимости | `assigned`, `canceled_by_sender`, `canceled_by_courier` |
-| Курьер назначен | `assigned` | отправитель подтверждает предложение | `courier_arrived`, `canceled_by_*`, `canceled_no_show` |
-| Курьер прибыл | `courier_arrived` | курьер | `pickup_started`, `canceled_by_*`, `canceled_no_show` |
-| Начата передача посылки | `pickup_started` | курьер | `pickup_done`, `canceled_by_courier` |
-| Посылка забрана | `pickup_done` | курьер | `delivery_started`, `canceled_by_courier` |
-| Доставка в пути | `delivery_started` | курьер | `delivered`, `canceled_by_courier` |
-| Доставка завершена | `delivered` | курьер | `closed` |
+| Новый заказ создан | `searching` | система при создании | `accepted`, `canceled_by_sender` |
+| Курьер назначен | `accepted` | отправитель подтверждает предложение | `waiting_free`, `in_progress`, `completed`, `canceled_by_*`, `canceled_no_show` |
+| Курьер ожидает на точке | `waiting_free` | курьер | `in_progress`, `canceled_by_*`, `canceled_no_show` |
+| Доставка выполняется | `in_progress` | курьер | `completed`, `canceled_by_courier` |
+| Доставка завершена | `completed` | курьер | `closed` |
 | Заказ закрыт (оплата наличными подтверждена) | `closed` | курьер | — |
 | Отменён отправителем | `canceled_by_sender` | отправитель | — |
 | Отменён курьером | `canceled_by_courier` | курьер | — |
 | Курьер не вышел на связь | `canceled_no_show` | курьер | — |
 
-Дополнительные автоматические сокращённые переходы доступны через специальные маршруты (`start`, `waiting/advance`, `waypoints/next`), подробно описанные ниже.
+Дополнительные автоматические переходы доступны через специальные маршруты (`start`, `waiting/advance`, `waypoints/next`), подробно описанные ниже.
 
 ## Расчёт рекомендуемой цены
 
@@ -101,7 +98,7 @@
 {
   "order_id": 4102,
   "recommended_price": 1500,
-  "status": "new"
+  "status": "searching"
 }
 ```
 
@@ -241,31 +238,31 @@
 
 `POST /api/v1/courier/orders/{id}/start`
 
-За один вызов переводит заказ через статусы `pickup_started → pickup_done → delivery_started`. Используется, когда курьер уже забрал посылку и отправляется к получателю.【F:internal/courier/http/orders.go†L430-L459】
+За один вызов переводит заказ в статус `in_progress`. Используется, когда курьер уже забрал посылку и отправляется к получателю.【F:internal/courier/http/orders.go†L725-L745】
 
 #### Завершение доставки
 
 `POST /api/v1/courier/orders/{id}/finish`
 
-Переводит заказ в статус `delivered` и рассылает событие обновления.【F:internal/courier/http/orders.go†L303-L346】
+Переводит заказ в статус `completed` и рассылает событие обновления.【F:internal/courier/http/orders.go†L278-L287】【F:internal/courier/http/orders.go†L748-L777】
 
 #### Подтверждение наличной оплаты
 
 `POST /api/v1/courier/orders/{id}/confirm-cash`
 
-Переводит заказ из `delivered` в `closed` после подтверждения получения наличных.【F:internal/courier/http/orders.go†L303-L346】
+Переводит заказ из `completed` в `closed` после подтверждения получения наличных.【F:internal/courier/http/orders.go†L278-L289】【F:internal/courier/http/orders.go†L748-L777】
 
 #### Пошаговые статусы ожидания
 
 `POST /api/v1/courier/orders/{id}/waiting/advance`
 
-Выполняет следующий переход в цепочке `assigned → courier_arrived → pickup_started → pickup_done → delivery_started`. Возвращает новый статус или 409, если заказ не в ожидающем состоянии.【F:internal/courier/http/orders.go†L346-L397】
+Выполняет последовательные переходы `accepted → waiting_free → in_progress`. Возвращает новый статус или 409, если заказ не в ожидающем состоянии.【F:internal/courier/http/orders.go†L531-L577】
 
 #### Переход к следующей точке маршрута
 
 `POST /api/v1/courier/orders/{id}/waypoints/next`
 
-Доступно на этапе `delivery_started`. Переводит заказ в `delivered`. Используется для многоадресных доставок.【F:internal/courier/http/orders.go†L399-L430】
+Доступно на этапе `in_progress`. Переводит заказ в `completed`. Используется для многоадресных доставок.【F:internal/courier/http/orders.go†L579-L618】
 
 #### Пауза и возобновление
 
@@ -303,7 +300,7 @@
 }
 ```
 
-Ответ: `{ "status": "offered" }`. Заказ автоматически переводится в статус `offered` (если ещё не назначен).【F:internal/courier/http/offers.go†L16-L69】
+Ответ: `{ "status": "searching" }`. Статус заказа остаётся `searching`, предложение фиксируется отдельно.【F:internal/courier/http/offers.go†L16-L63】
 
 #### Отправитель принимает предложение
 
@@ -320,7 +317,7 @@
 }
 ```
 
-Ответ: `{ "status": "assigned" }`. Курьер закрепляется за заказом.【F:internal/courier/http/offers.go†L71-L120】
+Ответ: `{ "status": "accepted" }`. Курьер закрепляется за заказом.【F:internal/courier/http/offers.go†L65-L127】
 
 #### Отправитель отклоняет предложение
 
@@ -332,7 +329,7 @@
 
 `POST /api/v1/courier/offers/respond`
 
-Тело содержит `decision: "accept"` или `"decline"`. Возвращает `status: "assigned"` или `status: "declined"`. Используется для интеграции с интерфейсами, где решение принимается единым действием.【F:internal/courier/http/offers.go†L165-L228】
+Тело содержит `decision: "accept"` или `"decline"`. Возвращает `status: "accepted"` или `status: "declined"`. Используется для интеграции с интерфейсами, где решение принимается единым действием.【F:internal/courier/http/offers.go†L174-L257】
 
 ### Профиль курьера и статистика
 
@@ -404,12 +401,12 @@
 ## Примеры пошагового сценария
 
 1. Отправитель рассчитывает рекомендуемую цену через `/api/v1/courier/route/quote`.
-2. Создаёт заказ `/api/v1/courier/orders` со своей ценой (`client_price`). Заказ получает статус `new`.
-3. Курьеры через WebSocket получают событие `order_created` и могут предложить стоимость через `/api/v1/courier/offers/price`. Заказ переходит в `offered`.
-4. Отправитель выбирает предложение и подтверждает его `/api/v1/courier/offers/accept`. Заказ становится `assigned`, закрепляется за курьером.
-5. Курьер прибывает, отмечает `/arrive` → `courier_arrived`.
-6. Курьер переводит заказ в рабочий статус `/waiting/advance` (или сразу `/start`), выполняет доставку и завершает `/finish`.
-7. При оплате наличными курьер подтверждает `/confirm-cash`, после чего заказ считается закрытым (`closed`). При онлайн-оплате этот шаг можно пропустить.
+2. Создаёт заказ `/api/v1/courier/orders` со своей ценой (`client_price`). Заказ получает статус `searching`.【F:internal/courier/http/orders.go†L88-L118】
+3. Курьеры через WebSocket получают событие `order_created` и могут предложить стоимость через `/api/v1/courier/offers/price`, пока заказ остаётся `searching`.【F:internal/courier/http/events.go†L63-L67】
+4. Отправитель выбирает предложение и подтверждает его `/api/v1/courier/offers/accept`. Заказ становится `accepted`, закрепляется за курьером.【F:internal/courier/http/offers.go†L65-L127】
+5. Курьер прибывает и отмечает `/arrive`, переводя заказ в `waiting_free`.【F:internal/courier/http/orders.go†L278-L287】
+6. Курьер переводит заказ в работу через `/waiting/advance` (до `in_progress`) или сразу `/start`, выполняет доставку и завершает `/finish`, получая статус `completed`.【F:internal/courier/http/orders.go†L531-L618】【F:internal/courier/http/orders.go†L725-L745】
+7. При оплате наличными курьер подтверждает `/confirm-cash`, после чего заказ считается закрытым (`closed`). При онлайн-оплате этот шаг можно пропустить.【F:internal/courier/http/orders.go†L278-L289】【F:internal/courier/http/orders.go†L748-L777】
 
 ## Postman коллекция
 

@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -49,14 +48,6 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to store offer")
 		return
 	}
-	if err := s.orders.UpdateStatus(ctx, req.OrderID, lifecycle.StatusOffered, sql.NullString{}); err != nil {
-		if errors.Is(err, repo.ErrNotFound) {
-			writeError(w, http.StatusNotFound, "order not found")
-			return
-		}
-		// ignore transition conflict when order already advanced
-		s.logger.Infof("courier: skipping status update after offer: %v", err)
-	}
 
 	price := req.Price
 	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
@@ -68,7 +59,7 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 		s.emitOffer(order, courierID, repo.OfferStatusProposed, &price, originCourier)
 		s.emitOrder(order, orderEventTypeUpdated, originCourier)
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusOffered})
+	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusNew})
 }
 
 func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
@@ -111,7 +102,7 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.orders.AssignCourier(ctx, req.OrderID, req.CourierID, lifecycle.StatusAssigned); err != nil {
+	if err := s.orders.AssignCourier(ctx, req.OrderID, req.CourierID, lifecycle.StatusAccepted); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "order not found")
 			return
@@ -132,7 +123,7 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 		s.emitOrder(order, orderEventTypeUpdated, originSender)
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusAssigned})
+	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusAccepted})
 }
 
 func (s *Server) handleOfferDecline(w http.ResponseWriter, r *http.Request) {
@@ -221,7 +212,7 @@ func (s *Server) handleOfferRespond(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, "failed to update offer")
 			return
 		}
-		if err := s.orders.AssignCourier(ctx, req.OrderID, req.CourierID, lifecycle.StatusAssigned); err != nil {
+		if err := s.orders.AssignCourier(ctx, req.OrderID, req.CourierID, lifecycle.StatusAccepted); err != nil {
 			if errors.Is(err, repo.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "order not found")
 				return
@@ -261,7 +252,7 @@ func (s *Server) handleOfferRespond(w http.ResponseWriter, r *http.Request) {
 
 	respStatus := map[string]string{"status": "declined"}
 	if decision == "accept" {
-		respStatus["status"] = string(repo.StatusAssigned)
+		respStatus["status"] = string(repo.StatusAccepted)
 	}
 	writeJSON(w, http.StatusOK, respStatus)
 }

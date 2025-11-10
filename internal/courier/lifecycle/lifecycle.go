@@ -2,15 +2,12 @@ package lifecycle
 
 // List of courier lifecycle statuses.
 const (
-	StatusNew             = "searching"
-	StatusOffered         = "offered"
-	StatusAssigned        = "assigned"
-	StatusCourierArrived  = "courier_arrived"
-	StatusPickupStarted   = "pickup_started"
-	StatusPickupDone      = "pickup_done"
-	StatusDeliveryStarted = "delivery_started"
-	StatusDelivered       = "delivered"
-	StatusClosed          = "closed"
+	StatusNew         = "searching"
+	StatusAccepted    = "accepted"
+	StatusWaitingFree = "waiting_free"
+	StatusInProgress  = "in_progress"
+	StatusCompleted   = "completed"
+	StatusClosed      = "closed"
 
 	StatusCanceledBySender  = "canceled_by_sender"
 	StatusCanceledByCourier = "canceled_by_courier"
@@ -19,39 +16,28 @@ const (
 
 var transitions = map[string]map[string]struct{}{
 	StatusNew: {
-		StatusOffered:          {},
+		StatusAccepted:         {},
 		StatusCanceledBySender: {},
 	},
-	StatusOffered: {
-		StatusAssigned:          {},
-		StatusCanceledBySender:  {},
-		StatusCanceledByCourier: {},
-	},
-	StatusAssigned: {
-		StatusCourierArrived:    {},
+	StatusAccepted: {
+		StatusWaitingFree:       {},
+		StatusInProgress:        {},
+		StatusCompleted:         {},
 		StatusCanceledBySender:  {},
 		StatusCanceledByCourier: {},
 		StatusCanceledNoShow:    {},
 	},
-	StatusCourierArrived: {
-		StatusPickupStarted:     {},
+	StatusWaitingFree: {
+		StatusInProgress:        {},
 		StatusCanceledBySender:  {},
 		StatusCanceledByCourier: {},
 		StatusCanceledNoShow:    {},
 	},
-	StatusPickupStarted: {
-		StatusPickupDone:        {},
+	StatusInProgress: {
+		StatusCompleted:         {},
 		StatusCanceledByCourier: {},
 	},
-	StatusPickupDone: {
-		StatusDeliveryStarted:   {},
-		StatusCanceledByCourier: {},
-	},
-	StatusDeliveryStarted: {
-		StatusDelivered:         {},
-		StatusCanceledByCourier: {},
-	},
-	StatusDelivered: {
+	StatusCompleted: {
 		StatusClosed: {},
 	},
 }
