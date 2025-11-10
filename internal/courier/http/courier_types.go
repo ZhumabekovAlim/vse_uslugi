@@ -66,6 +66,14 @@ type courierProfileResponse struct {
 	Stats   courierStatsResponse `json:"stats"`
 }
 
+type courierReviewResponse struct {
+	Rating        *float64      `json:"rating,omitempty"`
+	CourierRating *float64      `json:"courier_rating,omitempty"`
+	Comment       string        `json:"comment,omitempty"`
+	CreatedAt     time.Time     `json:"created_at"`
+	Order         orderResponse `json:"order"`
+}
+
 func makeCourierStatsResponse(stats repo.CourierOrderStats) courierStatsResponse {
 	return courierStatsResponse{
 		Total:     stats.Total,

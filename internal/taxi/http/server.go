@@ -195,10 +195,11 @@ type driverProfileResponse struct {
 }
 
 type driverReviewResponse struct {
-	Rating    *float64      `json:"rating,omitempty"`
-	Comment   string        `json:"comment,omitempty"`
-	CreatedAt time.Time     `json:"created_at"`
-	Order     orderResponse `json:"order"`
+	Rating       *float64      `json:"rating,omitempty"`
+	DriverRating *float64      `json:"driver_rating,omitempty"`
+	Comment      string        `json:"comment,omitempty"`
+	CreatedAt    time.Time     `json:"created_at"`
+	Order        orderResponse `json:"order"`
 }
 
 type driverDayStatsResponse struct {
@@ -1215,9 +1216,13 @@ func (s *Server) listDriverReviews(w http.ResponseWriter, r *http.Request, id in
 			CreatedAt: review.CreatedAt,
 			Order:     orderResp,
 		}
-		if review.Rating.Valid {
-			v := review.Rating.Float64
+		if review.PassengerRating.Valid {
+			v := review.PassengerRating.Float64
 			reviewResp.Rating = &v
+		}
+		if review.DriverRating.Valid {
+			v := review.DriverRating.Float64
+			reviewResp.DriverRating = &v
 		}
 		if review.Comment.Valid {
 			reviewResp.Comment = review.Comment.String
@@ -2885,6 +2890,12 @@ func (s *Server) handleOrderSubroutes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.handleStatus(w, r, id)
+	case "review":
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		s.handleOrderReview(w, r, id)
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
@@ -3619,6 +3630,109 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": req.Status})
+}
+
+func (s *Server) handleOrderReview(w http.ResponseWriter, r *http.Request, orderID int64) {
+	var payload struct {
+		Rating  *float64 `json:"rating"`
+		Comment *string  `json:"comment"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		if !errors.Is(err, io.EOF) {
+			writeError(w, http.StatusBadRequest, "invalid json")
+			return
+		}
+	}
+
+	ratingProvided := payload.Rating != nil
+	commentProvided := payload.Comment != nil
+
+	var ratingValue *float64
+	if payload.Rating != nil {
+		v := *payload.Rating
+		if v < 1 || v > 5 {
+			writeError(w, http.StatusBadRequest, "rating must be between 1 and 5")
+			return
+		}
+		ratingValue = &v
+	}
+
+	var commentValue *string
+	if payload.Comment != nil {
+		trimmed := strings.TrimSpace(*payload.Comment)
+		if trimmed != "" {
+			v := trimmed
+			commentValue = &v
+		} else {
+			commentValue = nil
+		}
+	}
+
+	passengerIDHeader := strings.TrimSpace(r.Header.Get("X-Passenger-ID"))
+	driverIDHeader := strings.TrimSpace(r.Header.Get("X-Driver-ID"))
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	switch {
+	case passengerIDHeader != "":
+		passengerID, err := strconv.ParseInt(passengerIDHeader, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "invalid passenger id")
+			return
+		}
+		if !ratingProvided && !commentProvided {
+			writeError(w, http.StatusBadRequest, "rating or comment required")
+			return
+		}
+		if err := s.ordersRepo.SetPassengerReview(ctx, orderID, passengerID, ratingValue, commentValue); err != nil {
+			switch {
+			case errors.Is(err, sql.ErrNoRows):
+				writeError(w, http.StatusNotFound, "order not found")
+			case errors.Is(err, repo.ErrReviewForbidden):
+				writeError(w, http.StatusForbidden, "forbidden")
+			case errors.Is(err, repo.ErrReviewOrderNotFinished):
+				writeError(w, http.StatusConflict, "order not completed")
+			case errors.Is(err, repo.ErrReviewDriverMissing):
+				writeError(w, http.StatusConflict, "driver not assigned")
+			default:
+				writeError(w, http.StatusInternalServerError, "failed to save review")
+			}
+			return
+		}
+	case driverIDHeader != "":
+		driverID, err := strconv.ParseInt(driverIDHeader, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "invalid driver id")
+			return
+		}
+		if commentProvided {
+			writeError(w, http.StatusBadRequest, "drivers cannot leave comments")
+			return
+		}
+		if !ratingProvided {
+			writeError(w, http.StatusBadRequest, "rating required")
+			return
+		}
+		if err := s.ordersRepo.SetDriverReview(ctx, orderID, driverID, ratingValue); err != nil {
+			switch {
+			case errors.Is(err, sql.ErrNoRows):
+				writeError(w, http.StatusNotFound, "order not found")
+			case errors.Is(err, repo.ErrReviewForbidden):
+				writeError(w, http.StatusForbidden, "forbidden")
+			case errors.Is(err, repo.ErrReviewOrderNotFinished):
+				writeError(w, http.StatusConflict, "order not completed")
+			default:
+				writeError(w, http.StatusInternalServerError, "failed to save review")
+			}
+			return
+		}
+	default:
+		writeError(w, http.StatusUnauthorized, "missing actor id")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWriter, r *http.Request, order repo.Order, note string) {

@@ -288,6 +288,8 @@ func (app *application) routes() http.Handler {
 	mux.Post("/api/v1/courier/orders/:id/cancel", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
 	mux.Post("/api/v1/courier/orders/:id/reprice", clientAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Sender-ID")))
 	mux.Post("/api/v1/courier/orders/:id/status", clientAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/orders/:id/review", clientAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/orders/:id/review", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
 	mux.Post("/api/v1/courier/orders/:id/arrive", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
 	mux.Post("/api/v1/courier/orders/:id/start", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
 	mux.Post("/api/v1/courier/orders/:id/finish", workerAuth.Then(app.withHeaderFromCtx(app.courierMux, "X-Courier-ID")))
@@ -333,6 +335,8 @@ func (app *application) routes() http.Handler {
 	mux.Get("/api/v1/orders/:id", authMiddleware.Then(app.taxiMux))
 	mux.Post("/api/v1/orders/:id/reprice", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
 	mux.Post("/api/v1/orders/:id/status", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
+	mux.Post("/api/v1/orders/:id/review", clientAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Passenger-ID")))
+	mux.Post("/api/v1/orders/:id/review", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
 	// Taxi: driver profile extras.
 	mux.Post("/api/v1/drivers", authMiddleware.Then(app.taxiMux))           // Возвращает {"driver": {...}, "completed_trips": int, "balance": int}
 	mux.Get("/api/v1/driver/:id/profile", authMiddleware.Then(app.taxiMux)) // Возвращает {"driver": {...}, "completed_trips": int, "balance": int}

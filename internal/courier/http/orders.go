@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -289,6 +290,8 @@ func (s *Server) handleOrderSubroutes(w http.ResponseWriter, r *http.Request) {
 		s.handleReprice(w, r, id)
 	case "status":
 		s.handleStatus(w, r, id)
+	case "review":
+		s.handleOrderReview(w, r, id)
 	case "waiting":
 		if len(parts) == 3 && parts[2] == "advance" {
 			s.handleLifecycleWaitingAdvance(w, r, id)
@@ -413,6 +416,111 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": status})
+}
+
+func (s *Server) handleOrderReview(w http.ResponseWriter, r *http.Request, orderID int64) {
+	var payload struct {
+		Rating  *float64 `json:"rating"`
+		Comment *string  `json:"comment"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		if !errors.Is(err, io.EOF) {
+			writeError(w, http.StatusBadRequest, "invalid json")
+			return
+		}
+	}
+
+	ratingProvided := payload.Rating != nil
+	commentProvided := payload.Comment != nil
+
+	var ratingValue *float64
+	if payload.Rating != nil {
+		v := *payload.Rating
+		if v < 1 || v > 5 {
+			writeError(w, http.StatusBadRequest, "rating must be between 1 and 5")
+			return
+		}
+		ratingValue = &v
+	}
+
+	var commentValue *string
+	if payload.Comment != nil {
+		trimmed := strings.TrimSpace(*payload.Comment)
+		if trimmed != "" {
+			v := trimmed
+			commentValue = &v
+		} else {
+			commentValue = nil
+		}
+	}
+
+	senderHeader := strings.TrimSpace(r.Header.Get("X-Sender-ID"))
+	courierHeader := strings.TrimSpace(r.Header.Get("X-Courier-ID"))
+
+	ctx, cancel := contextWithTimeout(r)
+	defer cancel()
+
+	switch {
+	case senderHeader != "":
+		senderID, err := strconv.ParseInt(senderHeader, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "invalid sender id")
+			return
+		}
+		if !ratingProvided && !commentProvided {
+			writeError(w, http.StatusBadRequest, "rating or comment required")
+			return
+		}
+		if err := s.orders.SetSenderReview(ctx, orderID, senderID, ratingValue, commentValue); err != nil {
+			switch {
+			case errors.Is(err, repo.ErrNotFound):
+				writeError(w, http.StatusNotFound, "order not found")
+			case errors.Is(err, repo.ErrReviewForbidden):
+				writeError(w, http.StatusForbidden, "forbidden")
+			case errors.Is(err, repo.ErrReviewOrderNotFinished):
+				writeError(w, http.StatusConflict, "order not completed")
+			case errors.Is(err, repo.ErrReviewCourierMissing):
+				writeError(w, http.StatusConflict, "courier not assigned")
+			default:
+				s.logger.Errorf("courier: save sender review failed: %v", err)
+				writeError(w, http.StatusInternalServerError, "failed to save review")
+			}
+			return
+		}
+	case courierHeader != "":
+		courierID, err := strconv.ParseInt(courierHeader, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "invalid courier id")
+			return
+		}
+		if commentProvided {
+			writeError(w, http.StatusBadRequest, "couriers cannot leave comments")
+			return
+		}
+		if !ratingProvided {
+			writeError(w, http.StatusBadRequest, "rating required")
+			return
+		}
+		if err := s.orders.SetCourierReview(ctx, orderID, courierID, ratingValue); err != nil {
+			switch {
+			case errors.Is(err, repo.ErrNotFound):
+				writeError(w, http.StatusNotFound, "order not found")
+			case errors.Is(err, repo.ErrReviewForbidden):
+				writeError(w, http.StatusForbidden, "forbidden")
+			case errors.Is(err, repo.ErrReviewOrderNotFinished):
+				writeError(w, http.StatusConflict, "order not completed")
+			default:
+				s.logger.Errorf("courier: save courier review failed: %v", err)
+				writeError(w, http.StatusInternalServerError, "failed to save review")
+			}
+			return
+		}
+	default:
+		writeError(w, http.StatusUnauthorized, "missing actor id")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleLifecycleWaitingAdvance(w http.ResponseWriter, r *http.Request, orderID int64) {
