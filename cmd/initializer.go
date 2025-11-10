@@ -8,6 +8,7 @@ import (
 	_ "google.golang.org/api/option"
 	"log"
 	"naimuBack/internal/ai"
+	"naimuBack/internal/courier"
 	"naimuBack/internal/handlers"
 	_ "naimuBack/internal/models"
 	"naimuBack/internal/repositories"
@@ -136,8 +137,10 @@ type application struct {
 	assistantHandler *handlers.AssistantHandler
 
 	// authService *services/*/.AuthService
-	taxiMux  http.Handler
-	taxiDeps *taxi.TaxiDeps
+	taxiMux     http.Handler
+	taxiDeps    *taxi.TaxiDeps
+	courierMux  http.Handler
+	courierDeps *courier.Deps
 }
 
 func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
