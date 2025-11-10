@@ -3554,7 +3554,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 }
 
 func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWriter, r *http.Request, order repo.Order, note string) {
-	const targetStatus = fsm.StatusCanceledByPassenger
+	const targetStatus = fsm.StatusCanceled
 
 	passengerID, err := parseAuthID(r, "X-Passenger-ID")
 	if err != nil {
