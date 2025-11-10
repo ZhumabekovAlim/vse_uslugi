@@ -130,7 +130,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/subscription/:user_id", authMiddleware.ThenFunc(app.subscriptionHandler.GetSubscription))
 	mux.Get("/subscriptions", authMiddleware.ThenFunc(app.subscriptionHandler.GetSubscriptions))
 	mux.Post("/airbapay/pay", standardMiddleware.ThenFunc(app.airbapayHandler.CreatePayment))
-	mux.Post("/airbapay/callback", standardMiddleware.ThenFunc(app.airbapayHandler.Callback))
+	mux.Post("/airbapay/webhook", standardMiddleware.ThenFunc(app.airbapayHandler.Callback))
 	mux.Get("/airbapay/history/:user_id", authMiddleware.ThenFunc(app.airbapayHandler.GetHistory))
 	mux.Get("/airbapay/success", standardMiddleware.ThenFunc(app.airbapayHandler.SuccessRedirect))
 	mux.Get("/airbapay/failure", standardMiddleware.ThenFunc(app.airbapayHandler.FailureRedirect))
