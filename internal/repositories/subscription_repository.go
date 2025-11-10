@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"time"
+
 	"naimuBack/internal/models"
 )
 
@@ -94,5 +96,83 @@ func (r *SubscriptionRepository) ConsumeResponse(ctx context.Context, userID int
 
 func (r *SubscriptionRepository) RestoreResponse(ctx context.Context, userID int) error {
 	_, err := r.DB.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining + 1 WHERE user_id = ?`, userID)
+	return err
+}
+
+// AddResponsesBalance increments the remaining response balance for the user.
+// If the user does not yet have a subscription_responses row, it creates one.
+func (r *SubscriptionRepository) AddResponsesBalance(ctx context.Context, userID, amount int) (err error) {
+	if amount <= 0 {
+		return nil
+	}
+
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	var id int64
+	query := `SELECT id FROM subscription_responses WHERE user_id = ? FOR UPDATE`
+	switch scanErr := tx.QueryRowContext(ctx, query, userID).Scan(&id); scanErr {
+	case nil:
+		_, err = tx.ExecContext(ctx,
+			`UPDATE subscription_responses SET remaining = remaining + ?, status = CASE WHEN status = 'inactive' THEN 'active' ELSE status END, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			amount, id,
+		)
+	case sql.ErrNoRows:
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO subscription_responses (user_id, packs, status, renews_at, monthly_quota, remaining) VALUES (?, 0, 'active', ?, 0, ?)`,
+			userID, time.Now().UTC(), amount,
+		)
+	default:
+		err = scanErr
+	}
+
+	return err
+}
+
+// AddListingSlots increases executor listing slots for the user.
+// Creates a new subscription_slots row if required.
+func (r *SubscriptionRepository) AddListingSlots(ctx context.Context, userID, slots int) (err error) {
+	if slots <= 0 {
+		return nil
+	}
+
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	var id int64
+	query := `SELECT id FROM subscription_slots WHERE user_id = ? FOR UPDATE`
+	switch scanErr := tx.QueryRowContext(ctx, query, userID).Scan(&id); scanErr {
+	case nil:
+		_, err = tx.ExecContext(ctx,
+			`UPDATE subscription_slots SET slots = slots + ?, status = CASE WHEN status = 'inactive' THEN 'active' ELSE status END, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			slots, id,
+		)
+	case sql.ErrNoRows:
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO subscription_slots (user_id, slots, status, renews_at) VALUES (?, ?, 'active', ?)`,
+			userID, slots, time.Now().UTC(),
+		)
+	default:
+		err = scanErr
+	}
+
 	return err
 }
