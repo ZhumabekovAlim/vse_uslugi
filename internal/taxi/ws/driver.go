@@ -108,8 +108,8 @@ func NewDriverHub(locator *geo.DriverLocator, logger Logger) *DriverHub {
 
 // ServeWS handles driver websocket connections.
 func (h *DriverHub) ServeWS(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("ServeWS called", r)
 	driverID, err := parseIDParam(r, "driver_id")
-	fmt.Println("DRIVER ID: ", driverID)
 	if err != nil {
 		http.Error(w, "missing driver_id", http.StatusUnauthorized)
 		return
@@ -388,14 +388,12 @@ func parseCoordinate(value interface{}) (float64, error) {
 }
 
 func parseIDParam(r *http.Request, name string) (int64, error) {
-	fmt.Println("Parsing ID param:", r)
 	if v := r.URL.Query().Get(name); v != "" {
-		fmt.Println("Found ID param in URL:", v)
 		return strconv.ParseInt(v, 10, 64)
 	}
-	//if v := r.Header.Get("X-" + name); v != "" {
-	//	return strconv.ParseInt(v, 10, 64)
-	//}
+	if v := r.Header.Get("X-" + name); v != "" {
+		return strconv.ParseInt(v, 10, 64)
+	}
 	return 0, strconv.ErrSyntax
 }
 
