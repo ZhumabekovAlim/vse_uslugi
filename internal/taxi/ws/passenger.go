@@ -10,6 +10,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	writeWait  = 10 * time.Second
+	pongWait   = 60 * time.Second
+	pingPeriod = 30 * time.Second
+)
+
 // PassengerEvent is message for passengers.
 type PassengerEvent struct {
 	Type     string           `json:"type"`
@@ -81,13 +87,13 @@ func (h *PassengerHub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 	h.mu.Unlock()
 
-	go func(id int64, c *websocket.Conn) {
-		ticker := time.NewTicker(30 * time.Second) // heartbeat
+	go func(id int64, conn *websocket.Conn) {
+		ticker := time.NewTicker(pingPeriod)
 		defer ticker.Stop()
 		for range ticker.C {
-			h.safeWrite(id, func(conn *websocket.Conn) error {
-				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-				return conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second))
+			h.safeWrite(id, func(c *websocket.Conn) error {
+				c.SetWriteDeadline(time.Now().Add(writeWait))
+				return c.WriteControl(websocket.PingMessage, nil, time.Now().Add(writeWait))
 			})
 		}
 	}(passengerID, conn)
@@ -98,15 +104,14 @@ func (h *PassengerHub) ServeWS(w http.ResponseWriter, r *http.Request) {
 func (h *PassengerHub) readLoop(passengerID int64, conn *websocket.Conn) {
 	defer func() { h.closeConn(passengerID, conn) }()
 	conn.SetReadLimit(16 << 10) // 16KB
-	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	conn.SetReadDeadline(time.Now().Add(pongWait))
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
 	conn.SetCloseHandler(func(code int, text string) error {
-		if h.logger != nil {
-			h.logger.Infof("passenger %d closed: %d %s", passengerID, code, text)
-		}
+		h.logger.Infof("passenger %d closed ws (%d: %s)", passengerID, code, text)
+		h.closeConn(passengerID, conn)
 		return nil
 	})
 
@@ -123,12 +128,15 @@ func (h *PassengerHub) readLoop(passengerID int64, conn *websocket.Conn) {
 	}
 }
 
-func (h *PassengerHub) closeConn(passengerID int64, conn *websocket.Conn) {
-	_ = conn.Close()
+func (h *PassengerHub) closeConn(id int64, c *websocket.Conn) {
+	_ = c.Close()
 	h.mu.Lock()
-	delete(h.conns, passengerID)
-	delete(h.wmu, passengerID)
+	delete(h.conns, id)
+	delete(h.wmu, id)
 	h.mu.Unlock()
+	if h.logger != nil {
+		h.logger.Infof("🔌 closed ws passenger=%d", id)
+	}
 }
 
 func (h *PassengerHub) safeWrite(passengerID int64, writer func(*websocket.Conn) error) {
@@ -146,6 +154,7 @@ func (h *PassengerHub) safeWrite(passengerID int64, writer func(*websocket.Conn)
 	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	if err := writer(conn); err != nil {
 		h.logger.Errorf("passenger %d write failed: %v", passengerID, err)
+		h.closeConn(passengerID, conn) // 👈 добавить
 	}
 }
 
