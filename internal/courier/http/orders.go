@@ -114,6 +114,7 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		"status":            repo.StatusNew,
 	}
 	writeJSON(w, http.StatusCreated, resp)
+	s.emitOrderEvent(ctx, orderID, orderEventTypeCreated)
 }
 
 func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
@@ -244,6 +245,7 @@ func (s *Server) handleCancelOrder(w http.ResponseWriter, r *http.Request, order
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": actorStatus})
+	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated)
 }
 
 func (s *Server) handleStartOrder(w http.ResponseWriter, r *http.Request, orderID int64) {
@@ -269,6 +271,7 @@ func (s *Server) handleStartOrder(w http.ResponseWriter, r *http.Request, orderI
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": lifecycle.StatusDeliveryStarted})
+	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated)
 }
 
 func (s *Server) handleLifecycleUpdate(w http.ResponseWriter, r *http.Request, orderID int64, status string) {
@@ -293,4 +296,5 @@ func (s *Server) handleLifecycleUpdate(w http.ResponseWriter, r *http.Request, o
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": status})
+	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated)
 }

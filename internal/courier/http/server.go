@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"naimuBack/internal/courier/repo"
+	"naimuBack/internal/courier/ws"
 )
 
 // Config is the subset of runtime configuration required by the HTTP handlers.
@@ -24,11 +25,13 @@ type Server struct {
 	logger Logger
 	orders *repo.OrdersRepo
 	offers *repo.OffersRepo
+	cHub   *ws.CourierHub
+	sHub   *ws.SenderHub
 }
 
 // NewServer constructs a Server instance.
-func NewServer(cfg Config, logger Logger, orders *repo.OrdersRepo, offers *repo.OffersRepo) *Server {
-	return &Server{cfg: cfg, logger: logger, orders: orders, offers: offers}
+func NewServer(cfg Config, logger Logger, orders *repo.OrdersRepo, offers *repo.OffersRepo, cHub *ws.CourierHub, sHub *ws.SenderHub) *Server {
+	return &Server{cfg: cfg, logger: logger, orders: orders, offers: offers, cHub: cHub, sHub: sHub}
 }
 
 // Register mounts courier routes on the mux.
