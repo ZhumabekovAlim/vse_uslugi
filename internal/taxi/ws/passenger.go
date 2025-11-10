@@ -179,11 +179,6 @@ func (h *PassengerHub) PushOrderEvent(passengerID int64, event PassengerEvent) {
 		return
 	}
 
-	// ДОБАВЬ ЭТО:
-	if h.logger != nil {
-		h.logger.Infof("WS → passenger %d: %s", passengerID, string(eventBytes))
-	}
-
 	h.safeWrite(passengerID, func(conn *websocket.Conn) error {
 		return conn.WriteMessage(websocket.TextMessage, eventBytes)
 	})
