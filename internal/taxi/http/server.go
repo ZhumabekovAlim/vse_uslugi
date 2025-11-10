@@ -3247,6 +3247,16 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if activeOrderID, err := s.ordersRepo.GetActiveOrderIDByDriver(ctx, driverID); err == nil {
+		if activeOrderID != req.OrderID {
+			writeError(w, http.StatusConflict, "driver has active order")
+			return
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusInternalServerError, "active order lookup failed")
+		return
+	}
+
 	order, err := s.ordersRepo.Get(ctx, req.OrderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
