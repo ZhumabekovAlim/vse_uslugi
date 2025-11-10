@@ -53,6 +53,18 @@ func (app *application) withHeaderFromCtxPassenger(next http.Handler, header str
 	})
 }
 
+func (app *application) withHeaderFromCtxSender(next http.Handler, header string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if v := r.Context().Value("user_id"); v != nil {
+			if id, ok := v.(int); ok {
+				r = r.Clone(r.Context())
+				r.Header.Set(header, fmt.Sprintf("%d", id))
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (app *application) withTaxiRoleHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		role, _ := r.Context().Value("role").(string)
@@ -291,18 +303,18 @@ func (app *application) routes() http.Handler {
 	mux.Post("/api/v1/admin/courier/couriers/:courier_id/approval", adminAuthMiddleware.Then(app.courierMux))
 
 	mux.Post("/api/v1/courier/route/quote", standardMiddleware.Then(app.courierMux))
-	mux.Post("/api/v1/courier/orders", clientAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Sender-ID")))
-	mux.Get("/api/v1/courier/orders", clientAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/orders", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
+	mux.Get("/api/v1/courier/orders", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
 	mux.Get("/api/v1/courier/orders", workerAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Courier-ID")))
-	mux.Get("/api/v1/courier/orders/active", clientAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Sender-ID")))
+	mux.Get("/api/v1/courier/orders/active", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
 	mux.Get("/api/v1/courier/orders/active", workerAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Courier-ID")))
-	mux.Get("/api/v1/courier/orders/:id", clientAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Sender-ID")))
+	mux.Get("/api/v1/courier/orders/:id", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
 	mux.Get("/api/v1/courier/orders/:id", workerAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Courier-ID")))
-	mux.Post("/api/v1/courier/orders/:id/cancel", clientAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Sender-ID")))
-	mux.Post("/api/v1/courier/orders/:id/cancel", workerAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Courier-ID")))
+	mux.Post("/api/v1/courier/orders/:id/cancel", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/orders/:id/cancel", workerAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Courier-ID")))
 	mux.Post("/api/v1/courier/orders/:id/reprice", clientAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Sender-ID")))
-	mux.Post("/api/v1/courier/orders/:id/status", clientAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Sender-ID")))
-	mux.Post("/api/v1/courier/orders/:id/review", clientAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/orders/:id/status", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/orders/:id/review", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
 	mux.Post("/api/v1/courier/orders/:id/review", workerAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Courier-ID")))
 	mux.Post("/api/v1/courier/orders/:id/arrive", workerAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Courier-ID")))
 	mux.Post("/api/v1/courier/orders/:id/start", workerAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Courier-ID")))
@@ -319,9 +331,9 @@ func (app *application) routes() http.Handler {
 	mux.Post("/api/v1/courier/balance/withdraw", workerAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Courier-ID")))
 
 	mux.Post("/api/v1/courier/offers/price", workerAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Courier-ID")))
-	mux.Post("/api/v1/courier/offers/accept", clientAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Sender-ID")))
-	mux.Post("/api/v1/courier/offers/decline", clientAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Sender-ID")))
-	mux.Post("/api/v1/courier/offers/respond", clientAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/offers/accept", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/offers/decline", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/offers/respond", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
 
 	mux.Post("/api/v1/couriers", authMiddleware.Then(app.courierMux))
 	mux.Get("/api/v1/courier/:id/profile", authMiddleware.Then(app.courierMux))
