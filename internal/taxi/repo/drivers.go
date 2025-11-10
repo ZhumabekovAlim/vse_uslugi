@@ -41,12 +41,38 @@ type DriversRepo struct {
 	db *sql.DB
 }
 
+// DriversStats aggregates counts for driver availability and moderation states.
+type DriversStats struct {
+	Total   int `json:"total_drivers"`
+	Online  int `json:"online_drivers"`
+	Free    int `json:"free_drivers"`
+	Pending int `json:"pending_drivers"`
+	Banned  int `json:"banned_drivers"`
+}
+
 // ErrInsufficientBalance is returned when balance adjustments would drop below zero.
 var ErrInsufficientBalance = errors.New("insufficient balance")
 
 // NewDriversRepo constructs a DriversRepo.
 func NewDriversRepo(db *sql.DB) *DriversRepo {
 	return &DriversRepo{db: db}
+}
+
+// Stats returns aggregated counters for driver records.
+func (r *DriversRepo) Stats(ctx context.Context) (DriversStats, error) {
+	var stats DriversStats
+	row := r.db.QueryRowContext(ctx, `
+        SELECT
+                COUNT(*) AS total,
+                COALESCE(SUM(CASE WHEN status <> 'offline' THEN 1 ELSE 0 END), 0) AS online,
+                COALESCE(SUM(CASE WHEN status = 'free' THEN 1 ELSE 0 END), 0) AS free,
+                COALESCE(SUM(CASE WHEN approval_status = 'pending' THEN 1 ELSE 0 END), 0) AS pending,
+                COALESCE(SUM(CASE WHEN is_banned = 1 THEN 1 ELSE 0 END), 0) AS banned
+        FROM drivers`)
+	if err := row.Scan(&stats.Total, &stats.Online, &stats.Free, &stats.Pending, &stats.Banned); err != nil {
+		return DriversStats{}, err
+	}
+	return stats, nil
 }
 
 // Create inserts a new driver record and returns its id.

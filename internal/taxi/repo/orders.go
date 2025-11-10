@@ -48,7 +48,32 @@ var (
 		fsm.StatusPaid,
 		fsm.StatusClosed,
 	}
+	adminActiveStatuses     = append([]string{fsm.StatusCreated}, passengerActiveStatuses...)
+	adminActiveStatusSet    = statusSet(adminActiveStatuses)
+	adminCompletedStatusSet = statusSet([]string{fsm.StatusCompleted, fsm.StatusPaid, fsm.StatusClosed})
+	adminCanceledStatusSet  = statusSet([]string{
+		fsm.StatusCanceled,
+		fsm.StatusCanceledByPassenger,
+		fsm.StatusCanceledByDriver,
+		fsm.StatusNotFound,
+		fsm.StatusNoShow,
+	})
 )
+
+type OrdersStats struct {
+	Total     int `json:"total_orders"`
+	Active    int `json:"active_orders"`
+	Completed int `json:"completed_orders"`
+	Canceled  int `json:"canceled_orders"`
+}
+
+func statusSet(statuses []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(statuses))
+	for _, status := range statuses {
+		set[status] = struct{}{}
+	}
+	return set
+}
 
 // Order represents the orders table.
 type Order struct {
@@ -89,6 +114,40 @@ type OrdersRepo struct {
 // NewOrdersRepo constructs an OrdersRepo.
 func NewOrdersRepo(db *sql.DB) *OrdersRepo {
 	return &OrdersRepo{db: db}
+}
+
+// Stats returns aggregate counts for orders grouped by their lifecycle state buckets.
+func (r *OrdersRepo) Stats(ctx context.Context) (OrdersStats, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT status, COUNT(*) FROM orders GROUP BY status`)
+	if err != nil {
+		return OrdersStats{}, err
+	}
+	defer rows.Close()
+
+	var stats OrdersStats
+	for rows.Next() {
+		var (
+			status string
+			count  int
+		)
+		if err := rows.Scan(&status, &count); err != nil {
+			return OrdersStats{}, err
+		}
+		stats.Total += count
+		if _, ok := adminActiveStatusSet[status]; ok {
+			stats.Active += count
+		}
+		if _, ok := adminCompletedStatusSet[status]; ok {
+			stats.Completed += count
+		}
+		if _, ok := adminCanceledStatusSet[status]; ok {
+			stats.Canceled += count
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return OrdersStats{}, err
+	}
+	return stats, nil
 }
 
 func placeholders(n int) string {

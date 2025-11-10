@@ -45,9 +45,50 @@ type IntercityOrdersRepo struct {
 	db *sql.DB
 }
 
+// IntercityOrdersStats represents aggregate counts of intercity orders grouped by lifecycle buckets.
+type IntercityOrdersStats struct {
+	Total     int `json:"total_orders"`
+	Active    int `json:"active_orders"`
+	Completed int `json:"completed_orders"`
+	Canceled  int `json:"canceled_orders"`
+}
+
 // NewIntercityOrdersRepo constructs a repo instance.
 func NewIntercityOrdersRepo(db *sql.DB) *IntercityOrdersRepo {
 	return &IntercityOrdersRepo{db: db}
+}
+
+// Stats returns aggregated counts for intercity orders.
+func (r *IntercityOrdersRepo) Stats(ctx context.Context) (IntercityOrdersStats, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT status, COUNT(*) FROM intercity_orders GROUP BY status`)
+	if err != nil {
+		return IntercityOrdersStats{}, err
+	}
+	defer rows.Close()
+
+	var stats IntercityOrdersStats
+	for rows.Next() {
+		var (
+			status string
+			count  int
+		)
+		if err := rows.Scan(&status, &count); err != nil {
+			return IntercityOrdersStats{}, err
+		}
+		stats.Total += count
+		switch status {
+		case "open", "searching", "accepted", "in_progress":
+			stats.Active += count
+		case "closed", "completed", "finished":
+			stats.Completed += count
+		case "canceled", "cancelled", "rejected":
+			stats.Canceled += count
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return IntercityOrdersStats{}, err
+	}
+	return stats, nil
 }
 
 // Create inserts a new intercity order and returns its identifier.

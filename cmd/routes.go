@@ -238,6 +238,9 @@ func (app *application) routes() http.Handler {
 	mux.Get("/ws/location", wsMiddleware.ThenFunc(app.LocationWebSocketHandler))
 
 	// === Taxi API & WS ===
+	mux.Get("/api/v1/admin/taxi/orders/stats", adminAuthMiddleware.Then(app.taxiMux))
+	mux.Get("/api/v1/admin/taxi/drivers/stats", adminAuthMiddleware.Then(app.taxiMux))
+	mux.Get("/api/v1/admin/taxi/intercity/orders/stats", adminAuthMiddleware.Then(app.taxiMux))
 	mux.Get("/api/v1/admin/taxi/drivers", adminAuthMiddleware.Then(app.taxiMux))
 	mux.Post("/api/v1/admin/taxi/drivers/:driver_id/ban", adminAuthMiddleware.Then(app.taxiMux))
 	mux.Post("/api/v1/admin/taxi/drivers/:driver_id/approval", adminAuthMiddleware.Then(app.taxiMux))
