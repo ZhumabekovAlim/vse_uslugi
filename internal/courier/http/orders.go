@@ -279,11 +279,11 @@ func (s *Server) handleOrderSubroutes(w http.ResponseWriter, r *http.Request) {
 	case "cancel":
 		s.handleCancelOrder(w, r, id)
 	case "arrive":
-		s.handleLifecycleUpdate(w, r, id, lifecycle.StatusCourierArrived)
+		s.handleLifecycleUpdate(w, r, id, lifecycle.StatusWaitingFree)
 	case "start":
 		s.handleStartOrder(w, r, id)
 	case "finish":
-		s.handleLifecycleUpdate(w, r, id, lifecycle.StatusDelivered)
+		s.handleLifecycleUpdate(w, r, id, lifecycle.StatusCompleted)
 	case "confirm-cash":
 		s.handleLifecycleUpdate(w, r, id, lifecycle.StatusClosed)
 	case "reprice":
@@ -554,12 +554,10 @@ func (s *Server) handleLifecycleWaitingAdvance(w http.ResponseWriter, r *http.Re
 
 	next := ""
 	switch order.Status {
-	case lifecycle.StatusAssigned, lifecycle.StatusCourierArrived:
-		next = lifecycle.StatusPickupStarted
-	case lifecycle.StatusPickupStarted:
-		next = lifecycle.StatusPickupDone
-	case lifecycle.StatusPickupDone:
-		next = lifecycle.StatusDeliveryStarted
+	case lifecycle.StatusAccepted:
+		next = lifecycle.StatusWaitingFree
+	case lifecycle.StatusWaitingFree:
+		next = lifecycle.StatusInProgress
 	default:
 		writeError(w, http.StatusConflict, "order not in waiting state")
 		return
@@ -602,11 +600,11 @@ func (s *Server) handleLifecycleWaypointNext(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if order.Status != lifecycle.StatusDeliveryStarted {
+	if order.Status != lifecycle.StatusInProgress {
 		writeError(w, http.StatusConflict, "order not ready for next waypoint")
 		return
 	}
-	if err := s.orders.UpdateStatus(ctx, orderID, lifecycle.StatusDelivered, sql.NullString{}); err != nil {
+	if err := s.orders.UpdateStatus(ctx, orderID, lifecycle.StatusCompleted, sql.NullString{}); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			writeError(w, http.StatusConflict, "order status changed")
 			return
@@ -616,7 +614,7 @@ func (s *Server) handleLifecycleWaypointNext(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated, originCourier)
-	writeJSON(w, http.StatusOK, map[string]string{"status": lifecycle.StatusDelivered})
+	writeJSON(w, http.StatusOK, map[string]string{"status": lifecycle.StatusCompleted})
 }
 
 func (s *Server) handleLifecyclePause(w http.ResponseWriter, r *http.Request, orderID int64) {
@@ -733,20 +731,17 @@ func (s *Server) handleStartOrder(w http.ResponseWriter, r *http.Request, orderI
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	stages := []string{lifecycle.StatusPickupStarted, lifecycle.StatusPickupDone, lifecycle.StatusDeliveryStarted}
-	for _, status := range stages {
-		if err := s.orders.UpdateStatus(ctx, orderID, status, sql.NullString{}); err != nil {
-			if errors.Is(err, repo.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "order not found")
-				return
-			}
-			s.logger.Errorf("courier: update order status %s failed: %v", status, err)
-			writeError(w, http.StatusConflict, err.Error())
+	if err := s.orders.UpdateStatus(ctx, orderID, lifecycle.StatusInProgress, sql.NullString{}); err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "order not found")
 			return
 		}
+		s.logger.Errorf("courier: update order status %s failed: %v", lifecycle.StatusInProgress, err)
+		writeError(w, http.StatusConflict, err.Error())
+		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": lifecycle.StatusDeliveryStarted})
+	writeJSON(w, http.StatusOK, map[string]string{"status": lifecycle.StatusInProgress})
 	s.emitOrderEvent(ctx, orderID, orderEventTypeUpdated, originCourier)
 }
 
