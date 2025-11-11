@@ -44,6 +44,8 @@ type orderResponse struct {
 	CreatedAt        time.Time            `json:"created_at"`
 	UpdatedAt        time.Time            `json:"updated_at"`
 	RoutePoints      []orderPointResponse `json:"route_points"`
+	Sender           *userResponse        `json:"sender,omitempty"`
+	Courier          *courierResponse     `json:"courier,omitempty"`
 }
 
 func makeOrderResponse(o repo.Order) orderResponse {
@@ -71,6 +73,16 @@ func makeOrderResponse(o repo.Order) orderResponse {
 			Comment:  nullToPtr(p.Comment),
 		})
 	}
+	var sender *userResponse
+	if o.Sender.ID != 0 {
+		s := makeUserResponse(o.Sender)
+		sender = &s
+	}
+	var courier *courierResponse
+	if o.Courier != nil {
+		c := makeCourierResponse(*o.Courier)
+		courier = &c
+	}
 	return orderResponse{
 		ID:               o.ID,
 		SenderID:         o.SenderID,
@@ -85,5 +97,7 @@ func makeOrderResponse(o repo.Order) orderResponse {
 		CreatedAt:        o.CreatedAt,
 		UpdatedAt:        o.UpdatedAt,
 		RoutePoints:      points,
+		Sender:           sender,
+		Courier:          courier,
 	}
 }

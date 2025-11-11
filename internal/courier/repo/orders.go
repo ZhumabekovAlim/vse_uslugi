@@ -67,11 +67,8 @@ type Order struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Points           []OrderPoint
-	Name             sql.NullString
-	Surname          sql.NullString
-	Phone            sql.NullString
-	ReviewRating     sql.NullFloat64
-	AvatarPath       sql.NullString
+	Sender           User
+	Courier          *Courier
 }
 
 // OrderPoint describes a delivery waypoint.
@@ -177,18 +174,155 @@ func (r *OrdersRepo) Create(ctx context.Context, order Order) (int64, error) {
 
 // Get returns an order with its points by identifier.
 func (r *OrdersRepo) Get(ctx context.Context, id int64) (Order, error) {
-	var o Order
+	var (
+		o                Order
+		courierUserID    sql.NullInt64
+		courierFirstName sql.NullString
+		courierLastName  sql.NullString
+		courierMiddle    sql.NullString
+		courierPhoto     sql.NullString
+		courierIIN       sql.NullString
+		courierBirthDate sql.NullTime
+		courierCardFront sql.NullString
+		courierCardBack  sql.NullString
+		courierPhone     sql.NullString
+		courierRating    sql.NullFloat64
+		courierBalance   sql.NullInt64
+		courierStatus    sql.NullString
+		courierCreatedAt sql.NullTime
+		courierUpdatedAt sql.NullTime
+	)
 	row := r.db.QueryRowContext(ctx, `
-	SELECT courier_orders.id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, courier_orders.created_at, courier_orders.updated_at, users.name, users.surname, users.phone, users.review_rating, users.avatar_path
-	FROM courier_orders 
-	LEFT JOIN users ON users.id = courier_orders.courier_id
-	WHERE courier_orders.id = ?`, id)
-	err := row.Scan(&o.ID, &o.SenderID, &o.CourierID, &o.DistanceM, &o.EtaSeconds, &o.RecommendedPrice, &o.ClientPrice, &o.PaymentMethod, &o.Status, &o.Comment, &o.CreatedAt, &o.UpdatedAt, &o.Name, &o.Surname, &o.Phone, &o.ReviewRating, &o.AvatarPath)
+        SELECT
+                o.id,
+                o.sender_id,
+                o.courier_id,
+                o.distance_m,
+                o.eta_seconds,
+                o.recommended_price,
+                o.client_price,
+                o.payment_method,
+                o.status,
+                o.comment,
+                o.created_at,
+                o.updated_at,
+                s.id,
+                s.name,
+                s.surname,
+                s.middlename,
+                s.phone,
+                s.email,
+                s.city_id,
+                s.years_of_exp,
+                s.doc_of_proof,
+                s.review_rating,
+                s.role,
+                s.latitude,
+                s.longitude,
+                s.avatar_path,
+                s.skills,
+                s.is_online,
+                s.created_at,
+                s.updated_at,
+                c.user_id,
+                c.first_name,
+                c.last_name,
+                c.middle_name,
+                c.courier_photo,
+                c.iin,
+                c.date_of_birth,
+                c.id_card_front,
+                c.id_card_back,
+                c.phone,
+                c.rating,
+                c.balance,
+                c.status,
+                c.created_at,
+                c.updated_at
+        FROM courier_orders o
+        JOIN users s ON s.id = o.sender_id
+        LEFT JOIN couriers c ON c.id = o.courier_id
+        WHERE o.id = ?`, id)
+	err := row.Scan(
+		&o.ID,
+		&o.SenderID,
+		&o.CourierID,
+		&o.DistanceM,
+		&o.EtaSeconds,
+		&o.RecommendedPrice,
+		&o.ClientPrice,
+		&o.PaymentMethod,
+		&o.Status,
+		&o.Comment,
+		&o.CreatedAt,
+		&o.UpdatedAt,
+		&o.Sender.ID,
+		&o.Sender.Name,
+		&o.Sender.Surname,
+		&o.Sender.Middlename,
+		&o.Sender.Phone,
+		&o.Sender.Email,
+		&o.Sender.CityID,
+		&o.Sender.YearsOfExp,
+		&o.Sender.DocOfProof,
+		&o.Sender.ReviewRating,
+		&o.Sender.Role,
+		&o.Sender.Latitude,
+		&o.Sender.Longitude,
+		&o.Sender.AvatarPath,
+		&o.Sender.Skills,
+		&o.Sender.IsOnline,
+		&o.Sender.CreatedAt,
+		&o.Sender.UpdatedAt,
+		&courierUserID,
+		&courierFirstName,
+		&courierLastName,
+		&courierMiddle,
+		&courierPhoto,
+		&courierIIN,
+		&courierBirthDate,
+		&courierCardFront,
+		&courierCardBack,
+		&courierPhone,
+		&courierRating,
+		&courierBalance,
+		&courierStatus,
+		&courierCreatedAt,
+		&courierUpdatedAt,
+	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Order{}, ErrNotFound
 	}
 	if err != nil {
 		return Order{}, err
+	}
+
+	if o.CourierID.Valid && courierUserID.Valid {
+		courier := Courier{
+			ID:          o.CourierID.Int64,
+			UserID:      courierUserID.Int64,
+			FirstName:   courierFirstName.String,
+			LastName:    courierLastName.String,
+			MiddleName:  courierMiddle,
+			Photo:       courierPhoto.String,
+			IIN:         courierIIN.String,
+			IDCardFront: courierCardFront.String,
+			IDCardBack:  courierCardBack.String,
+			Phone:       courierPhone.String,
+			Rating:      courierRating,
+			Balance:     int(courierBalance.Int64),
+			Status:      courierStatus.String,
+		}
+		if courierBirthDate.Valid {
+			courier.BirthDate = courierBirthDate.Time
+		}
+		if courierCreatedAt.Valid {
+			courier.CreatedAt = courierCreatedAt.Time
+		}
+		if courierUpdatedAt.Valid {
+			courier.UpdatedAt = courierUpdatedAt.Time
+		}
+		o.Courier = &courier
 	}
 
 	points, err := r.fetchPoints(ctx, id)
@@ -689,16 +823,165 @@ func (r *OrdersRepo) ActiveByCourier(ctx context.Context, courierID int64) (Orde
 
 // ListAll returns orders for admin usage.
 func (r *OrdersRepo) ListAll(ctx context.Context, limit, offset int) ([]Order, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, created_at, updated_at FROM courier_orders ORDER BY created_at DESC LIMIT ? OFFSET ?`, limit, offset)
+	rows, err := r.db.QueryContext(ctx, `
+SELECT
+        o.id,
+        o.sender_id,
+        o.courier_id,
+        o.distance_m,
+        o.eta_seconds,
+        o.recommended_price,
+        o.client_price,
+        o.payment_method,
+        o.status,
+        o.comment,
+        o.created_at,
+        o.updated_at,
+        s.id,
+        s.name,
+        s.surname,
+        s.middlename,
+        s.phone,
+        s.email,
+        s.city_id,
+        s.years_of_exp,
+        s.doc_of_proof,
+        s.review_rating,
+        s.role,
+        s.latitude,
+        s.longitude,
+        s.avatar_path,
+        s.skills,
+        s.is_online,
+        s.created_at,
+        s.updated_at,
+        c.user_id,
+        c.first_name,
+        c.last_name,
+        c.middle_name,
+        c.courier_photo,
+        c.iin,
+        c.date_of_birth,
+        c.id_card_front,
+        c.id_card_back,
+        c.phone,
+        c.rating,
+        c.balance,
+        c.status,
+        c.created_at,
+        c.updated_at
+FROM courier_orders o
+JOIN users s ON s.id = o.sender_id
+LEFT JOIN couriers c ON c.id = o.courier_id
+ORDER BY o.created_at DESC
+LIMIT ? OFFSET ?`, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	orders, err := r.scanOrders(rows)
-	if err != nil {
+	var orders []Order
+	for rows.Next() {
+		var (
+			o                Order
+			courierUserID    sql.NullInt64
+			courierFirstName sql.NullString
+			courierLastName  sql.NullString
+			courierMiddle    sql.NullString
+			courierPhoto     sql.NullString
+			courierIIN       sql.NullString
+			courierBirthDate sql.NullTime
+			courierCardFront sql.NullString
+			courierCardBack  sql.NullString
+			courierPhone     sql.NullString
+			courierRating    sql.NullFloat64
+			courierBalance   sql.NullInt64
+			courierStatus    sql.NullString
+			courierCreatedAt sql.NullTime
+			courierUpdatedAt sql.NullTime
+		)
+		if err := rows.Scan(
+			&o.ID,
+			&o.SenderID,
+			&o.CourierID,
+			&o.DistanceM,
+			&o.EtaSeconds,
+			&o.RecommendedPrice,
+			&o.ClientPrice,
+			&o.PaymentMethod,
+			&o.Status,
+			&o.Comment,
+			&o.CreatedAt,
+			&o.UpdatedAt,
+			&o.Sender.ID,
+			&o.Sender.Name,
+			&o.Sender.Surname,
+			&o.Sender.Middlename,
+			&o.Sender.Phone,
+			&o.Sender.Email,
+			&o.Sender.CityID,
+			&o.Sender.YearsOfExp,
+			&o.Sender.DocOfProof,
+			&o.Sender.ReviewRating,
+			&o.Sender.Role,
+			&o.Sender.Latitude,
+			&o.Sender.Longitude,
+			&o.Sender.AvatarPath,
+			&o.Sender.Skills,
+			&o.Sender.IsOnline,
+			&o.Sender.CreatedAt,
+			&o.Sender.UpdatedAt,
+			&courierUserID,
+			&courierFirstName,
+			&courierLastName,
+			&courierMiddle,
+			&courierPhoto,
+			&courierIIN,
+			&courierBirthDate,
+			&courierCardFront,
+			&courierCardBack,
+			&courierPhone,
+			&courierRating,
+			&courierBalance,
+			&courierStatus,
+			&courierCreatedAt,
+			&courierUpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if o.CourierID.Valid && courierUserID.Valid {
+			courier := Courier{
+				ID:          o.CourierID.Int64,
+				UserID:      courierUserID.Int64,
+				FirstName:   courierFirstName.String,
+				LastName:    courierLastName.String,
+				MiddleName:  courierMiddle,
+				Photo:       courierPhoto.String,
+				IIN:         courierIIN.String,
+				IDCardFront: courierCardFront.String,
+				IDCardBack:  courierCardBack.String,
+				Phone:       courierPhone.String,
+				Rating:      courierRating,
+				Balance:     int(courierBalance.Int64),
+				Status:      courierStatus.String,
+			}
+			if courierBirthDate.Valid {
+				courier.BirthDate = courierBirthDate.Time
+			}
+			if courierCreatedAt.Valid {
+				courier.CreatedAt = courierCreatedAt.Time
+			}
+			if courierUpdatedAt.Valid {
+				courier.UpdatedAt = courierUpdatedAt.Time
+			}
+			o.Courier = &courier
+		}
+		orders = append(orders, o)
+	}
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
 	if err = r.attachPoints(ctx, orders); err != nil {
 		return nil, err
 	}
