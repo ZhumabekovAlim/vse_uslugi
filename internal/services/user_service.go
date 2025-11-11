@@ -319,17 +319,23 @@ func (s *UserService) DeleteUser(ctx context.Context, id int) (err error) {
 		}
 	}()
 
-	cleanupQueries := []string{
-		"DELETE FROM service WHERE user_id = ?",
-		"DELETE FROM ad WHERE user_id = ?",
-		"DELETE FROM rent WHERE user_id = ?",
-		"DELETE FROM rent_ad WHERE user_id = ?",
-		"DELETE FROM work WHERE user_id = ?",
-		"DELETE FROM work_ad WHERE user_id = ?",
+	cleanupQueries := []struct {
+		query string
+		args  []interface{}
+	}{
+		{query: "DELETE FROM courier_offers WHERE courier_id IN (SELECT id FROM couriers WHERE user_id = ?)", args: []interface{}{id}},
+		{query: "DELETE FROM courier_orders WHERE sender_id = ? OR courier_id IN (SELECT id FROM couriers WHERE user_id = ?)", args: []interface{}{id, id}},
+		{query: "DELETE FROM couriers WHERE user_id = ?", args: []interface{}{id}},
+		{query: "DELETE FROM service WHERE user_id = ?", args: []interface{}{id}},
+		{query: "DELETE FROM ad WHERE user_id = ?", args: []interface{}{id}},
+		{query: "DELETE FROM rent WHERE user_id = ?", args: []interface{}{id}},
+		{query: "DELETE FROM rent_ad WHERE user_id = ?", args: []interface{}{id}},
+		{query: "DELETE FROM work WHERE user_id = ?", args: []interface{}{id}},
+		{query: "DELETE FROM work_ad WHERE user_id = ?", args: []interface{}{id}},
 	}
 
-	for _, query := range cleanupQueries {
-		if _, err = tx.ExecContext(ctx, query, id); err != nil {
+	for _, cleanup := range cleanupQueries {
+		if _, err = tx.ExecContext(ctx, cleanup.query, cleanup.args...); err != nil {
 			return err
 		}
 	}

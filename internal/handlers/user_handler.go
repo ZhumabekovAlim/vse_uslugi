@@ -340,22 +340,23 @@ func (h *UserHandler) UserLogOut(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	var req models.UpdatePasswordRequest
 
-	// Парсим JSON тело запроса
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	// Проверяем, что все необходимые данные присутствуют
-	if req.UserID == 0 || req.OldPassword == "" || req.NewPassword == "" {
-		http.Error(w, "User ID, old password, and new password are required", http.StatusBadRequest)
+	if req.OldPassword == "" || req.NewPassword == "" {
+		http.Error(w, "Old password and new password are required", http.StatusBadRequest)
 		return
 	}
 
-	// Вызываем сервис для обновления пароля
-	err = h.Service.UpdatePassword(r.Context(), req.UserID, req.OldPassword, req.NewPassword)
-	if err != nil {
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok || userID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if err := h.Service.UpdatePassword(r.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
 		if errors.Is(err, models.ErrInvalidPassword) {
 			http.Error(w, "Invalid old password", http.StatusUnauthorized)
 			return
@@ -364,7 +365,6 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Возвращаем успешный статус
 	w.WriteHeader(http.StatusOK)
 }
 
