@@ -21,6 +21,8 @@ type courierResponse struct {
 	Rating      *float64  `json:"rating,omitempty"`
 	Balance     int       `json:"balance"`
 	Status      string    `json:"status"`
+	Approval    string    `json:"approval_status"`
+	IsBanned    bool      `json:"is_banned"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -58,6 +60,8 @@ func makeCourierResponse(c repo.Courier) courierResponse {
 		Rating:      rating,
 		Balance:     c.Balance,
 		Status:      c.Status,
+		Approval:    c.ApprovalStatus,
+		IsBanned:    c.IsBanned,
 		CreatedAt:   c.CreatedAt,
 		UpdatedAt:   c.UpdatedAt,
 	}

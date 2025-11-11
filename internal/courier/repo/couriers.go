@@ -10,24 +10,36 @@ import (
 // ErrInsufficientBalance is returned when balance adjustments would drop below zero.
 var ErrInsufficientBalance = errors.New("insufficient balance")
 
+const (
+	CourierStatusOffline = "offline"
+	CourierStatusFree    = "free"
+	CourierStatusBusy    = "busy"
+
+	CourierApprovalPending  = "pending"
+	CourierApprovalApproved = "approved"
+	CourierApprovalRejected = "rejected"
+)
+
 // Courier represents a courier profile record.
 type Courier struct {
-	ID          int64
-	UserID      int64
-	FirstName   string
-	LastName    string
-	MiddleName  sql.NullString
-	Photo       string
-	IIN         string
-	BirthDate   time.Time
-	IDCardFront string
-	IDCardBack  string
-	Phone       string
-	Rating      sql.NullFloat64
-	Balance     int
-	Status      string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID             int64
+	UserID         int64
+	FirstName      string
+	LastName       string
+	MiddleName     sql.NullString
+	Photo          string
+	IIN            string
+	BirthDate      time.Time
+	IDCardFront    string
+	IDCardBack     string
+	Phone          string
+	Rating         sql.NullFloat64
+	Balance        int
+	Status         string
+	ApprovalStatus string
+	IsBanned       bool
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // CouriersStats aggregates counters for couriers grouped by status.
@@ -85,10 +97,12 @@ func (r *CouriersRepo) Upsert(ctx context.Context, c Courier) (int64, error) {
 func (r *CouriersRepo) Get(ctx context.Context, id int64) (Courier, error) {
 	var c Courier
 	row := r.db.QueryRowContext(ctx, `SELECT id, user_id, first_name, last_name, middle_name,
-        courier_photo, iin, date_of_birth, id_card_front, id_card_back, phone, rating, balance, status, created_at, updated_at
+        courier_photo, iin, date_of_birth, id_card_front, id_card_back, phone, rating, balance,
+        status, approval_status, is_banned, created_at, updated_at
         FROM couriers WHERE id = ?`, id)
 	err := row.Scan(&c.ID, &c.UserID, &c.FirstName, &c.LastName, &c.MiddleName,
-		&c.Photo, &c.IIN, &c.BirthDate, &c.IDCardFront, &c.IDCardBack, &c.Phone, &c.Rating, &c.Balance, &c.Status, &c.CreatedAt, &c.UpdatedAt)
+		&c.Photo, &c.IIN, &c.BirthDate, &c.IDCardFront, &c.IDCardBack, &c.Phone, &c.Rating, &c.Balance,
+		&c.Status, &c.ApprovalStatus, &c.IsBanned, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Courier{}, ErrNotFound
@@ -101,7 +115,8 @@ func (r *CouriersRepo) Get(ctx context.Context, id int64) (Courier, error) {
 // List returns couriers with pagination.
 func (r *CouriersRepo) List(ctx context.Context, limit, offset int) ([]Courier, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT id, user_id, first_name, last_name, middle_name,
-        courier_photo, iin, date_of_birth, id_card_front, id_card_back, phone, rating, balance, status, created_at, updated_at
+        courier_photo, iin, date_of_birth, id_card_front, id_card_back, phone, rating, balance,
+        status, approval_status, is_banned, created_at, updated_at
         FROM couriers ORDER BY id DESC LIMIT ? OFFSET ?`, limit, offset)
 	if err != nil {
 		return nil, err
@@ -112,7 +127,8 @@ func (r *CouriersRepo) List(ctx context.Context, limit, offset int) ([]Courier, 
 	for rows.Next() {
 		var c Courier
 		if err := rows.Scan(&c.ID, &c.UserID, &c.FirstName, &c.LastName, &c.MiddleName,
-			&c.Photo, &c.IIN, &c.BirthDate, &c.IDCardFront, &c.IDCardBack, &c.Phone, &c.Rating, &c.Balance, &c.Status, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			&c.Photo, &c.IIN, &c.BirthDate, &c.IDCardFront, &c.IDCardBack, &c.Phone, &c.Rating, &c.Balance,
+			&c.Status, &c.ApprovalStatus, &c.IsBanned, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		couriers = append(couriers, c)
@@ -125,32 +141,16 @@ func (r *CouriersRepo) List(ctx context.Context, limit, offset int) ([]Courier, 
 
 // Stats aggregates courier counts by status.
 func (r *CouriersRepo) Stats(ctx context.Context) (CouriersStats, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT status, COUNT(*) FROM couriers GROUP BY status`)
-	if err != nil {
-		return CouriersStats{}, err
-	}
-	defer rows.Close()
+	row := r.db.QueryRowContext(ctx, `
+        SELECT
+                COUNT(*) AS total,
+                COALESCE(SUM(CASE WHEN approval_status = 'pending' THEN 1 ELSE 0 END), 0) AS pending,
+                COALESCE(SUM(CASE WHEN approval_status = 'approved' AND is_banned = 0 THEN 1 ELSE 0 END), 0) AS active,
+                COALESCE(SUM(CASE WHEN is_banned = 1 THEN 1 ELSE 0 END), 0) AS banned
+        FROM couriers`)
 
 	var stats CouriersStats
-	for rows.Next() {
-		var (
-			status string
-			count  int
-		)
-		if err := rows.Scan(&status, &count); err != nil {
-			return CouriersStats{}, err
-		}
-		stats.Total += count
-		switch status {
-		case "pending":
-			stats.Pending += count
-		case "banned":
-			stats.Banned += count
-		default:
-			stats.Active += count
-		}
-	}
-	if err := rows.Err(); err != nil {
+	if err := row.Scan(&stats.Total, &stats.Pending, &stats.Active, &stats.Banned); err != nil {
 		return CouriersStats{}, err
 	}
 	return stats, nil
@@ -159,6 +159,42 @@ func (r *CouriersRepo) Stats(ctx context.Context) (CouriersStats, error) {
 // UpdateStatus changes courier status.
 func (r *CouriersRepo) UpdateStatus(ctx context.Context, id int64, status string) error {
 	res, err := r.db.ExecContext(ctx, `UPDATE couriers SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, status, id)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// UpdateApprovalStatus changes courier approval status.
+func (r *CouriersRepo) UpdateApprovalStatus(ctx context.Context, id int64, approval string) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE couriers SET approval_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, approval, id)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// UpdateBan toggles courier ban flag.
+func (r *CouriersRepo) UpdateBan(ctx context.Context, id int64, banned bool) error {
+	var value int
+	if banned {
+		value = 1
+	}
+	res, err := r.db.ExecContext(ctx, `UPDATE couriers SET is_banned = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, value, id)
 	if err != nil {
 		return err
 	}

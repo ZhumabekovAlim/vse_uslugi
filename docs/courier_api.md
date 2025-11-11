@@ -335,10 +335,10 @@
 
 Маршруты требуют сервисной авторизации (заголовок `Authorization`).
 
-* `POST /api/v1/couriers` — создать или обновить профиль курьера. Поля `user_id`, `first_name`, `last_name`, `courier_photo`, `iin`, `date_of_birth` обязательны. Дата рождения — `YYYY-MM-DD`. Возвращает профиль и статистику заказов курьера.【F:internal/courier/http/couriers.go†L17-L117】
-* `GET /api/v1/courier/{id}/profile` — получить профиль и статистику курьера.【F:internal/courier/http/couriers.go†L119-L163】
-* `GET /api/v1/courier/{id}/reviews` — на данный момент возвращает пустой список отзывов.【F:internal/courier/http/couriers.go†L165-L175】
-* `GET /api/v1/courier/{id}/stats` — агрегированные показатели (`total_orders`, `active_orders`, `completed_orders`, `canceled_orders`).【F:internal/courier/http/couriers.go†L177-L188】【F:internal/courier/repo/orders.go†L520-L581】
+* `POST /api/v1/couriers` — создать или обновить профиль курьера. Поля `user_id`, `first_name`, `last_name`, `courier_photo`, `iin`, `date_of_birth` обязательны. Дата рождения — `YYYY-MM-DD`. Поле `status` принимает значения `offline`, `free` или `busy`. Возвращает профиль и статистику заказов курьера.【F:internal/courier/http/couriers.go†L62-L259】
+* `GET /api/v1/courier/{id}/profile` — получить профиль и статистику курьера.【F:internal/courier/http/couriers.go†L261-L319】
+* `GET /api/v1/courier/{id}/reviews` — на данный момент возвращает пустой список отзывов.【F:internal/courier/http/couriers.go†L321-L370】
+* `GET /api/v1/courier/{id}/stats` — агрегированные показатели (`total_orders`, `active_orders`, `completed_orders`, `canceled_orders`).【F:internal/courier/http/couriers.go†L373-L387】【F:internal/courier/repo/orders.go†L520-L581】
 
 ### Баланс курьера
 
@@ -354,9 +354,9 @@
 * `GET /api/v1/admin/courier/orders` — список всех заказов с пагинацией.【F:internal/courier/http/admin.go†L14-L45】
 * `GET /api/v1/admin/courier/orders/stats` — агрегированная статистика заказов (`total_orders`, `active_orders`, `completed_orders`, `canceled_orders`).【F:internal/courier/http/admin.go†L47-L71】【F:internal/courier/repo/orders.go†L462-L519】
 * `GET /api/v1/admin/courier/couriers` — список профилей курьеров.【F:internal/courier/http/admin.go†L73-L108】
-* `GET /api/v1/admin/courier/couriers/stats` — количество курьеров по статусам (`total_couriers`, `pending_couriers`, `active_couriers`, `banned_couriers`).【F:internal/courier/http/admin.go†L110-L139】【F:internal/courier/repo/couriers.go†L49-L129】
-* `POST /api/v1/admin/courier/couriers/{id}/ban` — установить или снять бан курьера. Тело `{ "ban": true }` или `{ "ban": false }`. Возвращает текущий статус профиля (`banned` или `active`).【F:internal/courier/http/admin.go†L141-L190】
-* `POST /api/v1/admin/courier/couriers/{id}/approval` — обновить статус проверки курьера. Пустое тело присваивает статус `approved`, можно передать `{ "status": "pending" }` и т.д.【F:internal/courier/http/admin.go†L192-L222】
+* `GET /api/v1/admin/courier/couriers/stats` — количество курьеров по признакам модерации и блокировки (`total_couriers`, `pending_couriers`, `active_couriers`, `banned_couriers`). Pending отражает курьеров в ожидании модерации, active — одобренных и не заблокированных, banned — заблокированных профилей.【F:internal/courier/http/admin.go†L95-L113】【F:internal/courier/repo/couriers.go†L45-L156】
+* `POST /api/v1/admin/courier/couriers/{id}/ban` — установить или снять бан курьера. Тело `{ "ban": true }` или `{ "ban": false }`. Возвращает признак блокировки `{ "is_banned": true/false }`.【F:internal/courier/http/admin.go†L147-L172】
+* `POST /api/v1/admin/courier/couriers/{id}/approval` — обновить статус проверки курьера. Пустое тело присваивает статус `approved`, можно передать `{ "status": "pending" }`, `"approved"` или `"rejected"`. Возвращает новое значение в поле `approval_status`.【F:internal/courier/http/admin.go†L174-L210】
 
 ## WebSocket API
 

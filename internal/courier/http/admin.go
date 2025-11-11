@@ -156,14 +156,10 @@ func (s *Server) handleAdminCourierBan(w http.ResponseWriter, r *http.Request, c
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	status := "banned"
-	if !payload.Ban {
-		status = "active"
-	}
 	ctx, cancel := contextWithTimeout(r)
 	defer cancel()
 
-	if err := s.couriers.UpdateStatus(ctx, courierID, status); err != nil {
+	if err := s.couriers.UpdateBan(ctx, courierID, payload.Ban); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "courier not found")
 			return
@@ -172,7 +168,7 @@ func (s *Server) handleAdminCourierBan(w http.ResponseWriter, r *http.Request, c
 		writeError(w, http.StatusInternalServerError, "failed to update courier")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": status})
+	writeJSON(w, http.StatusOK, map[string]bool{"is_banned": payload.Ban})
 }
 
 func (s *Server) handleAdminCourierApproval(w http.ResponseWriter, r *http.Request, courierID int64) {
@@ -191,12 +187,18 @@ func (s *Server) handleAdminCourierApproval(w http.ResponseWriter, r *http.Reque
 	}
 	status := strings.TrimSpace(strings.ToLower(payload.Status))
 	if status == "" {
-		status = "approved"
+		status = repo.CourierApprovalApproved
+	}
+	switch status {
+	case repo.CourierApprovalPending, repo.CourierApprovalApproved, repo.CourierApprovalRejected:
+	default:
+		writeError(w, http.StatusBadRequest, "invalid approval status")
+		return
 	}
 	ctx, cancel := contextWithTimeout(r)
 	defer cancel()
 
-	if err := s.couriers.UpdateStatus(ctx, courierID, status); err != nil {
+	if err := s.couriers.UpdateApprovalStatus(ctx, courierID, status); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "courier not found")
 			return
@@ -205,5 +207,5 @@ func (s *Server) handleAdminCourierApproval(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusInternalServerError, "failed to update courier")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": status})
+	writeJSON(w, http.StatusOK, map[string]string{"approval_status": status})
 }

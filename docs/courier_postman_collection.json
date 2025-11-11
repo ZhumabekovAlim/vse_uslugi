@@ -794,7 +794,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user_id\": 5021,\n  \"first_name\": \"Айдар\",\n  \"last_name\": \"Курманов\",\n  \"middle_name\": \"Болатович\",\n  \"courier_photo\": \"https://cdn.example.com/courier/photo.jpg\",\n  \"iin\": \"900101300455\",\n  \"date_of_birth\": \"1990-01-01\",\n  \"id_card_front\": \"https://cdn.example.com/courier/id-front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/courier/id-back.jpg\",\n  \"phone\": \"+77005553322\",\n  \"rating\": 4.8,\n  \"status\": \"approved\"\n}"
+              "raw": "{\n  \"user_id\": 5021,\n  \"first_name\": \"Айдар\",\n  \"last_name\": \"Курманов\",\n  \"middle_name\": \"Болатович\",\n  \"courier_photo\": \"https://cdn.example.com/courier/photo.jpg\",\n  \"iin\": \"900101300455\",\n  \"date_of_birth\": \"1990-01-01\",\n  \"id_card_front\": \"https://cdn.example.com/courier/id-front.jpg\",\n  \"id_card_back\": \"https://cdn.example.com/courier/id-back.jpg\",\n  \"phone\": \"+77005553322\",\n  \"rating\": 4.8,\n  \"status\": \"free\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/couriers",
