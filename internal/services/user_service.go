@@ -3,6 +3,7 @@ package services
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 	"naimuBack/utils"
+	"net"
 	"net/http"
 	"net/smtp"
 	"net/url"
@@ -411,19 +413,60 @@ func (s *UserService) ChangeNumber(ctx context.Context, number string) (models.S
 }
 
 func (s *UserService) sendEmailSMTP(toEmail, subject, body string) error {
-	host := os.Getenv("SMTP_HOST")
-	port := os.Getenv("SMTP_PORT")
+	host := os.Getenv("SMTP_HOST") // smtp.gmail.com
+	port := os.Getenv("SMTP_PORT") // 465
 	username := os.Getenv("SMTP_USER")
 	password := os.Getenv("SMTP_PASS")
 
-	addr := fmt.Sprintf("%s:%s", host, port)
-	auth := smtp.PlainAuth("", username, password, host)
+	addr := host + ":" + port
 
-	msg := []byte("To: " + toEmail + "\r\n" +
-		"Subject: " + subject + "\r\n" +
-		"\r\n" + body + "\r\n")
+	// Подключаемся СРАЗУ по TLS (важно для 465)
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	conn, err := tls.DialWithDialer(dialer, "tcp4", addr, &tls.Config{ServerName: host})
+	if err != nil {
+		return fmt.Errorf("tls dial: %w", err)
+	}
+	defer conn.Close()
 
-	return smtp.SendMail(addr, auth, username, []string{toEmail}, msg)
+	c, err := smtp.NewClient(conn, host)
+	if err != nil {
+		return fmt.Errorf("smtp client: %w", err)
+	}
+	defer c.Quit()
+
+	// AUTH только App Password
+	if err = c.Auth(smtp.PlainAuth("", username, password, host)); err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+
+	// Заголовки (UTF-8) и пустая строка перед телом
+	msg := []byte(
+		"From: Barlyq Qyzmet <" + username + ">\r\n" +
+			"To: " + toEmail + "\r\n" +
+			"Subject: " + subject + "\r\n" +
+			"MIME-Version: 1.0\r\n" +
+			"Content-Type: text/plain; charset=UTF-8\r\n" +
+			"\r\n" + body + "\r\n",
+	)
+
+	if err = c.Mail(username); err != nil {
+		return fmt.Errorf("MAIL FROM: %w", err)
+	}
+	if err = c.Rcpt(toEmail); err != nil {
+		return fmt.Errorf("RCPT TO: %w", err)
+	}
+	w, err := c.Data()
+	if err != nil {
+		return fmt.Errorf("DATA: %w", err)
+	}
+	if _, err = w.Write(msg); err != nil {
+		return fmt.Errorf("write msg: %w", err)
+	}
+	if err = w.Close(); err != nil {
+		return fmt.Errorf("close data: %w", err)
+	}
+
+	return nil
 }
 
 func (s *UserService) SendCodeToEmail(ctx context.Context, email string) error {
