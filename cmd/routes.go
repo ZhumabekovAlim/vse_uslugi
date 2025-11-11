@@ -192,6 +192,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/airbapay/success", standardMiddleware.ThenFunc(app.airbapayHandler.SuccessRedirect))
 	mux.Get("/airbapay/failure", standardMiddleware.ThenFunc(app.airbapayHandler.FailureRedirect))
 	mux.Post("/top/activate", authMiddleware.ThenFunc(app.topHandler.Activate))
+	mux.Get("/search/global", standardMiddleware.ThenFunc(app.globalSearchHandler.Search))
 
 	mux.Get("/user/posts/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetPostsByUserID))
 	mux.Get("/user/ads/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetAdsByUserID))
