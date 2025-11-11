@@ -1,0 +1,2 @@
+ALTER TABLE couriers
+    ADD COLUMN balance INT NOT NULL DEFAULT 0 AFTER rating;

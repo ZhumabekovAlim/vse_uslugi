@@ -7,6 +7,9 @@ import (
 	"time"
 )
 
+// ErrInsufficientBalance is returned when balance adjustments would drop below zero.
+var ErrInsufficientBalance = errors.New("insufficient balance")
+
 // Courier represents a courier profile record.
 type Courier struct {
 	ID          int64
@@ -21,6 +24,7 @@ type Courier struct {
 	IDCardBack  string
 	Phone       string
 	Rating      sql.NullFloat64
+	Balance     int
 	Status      string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -81,10 +85,10 @@ func (r *CouriersRepo) Upsert(ctx context.Context, c Courier) (int64, error) {
 func (r *CouriersRepo) Get(ctx context.Context, id int64) (Courier, error) {
 	var c Courier
 	row := r.db.QueryRowContext(ctx, `SELECT id, user_id, first_name, last_name, middle_name,
-        courier_photo, iin, date_of_birth, id_card_front, id_card_back, phone, rating, status, created_at, updated_at
+        courier_photo, iin, date_of_birth, id_card_front, id_card_back, phone, rating, balance, status, created_at, updated_at
         FROM couriers WHERE id = ?`, id)
 	err := row.Scan(&c.ID, &c.UserID, &c.FirstName, &c.LastName, &c.MiddleName,
-		&c.Photo, &c.IIN, &c.BirthDate, &c.IDCardFront, &c.IDCardBack, &c.Phone, &c.Rating, &c.Status, &c.CreatedAt, &c.UpdatedAt)
+		&c.Photo, &c.IIN, &c.BirthDate, &c.IDCardFront, &c.IDCardBack, &c.Phone, &c.Rating, &c.Balance, &c.Status, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Courier{}, ErrNotFound
@@ -97,7 +101,7 @@ func (r *CouriersRepo) Get(ctx context.Context, id int64) (Courier, error) {
 // List returns couriers with pagination.
 func (r *CouriersRepo) List(ctx context.Context, limit, offset int) ([]Courier, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT id, user_id, first_name, last_name, middle_name,
-        courier_photo, iin, date_of_birth, id_card_front, id_card_back, phone, rating, status, created_at, updated_at
+        courier_photo, iin, date_of_birth, id_card_front, id_card_back, phone, rating, balance, status, created_at, updated_at
         FROM couriers ORDER BY id DESC LIMIT ? OFFSET ?`, limit, offset)
 	if err != nil {
 		return nil, err
@@ -108,7 +112,7 @@ func (r *CouriersRepo) List(ctx context.Context, limit, offset int) ([]Courier, 
 	for rows.Next() {
 		var c Courier
 		if err := rows.Scan(&c.ID, &c.UserID, &c.FirstName, &c.LastName, &c.MiddleName,
-			&c.Photo, &c.IIN, &c.BirthDate, &c.IDCardFront, &c.IDCardBack, &c.Phone, &c.Rating, &c.Status, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			&c.Photo, &c.IIN, &c.BirthDate, &c.IDCardFront, &c.IDCardBack, &c.Phone, &c.Rating, &c.Balance, &c.Status, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		couriers = append(couriers, c)
@@ -166,6 +170,53 @@ func (r *CouriersRepo) UpdateStatus(ctx context.Context, id int64, status string
 		return ErrNotFound
 	}
 	return nil
+}
+
+// DepositBalance increases courier balance and returns the new value.
+func (r *CouriersRepo) DepositBalance(ctx context.Context, courierID int64, amount int) (int, error) {
+	if amount <= 0 {
+		return 0, errors.New("amount must be positive")
+	}
+	return r.adjustBalance(ctx, courierID, amount, true)
+}
+
+// WithdrawBalance decreases courier balance and returns the new value.
+func (r *CouriersRepo) WithdrawBalance(ctx context.Context, courierID int64, amount int) (int, error) {
+	if amount <= 0 {
+		return 0, errors.New("amount must be positive")
+	}
+	return r.adjustBalance(ctx, courierID, -amount, false)
+}
+
+func (r *CouriersRepo) adjustBalance(ctx context.Context, courierID int64, delta int, allowNegative bool) (int, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	var balance int
+	if err = tx.QueryRowContext(ctx, `SELECT balance FROM couriers WHERE id = ? FOR UPDATE`, courierID).Scan(&balance); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, err
+	}
+	newBalance := balance + delta
+	if !allowNegative && newBalance < 0 {
+		return 0, ErrInsufficientBalance
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE couriers SET balance = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, newBalance, courierID); err != nil {
+		return 0, err
+	}
+	if err = tx.Commit(); err != nil {
+		return 0, err
+	}
+	return newBalance, nil
 }
 
 func nullFloat64(nf sql.NullFloat64) interface{} {

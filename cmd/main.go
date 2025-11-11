@@ -96,6 +96,10 @@ func main() {
 	// === Прокидываем в app, чтобы routes() мог смонтировать такси-маршруты
 	app.taxiMux = taxiMux
 	app.taxiDeps = deps
+	if app.airbapayHandler != nil {
+		app.airbapayHandler.SetTaxiWebhookHandler(taxiMux)
+		app.airbapayHandler.SetTaxiDeps(deps)
+	}
 
 	// === Собираем и регистрируем Courier
 	courierMux := http.NewServeMux()
@@ -110,6 +114,9 @@ func main() {
 	}
 	app.courierMux = courierMux
 	app.courierDeps = courierDeps
+	if app.airbapayHandler != nil {
+		app.airbapayHandler.SetCourierDeps(courierDeps)
+	}
 
 	// === Запускаем фоновые воркеры такси
 	ctx, cancel := context.WithCancel(context.Background())

@@ -1,27 +1,58 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"naimuBack/internal/courier"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 	"naimuBack/internal/services"
+	"naimuBack/internal/taxi"
+)
+
+const (
+	productUnknown            = ""
+	productResponses          = "responses"
+	productSlots              = "slots"
+	invoiceTargetTaxiBalance  = "taxi_driver_balance"
+	invoiceTargetCourierFunds = "courier_balance"
 )
 
 type AirbapayHandler struct {
 	Service          *services.AirbapayService
 	InvoiceRepo      *repositories.InvoiceRepo
 	SubscriptionRepo *repositories.SubscriptionRepository
+	TaxiMux          http.Handler
+	TaxiDeps         *taxi.TaxiDeps
+	CourierDeps      *courier.Deps
 }
 
 func NewAirbapayHandler(s *services.AirbapayService, r *repositories.InvoiceRepo, sub *repositories.SubscriptionRepository) *AirbapayHandler {
 	return &AirbapayHandler{Service: s, InvoiceRepo: r, SubscriptionRepo: sub}
+}
+
+// SetTaxiWebhookHandler wires taxi webhook handler so that callbacks with HMAC signature are delegated to the taxi module.
+func (h *AirbapayHandler) SetTaxiWebhookHandler(handler http.Handler) {
+	h.TaxiMux = handler
+}
+
+// SetTaxiDeps injects taxi dependencies for balance operations.
+func (h *AirbapayHandler) SetTaxiDeps(deps *taxi.TaxiDeps) {
+	h.TaxiDeps = deps
+}
+
+// SetCourierDeps injects courier dependencies for balance operations.
+func (h *AirbapayHandler) SetCourierDeps(deps *courier.Deps) {
+	h.CourierDeps = deps
 }
 
 func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
@@ -34,6 +65,11 @@ func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) 
 		UserID      int     `json:"user_id"`
 		Amount      float64 `json:"amount"`
 		Description string  `json:"description"`
+		Target      *struct {
+			Type   string `json:"type"`
+			ID     int64  `json:"id"`
+			Amount *int   `json:"amount,omitempty"`
+		} `json:"target,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -41,10 +77,35 @@ func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if req.Target != nil {
+		switch req.Target.Type {
+		case invoiceTargetTaxiBalance, invoiceTargetCourierFunds:
+			if req.Target.ID <= 0 {
+				http.Error(w, "target id must be positive", http.StatusBadRequest)
+				return
+			}
+		default:
+			http.Error(w, "unsupported target type", http.StatusBadRequest)
+			return
+		}
+	}
+
 	invID, err := h.InvoiceRepo.CreateInvoice(r.Context(), req.UserID, req.Amount, req.Description)
 	if err != nil {
 		http.Error(w, "create invoice: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if req.Target != nil {
+		payload := json.RawMessage(nil)
+		if req.Target.Amount != nil {
+			b, _ := json.Marshal(map[string]int{"amount": *req.Target.Amount})
+			payload = b
+		}
+		if _, err := h.InvoiceRepo.AddTarget(r.Context(), invID, req.Target.Type, req.Target.ID, payload); err != nil {
+			http.Error(w, "store invoice target: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	resp, err := h.Service.CreatePaymentLink(r.Context(), invID, req.Amount, req.Description)
@@ -84,9 +145,24 @@ func (h *AirbapayHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Airbapay callback received: ", r)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
 
-	payload, err := h.Service.ParseCallback(r.Body)
+	if sig := strings.TrimSpace(r.Header.Get("X-AirbaPay-Signature")); sig != "" {
+		if h.TaxiMux == nil {
+			http.Error(w, "taxi webhook handler not configured", http.StatusNotImplemented)
+			return
+		}
+		req := r.Clone(r.Context())
+		req.Body = io.NopCloser(bytes.NewReader(body))
+		h.TaxiMux.ServeHTTP(w, req)
+		return
+	}
+
+	payload, err := h.Service.ParseCallback(bytes.NewReader(body))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -100,7 +176,6 @@ func (h *AirbapayHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// invoice_id мы сами задавали как наш invID → можно использовать его
 	invID, err := strconv.Atoi(payload.InvoiceID)
 	if err != nil {
 		http.Error(w, "invalid invoice_id", http.StatusBadRequest)
@@ -121,6 +196,9 @@ func (h *AirbapayHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := h.applyInvoiceReward(r.Context(), invoice); err != nil {
 			fmt.Println("airbapay: apply reward failed:", err)
+		}
+		if err := h.processInvoiceTargets(r.Context(), invoice); err != nil {
+			fmt.Println("airbapay: process invoice targets failed:", err)
 		}
 	case "failure", "failed", "cancelled", "rejected", "error":
 		if err := h.InvoiceRepo.UpdateStatus(r.Context(), invID, "failed"); err != nil {
@@ -163,11 +241,76 @@ func (h *AirbapayHandler) applyInvoiceReward(ctx context.Context, invoice models
 	}
 }
 
-const (
-	productUnknown   = ""
-	productResponses = "responses"
-	productSlots     = "slots"
-)
+func (h *AirbapayHandler) processInvoiceTargets(ctx context.Context, invoice models.Invoice) error {
+	targets, err := h.InvoiceRepo.ListTargets(ctx, invoice.ID)
+	if err != nil {
+		return err
+	}
+
+	var firstErr error
+	for _, target := range targets {
+		if target.ProcessedAt != nil {
+			continue
+		}
+
+		if err := h.executeInvoiceTarget(ctx, invoice, target); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			fmt.Println("airbapay: execute target failed:", err)
+			continue
+		}
+
+		if err := h.InvoiceRepo.MarkTargetProcessed(ctx, target.ID); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			fmt.Println("airbapay: mark target processed failed:", err)
+		}
+	}
+
+	return firstErr
+}
+
+func (h *AirbapayHandler) executeInvoiceTarget(ctx context.Context, invoice models.Invoice, target models.InvoiceTarget) error {
+	amount := invoiceTargetAmount(invoice.Amount, target.Payload)
+	if amount <= 0 {
+		return fmt.Errorf("invalid target amount")
+	}
+
+	switch target.TargetType {
+	case invoiceTargetTaxiBalance:
+		if h.TaxiDeps == nil {
+			return fmt.Errorf("taxi deps are not configured")
+		}
+		if err := taxi.DepositDriverBalance(ctx, h.TaxiDeps, target.TargetID, amount); err != nil {
+			return fmt.Errorf("deposit taxi balance: %w", err)
+		}
+	case invoiceTargetCourierFunds:
+		if h.CourierDeps == nil {
+			return fmt.Errorf("courier deps are not configured")
+		}
+		if err := courier.DepositBalance(ctx, h.CourierDeps, target.TargetID, amount); err != nil {
+			return fmt.Errorf("deposit courier balance: %w", err)
+		}
+	default:
+		// Unknown target types are ignored to keep backward compatibility.
+		return nil
+	}
+	return nil
+}
+
+func invoiceTargetAmount(invoiceAmount float64, payload json.RawMessage) int {
+	if len(payload) > 0 {
+		var data struct {
+			Amount *int `json:"amount"`
+		}
+		if err := json.Unmarshal(payload, &data); err == nil && data.Amount != nil {
+			return *data.Amount
+		}
+	}
+	return int(math.Round(invoiceAmount))
+}
 
 func classifyInvoiceDescription(description string) (string, int) {
 	normalized := strings.ToLower(strings.TrimSpace(description))
@@ -184,6 +327,7 @@ func classifyInvoiceDescription(description string) (string, int) {
 
 	return productUnknown, 0
 }
+
 func (h *AirbapayHandler) SuccessRedirect(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"})
