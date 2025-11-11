@@ -125,6 +125,8 @@ func main() {
 		errorLog.Fatal(err)
 	}
 
+	startTopCleaner(ctx, app.topService, infoLog, errorLog)
+
 	app.wsManager = NewWebSocketManager()
 	app.locationManager = NewLocationManager()
 	app.locationHandler.Broadcast = app.locationManager.broadcast

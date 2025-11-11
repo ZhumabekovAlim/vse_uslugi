@@ -46,3 +46,13 @@ func (s *TopService) ActivateTop(ctx context.Context, userID int, req models.Top
 	}
 	return info, nil
 }
+
+func (s *TopService) ClearExpiredTop(ctx context.Context, now time.Time) (int, error) {
+	if s == nil || s.Repo == nil {
+		return 0, nil
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	return s.Repo.ClearExpiredTop(ctx, now.UTC())
+}

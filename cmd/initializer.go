@@ -134,6 +134,7 @@ type application struct {
 	airbapayHandler           *handlers.AirbapayHandler
 	invoiceRepo               *repositories.InvoiceRepo
 	topHandler                *handlers.TopHandler
+	topService                *services.TopService
 
 	assistantHandler *handlers.AssistantHandler
 
@@ -465,6 +466,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		airbapayHandler:            airbapayHandler,
 		assistantHandler:           assistantHandler,
 		topHandler:                 topHandler,
+		topService:                 topService,
 
 		workAdHandler:             workAdHandler,
 		workAdReviewHandler:       workAdReviewHandler,
