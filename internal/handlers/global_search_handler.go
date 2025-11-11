@@ -53,8 +53,8 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "at least one valid type must be provided", http.StatusBadRequest)
 		return
 	}
-	if len(types) > 3 {
-		http.Error(w, "no more than 3 listing types allowed", http.StatusBadRequest)
+	if len(types) > 6 {
+		http.Error(w, "no more than 6 listing types allowed", http.StatusBadRequest)
 		return
 	}
 
