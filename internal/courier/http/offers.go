@@ -42,6 +42,7 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+	ctx = withCourierActor(ctx, courierID)
 
 	if err := s.offers.Upsert(ctx, req.OrderID, courierID, req.Price); err != nil {
 		s.logger.Errorf("courier: upsert offer failed: %v", err)
@@ -52,12 +53,12 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 	price := req.Price
 	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
 		s.logger.Errorf("courier: load order %d after offer price failed: %v", req.OrderID, err)
-		detached := context.WithoutCancel(ctx)
+		detached := withCourierActor(context.WithoutCancel(ctx), courierID)
 		s.emitOfferEvent(detached, req.OrderID, courierID, repo.OfferStatusProposed, &price, originCourier)
 		s.emitOrderEvent(detached, req.OrderID, orderEventTypeUpdated, originCourier)
 	} else {
-		s.emitOffer(order, courierID, repo.OfferStatusProposed, &price, originCourier)
-		s.emitOrder(order, orderEventTypeUpdated, originCourier)
+		s.emitOffer(ctx, order, courierID, repo.OfferStatusProposed, &price, originCourier)
+		s.emitOrder(ctx, order, orderEventTypeUpdated, originCourier)
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusNew})
 }
@@ -67,7 +68,8 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if _, err := parseAuthID(r, "X-Sender-ID"); err != nil {
+	senderID, err := parseAuthID(r, "X-Sender-ID")
+	if err != nil {
 		writeError(w, http.StatusUnauthorized, "missing sender id")
 		return
 	}
@@ -91,6 +93,7 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+	ctx = withSenderActor(ctx, senderID)
 
 	if err := s.offers.UpdateStatus(ctx, req.OrderID, req.CourierID, repo.OfferStatusAccepted); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
@@ -115,12 +118,12 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 	price := req.Price
 	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
 		s.logger.Errorf("courier: load order %d after offer accept failed: %v", req.OrderID, err)
-		detached := context.WithoutCancel(ctx)
+		detached := withSenderActor(context.WithoutCancel(ctx), senderID)
 		s.emitOfferEvent(detached, req.OrderID, req.CourierID, repo.OfferStatusAccepted, &price, originSender)
 		s.emitOrderEvent(detached, req.OrderID, orderEventTypeUpdated, originSender)
 	} else {
-		s.emitOffer(order, req.CourierID, repo.OfferStatusAccepted, &price, originSender)
-		s.emitOrder(order, orderEventTypeUpdated, originSender)
+		s.emitOffer(ctx, order, req.CourierID, repo.OfferStatusAccepted, &price, originSender)
+		s.emitOrder(ctx, order, orderEventTypeUpdated, originSender)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusAccepted})
@@ -131,7 +134,8 @@ func (s *Server) handleOfferDecline(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if _, err := parseAuthID(r, "X-Sender-ID"); err != nil {
+	senderID, err := parseAuthID(r, "X-Sender-ID")
+	if err != nil {
 		writeError(w, http.StatusUnauthorized, "missing sender id")
 		return
 	}
@@ -150,6 +154,7 @@ func (s *Server) handleOfferDecline(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+	ctx = withSenderActor(ctx, senderID)
 
 	if err := s.offers.UpdateStatus(ctx, req.OrderID, req.CourierID, repo.OfferStatusDeclined); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
@@ -163,9 +168,10 @@ func (s *Server) handleOfferDecline(w http.ResponseWriter, r *http.Request) {
 
 	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
 		s.logger.Errorf("courier: load order %d after offer decline failed: %v", req.OrderID, err)
-		s.emitOfferEvent(context.WithoutCancel(ctx), req.OrderID, req.CourierID, repo.OfferStatusDeclined, nil, originSender)
+		detached := withSenderActor(context.WithoutCancel(ctx), senderID)
+		s.emitOfferEvent(detached, req.OrderID, req.CourierID, repo.OfferStatusDeclined, nil, originSender)
 	} else {
-		s.emitOffer(order, req.CourierID, repo.OfferStatusDeclined, nil, originSender)
+		s.emitOffer(ctx, order, req.CourierID, repo.OfferStatusDeclined, nil, originSender)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.OfferStatusDeclined})
@@ -176,7 +182,8 @@ func (s *Server) handleOfferRespond(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if _, err := parseAuthID(r, "X-Sender-ID"); err != nil {
+	senderID, err := parseAuthID(r, "X-Sender-ID")
+	if err != nil {
 		writeError(w, http.StatusUnauthorized, "missing sender id")
 		return
 	}
@@ -201,6 +208,7 @@ func (s *Server) handleOfferRespond(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := contextWithTimeout(r)
 	defer cancel()
+	ctx = withSenderActor(ctx, senderID)
 
 	if decision == "accept" {
 		if err := s.offers.UpdateStatus(ctx, req.OrderID, req.CourierID, repo.OfferStatusAccepted); err != nil {
@@ -237,11 +245,11 @@ func (s *Server) handleOfferRespond(w http.ResponseWriter, r *http.Request) {
 		status := repo.OfferStatusDeclined
 		if decision == "accept" {
 			status = repo.OfferStatusAccepted
-			s.emitOrder(order, orderEventTypeUpdated, originSender)
+			s.emitOrder(ctx, order, orderEventTypeUpdated, originSender)
 		}
-		s.emitOffer(order, req.CourierID, status, nil, originSender)
+		s.emitOffer(ctx, order, req.CourierID, status, nil, originSender)
 	} else {
-		detached := context.WithoutCancel(ctx)
+		detached := withSenderActor(context.WithoutCancel(ctx), senderID)
 		status := repo.OfferStatusDeclined
 		if decision == "accept" {
 			status = repo.OfferStatusAccepted
