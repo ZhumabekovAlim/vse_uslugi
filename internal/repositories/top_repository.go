@@ -111,7 +111,7 @@ func (r *TopRepository) clearExpiredTopForTable(ctx context.Context, table strin
 		if info.IsActive(now) {
 			continue
 		}
-		updateQuery := fmt.Sprintf("UPDATE %s SET top = NULL, updated_at = NOW() WHERE id = ?", table)
+		updateQuery := fmt.Sprintf("UPDATE %s SET top = 'no', updated_at = NOW() WHERE id = ?", table)
 		if _, err := r.DB.ExecContext(ctx, updateQuery, id); err != nil {
 			return cleared, err
 		}
