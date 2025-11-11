@@ -194,9 +194,16 @@ func (s *Server) handleCourierUpsert(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid date_of_birth")
 		return
 	}
-	stat := "pending"
+	stat := repo.CourierStatusOffline
 	if status != nil && strings.TrimSpace(*status) != "" {
-		stat = strings.ToLower(strings.TrimSpace(*status))
+		candidate := strings.ToLower(strings.TrimSpace(*status))
+		switch candidate {
+		case repo.CourierStatusOffline, repo.CourierStatusFree, repo.CourierStatusBusy:
+			stat = candidate
+		default:
+			writeError(w, http.StatusBadRequest, "invalid status")
+			return
+		}
 	}
 
 	var middle sql.NullString
