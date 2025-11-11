@@ -366,7 +366,7 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode("Password updated successfully")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Password updated successfully"})
 }
 
 func (h *UserHandler) ChangeNumber(w http.ResponseWriter, r *http.Request) {
