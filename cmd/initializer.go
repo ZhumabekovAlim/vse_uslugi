@@ -133,6 +133,7 @@ type application struct {
 	subscriptionRepo          *repositories.SubscriptionRepository
 	airbapayHandler           *handlers.AirbapayHandler
 	invoiceRepo               *repositories.InvoiceRepo
+	topHandler                *handlers.TopHandler
 
 	assistantHandler *handlers.AssistantHandler
 
@@ -198,6 +199,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	rentConfirmationRepo := repositories.RentConfirmationRepository{DB: db}
 	rentAdConfirmationRepo := repositories.RentAdConfirmationRepository{DB: db}
 	subscriptionRepo := repositories.SubscriptionRepository{DB: db}
+	topRepo := repositories.NewTopRepository(db)
 
 	// Services
 	userService := &services.UserService{UserRepo: &userRepo}
@@ -237,6 +239,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
 	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
 	locationService := &services.LocationService{Repo: &locationRepo}
+	topService := services.NewTopService(topRepo)
 
 	kb, err := ai.LoadKnowledgeBase("/root/NaimuBack/vse_uslugi/kb/kb.json")
 	if err != nil {
@@ -330,6 +333,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	airbapayHandler := handlers.NewAirbapayHandler(airbapayService, invoiceRepo, &subscriptionRepo)
 	locationHandler := &handlers.LocationHandler{Service: locationService}
 	assistantHandler := handlers.NewAssistantHandler(assistantService)
+	topHandler := &handlers.TopHandler{Service: topService}
 
 	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
 	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
@@ -460,6 +464,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		subscriptionHandler:        subscriptionHandler,
 		airbapayHandler:            airbapayHandler,
 		assistantHandler:           assistantHandler,
+		topHandler:                 topHandler,
 
 		workAdHandler:             workAdHandler,
 		workAdReviewHandler:       workAdReviewHandler,

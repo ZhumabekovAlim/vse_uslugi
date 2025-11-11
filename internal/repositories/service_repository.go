@@ -358,6 +358,8 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 		services = append(services, s)
 	}
 
+	sortServicesByTop(services)
+
 	// Get min/max prices
 	var minPrice, maxPrice float64
 	err = r.DB.QueryRowContext(ctx, `SELECT MIN(price), MAX(price) FROM service`).Scan(&minPrice, &maxPrice)
@@ -422,6 +424,8 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
+	sortServicesByTop(services)
 
 	return services, nil
 }
@@ -583,6 +587,7 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 		s.AvgRating = getAverageRating(ctx, r.DB, "reviews", "service_id", s.ID)
 		services = append(services, s)
 	}
+	sortServicesByTop(services)
 	return services, nil
 }
 

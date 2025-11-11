@@ -356,6 +356,8 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		ads = append(ads, s)
 	}
 
+	sortAdsByTop(ads)
+
 	// Get min/max prices
 	var minPrice, maxPrice float64
 	err = r.DB.QueryRowContext(ctx, `SELECT MIN(price), MAX(price) FROM ad`).Scan(&minPrice, &maxPrice)
@@ -419,6 +421,8 @@ func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
+	sortAdsByTop(ads)
 
 	return ads, nil
 }
@@ -573,6 +577,7 @@ func (r *AdRepository) FetchAdByStatusAndUserID(ctx context.Context, userID int,
 		s.AvgRating = getAverageRating(ctx, r.DB, "ad_reviews", "ad_id", s.ID)
 		ads = append(ads, s)
 	}
+	sortAdsByTop(ads)
 	return ads, nil
 }
 
@@ -653,7 +658,7 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 		query += " ORDER BY s.created_at DESC"
 		log.Println("[DEBUG] Sorting by created_at DESC (default)")
 	}
-	
+
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		log.Printf("[ERROR] Query execution failed: %v", err)
