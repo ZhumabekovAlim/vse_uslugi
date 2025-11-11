@@ -329,6 +329,8 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
 		works = append(works, s)
 	}
 
+	sortWorksByTop(works)
+
 	// Get min/max prices
 	var minPrice, maxPrice float64
 	err = r.DB.QueryRowContext(ctx, `SELECT MIN(price), MAX(price) FROM work`).Scan(&minPrice, &maxPrice)
@@ -386,6 +388,8 @@ func (r *WorkRepository) GetWorksByUserID(ctx context.Context, userID int) ([]mo
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
+	sortWorksByTop(works)
 
 	return works, nil
 }
@@ -537,6 +541,7 @@ func (r *WorkRepository) FetchByStatusAndUserID(ctx context.Context, userID int,
 		s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
 		works = append(works, s)
 	}
+	sortWorksByTop(works)
 	return works, nil
 }
 

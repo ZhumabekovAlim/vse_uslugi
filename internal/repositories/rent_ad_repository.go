@@ -324,6 +324,8 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 		rents = append(rents, s)
 	}
 
+	sortRentAdsByTop(rents)
+
 	// Get min/max prices
 	var minPrice, maxPrice float64
 	err = r.DB.QueryRowContext(ctx, `SELECT MIN(price), MAX(price) FROM work`).Scan(&minPrice, &maxPrice)
@@ -380,6 +382,8 @@ func (r *RentAdRepository) GetRentsAdByUserID(ctx context.Context, userID int) (
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
+	sortRentAdsByTop(rents)
 
 	return rents, nil
 }
@@ -527,6 +531,7 @@ func (r *RentAdRepository) FetchByStatusAndUserID(ctx context.Context, userID in
 		s.AvgRating = getAverageRating(ctx, r.DB, "rent_ad_reviews", "rent_ad_id", s.ID)
 		rents = append(rents, s)
 	}
+	sortRentAdsByTop(rents)
 	return rents, nil
 }
 
