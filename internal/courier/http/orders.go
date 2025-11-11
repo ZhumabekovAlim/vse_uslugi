@@ -101,6 +101,7 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+	ctx = withSenderActor(ctx, senderID)
 
 	orderID, err := s.orders.Create(ctx, order)
 	if err != nil {
@@ -316,7 +317,8 @@ func (s *Server) handleOrderSubroutes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleReprice(w http.ResponseWriter, r *http.Request, orderID int64) {
-	if _, err := parseAuthID(r, "X-Sender-ID"); err != nil {
+	senderID, err := parseAuthID(r, "X-Sender-ID")
+	if err != nil {
 		writeError(w, http.StatusUnauthorized, "missing sender id")
 		return
 	}
@@ -333,6 +335,7 @@ func (s *Server) handleReprice(w http.ResponseWriter, r *http.Request, orderID i
 	}
 	ctx, cancel := contextWithTimeout(r)
 	defer cancel()
+	ctx = withSenderActor(ctx, senderID)
 
 	if err := s.orders.UpdatePrice(ctx, orderID, req.ClientPrice); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
@@ -346,11 +349,12 @@ func (s *Server) handleReprice(w http.ResponseWriter, r *http.Request, orderID i
 	order, err := s.orders.Get(ctx, orderID)
 	if err != nil {
 		s.logger.Errorf("courier: fetch order after reprice failed: %v", err)
-		s.emitOrderEvent(context.WithoutCancel(ctx), orderID, orderEventTypeUpdated, originSender)
+		detached := withSenderActor(context.WithoutCancel(ctx), senderID)
+		s.emitOrderEvent(detached, orderID, orderEventTypeUpdated, originSender)
 		writeJSON(w, http.StatusOK, map[string]int{"client_price": req.ClientPrice})
 		return
 	}
-	s.emitOrder(order, orderEventTypeUpdated, originSender)
+	s.emitOrder(ctx, order, orderEventTypeUpdated, originSender)
 	writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(order)})
 }
 
@@ -384,18 +388,26 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 	}
 
 	origin := originCourier
+	var courierID int64
+	var senderID int64
 	if status == lifecycle.StatusCanceledBySender {
-		if _, err := parseAuthID(r, "X-Sender-ID"); err != nil {
+		var parseErr error
+		senderID, parseErr = parseAuthID(r, "X-Sender-ID")
+		if parseErr != nil {
 			writeError(w, http.StatusUnauthorized, "missing sender id")
 			return
 		}
 		origin = originSender
 	} else {
-		if _, err := parseAuthID(r, "X-Courier-ID"); err != nil {
+		var parseErr error
+		courierID, parseErr = parseAuthID(r, "X-Courier-ID")
+		if parseErr != nil {
 			writeError(w, http.StatusUnauthorized, "missing courier id")
 			return
 		}
 	}
+	ctx = withCourierActor(ctx, courierID)
+	ctx = withSenderActor(ctx, senderID)
 
 	if !lifecycle.CanTransition(order.Status, status) {
 		writeError(w, http.StatusConflict, "invalid status transition")
@@ -413,13 +425,16 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 	}
 
 	if updated, err := s.orders.Get(ctx, orderID); err == nil {
-		s.emitOrder(updated, orderEventTypeUpdated, origin)
+		s.emitOrder(ctx, updated, orderEventTypeUpdated, origin)
 		writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(updated)})
 		return
 	} else if err != nil {
 		s.logger.Errorf("courier: fetch order after status update failed: %v", err)
 	}
-	s.emitOrderEvent(context.WithoutCancel(ctx), orderID, orderEventTypeUpdated, origin)
+	detached := context.WithoutCancel(ctx)
+	detached = withCourierActor(detached, courierID)
+	detached = withSenderActor(detached, senderID)
+	s.emitOrderEvent(detached, orderID, orderEventTypeUpdated, origin)
 	writeJSON(w, http.StatusOK, map[string]string{"status": status})
 }
 
@@ -536,6 +551,7 @@ func (s *Server) handleLifecycleWaitingAdvance(w http.ResponseWriter, r *http.Re
 	}
 	ctx, cancel := contextWithTimeout(r)
 	defer cancel()
+	ctx = withCourierActor(ctx, courierID)
 
 	order, err := s.orders.Get(ctx, orderID)
 	if errors.Is(err, repo.ErrNotFound) {
@@ -584,6 +600,7 @@ func (s *Server) handleLifecycleWaypointNext(w http.ResponseWriter, r *http.Requ
 	}
 	ctx, cancel := contextWithTimeout(r)
 	defer cancel()
+	ctx = withCourierActor(ctx, courierID)
 
 	order, err := s.orders.Get(ctx, orderID)
 	if errors.Is(err, repo.ErrNotFound) {
@@ -690,12 +707,16 @@ func (s *Server) handleGetOrder(w http.ResponseWriter, r *http.Request, orderID 
 func (s *Server) handleCancelOrder(w http.ResponseWriter, r *http.Request, orderID int64) {
 	actorStatus := ""
 	origin := originUnknown
-	if _, err := parseAuthID(r, "X-Sender-ID"); err == nil {
+	var courierID int64
+	var senderID int64
+	if id, err := parseAuthID(r, "X-Sender-ID"); err == nil {
 		actorStatus = lifecycle.StatusCanceledBySender
 		origin = originSender
-	} else if _, err := parseAuthID(r, "X-Courier-ID"); err == nil {
+		senderID = id
+	} else if id, err := parseAuthID(r, "X-Courier-ID"); err == nil {
 		actorStatus = lifecycle.StatusCanceledByCourier
 		origin = originCourier
+		courierID = id
 	} else {
 		writeError(w, http.StatusUnauthorized, "missing sender or courier id")
 		return
@@ -708,6 +729,8 @@ func (s *Server) handleCancelOrder(w http.ResponseWriter, r *http.Request, order
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+	ctx = withCourierActor(ctx, courierID)
+	ctx = withSenderActor(ctx, senderID)
 
 	if err := s.orders.UpdateStatusWithNote(ctx, orderID, actorStatus, req.Reason); errors.Is(err, repo.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "order not found")
@@ -723,13 +746,15 @@ func (s *Server) handleCancelOrder(w http.ResponseWriter, r *http.Request, order
 }
 
 func (s *Server) handleStartOrder(w http.ResponseWriter, r *http.Request, orderID int64) {
-	if _, err := parseAuthID(r, "X-Courier-ID"); err != nil {
+	courierID, err := parseAuthID(r, "X-Courier-ID")
+	if err != nil {
 		writeError(w, http.StatusUnauthorized, "missing courier id")
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+	ctx = withCourierActor(ctx, courierID)
 
 	if err := s.orders.UpdateStatus(ctx, orderID, lifecycle.StatusInProgress, sql.NullString{}); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
@@ -747,13 +772,19 @@ func (s *Server) handleStartOrder(w http.ResponseWriter, r *http.Request, orderI
 
 func (s *Server) handleLifecycleUpdate(w http.ResponseWriter, r *http.Request, orderID int64, status string) {
 	origin := originCourier
+	var courierID int64
+	var senderID int64
 	if status != lifecycle.StatusCanceledBySender {
-		if _, err := parseAuthID(r, "X-Courier-ID"); err != nil {
+		var err error
+		courierID, err = parseAuthID(r, "X-Courier-ID")
+		if err != nil {
 			writeError(w, http.StatusUnauthorized, "missing courier id")
 			return
 		}
 	} else {
-		if _, err := parseAuthID(r, "X-Sender-ID"); err != nil {
+		var err error
+		senderID, err = parseAuthID(r, "X-Sender-ID")
+		if err != nil {
 			writeError(w, http.StatusUnauthorized, "missing sender id")
 			return
 		}
@@ -762,6 +793,8 @@ func (s *Server) handleLifecycleUpdate(w http.ResponseWriter, r *http.Request, o
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+	ctx = withCourierActor(ctx, courierID)
+	ctx = withSenderActor(ctx, senderID)
 
 	if err := s.orders.UpdateStatus(ctx, orderID, status, sql.NullString{}); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {

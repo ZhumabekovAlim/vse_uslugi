@@ -62,6 +62,38 @@ func nullToPtr(ns sql.NullString) *string {
 	return nil
 }
 
+func nullInt64ToPtr(ni sql.NullInt64) *int64 {
+	if ni.Valid {
+		val := ni.Int64
+		return &val
+	}
+	return nil
+}
+
+func nullFloat64ToPtr(nf sql.NullFloat64) *float64 {
+	if nf.Valid {
+		val := nf.Float64
+		return &val
+	}
+	return nil
+}
+
+func nullBoolToPtr(nb sql.NullBool) *bool {
+	if nb.Valid {
+		val := nb.Bool
+		return &val
+	}
+	return nil
+}
+
+func nullTimeToPtr(nt sql.NullTime) *time.Time {
+	if nt.Valid {
+		val := nt.Time
+		return &val
+	}
+	return nil
+}
+
 func writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

@@ -199,6 +199,12 @@ type CourierHub struct {
 	*baseHub
 }
 
+type courierOfferClosedPayload struct {
+	Type    string `json:"type"`
+	OrderID int64  `json:"order_id"`
+	Reason  string `json:"reason,omitempty"`
+}
+
 // NewCourierHub constructs courier hub.
 func NewCourierHub(logger Logger) *CourierHub {
 	return &CourierHub{newBaseHub("courier", "courier_id", logger)}
@@ -217,6 +223,38 @@ func (h *CourierHub) Push(courierID int64, payload interface{}) {
 // Broadcast sends payload to all connected couriers.
 func (h *CourierHub) Broadcast(payload interface{}) {
 	h.baseHub.broadcast(payload)
+}
+
+// NotifyOfferClosed informs couriers that an offer is no longer available.
+func (h *CourierHub) NotifyOfferClosed(orderID int64, courierIDs []int64, reason string) {
+	if len(courierIDs) == 0 {
+		if h.logger != nil {
+			h.logger.Errorf("courier notify offer closed: order=%d reason=%s, no recipients", orderID, reason)
+		}
+		return
+	}
+
+	payload := courierOfferClosedPayload{Type: "order_offer_closed", OrderID: orderID, Reason: reason}
+
+	h.mu.RLock()
+	ids := make([]int64, 0, len(courierIDs))
+	for _, id := range courierIDs {
+		if _, ok := h.conns[id]; ok {
+			ids = append(ids, id)
+		}
+	}
+	h.mu.RUnlock()
+
+	if h.logger != nil {
+		h.logger.Infof("courier notify offer closed: order=%d reason=%s recipients=%v", orderID, reason, ids)
+	}
+
+	for _, id := range ids {
+		payloadCopy := payload
+		h.safeWrite(id, func(conn *websocket.Conn) error {
+			return conn.WriteJSON(payloadCopy)
+		})
+	}
 }
 
 // SenderHub manages websocket connections for senders.
