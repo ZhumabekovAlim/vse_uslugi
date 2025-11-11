@@ -318,10 +318,11 @@ func classifyInvoiceDescription(description string) (string, int) {
 		return productUnknown, 0
 	}
 
-	if strings.Contains(normalized, "10") && (strings.Contains(normalized, "отклик") || strings.Contains(normalized, "response")) {
+	if strings.Contains(normalized, "10") && (strings.Contains(normalized, "отклик") || strings.Contains(normalized, "жауап")) {
 		return productResponses, 10
 	}
-	if strings.Contains(normalized, "subscription") || strings.Contains(normalized, "1 объяв") || strings.Contains(normalized, "1 ad") || strings.Contains(normalized, "1 listing") {
+
+	if strings.Contains(normalized, "1") && (strings.Contains(normalized, "объяв") || strings.Contains(normalized, "хабарландыру")) {
 		return productSlots, 1
 	}
 

@@ -228,7 +228,7 @@ func (s *AirbapayService) CreatePaymentLink(ctx context.Context, invoiceID int, 
 		Language:        "ru",
 		AccountID:       s.defAccountID,
 		CardSave:        true,
-		AutoCharge:      1, // двухстадийный по умолчанию
+		AutoCharge:      1,
 		SuccessBackURL:  s.successBackURL,
 		FailureBackURL:  s.failureBackURL,
 		SuccessCallback: s.callbackURL,
