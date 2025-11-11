@@ -26,6 +26,7 @@ type application struct {
 	userHandler                *handlers.UserHandler
 	userRepo                   *repositories.UserRepository
 	serviceHandler             *handlers.ServiceHandler
+	globalSearchHandler        *handlers.GlobalSearchHandler
 	serviceRepo                *repositories.ServiceRepository
 	categoryHandler            *handlers.CategoryHandler
 	categoryRepo               *repositories.CategoryRepository
@@ -242,6 +243,15 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	locationService := &services.LocationService{Repo: &locationRepo}
 	topService := services.NewTopService(topRepo)
 
+	globalSearchService := &services.GlobalSearchService{
+		ServiceRepo: &serviceRepo,
+		AdRepo:      &adRepo,
+		WorkRepo:    &workRepo,
+		WorkAdRepo:  &workAdRepo,
+		RentRepo:    &rentRepo,
+		RentAdRepo:  &rentAdRepo,
+	}
+
 	kb, err := ai.LoadKnowledgeBase("/root/NaimuBack/vse_uslugi/kb/kb.json")
 	if err != nil {
 		errorLog.Fatalf("load knowledge base: %v", err)
@@ -335,6 +345,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	locationHandler := &handlers.LocationHandler{Service: locationService}
 	assistantHandler := handlers.NewAssistantHandler(assistantService)
 	topHandler := &handlers.TopHandler{Service: topService}
+	globalSearchHandler := &handlers.GlobalSearchHandler{Service: globalSearchService}
 
 	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
 	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
@@ -428,6 +439,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		// Хендлеры
 		userHandler:                userHandler,
 		serviceHandler:             serviceHandler,
+		globalSearchHandler:        globalSearchHandler,
 		categoryHandler:            categoryHandler,
 		rentCategoryHandler:        rentCategoryHandler,
 		workCategoryHandler:        workCategoryHandler,

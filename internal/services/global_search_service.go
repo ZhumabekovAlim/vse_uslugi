@@ -1,0 +1,205 @@
+package services
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"naimuBack/internal/models"
+	"naimuBack/internal/repositories"
+	"sort"
+	"strconv"
+	"time"
+)
+
+var (
+	// ErrUnsupportedListingType is returned when the requested listing type is not supported.
+	ErrUnsupportedListingType = errors.New("unsupported listing type")
+)
+
+// GlobalSearchService aggregates listings across different domains.
+type GlobalSearchService struct {
+	ServiceRepo *repositories.ServiceRepository
+	AdRepo      *repositories.AdRepository
+	WorkRepo    *repositories.WorkRepository
+	WorkAdRepo  *repositories.WorkAdRepository
+	RentRepo    *repositories.RentRepository
+	RentAdRepo  *repositories.RentAdRepository
+}
+
+// Search returns mixed listings filtered by the provided criteria.
+func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearchRequest) (models.GlobalSearchResponse, error) {
+	if len(req.Types) == 0 {
+		return models.GlobalSearchResponse{}, nil
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	perTypeLimit := limit * page
+	if perTypeLimit <= 0 {
+		perTypeLimit = limit
+	}
+
+	subcategoryStrings := make([]string, 0, len(req.SubcategoryIDs))
+	for _, id := range req.SubcategoryIDs {
+		subcategoryStrings = append(subcategoryStrings, strconv.Itoa(id))
+	}
+
+	now := time.Now().UTC()
+	entries := make([]globalSearchEntry, 0)
+
+	for _, listingType := range req.Types {
+		switch listingType {
+		case "service":
+			if s.ServiceRepo == nil {
+				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
+			}
+			services, _, _, err := s.ServiceRepo.GetServicesWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			if err != nil {
+				return models.GlobalSearchResponse{}, err
+			}
+			for _, svc := range services {
+				svcCopy := svc
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Service: &svcCopy}, svc.Top, svc.CreatedAt, now))
+			}
+		case "ad":
+			if s.AdRepo == nil {
+				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
+			}
+			ads, _, _, err := s.AdRepo.GetAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			if err != nil {
+				return models.GlobalSearchResponse{}, err
+			}
+			for _, ad := range ads {
+				adCopy := ad
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Ad: &adCopy}, ad.Top, ad.CreatedAt, now))
+			}
+		case "work":
+			if s.WorkRepo == nil {
+				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
+			}
+			works, _, _, err := s.WorkRepo.GetWorksWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			if err != nil {
+				return models.GlobalSearchResponse{}, err
+			}
+			for _, work := range works {
+				workCopy := work
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Work: &workCopy}, work.Top, work.CreatedAt, now))
+			}
+		case "work_ad":
+			if s.WorkAdRepo == nil {
+				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
+			}
+			workAds, _, _, err := s.WorkAdRepo.GetWorksAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			if err != nil {
+				return models.GlobalSearchResponse{}, err
+			}
+			for _, workAd := range workAds {
+				workAdCopy := workAd
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, WorkAd: &workAdCopy}, workAd.Top, workAd.CreatedAt, now))
+			}
+		case "rent":
+			if s.RentRepo == nil {
+				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
+			}
+			rents, _, _, err := s.RentRepo.GetRentsWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			if err != nil {
+				return models.GlobalSearchResponse{}, err
+			}
+			for _, rent := range rents {
+				rentCopy := rent
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Rent: &rentCopy}, rent.Top, rent.CreatedAt, now))
+			}
+		case "rent_ad":
+			if s.RentAdRepo == nil {
+				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
+			}
+			rentAds, _, _, err := s.RentAdRepo.GetRentsAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			if err != nil {
+				return models.GlobalSearchResponse{}, err
+			}
+			for _, rentAd := range rentAds {
+				rentAdCopy := rentAd
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, RentAd: &rentAdCopy}, rentAd.Top, rentAd.CreatedAt, now))
+			}
+		default:
+			return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
+		}
+	}
+
+	if len(entries) == 0 {
+		return models.GlobalSearchResponse{Results: nil, Total: 0, Page: page, Limit: limit}, nil
+	}
+
+	sort.SliceStable(entries, func(i, j int) bool {
+		return lessByTopState(entries[i].state, entries[i].createdAt, entries[j].state, entries[j].createdAt)
+	})
+
+	total := len(entries)
+	start := (page - 1) * limit
+	if start >= total {
+		return models.GlobalSearchResponse{Results: []models.GlobalSearchItem{}, Total: total, Page: page, Limit: limit}, nil
+	}
+
+	end := start + limit
+	if end > total {
+		end = total
+	}
+
+	results := make([]models.GlobalSearchItem, 0, end-start)
+	for _, entry := range entries[start:end] {
+		results = append(results, entry.item)
+	}
+
+	return models.GlobalSearchResponse{Results: results, Total: total, Page: page, Limit: limit}, nil
+}
+
+type globalSearchEntry struct {
+	item      models.GlobalSearchItem
+	state     listingTopState
+	createdAt time.Time
+}
+
+func newGlobalSearchEntry(listingType string, item models.GlobalSearchItem, top string, createdAt, now time.Time) globalSearchEntry {
+	return globalSearchEntry{
+		item:      item,
+		state:     computeTopState(top, now),
+		createdAt: createdAt.UTC(),
+	}
+}
+
+type listingTopState struct {
+	active      bool
+	activatedAt time.Time
+}
+
+func computeTopState(raw string, now time.Time) listingTopState {
+	info, err := models.ParseTopInfo(raw)
+	if err != nil || info == nil {
+		return listingTopState{}
+	}
+	return listingTopState{
+		active:      info.IsActive(now),
+		activatedAt: info.ActivatedAt,
+	}
+}
+
+func lessByTopState(a listingTopState, createdAtA time.Time, b listingTopState, createdAtB time.Time) bool {
+	if a.active != b.active {
+		return a.active
+	}
+	if a.active && b.active {
+		if !a.activatedAt.Equal(b.activatedAt) {
+			return a.activatedAt.After(b.activatedAt)
+		}
+		return createdAtA.After(createdAtB)
+	}
+	return createdAtA.After(createdAtB)
+}
