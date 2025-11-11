@@ -19,6 +19,7 @@ type courierResponse struct {
 	IDCardBack  string    `json:"id_card_back"`
 	Phone       string    `json:"phone"`
 	Rating      *float64  `json:"rating,omitempty"`
+	Balance     int       `json:"balance"`
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -55,6 +56,7 @@ func makeCourierResponse(c repo.Courier) courierResponse {
 		IDCardBack:  c.IDCardBack,
 		Phone:       c.Phone,
 		Rating:      rating,
+		Balance:     c.Balance,
 		Status:      c.Status,
 		CreatedAt:   c.CreatedAt,
 		UpdatedAt:   c.UpdatedAt,
