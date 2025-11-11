@@ -172,6 +172,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/user/sign_in", standardMiddleware.ThenFunc(app.userHandler.SignIn))             //РАБОТАЕТ
 	mux.Post("/user/change_number", standardMiddleware.ThenFunc(app.userHandler.ChangeNumber)) //РАБОТАЕТ
 	mux.Post("/user/change_email", standardMiddleware.ThenFunc(app.userHandler.ChangeEmail))   //РАБОТАЕТ
+	mux.Post("/user/change_password", authMiddleware.ThenFunc(app.userHandler.UpdatePassword))
 	mux.Post("/user/send_email_code", standardMiddleware.ThenFunc(app.userHandler.SendCodeToEmail))
 	mux.Post("/user/code_check", standardMiddleware.ThenFunc(app.userHandler.CheckVerificationCode))
 	mux.Put("/user/:id/city", authMiddleware.ThenFunc(app.userHandler.ChangeCityForUser))
