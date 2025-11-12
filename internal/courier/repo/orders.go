@@ -137,6 +137,60 @@ type OrdersRepo struct {
 	db *sql.DB
 }
 
+const ordersWithRelationsSelect = `
+SELECT
+        o.id,
+        o.sender_id,
+        o.courier_id,
+        o.distance_m,
+        o.eta_seconds,
+        o.recommended_price,
+        o.client_price,
+        o.payment_method,
+        o.status,
+        o.comment,
+        o.created_at,
+        o.updated_at,
+        s.id,
+        s.name,
+        s.surname,
+        s.middlename,
+        s.phone,
+        s.email,
+        s.city_id,
+        s.years_of_exp,
+        s.doc_of_proof,
+        s.review_rating,
+        s.role,
+        s.latitude,
+        s.longitude,
+        s.avatar_path,
+        s.skills,
+        s.is_online,
+        s.created_at,
+        s.updated_at,
+        c.user_id,
+        c.first_name,
+        c.last_name,
+        c.middle_name,
+        c.courier_photo,
+        c.iin,
+        c.date_of_birth,
+        c.id_card_front,
+        c.id_card_back,
+        c.phone,
+        c.rating,
+        c.balance,
+        c.status,
+        c.approval_status,
+        c.is_banned,
+        c.created_at,
+        c.updated_at
+FROM courier_orders o
+JOIN users s ON s.id = o.sender_id
+LEFT JOIN couriers c ON c.id = o.courier_id
+`
+
 // NewOrdersRepo constructs a new OrdersRepo.
 func NewOrdersRepo(db *sql.DB) *OrdersRepo {
 	return &OrdersRepo{db: db}
@@ -214,6 +268,8 @@ func (r *OrdersRepo) Get(ctx context.Context, id int64) (Order, error) {
 		courierRating    sql.NullFloat64
 		courierBalance   sql.NullInt64
 		courierStatus    sql.NullString
+		courierApproval  sql.NullString
+		courierIsBanned  sql.NullBool
 		courierCreatedAt sql.NullTime
 		courierUpdatedAt sql.NullTime
 	)
@@ -262,6 +318,8 @@ func (r *OrdersRepo) Get(ctx context.Context, id int64) (Order, error) {
                 c.rating,
                 c.balance,
                 c.status,
+                c.approval_status,
+                c.is_banned,
                 c.created_at,
                 c.updated_at
         FROM courier_orders o
@@ -312,6 +370,8 @@ func (r *OrdersRepo) Get(ctx context.Context, id int64) (Order, error) {
 		&courierRating,
 		&courierBalance,
 		&courierStatus,
+		&courierApproval,
+		&courierIsBanned,
 		&courierCreatedAt,
 		&courierUpdatedAt,
 	)
@@ -324,22 +384,26 @@ func (r *OrdersRepo) Get(ctx context.Context, id int64) (Order, error) {
 
 	if o.CourierID.Valid && courierUserID.Valid {
 		courier := Courier{
-			ID:          o.CourierID.Int64,
-			UserID:      courierUserID.Int64,
-			FirstName:   courierFirstName.String,
-			LastName:    courierLastName.String,
-			MiddleName:  courierMiddle,
-			Photo:       courierPhoto.String,
-			IIN:         courierIIN.String,
-			IDCardFront: courierCardFront.String,
-			IDCardBack:  courierCardBack.String,
-			Phone:       courierPhone.String,
-			Rating:      courierRating,
-			Balance:     int(courierBalance.Int64),
-			Status:      courierStatus.String,
+			ID:             o.CourierID.Int64,
+			UserID:         courierUserID.Int64,
+			FirstName:      courierFirstName.String,
+			LastName:       courierLastName.String,
+			MiddleName:     courierMiddle,
+			Photo:          courierPhoto.String,
+			IIN:            courierIIN.String,
+			IDCardFront:    courierCardFront.String,
+			IDCardBack:     courierCardBack.String,
+			Phone:          courierPhone.String,
+			Rating:         courierRating,
+			Balance:        int(courierBalance.Int64),
+			Status:         courierStatus.String,
+			ApprovalStatus: courierApproval.String,
 		}
 		if courierBirthDate.Valid {
 			courier.BirthDate = courierBirthDate.Time
+		}
+		if courierIsBanned.Valid {
+			courier.IsBanned = courierIsBanned.Bool
 		}
 		if courierCreatedAt.Valid {
 			courier.CreatedAt = courierCreatedAt.Time
@@ -358,20 +422,32 @@ func (r *OrdersRepo) Get(ctx context.Context, id int64) (Order, error) {
 	return o, nil
 }
 
-// ListBySender returns orders belonging to the sender.
-func (r *OrdersRepo) ListBySender(ctx context.Context, senderID int64, limit, offset int) ([]Order, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, created_at, updated_at FROM courier_orders WHERE sender_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`, senderID, limit, offset)
+func (r *OrdersRepo) listOrdersWithRelations(ctx context.Context, suffix string, args ...interface{}) ([]Order, error) {
+	rows, err := r.db.QueryContext(ctx, ordersWithRelationsSelect+suffix, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	orders, err := r.scanOrders(rows)
+	orders, err := scanOrdersWithRelations(rows)
 	if err != nil {
 		return nil, err
 	}
 
 	if err = r.attachPoints(ctx, orders); err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
+// ListBySender returns orders belonging to the sender.
+func (r *OrdersRepo) ListBySender(ctx context.Context, senderID int64, limit, offset int) ([]Order, error) {
+	suffix := `
+WHERE o.sender_id = ?
+ORDER BY o.created_at DESC
+LIMIT ? OFFSET ?`
+	orders, err := r.listOrdersWithRelations(ctx, suffix, senderID, limit, offset)
+	if err != nil {
 		return nil, err
 	}
 	return orders, nil
@@ -459,18 +535,12 @@ func (r *OrdersRepo) ListCourierReviews(ctx context.Context, courierID int64) ([
 
 // ListByCourier returns orders assigned to a courier.
 func (r *OrdersRepo) ListByCourier(ctx context.Context, courierID int64, limit, offset int) ([]Order, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, created_at, updated_at FROM courier_orders WHERE courier_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`, courierID, limit, offset)
+	suffix := `
+WHERE o.courier_id = ?
+ORDER BY o.created_at DESC
+LIMIT ? OFFSET ?`
+	orders, err := r.listOrdersWithRelations(ctx, suffix, courierID, limit, offset)
 	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	orders, err := r.scanOrders(rows)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = r.attachPoints(ctx, orders); err != nil {
 		return nil, err
 	}
 	return orders, nil
@@ -593,6 +663,123 @@ func (r *OrdersRepo) AssignCourier(ctx context.Context, orderID, courierID int64
 	}
 
 	return tx.Commit()
+}
+
+func scanOrdersWithRelations(rows *sql.Rows) ([]Order, error) {
+	var orders []Order
+	for rows.Next() {
+		var (
+			o                Order
+			courierUserID    sql.NullInt64
+			courierFirstName sql.NullString
+			courierLastName  sql.NullString
+			courierMiddle    sql.NullString
+			courierPhoto     sql.NullString
+			courierIIN       sql.NullString
+			courierBirthDate sql.NullTime
+			courierCardFront sql.NullString
+			courierCardBack  sql.NullString
+			courierPhone     sql.NullString
+			courierRating    sql.NullFloat64
+			courierBalance   sql.NullInt64
+			courierStatus    sql.NullString
+			courierApproval  sql.NullString
+			courierIsBanned  sql.NullBool
+			courierCreatedAt sql.NullTime
+			courierUpdatedAt sql.NullTime
+		)
+		if err := rows.Scan(
+			&o.ID,
+			&o.SenderID,
+			&o.CourierID,
+			&o.DistanceM,
+			&o.EtaSeconds,
+			&o.RecommendedPrice,
+			&o.ClientPrice,
+			&o.PaymentMethod,
+			&o.Status,
+			&o.Comment,
+			&o.CreatedAt,
+			&o.UpdatedAt,
+			&o.Sender.ID,
+			&o.Sender.Name,
+			&o.Sender.Surname,
+			&o.Sender.Middlename,
+			&o.Sender.Phone,
+			&o.Sender.Email,
+			&o.Sender.CityID,
+			&o.Sender.YearsOfExp,
+			&o.Sender.DocOfProof,
+			&o.Sender.ReviewRating,
+			&o.Sender.Role,
+			&o.Sender.Latitude,
+			&o.Sender.Longitude,
+			&o.Sender.AvatarPath,
+			&o.Sender.Skills,
+			&o.Sender.IsOnline,
+			&o.Sender.CreatedAt,
+			&o.Sender.UpdatedAt,
+			&courierUserID,
+			&courierFirstName,
+			&courierLastName,
+			&courierMiddle,
+			&courierPhoto,
+			&courierIIN,
+			&courierBirthDate,
+			&courierCardFront,
+			&courierCardBack,
+			&courierPhone,
+			&courierRating,
+			&courierBalance,
+			&courierStatus,
+			&courierApproval,
+			&courierIsBanned,
+			&courierCreatedAt,
+			&courierUpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		if o.CourierID.Valid && courierUserID.Valid {
+			courier := Courier{
+				ID:             o.CourierID.Int64,
+				UserID:         courierUserID.Int64,
+				FirstName:      courierFirstName.String,
+				LastName:       courierLastName.String,
+				MiddleName:     courierMiddle,
+				Photo:          courierPhoto.String,
+				IIN:            courierIIN.String,
+				IDCardFront:    courierCardFront.String,
+				IDCardBack:     courierCardBack.String,
+				Phone:          courierPhone.String,
+				Rating:         courierRating,
+				Status:         courierStatus.String,
+				ApprovalStatus: courierApproval.String,
+			}
+			if courierBalance.Valid {
+				courier.Balance = int(courierBalance.Int64)
+			}
+			if courierBirthDate.Valid {
+				courier.BirthDate = courierBirthDate.Time
+			}
+			if courierCreatedAt.Valid {
+				courier.CreatedAt = courierCreatedAt.Time
+			}
+			if courierUpdatedAt.Valid {
+				courier.UpdatedAt = courierUpdatedAt.Time
+			}
+			if courierIsBanned.Valid {
+				courier.IsBanned = courierIsBanned.Bool
+			}
+			o.Courier = &courier
+		}
+
+		orders = append(orders, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return orders, nil
 }
 
 func (r *OrdersRepo) scanOrders(rows *sql.Rows) ([]Order, error) {
@@ -940,166 +1127,11 @@ func (r *OrdersRepo) ActiveByCourier(ctx context.Context, courierID int64) (Orde
 
 // ListAll returns orders for admin usage.
 func (r *OrdersRepo) ListAll(ctx context.Context, limit, offset int) ([]Order, error) {
-	rows, err := r.db.QueryContext(ctx, `
-SELECT
-        o.id,
-        o.sender_id,
-        o.courier_id,
-        o.distance_m,
-        o.eta_seconds,
-        o.recommended_price,
-        o.client_price,
-        o.payment_method,
-        o.status,
-        o.comment,
-        o.created_at,
-        o.updated_at,
-        s.id,
-        s.name,
-        s.surname,
-        s.middlename,
-        s.phone,
-        s.email,
-        s.city_id,
-        s.years_of_exp,
-        s.doc_of_proof,
-        s.review_rating,
-        s.role,
-        s.latitude,
-        s.longitude,
-        s.avatar_path,
-        s.skills,
-        s.is_online,
-        s.created_at,
-        s.updated_at,
-        c.user_id,
-        c.first_name,
-        c.last_name,
-        c.middle_name,
-        c.courier_photo,
-        c.iin,
-        c.date_of_birth,
-        c.id_card_front,
-        c.id_card_back,
-        c.phone,
-        c.rating,
-        c.balance,
-        c.status,
-        c.created_at,
-        c.updated_at
-FROM courier_orders o
-JOIN users s ON s.id = o.sender_id
-LEFT JOIN couriers c ON c.id = o.courier_id
+	suffix := `
 ORDER BY o.created_at DESC
-LIMIT ? OFFSET ?`, limit, offset)
+LIMIT ? OFFSET ?`
+	orders, err := r.listOrdersWithRelations(ctx, suffix, limit, offset)
 	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var orders []Order
-	for rows.Next() {
-		var (
-			o                Order
-			courierUserID    sql.NullInt64
-			courierFirstName sql.NullString
-			courierLastName  sql.NullString
-			courierMiddle    sql.NullString
-			courierPhoto     sql.NullString
-			courierIIN       sql.NullString
-			courierBirthDate sql.NullTime
-			courierCardFront sql.NullString
-			courierCardBack  sql.NullString
-			courierPhone     sql.NullString
-			courierRating    sql.NullFloat64
-			courierBalance   sql.NullInt64
-			courierStatus    sql.NullString
-			courierCreatedAt sql.NullTime
-			courierUpdatedAt sql.NullTime
-		)
-		if err := rows.Scan(
-			&o.ID,
-			&o.SenderID,
-			&o.CourierID,
-			&o.DistanceM,
-			&o.EtaSeconds,
-			&o.RecommendedPrice,
-			&o.ClientPrice,
-			&o.PaymentMethod,
-			&o.Status,
-			&o.Comment,
-			&o.CreatedAt,
-			&o.UpdatedAt,
-			&o.Sender.ID,
-			&o.Sender.Name,
-			&o.Sender.Surname,
-			&o.Sender.Middlename,
-			&o.Sender.Phone,
-			&o.Sender.Email,
-			&o.Sender.CityID,
-			&o.Sender.YearsOfExp,
-			&o.Sender.DocOfProof,
-			&o.Sender.ReviewRating,
-			&o.Sender.Role,
-			&o.Sender.Latitude,
-			&o.Sender.Longitude,
-			&o.Sender.AvatarPath,
-			&o.Sender.Skills,
-			&o.Sender.IsOnline,
-			&o.Sender.CreatedAt,
-			&o.Sender.UpdatedAt,
-			&courierUserID,
-			&courierFirstName,
-			&courierLastName,
-			&courierMiddle,
-			&courierPhoto,
-			&courierIIN,
-			&courierBirthDate,
-			&courierCardFront,
-			&courierCardBack,
-			&courierPhone,
-			&courierRating,
-			&courierBalance,
-			&courierStatus,
-			&courierCreatedAt,
-			&courierUpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		if o.CourierID.Valid && courierUserID.Valid {
-			courier := Courier{
-				ID:          o.CourierID.Int64,
-				UserID:      courierUserID.Int64,
-				FirstName:   courierFirstName.String,
-				LastName:    courierLastName.String,
-				MiddleName:  courierMiddle,
-				Photo:       courierPhoto.String,
-				IIN:         courierIIN.String,
-				IDCardFront: courierCardFront.String,
-				IDCardBack:  courierCardBack.String,
-				Phone:       courierPhone.String,
-				Rating:      courierRating,
-				Balance:     int(courierBalance.Int64),
-				Status:      courierStatus.String,
-			}
-			if courierBirthDate.Valid {
-				courier.BirthDate = courierBirthDate.Time
-			}
-			if courierCreatedAt.Valid {
-				courier.CreatedAt = courierCreatedAt.Time
-			}
-			if courierUpdatedAt.Valid {
-				courier.UpdatedAt = courierUpdatedAt.Time
-			}
-			o.Courier = &courier
-		}
-		orders = append(orders, o)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	if err = r.attachPoints(ctx, orders); err != nil {
 		return nil, err
 	}
 	return orders, nil
