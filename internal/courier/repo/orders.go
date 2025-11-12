@@ -443,7 +443,7 @@ func (r *OrdersRepo) listOrdersWithRelations(ctx context.Context, suffix string,
 
 func (r *OrdersRepo) ListBySender(ctx context.Context, senderID int64, limit, offset int) ([]Order, error) {
 	suffix := `
-		WHERE o.sender_id = ? AND status = 'completed'
+		WHERE o.sender_id = ? AND o.status = 'completed'
 		ORDER BY o.created_at DESC
 		LIMIT ? OFFSET ?`
 	orders, err := r.listOrdersWithRelations(ctx, suffix, senderID, limit, offset)
@@ -536,7 +536,7 @@ func (r *OrdersRepo) ListCourierReviews(ctx context.Context, courierID int64) ([
 // ListByCourier returns orders assigned to a courier.
 func (r *OrdersRepo) ListByCourier(ctx context.Context, courierID int64, limit, offset int) ([]Order, error) {
 	suffix := `
-	WHERE o.courier_id = ? AND status = 'completed'
+	WHERE o.courier_id = ? AND o.status = 'completed'
 	ORDER BY o.created_at DESC
 	LIMIT ? OFFSET ?`
 	orders, err := r.listOrdersWithRelations(ctx, suffix, courierID, limit, offset)
