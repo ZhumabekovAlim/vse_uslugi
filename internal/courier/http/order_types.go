@@ -28,6 +28,7 @@ type orderPointResponse struct {
 	Intercom *string `json:"intercom"`
 	Phone    *string `json:"phone"`
 	Comment  *string `json:"comment"`
+	Seq      int     `json:"seq"`
 }
 
 type orderResponse struct {
