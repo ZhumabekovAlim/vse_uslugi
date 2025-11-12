@@ -413,16 +413,19 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 		return
 	}
 
-	ctx, cancel := contextWithTimeout(r)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
+	// Загружаем текущий заказ
 	order, err := s.orders.Get(ctx, orderID)
 	if errors.Is(err, repo.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "order not found")
 		return
 	}
 	if err != nil {
-		s.logger.Errorf("courier: load order for status update failed: %v", err)
+		if s.logger != nil {
+			s.logger.Errorf("courier: load order for status update failed: %v", err)
+		}
 		writeError(w, http.StatusInternalServerError, "failed to load order")
 		return
 	}
@@ -430,6 +433,8 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 	origin := originCourier
 	var courierID int64
 	var senderID int64
+
+	// === Отмена отправителем ===============================================
 	if status == lifecycle.StatusCanceledBySender {
 		var parseErr error
 		senderID, parseErr = parseAuthID(r, "X-Sender-ID")
@@ -438,47 +443,101 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 			return
 		}
 		origin = originSender
-	} else {
-		var parseErr error
-		courierID, parseErr = parseAuthID(r, "X-Courier-ID")
-		if parseErr != nil {
-			writeError(w, http.StatusUnauthorized, "missing courier id")
+		ctx = withSenderActor(ctx, senderID)
+
+		// Валидация перехода
+		if !lifecycle.CanTransition(order.Status, status) {
+			writeError(w, http.StatusConflict, "invalid status transition")
+			return
+		}
+
+		// Обновляем статус с примечанием (если есть)
+		if err := s.orders.UpdateStatusWithNote(ctx, orderID, status, req.Note); err != nil {
+			if errors.Is(err, repo.ErrNotFound) {
+				writeError(w, http.StatusConflict, "order status changed")
+				return
+			}
+			if s.logger != nil {
+				s.logger.Errorf("courier: update order status (canceled_by_sender) failed: %v", err)
+			}
+			writeError(w, http.StatusInternalServerError, "failed to update status")
+			return
+		}
+
+		// Если курьер НЕ назначен — оповещаем всех онлайн-курьеров, чтобы убрали карточку
+		if s.cHub != nil && !order.CourierID.Valid {
+			payload := map[string]any{
+				"type":     "order_canceled",
+				"order_id": orderID,
+				"status":   lifecycle.StatusCanceledBySender,
+			}
+			s.cHub.Broadcast(payload)
+		}
+
+		// Пытаемся отдать актуальный заказ в WS и клиенту
+		if updated, err := s.orders.Get(ctx, orderID); err == nil {
+			s.emitOrder(ctx, updated, orderEventTypeUpdated, origin)
+			writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(updated)})
+			return
+		} else {
+			// fallback: эмитим по id, если не удалось перечитать заказ
+			if s.logger != nil {
+				s.logger.Errorf("courier: fetch order after canceled_by_sender failed: %v", err)
+			}
+			detached := context.WithoutCancel(ctx)
+			detached = withSenderActor(detached, senderID)
+			s.emitOrderEvent(detached, orderID, orderEventTypeUpdated, origin)
+			writeJSON(w, http.StatusOK, map[string]string{"status": status})
 			return
 		}
 	}
-	ctx = withCourierActor(ctx, courierID)
-	ctx = withSenderActor(ctx, senderID)
+	// === Конец ветки отмены отправителем ====================================
 
+	// Далее — стандартная ветка для статусов НЕ отмены отправителем
+	// (actor — курьер)
+	var parseErr error
+	courierID, parseErr = parseAuthID(r, "X-Courier-ID")
+	if parseErr != nil {
+		writeError(w, http.StatusUnauthorized, "missing courier id")
+		return
+	}
+	ctx = withCourierActor(ctx, courierID)
+
+	// Валидация перехода
 	if !lifecycle.CanTransition(order.Status, status) {
 		writeError(w, http.StatusConflict, "invalid status transition")
 		return
 	}
 
+	// Обновляем статус
 	if err := s.orders.UpdateStatusWithNote(ctx, orderID, status, req.Note); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			writeError(w, http.StatusConflict, "order status changed")
 			return
 		}
-		s.logger.Errorf("courier: update order status failed: %v", err)
+		if s.logger != nil {
+			s.logger.Errorf("courier: update order status (%s) failed: %v", status, err)
+		}
 		writeError(w, http.StatusInternalServerError, "failed to update status")
 		return
 	}
 
-	// ✅ После обновления — отправляем WebSocket уведомление
+	// Публикуем событие и отвечаем клиенту
 	if updated, err := s.orders.Get(ctx, orderID); err == nil {
 		s.emitOrder(ctx, updated, orderEventTypeUpdated, origin)
 		writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(updated)})
 		return
-	} else if err != nil {
-		s.logger.Errorf("courier: fetch order after status update failed: %v", err)
+	} else {
+		if s.logger != nil {
+			s.logger.Errorf("courier: fetch order after status update failed: %v", err)
+		}
+		// fallback по id
+		detached := context.WithoutCancel(ctx)
+		detached = withCourierActor(detached, courierID)
+		s.emitOrderEvent(detached, orderID, orderEventTypeUpdated, origin)
+		writeJSON(w, http.StatusOK, map[string]string{"status": status})
+		return
 	}
-
-	// fallback если не удалось загрузить
-	detached := context.WithoutCancel(ctx)
-	detached = withCourierActor(detached, courierID)
-	detached = withSenderActor(detached, senderID)
-	s.emitOrderEvent(detached, orderID, orderEventTypeUpdated, origin)
-	writeJSON(w, http.StatusOK, map[string]string{"status": status})
 }
 
 func (s *Server) handleOrderReview(w http.ResponseWriter, r *http.Request, orderID int64) {
