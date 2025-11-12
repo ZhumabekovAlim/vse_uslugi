@@ -72,6 +72,7 @@ func makeOrderResponse(o repo.Order) orderResponse {
 			Intercom: nullToPtr(p.Intercom),
 			Phone:    nullToPtr(p.Phone),
 			Comment:  nullToPtr(p.Comment),
+			Seq:      p.Seq,
 		})
 	}
 	var sender *userResponse
