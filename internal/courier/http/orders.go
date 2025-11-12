@@ -196,7 +196,7 @@ func (s *Server) handleActiveOrder(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to load active order")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(order)})
+	writeJSON(w, http.StatusOK, makeOrderResponse(order))
 }
 
 func (s *Server) handleCourierOrders(w http.ResponseWriter, r *http.Request) {
