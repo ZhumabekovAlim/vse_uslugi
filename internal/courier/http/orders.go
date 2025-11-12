@@ -15,6 +15,7 @@ import (
 	"naimuBack/internal/courier/lifecycle"
 	"naimuBack/internal/courier/pricing"
 	"naimuBack/internal/courier/repo"
+	"naimuBack/internal/taxi/timeutil"
 )
 
 func (s *Server) handleOrders(w http.ResponseWriter, r *http.Request) {
@@ -103,7 +104,9 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	ctx = withSenderActor(ctx, senderID)
 
-	orderID, err := s.orders.Create(ctx, order)
+	dispatchRec := repo.DispatchRecord{RadiusM: s.cfg.GetSearchRadiusStart(), NextTickAt: timeutil.Now(), State: "searching"}
+
+	orderID, err := s.orders.CreateWithDispatch(ctx, order, dispatchRec)
 	if err != nil {
 		s.logger.Errorf("courier: create order failed: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to create order")

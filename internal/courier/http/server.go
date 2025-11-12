@@ -9,9 +9,12 @@ import (
 
 // Config is the subset of runtime configuration required by the HTTP handlers.
 type Config struct {
-	PricePerKM int
-	MinPrice   int
+	PricePerKM        int
+	MinPrice          int
+	SearchRadiusStart int
 }
+
+func (c Config) GetSearchRadiusStart() int { return c.SearchRadiusStart }
 
 // Logger captures the logging contract required by the server.
 type Logger interface {
