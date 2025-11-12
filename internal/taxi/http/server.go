@@ -2533,6 +2533,11 @@ func (s *Server) handlePassengerActiveOrder(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	var (
+		order repo.Order
+		err   error
+	)
+
 	passengerID, err := parseAuthID(r, "X-Passenger-ID")
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, "missing passenger id")
@@ -2542,7 +2547,7 @@ func (s *Server) handlePassengerActiveOrder(w http.ResponseWriter, r *http.Reque
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	orderID, err := s.ordersRepo.GetActiveOrderIDByPassenger(ctx, passengerID)
+	order, err = s.ordersRepo.GetActiveOrderIDByPassenger(ctx, passengerID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			w.WriteHeader(http.StatusNoContent)
@@ -2552,7 +2557,7 @@ func (s *Server) handlePassengerActiveOrder(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]int64{"order_id": orderID})
+	writeJSON(w, http.StatusOK, order)
 }
 
 func (s *Server) handleDriverOrders(w http.ResponseWriter, r *http.Request) {

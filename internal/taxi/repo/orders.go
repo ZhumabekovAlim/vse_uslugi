@@ -450,7 +450,7 @@ func (r *OrdersRepo) ListAll(ctx context.Context, limit, offset int) ([]Order, e
 }
 
 // GetActiveOrderIDByPassenger returns the most recent active order ID for the passenger.
-func (r *OrdersRepo) GetActiveOrderIDByPassenger(ctx context.Context, passengerID int64) (int64, error) {
+func (r *OrdersRepo) GetActiveOrderIDByPassenger(ctx context.Context, passengerID int64) (Order, error) {
 	args := make([]interface{}, 0, len(passengerActiveStatuses)+1)
 	args = append(args, passengerID)
 	for _, status := range passengerActiveStatuses {
@@ -459,9 +459,9 @@ func (r *OrdersRepo) GetActiveOrderIDByPassenger(ctx context.Context, passengerI
 
 	var orderID int64
 	if err := r.db.QueryRowContext(ctx, activePassengerQuery, args...).Scan(&orderID); err != nil {
-		return 0, err
+		return Order{}, err
 	}
-	return orderID, nil
+	return r.Get(ctx, orderID)
 }
 
 // GetActiveOrderIDByDriver returns the most recent active order ID for the driver.
