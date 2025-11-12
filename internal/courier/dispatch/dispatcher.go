@@ -2,7 +2,9 @@ package dispatch
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"naimuBack/internal/courier/geo"
@@ -107,41 +109,58 @@ func (d *Dispatcher) tick(ctx context.Context) {
 }
 
 func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord, now time.Time) error {
+	// 1) Грузим заказ
 	order, err := d.orders.Get(ctx, rec.OrderID)
 	if err != nil {
+		d.logger.Errorf("courier dispatch: load order %d failed: %v", rec.OrderID, err)
 		return err
 	}
+
+	// Прерываем, если уже не в поиске (у тебя это repo.StatusNew)
 	if order.Status != repo.StatusNew {
-		if err := d.dispatch.Finish(ctx, rec.OrderID); err != nil {
-			d.logger.Errorf("courier dispatch: finish order %d failed: %v", rec.OrderID, err)
-			return err
-		}
-		return nil
-	}
-	if len(order.Points) == 0 {
-		d.logger.Errorf("courier dispatch: order %d has no route points", rec.OrderID)
+		d.logger.Infof("courier dispatch: order %d not searching (status=%s) → finish", rec.OrderID, order.Status)
 		return d.dispatch.Finish(ctx, rec.OrderID)
 	}
 
-	timeout := d.cfg.GetSearchTimeout()
-	if timeout > 0 && now.Sub(rec.CreatedAt) >= timeout {
-		d.logger.Infof("courier dispatch: order %d timed out after %s", rec.OrderID, timeout)
-		if err := d.dispatch.Finish(ctx, rec.OrderID); err != nil {
-			d.logger.Errorf("courier dispatch: finish timed out order %d failed: %v", rec.OrderID, err)
-			return err
-		}
-		return nil
+	// Проверяем маршрут
+	if len(order.Points) == 0 {
+		d.logger.Errorf("courier dispatch: order %d has no route points → finish", rec.OrderID)
+		return d.dispatch.Finish(ctx, rec.OrderID)
 	}
 
+	// 2) Таймаут поиска — как в такси (CAS → "not_found"), но без senderWS
+	if timeout := d.cfg.GetSearchTimeout(); timeout > 0 && now.Sub(rec.CreatedAt) >= timeout {
+		d.logger.Infof("courier dispatch: order %d timed out after %s → mark not_found", rec.OrderID, timeout)
+		// если у тебя есть UpdateStatusCAS как в такси — используем его
+		if err := d.orders.UpdateStatusCAS(ctx, order.ID, repo.StatusNew, "not_found"); err != nil {
+			// если CAS не прошёл из-за гонки — игнорим, иначе отдаём ошибку
+			if !errors.Is(err, sql.ErrNoRows) {
+				return err
+			}
+		}
+		// завершаем диспатч
+		return d.dispatch.Finish(ctx, rec.OrderID)
+	}
+
+	// 3) Поиск ближайших курьеров
 	origin := order.Points[0]
-	city := d.cfg.GetRegionKey()
-	drivers, err := d.locator.Nearby(ctx, origin.Lon, origin.Lat, float64(rec.RadiusM), 20, city)
+	cityKey := strings.TrimSpace(d.cfg.GetRegionKey())
+	if cityKey == "" {
+		cityKey = "astana" // как в такси — fallback на отладку
+	}
+
+	drivers, err := d.locator.Nearby(ctx, origin.Lon, origin.Lat, float64(rec.RadiusM), 20, cityKey)
 	if err != nil {
+		d.logger.Errorf("courier dispatch: Nearby failed: %v", err)
 		return err
 	}
 
-	offersCreated := 0
+	// TTL только в payload (как у такси), без изменения репозитория
 	ttlSeconds := int(d.cfg.GetOfferTTL().Seconds())
+	sentOffers := 0
+	skippedExisting := 0
+
+	// Базовый payload оффера курьеру
 	payload := ws.CourierOfferPayload{
 		OrderID:          order.ID,
 		ClientPrice:      order.ClientPrice,
@@ -152,36 +171,69 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 		Points:           makeRoutePoints(order.Points),
 	}
 
+	// 4) Создание и отправка офферов (как в такси), но через твой имеющийся CreateOffer
 	for _, driver := range drivers {
 		offered, err := d.offers.AlreadyOffered(ctx, order.ID, driver.ID)
 		if err != nil {
-			d.logger.Errorf("courier dispatch: AlreadyOffered order=%d courier=%d failed: %v", order.ID, driver.ID, err)
+			d.logger.Errorf("courier dispatch: AlreadyOffered(order=%d,courier=%d) failed: %v", order.ID, driver.ID, err)
 			continue
 		}
 		if offered {
+			skippedExisting++
 			continue
 		}
+
+		// у тебя уже есть CreateOffer с ценой — используем его
 		if err := d.offers.CreateOffer(ctx, order.ID, driver.ID, order.ClientPrice); err != nil {
-			d.logger.Errorf("courier dispatch: CreateOffer order=%d courier=%d failed: %v", order.ID, driver.ID, err)
+			d.logger.Errorf("courier dispatch: CreateOffer(order=%d,courier=%d) failed: %v", order.ID, driver.ID, err)
 			continue
 		}
-		offersCreated++
+
 		d.courierWS.SendOffer(driver.ID, payload)
+		sentOffers++
+		d.logger.Infof("✅ courier dispatch: offer created & sent order=%d → courier=%d", order.ID, driver.ID)
 	}
 
-	nextRadius := rec.RadiusM
-	if offersCreated == 0 && rec.RadiusM < d.cfg.GetSearchRadiusMax() {
-		nextRadius = rec.RadiusM + d.cfg.GetSearchRadiusStep()
-		if nextRadius > d.cfg.GetSearchRadiusMax() {
-			nextRadius = d.cfg.GetSearchRadiusMax()
+	// 5) Планирование следующего тика — логика как в такси
+	switch {
+	case len(drivers) == 0:
+		// никого не нашли — расширяем радиус
+		newRadius := rec.RadiusM + d.cfg.GetSearchRadiusStep()
+		if newRadius > d.cfg.GetSearchRadiusMax() {
+			newRadius = d.cfg.GetSearchRadiusMax()
 		}
-		d.logger.Infof("courier dispatch: expanding radius for order %d to %d m", rec.OrderID, nextRadius)
+		next := now.Add(d.cfg.GetDispatchTick())
+
+		if err := d.dispatch.UpdateRadius(ctx, rec.OrderID, newRadius, next); err != nil {
+			return err
+		}
+		d.logger.Infof("courier dispatch: no couriers; radius ↑ to %d; next_tick=%s", newRadius, next.Format(time.RFC3339))
+
+	case sentOffers == 0 && skippedExisting > 0:
+		// все найденные уже получали оффер — расширяем радиус быстрее
+		newRadius := rec.RadiusM + d.cfg.GetSearchRadiusStep()
+		if newRadius > d.cfg.GetSearchRadiusMax() {
+			newRadius = d.cfg.GetSearchRadiusMax()
+		}
+		next := now.Add(d.cfg.GetDispatchTick() / 2)
+		if next.Before(now.Add(1 * time.Second)) {
+			next = now.Add(1 * time.Second)
+		}
+
+		if err := d.dispatch.UpdateRadius(ctx, rec.OrderID, newRadius, next); err != nil {
+			return err
+		}
+		d.logger.Infof("courier dispatch: only previously-offered couriers; radius ↑ to %d; next_tick=%s", newRadius, next.Format(time.RFC3339))
+
+	default:
+		// офферы отправили — оставляем радиус и ставим обычный next_tick
+		next := now.Add(d.cfg.GetDispatchTick())
+		if err := d.dispatch.UpdateRadius(ctx, rec.OrderID, rec.RadiusM, next); err != nil {
+			return err
+		}
+		d.logger.Infof("courier dispatch: offers sent; keep radius=%d; next_tick=%s", rec.RadiusM, next.Format(time.RFC3339))
 	}
-	next := now.Add(d.cfg.GetDispatchTick())
-	if err := d.dispatch.UpdateRadius(ctx, rec.OrderID, nextRadius, next); err != nil {
-		d.logger.Errorf("courier dispatch: update radius order=%d failed: %v", rec.OrderID, err)
-		return err
-	}
+
 	return nil
 }
 
