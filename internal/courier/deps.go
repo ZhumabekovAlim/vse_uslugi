@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/redis/go-redis/v9"
+
 	"naimuBack/internal/courier/ws"
 )
 
@@ -17,11 +19,13 @@ type Logger interface {
 // Deps aggregates runtime dependencies for the courier module.
 type Deps struct {
 	DB         *sql.DB
+	RDB        *redis.Client
 	Logger     Logger
 	Config     Config
 	HTTPClient *http.Client
 	CourierHub *ws.CourierHub
 	SenderHub  *ws.SenderHub
+	module     *moduleState
 }
 
 // Validate ensures that the deps struct contains the essentials before bootstrapping services.
@@ -34,6 +38,9 @@ func (d *Deps) Validate() error {
 	}
 	if d.Logger == nil {
 		return fmt.Errorf("courier deps Logger is required")
+	}
+	if d.RDB == nil {
+		return fmt.Errorf("courier deps RDB is required")
 	}
 	if d.HTTPClient == nil {
 		d.HTTPClient = &http.Client{}

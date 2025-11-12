@@ -797,6 +797,53 @@ func insertDispatchRecord(ctx context.Context, tx *sql.Tx, orderID int64, dispat
 	return err
 }
 
+// DispatchRepo provides access to courier_order_dispatch table.
+type DispatchRepo struct {
+	db *sql.DB
+}
+
+// NewDispatchRepo constructs DispatchRepo.
+func NewDispatchRepo(db *sql.DB) *DispatchRepo {
+	return &DispatchRepo{db: db}
+}
+
+// ListDue returns dispatch records ready for processing.
+func (r *DispatchRepo) ListDue(ctx context.Context, now time.Time) ([]DispatchRecord, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, order_id, radius_m, next_tick_at, state, created_at FROM courier_order_dispatch WHERE state = 'searching' AND next_tick_at <= ?`, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []DispatchRecord
+	for rows.Next() {
+		var rec DispatchRecord
+		if err := rows.Scan(&rec.ID, &rec.OrderID, &rec.RadiusM, &rec.NextTickAt, &rec.State, &rec.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, rec)
+	}
+	return items, rows.Err()
+}
+
+// UpdateRadius updates dispatch radius and schedules the next tick.
+func (r *DispatchRepo) UpdateRadius(ctx context.Context, orderID int64, radius int, next time.Time) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE courier_order_dispatch SET radius_m = ?, next_tick_at = ? WHERE order_id = ?`, radius, next, orderID)
+	return err
+}
+
+// Finish marks dispatch as completed.
+func (r *DispatchRepo) Finish(ctx context.Context, orderID int64) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE courier_order_dispatch SET state = 'finished' WHERE order_id = ?`, orderID)
+	return err
+}
+
+// TriggerImmediate sets the next tick to the provided moment without changing radius.
+func (r *DispatchRepo) TriggerImmediate(ctx context.Context, orderID int64, next time.Time) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE courier_order_dispatch SET next_tick_at = ? WHERE order_id = ?`, next, orderID)
+	return err
+}
+
 func nullOrString(val sql.NullString) interface{} {
 	if val.Valid {
 		return val.String

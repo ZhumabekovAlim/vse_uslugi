@@ -113,6 +113,12 @@ func (s *Server) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.dispatcher != nil {
+		if err := s.dispatcher.TriggerImmediate(context.Background(), orderID); err != nil {
+			s.logger.Errorf("courier: trigger dispatch failed: %v", err)
+		}
+	}
+
 	resp := map[string]interface{}{
 		"order_id":          orderID,
 		"recommended_price": recommended,

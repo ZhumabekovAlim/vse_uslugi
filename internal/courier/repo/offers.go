@@ -40,6 +40,26 @@ func (r *OffersRepo) Upsert(ctx context.Context, orderID, courierID int64, price
 	return err
 }
 
+// AlreadyOffered returns true if courier already has an offer for the order.
+func (r *OffersRepo) AlreadyOffered(ctx context.Context, orderID, courierID int64) (bool, error) {
+	row := r.db.QueryRowContext(ctx, `SELECT 1 FROM courier_offers WHERE order_id = ? AND courier_id = ?`, orderID, courierID)
+	var marker int
+	err := row.Scan(&marker)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// CreateOffer inserts a lightweight offer stub used by dispatcher to prevent duplicates.
+func (r *OffersRepo) CreateOffer(ctx context.Context, orderID, courierID int64, price int) error {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO courier_offers (order_id, courier_id, price, status) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE updated_at = updated_at`, orderID, courierID, price, OfferStatusProposed)
+	return err
+}
+
 // UpdateStatus modifies the offer status while keeping the last known price.
 func (r *OffersRepo) UpdateStatus(ctx context.Context, orderID, courierID int64, status string) error {
 	res, err := r.db.ExecContext(ctx, `UPDATE courier_offers SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE order_id = ? AND courier_id = ?`, status, orderID, courierID)
