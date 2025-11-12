@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -375,6 +376,44 @@ func (s *Server) handleCourierStats(w http.ResponseWriter, r *http.Request, cour
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	fromStr := strings.TrimSpace(r.URL.Query().Get("from"))
+	toStr := strings.TrimSpace(r.URL.Query().Get("to"))
+	if toStr == "" {
+		toStr = strings.TrimSpace(r.URL.Query().Get("until"))
+	}
+
+	var (
+		includeDays bool
+		fromDate    time.Time
+		toDate      time.Time
+	)
+
+	if fromStr != "" || toStr != "" {
+		if fromStr == "" || toStr == "" {
+			writeError(w, http.StatusBadRequest, "from and to parameters are required")
+			return
+		}
+
+		parsedFrom, err := time.Parse("2006-01-02", fromStr)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid from date")
+			return
+		}
+		parsedTo, err := time.Parse("2006-01-02", toStr)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid to date")
+			return
+		}
+		if parsedTo.Before(parsedFrom) {
+			writeError(w, http.StatusBadRequest, "to date must be on or after from date")
+			return
+		}
+
+		includeDays = true
+		fromDate = parsedFrom
+		toDate = parsedTo.AddDate(0, 0, 1)
+	}
+
 	ctx, cancel := contextWithTimeout(r)
 	defer cancel()
 
@@ -384,5 +423,64 @@ func (s *Server) handleCourierStats(w http.ResponseWriter, r *http.Request, cour
 		writeError(w, http.StatusInternalServerError, "failed to load stats")
 		return
 	}
-	writeJSON(w, http.StatusOK, makeCourierStatsResponse(stats))
+
+	resp := makeCourierStatsResponse(stats)
+
+	if includeDays {
+		orders, err := s.orders.ListCompletedByCourierBetween(ctx, courierID, fromDate, toDate)
+		if err != nil {
+			s.logger.Errorf("courier: list courier stats orders failed: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to load stats")
+			return
+		}
+
+		dayMap := make(map[string]*courierDayStatsResponse)
+		for _, order := range orders {
+			orderResp := makeOrderResponse(order)
+			commission := calculateCourierCommission(order.ClientPrice)
+			netProfit := order.ClientPrice - commission
+
+			resp.TotalAmount += order.ClientPrice
+			resp.NetProfit += netProfit
+
+			dayKey := order.UpdatedAt.Format("2006-01-02")
+			if day, ok := dayMap[dayKey]; ok {
+				day.OrdersCount++
+				day.TotalAmount += order.ClientPrice
+				day.NetProfit += netProfit
+				day.Orders = append(day.Orders, orderResp)
+			} else {
+				dayMap[dayKey] = &courierDayStatsResponse{
+					Date:        dayKey,
+					OrdersCount: 1,
+					TotalAmount: order.ClientPrice,
+					NetProfit:   netProfit,
+					Orders:      []orderResponse{orderResp},
+				}
+			}
+		}
+
+		if len(dayMap) > 0 {
+			keys := make([]string, 0, len(dayMap))
+			for k := range dayMap {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			resp.Days = make([]courierDayStatsResponse, 0, len(keys))
+			for _, k := range keys {
+				resp.Days = append(resp.Days, *dayMap[k])
+			}
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+const courierCommissionPercent = 10
+
+func calculateCourierCommission(amount int) int {
+	if amount <= 0 || courierCommissionPercent <= 0 {
+		return 0
+	}
+	return (amount*courierCommissionPercent + 99) / 100
 }

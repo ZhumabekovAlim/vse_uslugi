@@ -28,10 +28,21 @@ type courierResponse struct {
 }
 
 type courierStatsResponse struct {
-	Total     int `json:"total_orders"`
-	Active    int `json:"active_orders"`
-	Completed int `json:"completed_orders"`
-	Canceled  int `json:"canceled_orders"`
+	Total       int                       `json:"total_orders"`
+	Active      int                       `json:"active_orders"`
+	Completed   int                       `json:"completed_orders"`
+	Canceled    int                       `json:"canceled_orders"`
+	TotalAmount int                       `json:"total_amount"`
+	NetProfit   int                       `json:"net_profit"`
+	Days        []courierDayStatsResponse `json:"days"`
+}
+
+type courierDayStatsResponse struct {
+	Date        string          `json:"date"`
+	OrdersCount int             `json:"orders_count"`
+	TotalAmount int             `json:"total_amount"`
+	NetProfit   int             `json:"net_profit"`
+	Orders      []orderResponse `json:"orders"`
 }
 
 func makeCourierResponse(c repo.Courier) courierResponse {
@@ -82,9 +93,12 @@ type courierReviewResponse struct {
 
 func makeCourierStatsResponse(stats repo.CourierOrderStats) courierStatsResponse {
 	return courierStatsResponse{
-		Total:     stats.Total,
-		Active:    stats.Active,
-		Completed: stats.Completed,
-		Canceled:  stats.Canceled,
+		Total:       stats.Total,
+		Active:      stats.Active,
+		Completed:   stats.Completed,
+		Canceled:    stats.Canceled,
+		TotalAmount: 0,
+		NetProfit:   0,
+		Days:        []courierDayStatsResponse{},
 	}
 }
