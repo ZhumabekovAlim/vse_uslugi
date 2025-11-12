@@ -476,6 +476,42 @@ func (r *OrdersRepo) ListByCourier(ctx context.Context, courierID int64, limit, 
 	return orders, nil
 }
 
+// ListCompletedByCourierBetween returns completed courier orders in the [from, to) interval based on updated_at.
+func (r *OrdersRepo) ListCompletedByCourierBetween(ctx context.Context, courierID int64, from, to time.Time) ([]Order, error) {
+	if courierID <= 0 {
+		return nil, errors.New("invalid courier id")
+	}
+	if to.Before(from) {
+		return nil, errors.New("invalid date range")
+	}
+
+	args := make([]interface{}, 0, len(completedStatuses)+3)
+	args = append(args, courierID)
+	for _, status := range completedStatuses {
+		args = append(args, status)
+	}
+	args = append(args, from, to)
+
+	query := fmt.Sprintf(`SELECT id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, created_at, updated_at FROM courier_orders WHERE courier_id = ? AND status IN (%s) AND updated_at >= ? AND updated_at < ? ORDER BY updated_at ASC`, placeholders(len(completedStatuses)))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	orders, err := r.scanOrders(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = r.attachPoints(ctx, orders); err != nil {
+		return nil, err
+	}
+
+	return orders, nil
+}
+
 // UpdateStatus moves an order to the next lifecycle state and records history.
 func (r *OrdersRepo) UpdateStatus(ctx context.Context, orderID int64, nextStatus string, note sql.NullString) error {
 	tx, err := r.db.BeginTx(ctx, nil)
