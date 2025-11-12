@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	topCleanerInterval = 5 * time.Minute
+	topCleanerInterval = 1 * time.Hour
 	topCleanerTimeout  = 30 * time.Second
 )
 
