@@ -464,6 +464,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 		return
 	}
 
+	// ✅ После обновления — отправляем WebSocket уведомление
 	if updated, err := s.orders.Get(ctx, orderID); err == nil {
 		s.emitOrder(ctx, updated, orderEventTypeUpdated, origin)
 		writeJSON(w, http.StatusOK, map[string]interface{}{"order": makeOrderResponse(updated)})
@@ -471,6 +472,8 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, orderID in
 	} else if err != nil {
 		s.logger.Errorf("courier: fetch order after status update failed: %v", err)
 	}
+
+	// fallback если не удалось загрузить
 	detached := context.WithoutCancel(ctx)
 	detached = withCourierActor(detached, courierID)
 	detached = withSenderActor(detached, senderID)
