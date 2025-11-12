@@ -61,8 +61,7 @@ func ensureModule(deps *Deps) (*moduleState, error) {
 	usersRepo := repo.NewUsersRepo(deps.DB)
 	dispatchRepo := repo.NewDispatchRepo(deps.DB)
 
-	dispatcher := dispatch.New(ordersRepo, dispatchRepo, offersRepo, locator, courierHub, deps.Logger, cfgAdapter)
-
+	dispatcher := dispatch.New(ordersRepo, dispatchRepo, offersRepo, locator, courierHub, senderHub, deps.Logger, cfgAdapter)
 	httpCfg := courierhttp.Config{
 		PricePerKM:        deps.Config.PricePerKM,
 		MinPrice:          deps.Config.MinPrice,
