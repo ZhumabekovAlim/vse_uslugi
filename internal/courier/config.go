@@ -17,7 +17,7 @@ const (
 	defaultSearchRadiusStep  = 500
 	defaultSearchRadiusMax   = 5000
 	defaultDispatchTick      = 10 * time.Second
-	defaultRedisCity         = "default"
+	defaultRedisCity         = "astana"
 )
 
 // Config holds runtime configuration for the courier module.
