@@ -435,6 +435,73 @@ type orderResponse struct {
 	Passenger        *passengerResponse     `json:"passenger,omitempty"`
 }
 
+type activeOrderRoutePoint struct {
+	Address  string  `json:"address"`
+	Lat      float64 `json:"lat"`
+	Lon      float64 `json:"lon"`
+	Entrance *string `json:"entrance"`
+	Apt      *string `json:"apt"`
+	Floor    *string `json:"floor"`
+	Intercom *string `json:"intercom"`
+	Phone    *string `json:"phone"`
+	Comment  *string `json:"comment"`
+}
+
+type activeOrderPassenger struct {
+	ID           int64      `json:"id"`
+	Name         string     `json:"name"`
+	Surname      string     `json:"surname"`
+	Middlename   *string    `json:"middlename"`
+	Phone        string     `json:"phone"`
+	Email        string     `json:"email"`
+	CityID       *int64     `json:"city_id"`
+	ReviewRating *float64   `json:"review_rating"`
+	Role         *string    `json:"role"`
+	AvatarPath   *string    `json:"avatar_path"`
+	IsOnline     *bool      `json:"is_online"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    *time.Time `json:"updated_at"`
+}
+
+type activeOrderDriver struct {
+	ID             int64      `json:"id"`
+	UserID         int64      `json:"user_id"`
+	FirstName      string     `json:"first_name"`
+	LastName       string     `json:"last_name"`
+	MiddleName     *string    `json:"middle_name"`
+	DriverPhoto    string     `json:"driver_photo"`
+	IIN            string     `json:"iin"`
+	DateOfBirth    *time.Time `json:"date_of_birth"`
+	IDCardFront    string     `json:"id_card_front"`
+	IDCardBack     string     `json:"id_card_back"`
+	Phone          string     `json:"phone"`
+	Rating         float64    `json:"rating"`
+	Balance        int        `json:"balance"`
+	Status         string     `json:"status"`
+	ApprovalStatus string     `json:"approval_status"`
+	IsBanned       bool       `json:"is_banned"`
+	CreatedAt      *time.Time `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+type activeOrderResponse struct {
+	ID               int64                   `json:"id"`
+	PassengerID      int64                   `json:"passenger_id"`
+	DriverID         *int64                  `json:"driver_id"`
+	DistanceM        int                     `json:"distance_m"`
+	EtaSeconds       int                     `json:"eta_s"`
+	RecommendedPrice int                     `json:"recommended_price"`
+	ClientPrice      int                     `json:"client_price"`
+	PaymentMethod    string                  `json:"payment_method"`
+	Status           string                  `json:"status"`
+	Comment          *string                 `json:"comment"`
+	CreatedAt        time.Time               `json:"created_at"`
+	UpdatedAt        time.Time               `json:"updated_at"`
+	RoutePoints      []activeOrderRoutePoint `json:"route_points"`
+	Passenger        *activeOrderPassenger   `json:"passenger"`
+	Driver           *activeOrderDriver      `json:"driver"`
+}
+
 func newOrderResponse(o repo.Order, driver *repo.Driver, passenger *repo.Passenger) orderResponse {
 	var driverID *int64
 	if o.DriverID.Valid {
@@ -484,6 +551,170 @@ func newOrderResponse(o repo.Order, driver *repo.Driver, passenger *repo.Passeng
 		resp.Passenger = &p
 	}
 	return resp
+}
+
+func nullStringPtr(v sql.NullString) *string {
+	if v.Valid {
+		s := v.String
+		return &s
+	}
+	return nil
+}
+
+func nullInt64Ptr(v sql.NullInt64) *int64 {
+	if v.Valid {
+		n := v.Int64
+		return &n
+	}
+	return nil
+}
+
+func nullFloat64Ptr(v sql.NullFloat64) *float64 {
+	if v.Valid {
+		f := v.Float64
+		return &f
+	}
+	return nil
+}
+
+func nullBoolPtr(v sql.NullBool) *bool {
+	if v.Valid {
+		b := v.Bool
+		return &b
+	}
+	return nil
+}
+
+func nullTimePtr(v sql.NullTime) *time.Time {
+	if v.Valid {
+		t := v.Time
+		return &t
+	}
+	return nil
+}
+
+func makeActiveOrderPassenger(p repo.Passenger) activeOrderPassenger {
+	return activeOrderPassenger{
+		ID:           p.ID,
+		Name:         p.Name,
+		Surname:      p.Surname,
+		Middlename:   nullStringPtr(p.Middlename),
+		Phone:        p.Phone,
+		Email:        p.Email,
+		CityID:       nullInt64Ptr(p.CityID),
+		ReviewRating: nullFloat64Ptr(p.ReviewRating),
+		Role:         nullStringPtr(p.Role),
+		AvatarPath:   nullStringPtr(p.AvatarPath),
+		IsOnline:     nullBoolPtr(p.IsOnline),
+		CreatedAt:    p.CreatedAt,
+		UpdatedAt:    nullTimePtr(p.UpdatedAt),
+	}
+}
+
+func (s *Server) makeActiveOrderDriver(ctx context.Context, d repo.Driver) (activeOrderDriver, error) {
+	resp := activeOrderDriver{
+		ID:             d.ID,
+		UserID:         d.UserID,
+		FirstName:      d.Name,
+		LastName:       d.Surname,
+		MiddleName:     nullStringPtr(d.Middlename),
+		DriverPhoto:    d.DriverPhoto,
+		IIN:            d.IIN,
+		IDCardFront:    d.IDCardFront,
+		IDCardBack:     d.IDCardBack,
+		Phone:          d.Phone,
+		Rating:         d.Rating,
+		Balance:        d.Balance,
+		Status:         d.Status,
+		ApprovalStatus: d.ApprovalStatus,
+		IsBanned:       d.IsBanned,
+		UpdatedAt:      d.UpdatedAt,
+	}
+
+	if d.UserID != 0 {
+		user, err := s.passengersRepo.Get(ctx, d.UserID)
+		if err == nil {
+			resp.CreatedAt = &user.CreatedAt
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return activeOrderDriver{}, err
+		}
+	}
+
+	return resp, nil
+}
+
+func (s *Server) buildActiveOrderResponse(ctx context.Context, order repo.Order, driver *repo.Driver, passenger *repo.Passenger) (activeOrderResponse, error) {
+	var driverID *int64
+	if order.DriverID.Valid {
+		v := order.DriverID.Int64
+		driverID = &v
+	}
+
+	var comment *string
+	if order.Notes.Valid {
+		c := order.Notes.String
+		comment = &c
+	}
+
+	routePoints := make([]activeOrderRoutePoint, 0, len(order.Addresses))
+	for _, addr := range order.Addresses {
+		rp := activeOrderRoutePoint{
+			Address: addr.Address.String,
+			Lat:     addr.Lat,
+			Lon:     addr.Lon,
+		}
+		routePoints = append(routePoints, rp)
+	}
+
+	if passenger == nil {
+		p, err := s.passengersRepo.Get(ctx, order.PassengerID)
+		if err != nil {
+			return activeOrderResponse{}, err
+		}
+		passenger = &p
+	}
+
+	passengerResp := makeActiveOrderPassenger(*passenger)
+
+	if driverID != nil {
+		d, err := s.driversRepo.Get(ctx, *driverID)
+		if err == nil {
+			driver = &d
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return activeOrderResponse{}, err
+		} else {
+			driver = nil
+		}
+	}
+
+	var driverResp *activeOrderDriver
+	if driver != nil {
+		dresp, err := s.makeActiveOrderDriver(ctx, *driver)
+		if err != nil {
+			return activeOrderResponse{}, err
+		}
+		driverResp = &dresp
+	}
+
+	resp := activeOrderResponse{
+		ID:               order.ID,
+		PassengerID:      order.PassengerID,
+		DriverID:         driverID,
+		DistanceM:        order.DistanceM,
+		EtaSeconds:       order.EtaSeconds,
+		RecommendedPrice: order.RecommendedPrice,
+		ClientPrice:      order.ClientPrice,
+		PaymentMethod:    order.PaymentMethod,
+		Status:           order.Status,
+		Comment:          comment,
+		CreatedAt:        order.CreatedAt,
+		UpdatedAt:        order.UpdatedAt,
+		RoutePoints:      routePoints,
+		Passenger:        &passengerResp,
+		Driver:           driverResp,
+	}
+
+	return resp, nil
 }
 
 var allowedIntercityTripTypes = map[string]struct{}{
@@ -2533,11 +2764,6 @@ func (s *Server) handlePassengerActiveOrder(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var (
-		order repo.Order
-		err   error
-	)
-
 	passengerID, err := parseAuthID(r, "X-Passenger-ID")
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, "missing passenger id")
@@ -2547,7 +2773,7 @@ func (s *Server) handlePassengerActiveOrder(w http.ResponseWriter, r *http.Reque
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	order, err = s.ordersRepo.GetActiveOrderIDByPassenger(ctx, passengerID)
+	order, err := s.ordersRepo.GetActiveOrderIDByPassenger(ctx, passengerID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			w.WriteHeader(http.StatusNoContent)
@@ -2557,7 +2783,13 @@ func (s *Server) handlePassengerActiveOrder(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeJSON(w, http.StatusOK, order)
+	resp, err := s.buildActiveOrderResponse(ctx, order, nil, nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "build active order response failed")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) handleDriverOrders(w http.ResponseWriter, r *http.Request) {
@@ -2594,7 +2826,19 @@ func (s *Server) handleDriverActiveOrder(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]int64{"order_id": orderID})
+	order, driver, err := s.ordersRepo.GetWithDriver(ctx, orderID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "fetch order details failed")
+		return
+	}
+
+	resp, err := s.buildActiveOrderResponse(ctx, order, driver, nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "build active order response failed")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
