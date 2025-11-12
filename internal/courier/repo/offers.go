@@ -36,7 +36,7 @@ func NewOffersRepo(db *sql.DB) *OffersRepo {
 
 // Upsert stores or updates a courier price proposal.
 func (r *OffersRepo) Upsert(ctx context.Context, orderID, courierID int64, price int) error {
-	_, err := r.db.ExecContext(ctx, `INSERT INTO courier_offers (order_id, courier_id, price, status) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE price = VALUES(price), status = 'proposed', updated_at = CURRENT_TIMESTAMP`, orderID, courierID, price)
+	_, err := r.db.ExecContext(ctx, `INSERT INTO courier_offers (order_id, courier_id, price, status) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE price = VALUES(price), status = 'proposed', updated_at = CURRENT_TIMESTAMP`, orderID, courierID, price, "proposed")
 	return err
 }
 
