@@ -111,6 +111,12 @@ func LoadConfig() (Config, error) {
 		cfg.SearchRadiusStart = *v
 	}
 
+	if v, err := readIntEnv("COURIER_SEARCH_RADIUS_START"); err != nil {
+		return Config{}, fmt.Errorf("parse COURIER_SEARCH_RADIUS_START: %w", err)
+	} else if v != nil {
+		cfg.SearchRadiusStart = *v
+	}
+
 	if cfg.PricePerKM <= 0 {
 		return Config{}, fmt.Errorf("COURIER_PRICE_PER_KM must be positive")
 	}
@@ -137,6 +143,9 @@ func LoadConfig() (Config, error) {
 	}
 	if cfg.DispatchTick <= 0 {
 		return Config{}, fmt.Errorf("COURIER_DISPATCH_TICK_SECONDS must be positive")
+	}
+	if cfg.SearchRadiusStart <= 0 {
+		return Config{}, fmt.Errorf("COURIER_SEARCH_RADIUS_START must be positive")
 	}
 
 	return cfg, nil
