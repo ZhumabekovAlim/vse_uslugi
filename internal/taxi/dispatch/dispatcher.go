@@ -242,7 +242,6 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 			return err
 		}
 		if newRadius > rec.RadiusM {
-
 			d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "search_progress", OrderID: order.ID, Radius: newRadius})
 		} else {
 			d.passengerWS.PushOrderEvent(order.PassengerID, ws.PassengerEvent{Type: "searching", OrderID: order.ID, Radius: rec.RadiusM})

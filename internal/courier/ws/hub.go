@@ -28,6 +28,10 @@ type Logger interface {
 	Errorf(string, ...interface{})
 }
 
+/* =========================
+ *   Типы для офферов курьеру
+ * ========================= */
+
 // CourierRoutePoint describes a waypoint for courier offers.
 type CourierRoutePoint struct {
 	Seq     int     `json:"seq"`
@@ -53,6 +57,26 @@ type courierOfferClosedPayload struct {
 	OrderID int64  `json:"order_id"`
 	Reason  string `json:"reason,omitempty"`
 }
+
+/* ===============================
+ *   События для отправителя (sender)
+ * =============================== */
+
+// SenderEvent — событие для отправителя (аналог PassengerEvent из такси).
+type SenderEvent struct {
+	Type      string `json:"type"`                 // "search_progress" | "searching" | "order_status" | ...
+	OrderID   int64  `json:"order_id"`             // ID заказа
+	Status    string `json:"status,omitempty"`     // напр. "not_found"
+	Radius    int    `json:"radius,omitempty"`     // текущий/новый радиус поиска
+	Message   string `json:"message,omitempty"`    // произвольный текст
+	CourierID int64  `json:"courier_id,omitempty"` // если событие связано с конкретным курьером
+	Price     int    `json:"price,omitempty"`      // если хотим передать цену
+	// при необходимости позже можно добавить вложенные объекты (например Courier)
+}
+
+/* =========================
+ *   CourierHub (курьеры)
+ * ========================= */
 
 // CourierHub manages websocket connections for couriers including location updates.
 type CourierHub struct {
@@ -374,6 +398,10 @@ func (h *CourierHub) NotifyOfferClosed(orderID int64, courierIDs []int64, reason
 	}
 }
 
+/* =========================
+ *   SenderHub (отправители)
+ * ========================= */
+
 // SenderHub manages websocket connections for senders.
 type SenderHub struct {
 	*baseHub
@@ -398,6 +426,15 @@ func (h *SenderHub) Push(senderID int64, payload interface{}) {
 func (h *SenderHub) Broadcast(payload interface{}) {
 	h.baseHub.broadcast(payload)
 }
+
+// PushOrderEvent — удобный шорткат для типизированных событий.
+func (h *SenderHub) PushOrderEvent(senderID int64, event SenderEvent) {
+	h.Push(senderID, event)
+}
+
+/* =========================
+ *   База для простых хабов
+ * ========================= */
 
 type baseHub struct {
 	name   string
@@ -569,6 +606,10 @@ func (h *baseHub) broadcast(payload interface{}) {
 		})
 	}
 }
+
+/* =========================
+ *   Утилиты
+ * ========================= */
 
 func parseCoordinate(value interface{}) (float64, error) {
 	switch v := value.(type) {

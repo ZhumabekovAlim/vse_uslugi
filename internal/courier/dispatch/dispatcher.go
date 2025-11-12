@@ -56,6 +56,11 @@ type CourierNotifier interface {
 	SendOffer(courierID int64, payload ws.CourierOfferPayload)
 }
 
+// SenderNotifier — как PassengerNotifier в такси, но для отправителя.
+type SenderNotifier interface {
+	PushOrderEvent(senderID int64, event ws.SenderEvent)
+}
+
 type courierLocator interface {
 	Nearby(ctx context.Context, lon, lat float64, radiusMeters float64, limit int, city string) ([]geo.NearbyCourier, error)
 }
@@ -67,13 +72,32 @@ type Dispatcher struct {
 	offers    OffersRepository
 	locator   courierLocator
 	courierWS CourierNotifier
+	senderWS  SenderNotifier
 	logger    Logger
 	cfg       Config
 }
 
 // New constructs a dispatcher instance.
-func New(orders OrdersRepository, dispatch DispatchRepository, offers OffersRepository, locator courierLocator, courierWS CourierNotifier, logger Logger, cfg Config) *Dispatcher {
-	return &Dispatcher{orders: orders, dispatch: dispatch, offers: offers, locator: locator, courierWS: courierWS, logger: logger, cfg: cfg}
+func New(
+	orders OrdersRepository,
+	dispatch DispatchRepository,
+	offers OffersRepository,
+	locator courierLocator,
+	courierWS CourierNotifier,
+	senderWS SenderNotifier, // 👈 добавили
+	logger Logger,
+	cfg Config,
+) *Dispatcher {
+	return &Dispatcher{
+		orders:    orders,
+		dispatch:  dispatch,
+		offers:    offers,
+		locator:   locator,
+		courierWS: courierWS,
+		senderWS:  senderWS, // 👈 добавили
+		logger:    logger,
+		cfg:       cfg,
+	}
 }
 
 // Run launches the dispatcher loop until the context is cancelled.
@@ -128,16 +152,23 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 		return d.dispatch.Finish(ctx, rec.OrderID)
 	}
 
-	// 2) Таймаут поиска — как в такси (CAS → "not_found"), но без senderWS
+	// 2) Таймаут поиска — CAS → "not_found" + пуш отправителю (как в такси)
 	if timeout := d.cfg.GetSearchTimeout(); timeout > 0 && now.Sub(rec.CreatedAt) >= timeout {
 		d.logger.Infof("courier dispatch: order %d timed out after %s → mark not_found", rec.OrderID, timeout)
-		// если у тебя есть UpdateStatusCAS как в такси — используем его
+
 		if err := d.orders.UpdateStatusCAS(ctx, order.ID, repo.StatusNew, "not_found"); err != nil {
 			// если CAS не прошёл из-за гонки — игнорим, иначе отдаём ошибку
 			if !errors.Is(err, sql.ErrNoRows) {
 				return err
 			}
+		} else if d.senderWS != nil {
+			d.senderWS.PushOrderEvent(order.SenderID, ws.SenderEvent{
+				Type:    "order_status",
+				OrderID: order.ID,
+				Status:  "not_found",
+			})
 		}
+
 		// завершаем диспатч
 		return d.dispatch.Finish(ctx, rec.OrderID)
 	}
@@ -146,7 +177,7 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 	origin := order.Points[0]
 	cityKey := strings.TrimSpace(d.cfg.GetRegionKey())
 	if cityKey == "" {
-		cityKey = "astana" // как в такси — fallback на отладку
+		cityKey = "astana" // fallback на отладку, как в такси
 	}
 
 	drivers, err := d.locator.Nearby(ctx, origin.Lon, origin.Lat, float64(rec.RadiusM), 20, cityKey)
@@ -194,7 +225,7 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 		d.logger.Infof("✅ courier dispatch: offer created & sent order=%d → courier=%d", order.ID, driver.ID)
 	}
 
-	// 5) Планирование следующего тика — логика как в такси
+	// 5) Планирование следующего тика — логика как в такси + пуши отправителю
 	switch {
 	case len(drivers) == 0:
 		// никого не нашли — расширяем радиус
@@ -208,6 +239,14 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 			return err
 		}
 		d.logger.Infof("courier dispatch: no couriers; radius ↑ to %d; next_tick=%s", newRadius, next.Format(time.RFC3339))
+
+		if d.senderWS != nil {
+			d.senderWS.PushOrderEvent(order.SenderID, ws.SenderEvent{
+				Type:    "search_progress",
+				OrderID: order.ID,
+				Radius:  newRadius,
+			})
+		}
 
 	case sentOffers == 0 && skippedExisting > 0:
 		// все найденные уже получали оффер — расширяем радиус быстрее
@@ -225,6 +264,22 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 		}
 		d.logger.Infof("courier dispatch: only previously-offered couriers; radius ↑ to %d; next_tick=%s", newRadius, next.Format(time.RFC3339))
 
+		if d.senderWS != nil {
+			if newRadius > rec.RadiusM {
+				d.senderWS.PushOrderEvent(order.SenderID, ws.SenderEvent{
+					Type:    "search_progress",
+					OrderID: order.ID,
+					Radius:  newRadius,
+				})
+			} else {
+				d.senderWS.PushOrderEvent(order.SenderID, ws.SenderEvent{
+					Type:    "searching",
+					OrderID: order.ID,
+					Radius:  rec.RadiusM,
+				})
+			}
+		}
+
 	default:
 		// офферы отправили — оставляем радиус и ставим обычный next_tick
 		next := now.Add(d.cfg.GetDispatchTick())
@@ -232,6 +287,14 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 			return err
 		}
 		d.logger.Infof("courier dispatch: offers sent; keep radius=%d; next_tick=%s", rec.RadiusM, next.Format(time.RFC3339))
+
+		if d.senderWS != nil {
+			d.senderWS.PushOrderEvent(order.SenderID, ws.SenderEvent{
+				Type:    "searching",
+				OrderID: order.ID,
+				Radius:  rec.RadiusM,
+			})
+		}
 	}
 
 	return nil
