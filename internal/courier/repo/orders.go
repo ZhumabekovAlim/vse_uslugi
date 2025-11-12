@@ -360,7 +360,7 @@ func (r *OrdersRepo) Get(ctx context.Context, id int64) (Order, error) {
 
 // ListBySender returns orders belonging to the sender.
 func (r *OrdersRepo) ListBySender(ctx context.Context, senderID int64, limit, offset int) ([]Order, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, created_at, updated_at FROM courier_orders WHERE sender_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`, senderID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, created_at, updated_at FROM courier_orders WHERE sender_id = ? AND status = 'completed' ORDER BY created_at DESC LIMIT ? OFFSET ?`, senderID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +459,7 @@ func (r *OrdersRepo) ListCourierReviews(ctx context.Context, courierID int64) ([
 
 // ListByCourier returns orders assigned to a courier.
 func (r *OrdersRepo) ListByCourier(ctx context.Context, courierID int64, limit, offset int) ([]Order, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, created_at, updated_at FROM courier_orders WHERE courier_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`, courierID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, sender_id, courier_id, distance_m, eta_seconds, recommended_price, client_price, payment_method, status, comment, created_at, updated_at FROM courier_orders WHERE courier_id = ? AND status = 'completed'  ORDER BY created_at DESC LIMIT ? OFFSET ?`, courierID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

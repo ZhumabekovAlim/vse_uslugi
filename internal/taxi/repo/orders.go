@@ -346,7 +346,7 @@ func (r *OrdersRepo) ListByPassenger(ctx context.Context, passengerID int64, lim
 	if offset < 0 {
 		offset = 0
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id, passenger_id, driver_id, from_lon, from_lat, to_lon, to_lat, distance_m, eta_s, recommended_price, client_price, payment_method, status, notes, created_at, updated_at FROM orders WHERE passenger_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`, passengerID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, passenger_id, driver_id, from_lon, from_lat, to_lon, to_lat, distance_m, eta_s, recommended_price, client_price, payment_method, status, notes, created_at, updated_at FROM orders WHERE  passenger_id = ?  AND status = 'completed'  ORDER BY created_at DESC LIMIT ? OFFSET ?`, passengerID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -384,7 +384,7 @@ func (r *OrdersRepo) ListByDriver(ctx context.Context, driverID int64, limit, of
 	}
 
 	rows, err := r.db.QueryContext(ctx, `SELECT id, passenger_id, driver_id, from_lon, from_lat, to_lon, to_lat, distance_m,
- eta_s, recommended_price, client_price, payment_method, status, notes, created_at, updated_at FROM orders WHERE driver_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`, driverID, limit, offset)
+ eta_s, recommended_price, client_price, payment_method, status, notes, created_at, updated_at FROM orders WHERE driver_id = ?  AND status = 'completed'  ORDER  BY created_at DESC LIMIT ? OFFSET ?`, driverID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

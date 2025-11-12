@@ -44,7 +44,7 @@ var errMailgunNotConfigured = errors.New("mailgun not configured")
 
 const (
 	salt       = "sadasdnsadna"
-	tokenTTL   = 120 * time.Minute
+	tokenTTL   = 1000 * time.Minute
 	signingKey = "asdadsadadaadsasd"
 )
 
