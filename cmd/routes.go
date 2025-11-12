@@ -306,6 +306,8 @@ func (app *application) routes() http.Handler {
 	mux.Post("/api/v1/admin/courier/couriers/:courier_id/approval", adminAuthMiddleware.Then(app.courierMux))
 
 	mux.Post("/api/v1/courier/route/quote", standardMiddleware.Then(app.courierMux))
+	mux.Post("/api/v1/courier/orders", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
+	mux.Post("/api/v1/courier/orders", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Courier-ID")))
 	mux.Get("/api/v1/courier/orders", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
 	mux.Get("/api/v1/courier/orders", workerAuth.Then(app.withHeaderFromCtxCourier(app.courierMux, "X-Courier-ID")))
 	mux.Get("/api/v1/courier/orders/active", clientAuth.Then(app.withHeaderFromCtxSender(app.courierMux, "X-Sender-ID")))
