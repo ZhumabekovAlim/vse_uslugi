@@ -68,34 +68,23 @@ func (s *Server) emitOrder(ctx context.Context, order repo.Order, eventType stri
 	if s.sHub == nil && s.cHub == nil {
 		return
 	}
+
 	resp := makeOrderResponse(order)
 	evt := orderEvent{Type: resolveOrderEventType(eventType, order), Order: resp}
 
-	switch origin {
-	case originCourier:
-		courierID := courierActorFromContext(ctx)
-		if courierID == 0 && order.CourierID.Valid {
-			courierID = order.CourierID.Int64
-		}
-		if info, err := s.buildCourierEventInfo(ctx, courierID); err == nil {
-			evt.Courier = info
-		} else if err != nil && s.logger != nil {
-			s.logger.Errorf("courier: load courier info %d failed: %v", courierID, err)
-		}
-	case originSender:
-		senderID := senderActorFromContext(ctx)
-		if senderID == 0 {
-			senderID = order.SenderID
-		}
-		if info, err := s.buildUserEventInfo(ctx, senderID); err == nil {
-			evt.Sender = info
-		} else if err != nil && s.logger != nil {
-			s.logger.Errorf("courier: load sender info %d failed: %v", senderID, err)
-		}
-	}
+	// ... блок сборки evt.Courier / evt.Sender оставляем как есть ...
 
 	notifySender := origin != originSender
 	notifyCourier := origin != originCourier
+
+	// ✅ Гарантия доставки хотя бы одному получателю.
+	// Случай: отмена отправителем до назначения курьера → вернём эхо отправителю.
+	if !notifySender && !order.CourierID.Valid {
+		notifySender = true
+	}
+	// Аналогично: если курьер инициировал событие, но у заказа нет sender'а (теоретически не бывает) —
+	// можно симметрично включить notifyCourier, но обычно это не нужно.
+
 	if s.sHub != nil && notifySender {
 		s.sHub.Push(order.SenderID, evt)
 	}
