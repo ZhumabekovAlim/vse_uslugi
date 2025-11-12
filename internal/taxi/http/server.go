@@ -469,6 +469,14 @@ type activeOrderDriver struct {
 	FirstName      string     `json:"first_name"`
 	LastName       string     `json:"last_name"`
 	MiddleName     *string    `json:"middle_name"`
+	CarModel       *string    `json:"car_model"`
+	CarColor       *string    `json:"car_color"`
+	CarNumber      string     `json:"car_number"`
+	TechPassport   string     `json:"tech_passport"`
+	CarPhotoFront  string     `json:"car_photo_front"`
+	CarPhotoBack   string     `json:"car_photo_back"`
+	CarPhotoLeft   string     `json:"car_photo_left"`
+	CarPhotoRight  string     `json:"car_photo_right"`
 	DriverPhoto    string     `json:"driver_photo"`
 	IIN            string     `json:"iin"`
 	DateOfBirth    *time.Time `json:"date_of_birth"`
@@ -618,6 +626,14 @@ func (s *Server) makeActiveOrderDriver(ctx context.Context, d repo.Driver) (acti
 		FirstName:      d.Name,
 		LastName:       d.Surname,
 		MiddleName:     nullStringPtr(d.Middlename),
+		CarModel:       nullStringPtr(d.CarModel),
+		CarColor:       nullStringPtr(d.CarColor),
+		CarNumber:      d.CarNumber,
+		TechPassport:   d.TechPassport,
+		CarPhotoFront:  d.CarPhotoFront,
+		CarPhotoBack:   d.CarPhotoBack,
+		CarPhotoLeft:   d.CarPhotoLeft,
+		CarPhotoRight:  d.CarPhotoRight,
 		DriverPhoto:    d.DriverPhoto,
 		IIN:            d.IIN,
 		IDCardFront:    d.IDCardFront,
