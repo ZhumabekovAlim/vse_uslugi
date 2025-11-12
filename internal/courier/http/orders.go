@@ -230,6 +230,37 @@ func (s *Server) handleCourierOrders(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{"orders": resp})
 }
 
+func (s *Server) handleCourierOrdersSubroutes(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/courier/my/orders/")
+	path = strings.Trim(path, "/")
+	if path == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	parts := strings.Split(path, "/")
+	id, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid order id")
+		return
+	}
+
+	if len(parts) == 1 {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		s.handleGetOrder(w, r, id)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+}
+
 func (s *Server) handleCourierActiveOrder(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)

@@ -47,6 +47,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/courier/orders/", s.handleOrderSubroutes)
 	mux.HandleFunc("/api/v1/courier/orders/active", s.handleActiveOrder)
 	mux.HandleFunc("/api/v1/courier/my/orders", s.handleCourierOrders)
+	mux.HandleFunc("/api/v1/courier/my/orders/", s.handleCourierOrdersSubroutes)
 	mux.HandleFunc("/api/v1/courier/my/orders/active", s.handleCourierActiveOrder)
 	mux.HandleFunc("/api/v1/courier/route/quote", s.handleQuote)
 	mux.HandleFunc("/api/v1/courier/offers/price", s.handleOfferPrice)
