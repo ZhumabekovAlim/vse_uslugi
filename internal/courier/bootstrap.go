@@ -31,8 +31,9 @@ func RegisterCourierRoutes(mux *http.ServeMux, deps *Deps) error {
 	}
 
 	httpCfg := courierhttp.Config{
-		PricePerKM: deps.Config.PricePerKM,
-		MinPrice:   deps.Config.MinPrice,
+		PricePerKM:        deps.Config.PricePerKM,
+		MinPrice:          deps.Config.MinPrice,
+		SearchRadiusStart: deps.Config.SearchRadiusStart,
 	}
 	server := courierhttp.NewServer(httpCfg, deps.Logger, ordersRepo, offersRepo, couriersRepo, usersRepo, courierHub, senderHub)
 	server.Register(mux)

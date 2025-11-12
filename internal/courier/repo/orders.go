@@ -96,6 +96,16 @@ type StatusHistoryEntry struct {
 	CreatedAt time.Time
 }
 
+// DispatchRecord represents a courier order dispatch entry.
+type DispatchRecord struct {
+	ID         int64
+	OrderID    int64
+	RadiusM    int
+	NextTickAt time.Time
+	State      string
+	CreatedAt  time.Time
+}
+
 // CourierReview holds feedback exchanged between sender and courier.
 type CourierReview struct {
 	ID            int64
@@ -134,12 +144,21 @@ func NewOrdersRepo(db *sql.DB) *OrdersRepo {
 
 // Create inserts a new order with its route points.
 func (r *OrdersRepo) Create(ctx context.Context, order Order) (int64, error) {
+	return r.create(ctx, order, nil)
+}
+
+// CreateWithDispatch inserts a new order together with a dispatch record within a single transaction.
+func (r *OrdersRepo) CreateWithDispatch(ctx context.Context, order Order, dispatch DispatchRecord) (int64, error) {
+	return r.create(ctx, order, &dispatch)
+}
+
+func (r *OrdersRepo) create(ctx context.Context, order Order, dispatch *DispatchRecord) (orderID int64, err error) {
 	if len(order.Points) < 2 {
 		return 0, fmt.Errorf("order must contain at least two points")
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
+	tx, beginErr := r.db.BeginTx(ctx, nil)
+	if beginErr != nil {
+		return 0, beginErr
 	}
 	defer func() {
 		if err != nil {
@@ -153,7 +172,7 @@ func (r *OrdersRepo) Create(ctx context.Context, order Order) (int64, error) {
 		err = execErr
 		return 0, err
 	}
-	orderID, err := res.LastInsertId()
+	orderID, err = res.LastInsertId()
 	if err != nil {
 		return 0, err
 	}
@@ -164,6 +183,12 @@ func (r *OrdersRepo) Create(ctx context.Context, order Order) (int64, error) {
 
 	if err = insertStatusHistory(ctx, tx, StatusHistoryEntry{OrderID: orderID, Status: StatusNew}); err != nil {
 		return 0, err
+	}
+
+	if dispatch != nil {
+		if err = insertDispatchRecord(ctx, tx, orderID, *dispatch); err != nil {
+			return 0, err
+		}
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -760,6 +785,15 @@ func insertStatusHistory(ctx context.Context, tx *sql.Tx, entry StatusHistoryEnt
 		entry.CreatedAt = time.Now()
 	}
 	_, err := tx.ExecContext(ctx, `INSERT INTO courier_order_status_history (order_id, status, note, created_at) VALUES (?,?,?,?)`, entry.OrderID, entry.Status, nullOrString(entry.Note), entry.CreatedAt)
+	return err
+}
+
+func insertDispatchRecord(ctx context.Context, tx *sql.Tx, orderID int64, dispatch DispatchRecord) error {
+	if dispatch.State == "" {
+		dispatch.State = StatusNew
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO courier_order_dispatch (order_id, radius_m, next_tick_at, state) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE radius_m=VALUES(radius_m), next_tick_at=VALUES(next_tick_at), state=VALUES(state)`,
+		orderID, dispatch.RadiusM, dispatch.NextTickAt, dispatch.State)
 	return err
 }
 
