@@ -89,7 +89,7 @@ func (h *CourierHub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 	city := r.URL.Query().Get("city")
 	if strings.TrimSpace(city) == "" {
-		city = "default"
+		city = "astana"
 	}
 	city = strings.ToLower(strings.TrimSpace(city))
 
