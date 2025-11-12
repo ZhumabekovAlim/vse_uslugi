@@ -96,6 +96,16 @@ type StatusHistoryEntry struct {
 	CreatedAt time.Time
 }
 
+// DispatchRecord represents a courier order dispatch entry.
+type DispatchRecord struct {
+	ID         int64
+	OrderID    int64
+	RadiusM    int
+	NextTickAt time.Time
+	State      string
+	CreatedAt  time.Time
+}
+
 // CourierReview holds feedback exchanged between sender and courier.
 type CourierReview struct {
 	ID            int64
@@ -134,12 +144,21 @@ func NewOrdersRepo(db *sql.DB) *OrdersRepo {
 
 // Create inserts a new order with its route points.
 func (r *OrdersRepo) Create(ctx context.Context, order Order) (int64, error) {
+	return r.create(ctx, order, nil)
+}
+
+// CreateWithDispatch inserts a new order together with a dispatch record within a single transaction.
+func (r *OrdersRepo) CreateWithDispatch(ctx context.Context, order Order, dispatch DispatchRecord) (int64, error) {
+	return r.create(ctx, order, &dispatch)
+}
+
+func (r *OrdersRepo) create(ctx context.Context, order Order, dispatch *DispatchRecord) (orderID int64, err error) {
 	if len(order.Points) < 2 {
 		return 0, fmt.Errorf("order must contain at least two points")
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
+	tx, beginErr := r.db.BeginTx(ctx, nil)
+	if beginErr != nil {
+		return 0, beginErr
 	}
 	defer func() {
 		if err != nil {
@@ -153,7 +172,7 @@ func (r *OrdersRepo) Create(ctx context.Context, order Order) (int64, error) {
 		err = execErr
 		return 0, err
 	}
-	orderID, err := res.LastInsertId()
+	orderID, err = res.LastInsertId()
 	if err != nil {
 		return 0, err
 	}
@@ -164,6 +183,12 @@ func (r *OrdersRepo) Create(ctx context.Context, order Order) (int64, error) {
 
 	if err = insertStatusHistory(ctx, tx, StatusHistoryEntry{OrderID: orderID, Status: StatusNew}); err != nil {
 		return 0, err
+	}
+
+	if dispatch != nil {
+		if err = insertDispatchRecord(ctx, tx, orderID, *dispatch); err != nil {
+			return 0, err
+		}
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -760,6 +785,62 @@ func insertStatusHistory(ctx context.Context, tx *sql.Tx, entry StatusHistoryEnt
 		entry.CreatedAt = time.Now()
 	}
 	_, err := tx.ExecContext(ctx, `INSERT INTO courier_order_status_history (order_id, status, note, created_at) VALUES (?,?,?,?)`, entry.OrderID, entry.Status, nullOrString(entry.Note), entry.CreatedAt)
+	return err
+}
+
+func insertDispatchRecord(ctx context.Context, tx *sql.Tx, orderID int64, dispatch DispatchRecord) error {
+	if dispatch.State == "" {
+		dispatch.State = StatusNew
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO courier_order_dispatch (order_id, radius_m, next_tick_at, state) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE radius_m=VALUES(radius_m), next_tick_at=VALUES(next_tick_at), state=VALUES(state)`,
+		orderID, dispatch.RadiusM, dispatch.NextTickAt, dispatch.State)
+	return err
+}
+
+// DispatchRepo provides access to courier_order_dispatch table.
+type DispatchRepo struct {
+	db *sql.DB
+}
+
+// NewDispatchRepo constructs DispatchRepo.
+func NewDispatchRepo(db *sql.DB) *DispatchRepo {
+	return &DispatchRepo{db: db}
+}
+
+// ListDue returns dispatch records ready for processing.
+func (r *DispatchRepo) ListDue(ctx context.Context, now time.Time) ([]DispatchRecord, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, order_id, radius_m, next_tick_at, state, created_at FROM courier_order_dispatch WHERE state = 'searching' AND next_tick_at <= ?`, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []DispatchRecord
+	for rows.Next() {
+		var rec DispatchRecord
+		if err := rows.Scan(&rec.ID, &rec.OrderID, &rec.RadiusM, &rec.NextTickAt, &rec.State, &rec.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, rec)
+	}
+	return items, rows.Err()
+}
+
+// UpdateRadius updates dispatch radius and schedules the next tick.
+func (r *DispatchRepo) UpdateRadius(ctx context.Context, orderID int64, radius int, next time.Time) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE courier_order_dispatch SET radius_m = ?, next_tick_at = ? WHERE order_id = ?`, radius, next, orderID)
+	return err
+}
+
+// Finish marks dispatch as completed.
+func (r *DispatchRepo) Finish(ctx context.Context, orderID int64) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE courier_order_dispatch SET state = 'finished' WHERE order_id = ?`, orderID)
+	return err
+}
+
+// TriggerImmediate sets the next tick to the provided moment without changing radius.
+func (r *DispatchRepo) TriggerImmediate(ctx context.Context, orderID int64, next time.Time) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE courier_order_dispatch SET next_tick_at = ? WHERE order_id = ?`, next, orderID)
 	return err
 }
 

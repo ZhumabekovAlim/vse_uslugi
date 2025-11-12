@@ -105,6 +105,7 @@ func main() {
 	courierMux := http.NewServeMux()
 	courierDeps := &courier.Deps{
 		DB:         db,
+		RDB:        rdb,
 		Logger:     taxiLogger{infoLog, errorLog},
 		Config:     courierCfg,
 		HTTPClient: &http.Client{Timeout: 5 * time.Second},
@@ -122,6 +123,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if err := taxi.StartTaxiWorkers(ctx, deps); err != nil {
+		errorLog.Fatal(err)
+	}
+	if err := courier.StartCourierWorkers(ctx, courierDeps); err != nil {
 		errorLog.Fatal(err)
 	}
 

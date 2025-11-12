@@ -3,15 +3,19 @@ package http
 import (
 	"net/http"
 
+	"naimuBack/internal/courier/dispatch"
 	"naimuBack/internal/courier/repo"
 	"naimuBack/internal/courier/ws"
 )
 
 // Config is the subset of runtime configuration required by the HTTP handlers.
 type Config struct {
-	PricePerKM int
-	MinPrice   int
+	PricePerKM        int
+	MinPrice          int
+	SearchRadiusStart int
 }
+
+func (c Config) GetSearchRadiusStart() int { return c.SearchRadiusStart }
 
 // Logger captures the logging contract required by the server.
 type Logger interface {
@@ -21,19 +25,20 @@ type Logger interface {
 
 // Server provides HTTP handlers for the courier domain.
 type Server struct {
-	cfg      Config
-	logger   Logger
-	orders   *repo.OrdersRepo
-	offers   *repo.OffersRepo
-	couriers *repo.CouriersRepo
-	users    *repo.UsersRepo
-	cHub     *ws.CourierHub
-	sHub     *ws.SenderHub
+	cfg        Config
+	logger     Logger
+	orders     *repo.OrdersRepo
+	offers     *repo.OffersRepo
+	couriers   *repo.CouriersRepo
+	users      *repo.UsersRepo
+	cHub       *ws.CourierHub
+	sHub       *ws.SenderHub
+	dispatcher *dispatch.Dispatcher
 }
 
 // NewServer constructs a Server instance.
-func NewServer(cfg Config, logger Logger, orders *repo.OrdersRepo, offers *repo.OffersRepo, couriers *repo.CouriersRepo, users *repo.UsersRepo, cHub *ws.CourierHub, sHub *ws.SenderHub) *Server {
-	return &Server{cfg: cfg, logger: logger, orders: orders, offers: offers, couriers: couriers, users: users, cHub: cHub, sHub: sHub}
+func NewServer(cfg Config, logger Logger, orders *repo.OrdersRepo, offers *repo.OffersRepo, couriers *repo.CouriersRepo, users *repo.UsersRepo, cHub *ws.CourierHub, sHub *ws.SenderHub, dispatcher *dispatch.Dispatcher) *Server {
+	return &Server{cfg: cfg, logger: logger, orders: orders, offers: offers, couriers: couriers, users: users, cHub: cHub, sHub: sHub, dispatcher: dispatcher}
 }
 
 // Register mounts courier routes on the mux.
