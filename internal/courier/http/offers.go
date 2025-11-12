@@ -13,6 +13,7 @@ import (
 	"naimuBack/internal/courier/repo"
 )
 
+// КУРЬЕР ПРЕДЛОЖИЛ ЦЕНУ
 func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -45,24 +46,33 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 	ctx = withCourierActor(ctx, courierID)
 
 	if err := s.offers.Upsert(ctx, req.OrderID, courierID, req.Price); err != nil {
-		s.logger.Errorf("courier: upsert offer failed: %v", err)
+		if s.logger != nil {
+			s.logger.Errorf("courier: upsert offer failed: %v", err)
+		}
 		writeError(w, http.StatusInternalServerError, "failed to store offer")
 		return
 	}
 
 	price := req.Price
+	// Пытаемся подгрузить заказ для детального WS
 	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
-		s.logger.Errorf("courier: load order %d after offer price failed: %v", req.OrderID, err)
+		if s.logger != nil {
+			s.logger.Errorf("courier: load order %d after offer price failed: %v", req.OrderID, err)
+		}
+		// Fallback: эмитим события по id
 		detached := withCourierActor(context.WithoutCancel(ctx), courierID)
 		s.emitOfferEvent(detached, req.OrderID, courierID, repo.OfferStatusProposed, &price, originCourier)
 		s.emitOrderEvent(detached, req.OrderID, orderEventTypeUpdated, originCourier)
 	} else {
+		// Детальные события
 		s.emitOffer(ctx, order, courierID, repo.OfferStatusProposed, &price, originCourier)
 		s.emitOrder(ctx, order, orderEventTypeUpdated, originCourier)
 	}
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusNew})
 }
 
+// ЗАКАЗЧИК ЯВНО ПРИНИМАЕТ КОНКРЕТНОГО КУРЬЕРА
 func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -95,40 +105,66 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	ctx = withSenderActor(ctx, senderID)
 
+	// 1) Обновляем оффер
 	if err := s.offers.UpdateStatus(ctx, req.OrderID, req.CourierID, repo.OfferStatusAccepted); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "offer not found")
 			return
 		}
-		s.logger.Errorf("courier: accept offer failed: %v", err)
+		if s.logger != nil {
+			s.logger.Errorf("courier: accept offer failed: %v", err)
+		}
 		writeError(w, http.StatusInternalServerError, "failed to accept offer")
 		return
 	}
 
+	// 2) Назначаем курьера заказу
 	if err := s.orders.AssignCourier(ctx, req.OrderID, req.CourierID, lifecycle.StatusAccepted); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "order not found")
 			return
 		}
-		s.logger.Errorf("courier: assign courier failed: %v", err)
+		if s.logger != nil {
+			s.logger.Errorf("courier: assign courier failed: %v", err)
+		}
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
 
 	price := req.Price
+	// 3) Эмиты
 	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
-		s.logger.Errorf("courier: load order %d after offer accept failed: %v", req.OrderID, err)
+		if s.logger != nil {
+			s.logger.Errorf("courier: load order %d after offer accept failed: %v", req.OrderID, err)
+		}
 		detached := withSenderActor(context.WithoutCancel(ctx), senderID)
 		s.emitOfferEvent(detached, req.OrderID, req.CourierID, repo.OfferStatusAccepted, &price, originSender)
 		s.emitOrderEvent(detached, req.OrderID, orderEventTypeUpdated, originSender)
+		// Дополнительно сообщим всем курьерам, что заказ уже назначен (чтобы убрали карточку)
+		if s.cHub != nil {
+			s.cHub.Broadcast(map[string]any{
+				"type":       "order_assigned",
+				"order_id":   req.OrderID,
+				"courier_id": req.CourierID,
+			})
+		}
 	} else {
 		s.emitOffer(ctx, order, req.CourierID, repo.OfferStatusAccepted, &price, originSender)
 		s.emitOrder(ctx, order, orderEventTypeUpdated, originSender)
+		// Аналогичный broadcast всем курьерам
+		if s.cHub != nil {
+			s.cHub.Broadcast(map[string]any{
+				"type":       "order_assigned",
+				"order_id":   order.ID,
+				"courier_id": req.CourierID,
+			})
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.StatusAccepted})
 }
 
+// ЗАКАЗЧИК ОТКЛОНЯЕТ ОФФЕР КУРЬЕРА
 func (s *Server) handleOfferDecline(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -161,13 +197,18 @@ func (s *Server) handleOfferDecline(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "offer not found")
 			return
 		}
-		s.logger.Errorf("courier: decline offer failed: %v", err)
+		if s.logger != nil {
+			s.logger.Errorf("courier: decline offer failed: %v", err)
+		}
 		writeError(w, http.StatusInternalServerError, "failed to decline offer")
 		return
 	}
 
+	// Эмиты
 	if order, err := s.orders.Get(ctx, req.OrderID); err != nil {
-		s.logger.Errorf("courier: load order %d after offer decline failed: %v", req.OrderID, err)
+		if s.logger != nil {
+			s.logger.Errorf("courier: load order %d after offer decline failed: %v", req.OrderID, err)
+		}
 		detached := withSenderActor(context.WithoutCancel(ctx), senderID)
 		s.emitOfferEvent(detached, req.OrderID, req.CourierID, repo.OfferStatusDeclined, nil, originSender)
 	} else {
@@ -177,6 +218,7 @@ func (s *Server) handleOfferDecline(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": repo.OfferStatusDeclined})
 }
 
+// ОБОБЩЁННЫЙ РЕСПОНС ЗАКАЗЧИКА НА ОФФЕР: accept / decline
 func (s *Server) handleOfferRespond(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -190,7 +232,7 @@ func (s *Server) handleOfferRespond(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		OrderID   int64  `json:"order_id"`
 		CourierID int64  `json:"courier_id"`
-		Decision  string `json:"decision"`
+		Decision  string `json:"decision"` // "accept" | "decline"
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
@@ -210,57 +252,81 @@ func (s *Server) handleOfferRespond(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	ctx = withSenderActor(ctx, senderID)
 
+	var respStatus string
+
 	if decision == "accept" {
+		// 1) Приняли оффер
 		if err := s.offers.UpdateStatus(ctx, req.OrderID, req.CourierID, repo.OfferStatusAccepted); err != nil {
 			if errors.Is(err, repo.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "offer not found")
 				return
 			}
-			s.logger.Errorf("courier: respond offer accept failed: %v", err)
+			if s.logger != nil {
+				s.logger.Errorf("courier: respond offer accept failed: %v", err)
+			}
 			writeError(w, http.StatusInternalServerError, "failed to update offer")
 			return
 		}
+		// 2) Назначили курьера заказу
 		if err := s.orders.AssignCourier(ctx, req.OrderID, req.CourierID, lifecycle.StatusAccepted); err != nil {
 			if errors.Is(err, repo.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "order not found")
 				return
 			}
-			s.logger.Errorf("courier: assign courier on respond failed: %v", err)
+			if s.logger != nil {
+				s.logger.Errorf("courier: assign courier on respond failed: %v", err)
+			}
 			writeError(w, http.StatusConflict, err.Error())
 			return
 		}
+
+		// 3) Эмиты
+		if order, err := s.orders.Get(ctx, req.OrderID); err == nil {
+			s.emitOrder(ctx, order, orderEventTypeUpdated, originSender)
+			s.emitOffer(ctx, order, req.CourierID, repo.OfferStatusAccepted, nil, originSender)
+			// Сообщим всем курьерам, что заказ назначен
+			if s.cHub != nil {
+				s.cHub.Broadcast(map[string]any{
+					"type":       "order_assigned",
+					"order_id":   order.ID,
+					"courier_id": req.CourierID,
+				})
+			}
+		} else {
+			detached := withSenderActor(context.WithoutCancel(ctx), senderID)
+			s.emitOrderEvent(detached, req.OrderID, orderEventTypeUpdated, originSender)
+			s.emitOfferEvent(detached, req.OrderID, req.CourierID, repo.OfferStatusAccepted, nil, originSender)
+			if s.cHub != nil {
+				s.cHub.Broadcast(map[string]any{
+					"type":       "order_assigned",
+					"order_id":   req.OrderID,
+					"courier_id": req.CourierID,
+				})
+			}
+		}
+
+		respStatus = string(repo.StatusAccepted)
 	} else {
+		// decline
 		if err := s.offers.UpdateStatus(ctx, req.OrderID, req.CourierID, repo.OfferStatusDeclined); err != nil {
 			if errors.Is(err, repo.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "offer not found")
 				return
 			}
-			s.logger.Errorf("courier: respond offer decline failed: %v", err)
+			if s.logger != nil {
+				s.logger.Errorf("courier: respond offer decline failed: %v", err)
+			}
 			writeError(w, http.StatusInternalServerError, "failed to update offer")
 			return
 		}
+		if order, err := s.orders.Get(ctx, req.OrderID); err == nil {
+			s.emitOffer(ctx, order, req.CourierID, repo.OfferStatusDeclined, nil, originSender)
+		} else {
+			detached := withSenderActor(context.WithoutCancel(ctx), senderID)
+			s.emitOfferEvent(detached, req.OrderID, req.CourierID, repo.OfferStatusDeclined, nil, originSender)
+		}
+		respStatus = "declined"
 	}
 
-	if order, err := s.orders.Get(ctx, req.OrderID); err == nil {
-		status := repo.OfferStatusDeclined
-		if decision == "accept" {
-			status = repo.OfferStatusAccepted
-			s.emitOrder(ctx, order, orderEventTypeUpdated, originSender)
-		}
-		s.emitOffer(ctx, order, req.CourierID, status, nil, originSender)
-	} else {
-		detached := withSenderActor(context.WithoutCancel(ctx), senderID)
-		status := repo.OfferStatusDeclined
-		if decision == "accept" {
-			status = repo.OfferStatusAccepted
-			s.emitOrderEvent(detached, req.OrderID, orderEventTypeUpdated, originSender)
-		}
-		s.emitOfferEvent(detached, req.OrderID, req.CourierID, status, nil, originSender)
-	}
-
-	respStatus := map[string]string{"status": "declined"}
-	if decision == "accept" {
-		respStatus["status"] = string(repo.StatusAccepted)
-	}
-	writeJSON(w, http.StatusOK, respStatus)
+	writeJSON(w, http.StatusOK, map[string]string{"status": respStatus})
 }
