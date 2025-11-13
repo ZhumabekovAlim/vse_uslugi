@@ -33,7 +33,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 
             FROM ad_responses ar
             JOIN users u ON u.id = ar.user_id
-            WHERE ar.ad_id = ?`
+            WHERE ar.ad_id = ? `
 	case "work":
 		query = `
 
@@ -41,7 +41,8 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 
             FROM work_responses wr
             JOIN users u ON u.id = wr.user_id
-            WHERE wr.work_id = ?`
+            LEFT JOIN work_confirmations wc ON wc.work_id = wr.work_id AND wc.client_id = wr.user_id
+            WHERE wr.work_id = ? AND wc.status != 'done' AND wc.status != 'in progress'`
 	case "work_ad":
 		query = `
             SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), war.price, war.description, war.created_at
@@ -56,7 +57,8 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 
             FROM rent_responses rr
             JOIN users u ON u.id = rr.user_id
-            WHERE rr.rent_id = ?`
+            LEFT JOIN rent_confirmations rc ON rc.rent_id = rr.rent_id AND rc.client_id = rr.user_id
+            WHERE rr.rent_id = ? AND rc.status != 'done' AND rc.status != 'in progress'`
 	case "rent_ad":
 		query = `
 
