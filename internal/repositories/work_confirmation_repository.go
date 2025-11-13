@@ -28,7 +28,7 @@ func (r *WorkConfirmationRepository) Create(ctx context.Context, wc models.WorkC
 	return wc, nil
 }
 
-func (r *WorkConfirmationRepository) Confirm(ctx context.Context, workID, performerID int) error {
+func (r *WorkConfirmationRepository) Confirm(ctx context.Context, workID, clientID int) error {
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -37,18 +37,16 @@ func (r *WorkConfirmationRepository) Confirm(ctx context.Context, workID, perfor
 
 	var actualPerformerID, actualClientID int
 	query := `SELECT performer_id, client_id FROM work_confirmations WHERE work_id = ? AND (performer_id = ? OR client_id = ?)`
-	if err := tx.QueryRowContext(ctx, query, workID, performerID, performerID).Scan(&actualPerformerID, &actualClientID); err != nil {
+	if err := tx.QueryRowContext(ctx, query, workID, clientID, clientID).Scan(&actualPerformerID, &actualClientID); err != nil {
 		return err
 	}
 
 	now := time.Now()
-	if _, err = tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = true, status = 'in progress', updated_at = ? WHERE work_id = ? AND performer_id = ?`, now, workID, actualPerformerID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = true, status = 'in progress', updated_at = ? WHERE work_id = ? AND client_id = ?`, now, workID, actualClientID); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, `DELETE FROM work_responses WHERE work_id = ? AND user_id <> ?`, workID, actualClientID); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, actualPerformerID); err != nil {
+
+	if _, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, actualClientID); err != nil {
 		return err
 	}
 	return tx.Commit()

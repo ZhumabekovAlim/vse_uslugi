@@ -9,8 +9,8 @@ type ServiceConfirmationService struct {
 	ConfirmationRepo *repositories.ServiceConfirmationRepository
 }
 
-func (s *ServiceConfirmationService) ConfirmService(ctx context.Context, serviceID, performerID int) error {
-	return s.ConfirmationRepo.Confirm(ctx, serviceID, performerID)
+func (s *ServiceConfirmationService) ConfirmService(ctx context.Context, serviceID, clientID int) error {
+	return s.ConfirmationRepo.Confirm(ctx, serviceID, clientID)
 }
 
 func (s *ServiceConfirmationService) CancelService(ctx context.Context, serviceID, userID int) error {

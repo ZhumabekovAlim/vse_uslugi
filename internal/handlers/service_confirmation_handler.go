@@ -15,14 +15,14 @@ type ServiceConfirmationHandler struct {
 
 func (h *ServiceConfirmationHandler) ConfirmService(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ServiceID   int `json:"service_id"`
-		PerformerID int `json:"performer_id"`
+		ServiceID int `json:"service_id"`
+		ClientID  int `json:"client_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.ConfirmService(r.Context(), req.ServiceID, req.PerformerID); err != nil {
+	if err := h.Service.ConfirmService(r.Context(), req.ServiceID, req.ClientID); err != nil {
 		http.Error(w, "Could not confirm service", http.StatusInternalServerError)
 		return
 	}
