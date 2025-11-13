@@ -25,7 +25,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
             FROM service_responses sr
             JOIN users u ON u.id = sr.user_id
             LEFT JOIN service_confirmations sc ON sc.service_id = sr.service_id AND sc.client_id = sr.user_id
-            WHERE sr.service_id = ? AND sc.status != 'done' OR sc.status != 'in progress'`
+            WHERE sr.service_id = ? AND sc.status != 'done' AND sc.status != 'in progress'`
 	case "ad":
 		query = `
 
