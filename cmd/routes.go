@@ -158,7 +158,8 @@ func (app *application) routes() http.Handler {
 
 	// mux.Get("/swagger/", httpSwagger.WrapHandler)
 
-	mux.Post("/ai/ask", standardMiddleware.ThenFunc(app.assistantHandler.Ask))
+mux.Post("/ai/ask", standardMiddleware.ThenFunc(app.assistantHandler.Ask))
+mux.Get("/ws/assistant", wsMiddleware.ThenFunc(app.AssistantWebSocketHandler))
 
 	// Users
 	mux.Post("/user", adminAuthMiddleware.ThenFunc(app.userHandler.CreateUser))     //
