@@ -25,7 +25,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 
             FROM service_responses sr
             JOIN users u ON u.id = sr.user_id
-            LEFT JOIN service_confirmations sc ON sc.service_id = sr.service_id AND sc.client_id = sr.user_id
+            LEFT JOIN service_confirmations sc ON sc.service_id = sr.service_id 
             WHERE sr.service_id = ? AND sc.status != 'done' AND sc.status != 'in progress'`
 	case "ad":
 		query = `
@@ -43,7 +43,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 
             FROM work_responses wr
             JOIN users u ON u.id = wr.user_id
-            LEFT JOIN work_confirmations wc ON wc.work_id = wr.work_id AND wc.client_id = wr.user_id
+            LEFT JOIN work_confirmations wc ON wc.work_id = wr.work_id
             WHERE wr.work_id = ? AND wc.status != 'done' AND wc.status != 'in progress'`
 	case "work_ad":
 		query = `
@@ -60,7 +60,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 
             FROM rent_responses rr
             JOIN users u ON u.id = rr.user_id
-            LEFT JOIN rent_confirmations rc ON rc.rent_id = rr.rent_id AND rc.client_id = rr.user_id
+            LEFT JOIN rent_confirmations rc ON rc.rent_id = rr.rent_id
             WHERE rr.rent_id = ? AND rc.status != 'done' AND rc.status != 'in progress'`
 	case "rent_ad":
 		query = `
@@ -69,7 +69,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 
             FROM rent_ad_responses rar
             JOIN users u ON u.id = rar.user_id
-            LEFT JOIN rent_ad_confirmations rac ON rac.rent_ad_id = rar.rent_ad_id AND rac.client_id = rar.user_id
+            LEFT JOIN rent_ad_confirmations rac ON rac.rent_ad_id = rar.rent_ad_id
             WHERE rar.rent_ad_id = ?`
 	default:
 		return nil, errors.New("unknown item type")
