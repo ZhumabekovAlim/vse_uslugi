@@ -1,20 +1,46 @@
 package models
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
-// SubscriptionSlots represents monthly executor listing slots.
-type SubscriptionSlots struct {
-	ID                     int        `json:"id"`
-	UserID                 int        `json:"user_id"`
-	Slots                  int        `json:"slots"`
-	Status                 string     `json:"status"`
-	RenewsAt               time.Time  `json:"renews_at"`
-	ProviderSubscriptionID *string    `json:"provider_subscription_id,omitempty"`
-	CreatedAt              time.Time  `json:"created_at"`
-	UpdatedAt              *time.Time `json:"updated_at,omitempty"`
+type SubscriptionType string
+
+const (
+	SubscriptionTypeService SubscriptionType = "service"
+	SubscriptionTypeRent    SubscriptionType = "rent"
+	SubscriptionTypeWork    SubscriptionType = "work"
+)
+
+func ParseSubscriptionType(raw string) (SubscriptionType, error) {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	switch normalized {
+	case string(SubscriptionTypeService):
+		return SubscriptionTypeService, nil
+	case string(SubscriptionTypeRent):
+		return SubscriptionTypeRent, nil
+	case string(SubscriptionTypeWork):
+		return SubscriptionTypeWork, nil
+	default:
+		return "", fmt.Errorf("unsupported subscription type: %s", raw)
+	}
 }
 
-// SubscriptionResponses represents monthly response packs.
+func (t SubscriptionType) IsZero() bool {
+	return string(t) == ""
+}
+
+type ExecutorSubscription struct {
+	ID        int              `json:"id"`
+	UserID    int              `json:"user_id"`
+	Type      SubscriptionType `json:"type"`
+	ExpiresAt time.Time        `json:"expires_at"`
+	CreatedAt time.Time        `json:"created_at"`
+	UpdatedAt *time.Time       `json:"updated_at,omitempty"`
+}
+
 type SubscriptionResponses struct {
 	ID                     int        `json:"id"`
 	UserID                 int        `json:"user_id"`
@@ -28,29 +54,32 @@ type SubscriptionResponses struct {
 	UpdatedAt              *time.Time `json:"updated_at,omitempty"`
 }
 
-// SubscriptionProfile aggregates subscription information for profile endpoint.
-type SubscriptionProfile struct {
-	ExecutorListingSlots        int `json:"executor_listing_slots"`
-	ActiveExecutorListingsCount int `json:"active_executor_listings_count"`
-	ResponsePacks               int `json:"response_packs"`
-	MonthlyResponsesQuota       int `json:"monthly_responses_quota"`
-	RemainingResponses          int `json:"remaining_responses"`
-	MonthlyAmount               int `json:"monthly_amount"`
-	Status                      struct {
-		Slots     string `json:"slots"`
-		Responses string `json:"responses"`
-	} `json:"status"`
-	RenewsAt      *time.Time `json:"renews_at,omitempty"`
-	GraceUntil    *time.Time `json:"grace_until,omitempty"`
-	BillingNotice *string    `json:"billing_notice,omitempty"`
+type SubscriptionInfo struct {
+	Type          SubscriptionType `json:"type"`
+	Active        bool             `json:"active"`
+	ExpiresAt     *time.Time       `json:"expires_at,omitempty"`
+	RemainingDays int              `json:"remaining_days"`
 }
 
-// SubscriptionSummary represents a lightweight subscription snapshot for the
-// profile page.
+type SubscriptionResponsesSummary struct {
+	Remaining    int        `json:"remaining"`
+	MonthlyQuota int        `json:"monthly_quota"`
+	Status       string     `json:"status"`
+	RenewsAt     *time.Time `json:"renews_at,omitempty"`
+}
+
+type SubscriptionProfile struct {
+	Service                     SubscriptionInfo             `json:"service"`
+	Rent                        SubscriptionInfo             `json:"rent"`
+	Work                        SubscriptionInfo             `json:"work"`
+	Responses                   SubscriptionResponsesSummary `json:"responses"`
+	ActiveExecutorListingsCount int                          `json:"active_executor_listings_count"`
+}
+
 type SubscriptionSummary struct {
-	ActivePaidListings int        `json:"active_paid_listings"`
-	PurchasedListings  int        `json:"purchased_listings"`
-	ResponsesCount     int        `json:"responses_count"`
+	ServiceActive      bool       `json:"service_active"`
+	RentActive         bool       `json:"rent_active"`
+	WorkActive         bool       `json:"work_active"`
+	ResponsesRemaining int        `json:"responses_remaining"`
 	RenewDate          *time.Time `json:"renew_date,omitempty"`
-	MonthlyPayment     int        `json:"monthly_payment"`
 }

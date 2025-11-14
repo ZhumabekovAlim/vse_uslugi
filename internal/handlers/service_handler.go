@@ -97,6 +97,10 @@ func (h *ServiceHandler) ArchiveService(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := h.Service.ArchiveService(r.Context(), req.ServiceID, req.Archive == 1); err != nil {
+		if errors.Is(err, services.ErrNoActiveSubscription) {
+			http.Error(w, "subscription required", http.StatusForbidden)
+			return
+		}
 		http.Error(w, "Failed to archive service", http.StatusInternalServerError)
 		return
 	}
@@ -575,7 +579,6 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid delete images payload", http.StatusBadRequest)
 		return
 	}
-
 
 	if fileKeys, ok, err := gatherStringsFromFormFiles(r.MultipartForm, "delete_images", "delete_images[]", "removed_images", "removed_images[]"); err != nil {
 		http.Error(w, "Invalid delete images payload", http.StatusBadRequest)

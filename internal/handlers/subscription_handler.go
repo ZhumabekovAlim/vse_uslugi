@@ -48,11 +48,11 @@ func (h *SubscriptionHandler) GetSubscriptions(w http.ResponseWriter, r *http.Re
 	}
 
 	summary := models.SubscriptionSummary{
-		ActivePaidListings: profile.ActiveExecutorListingsCount,
-		PurchasedListings:  profile.ExecutorListingSlots,
-		ResponsesCount:     profile.RemainingResponses,
-		RenewDate:          profile.RenewsAt,
-		MonthlyPayment:     profile.MonthlyAmount,
+		ServiceActive:      profile.Service.Active,
+		RentActive:         profile.Rent.Active,
+		WorkActive:         profile.Work.Active,
+		ResponsesRemaining: profile.Responses.Remaining,
+		RenewDate:          profile.Responses.RenewsAt,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

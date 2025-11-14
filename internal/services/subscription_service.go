@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"time"
+
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 )
@@ -11,7 +13,7 @@ type SubscriptionService struct {
 }
 
 func (s *SubscriptionService) GetProfile(ctx context.Context, userID int) (models.SubscriptionProfile, error) {
-	slots, err := s.Repo.GetSlots(ctx, userID)
+	subs, err := s.Repo.ListExecutorSubscriptions(ctx, userID)
 	if err != nil {
 		return models.SubscriptionProfile{}, err
 	}
@@ -25,17 +27,42 @@ func (s *SubscriptionService) GetProfile(ctx context.Context, userID int) (model
 	}
 
 	profile := models.SubscriptionProfile{
-		ExecutorListingSlots:        slots.Slots,
+		Service: buildSubscriptionInfo(subs, models.SubscriptionTypeService),
+		Rent:    buildSubscriptionInfo(subs, models.SubscriptionTypeRent),
+		Work:    buildSubscriptionInfo(subs, models.SubscriptionTypeWork),
+		Responses: models.SubscriptionResponsesSummary{
+			Remaining:    responses.Remaining,
+			MonthlyQuota: responses.MonthlyQuota,
+			Status:       responses.Status,
+		},
 		ActiveExecutorListingsCount: activeCount,
-		ResponsePacks:               responses.Packs,
-		MonthlyResponsesQuota:       responses.MonthlyQuota,
-		RemainingResponses:          responses.Remaining,
-		MonthlyAmount:               slots.Slots*1000 + responses.Packs*1000,
 	}
-	profile.Status.Slots = slots.Status
-	profile.Status.Responses = responses.Status
-	if !slots.RenewsAt.IsZero() {
-		profile.RenewsAt = &slots.RenewsAt
+	if !responses.RenewsAt.IsZero() {
+		profile.Responses.RenewsAt = &responses.RenewsAt
 	}
 	return profile, nil
+}
+
+func buildSubscriptionInfo(subs []models.ExecutorSubscription, target models.SubscriptionType) models.SubscriptionInfo {
+	info := models.SubscriptionInfo{Type: target}
+	now := time.Now()
+	for _, sub := range subs {
+		if sub.Type != target {
+			continue
+		}
+		info.ExpiresAt = &sub.ExpiresAt
+		if sub.ExpiresAt.After(now) {
+			info.Active = true
+			remaining := int(sub.ExpiresAt.Sub(now).Hours() / 24)
+			if remaining < 1 {
+				remaining = 1
+			}
+			info.RemainingDays = remaining
+		} else {
+			info.Active = false
+			info.RemainingDays = 0
+		}
+		return info
+	}
+	return info
 }

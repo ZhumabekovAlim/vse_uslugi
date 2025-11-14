@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"naimuBack/internal/models"
@@ -12,14 +13,148 @@ type SubscriptionRepository struct {
 	DB *sql.DB
 }
 
-func (r *SubscriptionRepository) GetSlots(ctx context.Context, userID int) (models.SubscriptionSlots, error) {
-	query := `SELECT id, user_id, slots, status, renews_at, provider_subscription_id, created_at, updated_at FROM subscription_slots WHERE user_id = ?`
-	var sub models.SubscriptionSlots
-	err := r.DB.QueryRowContext(ctx, query, userID).Scan(&sub.ID, &sub.UserID, &sub.Slots, &sub.Status, &sub.RenewsAt, &sub.ProviderSubscriptionID, &sub.CreatedAt, &sub.UpdatedAt)
+func (r *SubscriptionRepository) ListExecutorSubscriptions(ctx context.Context, userID int) ([]models.ExecutorSubscription, error) {
+	rows, err := r.DB.QueryContext(ctx, `SELECT id, user_id, subscription_type, expires_at, created_at, updated_at FROM executor_subscriptions WHERE user_id = ?`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subs []models.ExecutorSubscription
+	for rows.Next() {
+		sub, err := scanExecutorSubscription(rows)
+		if err != nil {
+			return nil, err
+		}
+		if !sub.ExpiresAt.After(time.Now()) {
+			if err := r.ArchiveListingsByType(ctx, sub.UserID, sub.Type); err != nil {
+				return nil, err
+			}
+		}
+		subs = append(subs, sub)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return subs, nil
+}
+
+func scanExecutorSubscription(scanner interface{ Scan(dest ...any) error }) (models.ExecutorSubscription, error) {
+	var sub models.ExecutorSubscription
+	var subType string
+	var updated sql.NullTime
+	err := scanner.Scan(&sub.ID, &sub.UserID, &subType, &sub.ExpiresAt, &sub.CreatedAt, &updated)
+	if err != nil {
+		return models.ExecutorSubscription{}, err
+	}
+	if updated.Valid {
+		t := updated.Time
+		sub.UpdatedAt = &t
+	}
+	sub.Type = models.SubscriptionType(subType)
+	return sub, nil
+}
+
+func (r *SubscriptionRepository) getExecutorSubscription(ctx context.Context, userID int, subType models.SubscriptionType) (models.ExecutorSubscription, error) {
+	row := r.DB.QueryRowContext(ctx, `SELECT id, user_id, subscription_type, expires_at, created_at, updated_at FROM executor_subscriptions WHERE user_id = ? AND subscription_type = ?`, userID, subType)
+	sub, err := scanExecutorSubscription(row)
 	if err == sql.ErrNoRows {
-		return models.SubscriptionSlots{UserID: userID}, nil
+		return models.ExecutorSubscription{}, sql.ErrNoRows
 	}
 	return sub, err
+}
+
+func (r *SubscriptionRepository) HasActiveSubscription(ctx context.Context, userID int, subType models.SubscriptionType) (bool, error) {
+	sub, err := r.getExecutorSubscription(ctx, userID, subType)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+	now := time.Now()
+	if !sub.ExpiresAt.After(now) {
+		if err := r.ArchiveListingsByType(ctx, userID, subType); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
+}
+
+func (r *SubscriptionRepository) ArchiveListingsByType(ctx context.Context, userID int, subType models.SubscriptionType) error {
+	var query string
+	switch subType {
+	case models.SubscriptionTypeService:
+		query = `UPDATE service SET status = 'archive' WHERE user_id = ? AND status <> 'archive'`
+	case models.SubscriptionTypeRent:
+		query = `UPDATE rent SET status = 'archive' WHERE user_id = ? AND status <> 'archive'`
+	case models.SubscriptionTypeWork:
+		query = `UPDATE work SET status = 'archive' WHERE user_id = ? AND status <> 'archive'`
+	default:
+		return fmt.Errorf("unsupported subscription type: %s", subType)
+	}
+	_, err := r.DB.ExecContext(ctx, query, userID)
+	return err
+}
+
+func (r *SubscriptionRepository) ExtendSubscription(ctx context.Context, userID int, subType models.SubscriptionType, months int) (models.ExecutorSubscription, error) {
+	if months <= 0 {
+		return models.ExecutorSubscription{}, fmt.Errorf("months must be positive")
+	}
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return models.ExecutorSubscription{}, err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	var id int64
+	var expiresAt time.Time
+	row := tx.QueryRowContext(ctx, `SELECT id, expires_at FROM executor_subscriptions WHERE user_id = ? AND subscription_type = ? FOR UPDATE`, userID, subType)
+	switch scanErr := row.Scan(&id, &expiresAt); scanErr {
+	case nil:
+		base := expiresAt
+		now := time.Now()
+		if !base.After(now) {
+			base = now
+		}
+		newExpires := base.AddDate(0, months, 0)
+		_, err = tx.ExecContext(ctx, `UPDATE executor_subscriptions SET expires_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, newExpires, id)
+	case sql.ErrNoRows:
+		newExpires := time.Now().AddDate(0, months, 0)
+		res, execErr := tx.ExecContext(ctx, `INSERT INTO executor_subscriptions (user_id, subscription_type, expires_at) VALUES (?, ?, ?)`, userID, subType, newExpires)
+		if execErr != nil {
+			err = execErr
+			return models.ExecutorSubscription{}, err
+		}
+		lastID, lastErr := res.LastInsertId()
+		if lastErr != nil {
+			err = lastErr
+			return models.ExecutorSubscription{}, err
+		}
+		id = lastID
+	default:
+		err = scanErr
+		return models.ExecutorSubscription{}, err
+	}
+
+	if err != nil {
+		return models.ExecutorSubscription{}, err
+	}
+
+	row = tx.QueryRowContext(ctx, `SELECT id, user_id, subscription_type, expires_at, created_at, updated_at FROM executor_subscriptions WHERE id = ?`, id)
+	sub, scanErr := scanExecutorSubscription(row)
+	if scanErr != nil {
+		err = scanErr
+		return models.ExecutorSubscription{}, err
+	}
+	return sub, nil
 }
 
 func (r *SubscriptionRepository) GetResponses(ctx context.Context, userID int) (models.SubscriptionResponses, error) {
@@ -47,38 +182,6 @@ func (r *SubscriptionRepository) CountActiveExecutorListings(ctx context.Context
 	return count, err
 }
 
-func (r *SubscriptionRepository) HasActiveSubscription(ctx context.Context, userID int) (bool, error) {
-	query := `SELECT COALESCE(SUM(slots), 0) FROM subscription_slots WHERE user_id = ? AND status IN ('active', 'grace', 'trial')`
-	var slots int64
-	if err := r.DB.QueryRowContext(ctx, query, userID).Scan(&slots); err != nil {
-		return false, err
-	}
-	if slots <= 0 {
-		return false, nil
-	}
-
-	activeCount, err := r.CountActiveExecutorListings(ctx, userID)
-	if err != nil {
-		return false, err
-	}
-
-	return activeCount < int(slots), nil
-}
-
-// HasActiveSubscriptionPlan checks that the user has at least one active
-// subscription slot regardless of the number of currently published listings.
-// Some listing types (e.g. work and rent) should only ensure the presence of an
-// active plan without verifying available slot balance.
-func (r *SubscriptionRepository) HasActiveSubscriptionPlan(ctx context.Context, userID int) (bool, error) {
-	query := `SELECT COALESCE(SUM(slots), 0) FROM subscription_slots WHERE user_id = ? AND status IN ('active', 'grace', 'trial')`
-	var slots int64
-	if err := r.DB.QueryRowContext(ctx, query, userID).Scan(&slots); err != nil {
-		return false, err
-	}
-
-	return slots > 0, nil
-}
-
 func (r *SubscriptionRepository) ConsumeResponse(ctx context.Context, userID int) error {
 	res, err := r.DB.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, userID)
 	if err != nil {
@@ -99,8 +202,6 @@ func (r *SubscriptionRepository) RestoreResponse(ctx context.Context, userID int
 	return err
 }
 
-// AddResponsesBalance increments the remaining response balance for the user.
-// If the user does not yet have a subscription_responses row, it creates one.
 func (r *SubscriptionRepository) AddResponsesBalance(ctx context.Context, userID, amount int) (err error) {
 	if amount <= 0 {
 		return nil
@@ -130,45 +231,6 @@ func (r *SubscriptionRepository) AddResponsesBalance(ctx context.Context, userID
 		_, err = tx.ExecContext(ctx,
 			`INSERT INTO subscription_responses (user_id, packs, status, renews_at, monthly_quota, remaining) VALUES (?, 0, 'active', ?, 0, ?)`,
 			userID, time.Now().UTC(), amount,
-		)
-	default:
-		err = scanErr
-	}
-
-	return err
-}
-
-// AddListingSlots increases executor listing slots for the user.
-// Creates a new subscription_slots row if required.
-func (r *SubscriptionRepository) AddListingSlots(ctx context.Context, userID, slots int) (err error) {
-	if slots <= 0 {
-		return nil
-	}
-
-	tx, err := r.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
-		} else {
-			err = tx.Commit()
-		}
-	}()
-
-	var id int64
-	query := `SELECT id FROM subscription_slots WHERE user_id = ? FOR UPDATE`
-	switch scanErr := tx.QueryRowContext(ctx, query, userID).Scan(&id); scanErr {
-	case nil:
-		_, err = tx.ExecContext(ctx,
-			`UPDATE subscription_slots SET slots = slots + ?, status = CASE WHEN status = 'inactive' THEN 'active' ELSE status END, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-			slots, id,
-		)
-	case sql.ErrNoRows:
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO subscription_slots (user_id, slots, status, renews_at) VALUES (?, ?, 'active', ?)`,
-			userID, slots, time.Now().UTC(),
 		)
 	default:
 		err = scanErr
