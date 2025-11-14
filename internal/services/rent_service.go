@@ -12,7 +12,7 @@ type RentService struct {
 }
 
 func (s *RentService) CreateRent(ctx context.Context, work models.Rent) (models.Rent, error) {
-	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID, models.SubscriptionTypeRent)
 	if err != nil {
 		return models.Rent{}, err
 	}
@@ -33,7 +33,7 @@ func (s *RentService) UpdateRent(ctx context.Context, work models.Rent) (models.
 			return models.Rent{}, err
 		}
 		if existing.Status != "active" {
-			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID, models.SubscriptionTypeRent)
 			if err != nil {
 				return models.Rent{}, err
 			}
@@ -52,6 +52,17 @@ func (s *RentService) DeleteRent(ctx context.Context, id int) error {
 func (s *RentService) ArchiveRent(ctx context.Context, id int, archive bool) error {
 	status := "archive"
 	if !archive {
+		rent, err := s.RentRepo.GetRentByID(ctx, id, 0)
+		if err != nil {
+			return err
+		}
+		has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, rent.UserID, models.SubscriptionTypeRent)
+		if err != nil {
+			return err
+		}
+		if !has {
+			return ErrNoActiveSubscriptionRent
+		}
 		status = "active"
 	}
 	return s.RentRepo.UpdateStatus(ctx, id, status)

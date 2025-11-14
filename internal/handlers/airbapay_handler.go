@@ -22,9 +22,9 @@ import (
 const (
 	productUnknown            = ""
 	productResponses          = "responses"
-	productSlots              = "slots"
 	invoiceTargetTaxiBalance  = "taxi_driver_balance"
 	invoiceTargetCourierFunds = "courier_balance"
+	invoiceTargetSubscription = "subscription_purchase"
 )
 
 type AirbapayHandler struct {
@@ -70,6 +70,10 @@ func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) 
 			ID     int64  `json:"id"`
 			Amount *int   `json:"amount,omitempty"`
 		} `json:"target,omitempty"`
+		Subscription *struct {
+			Type   string `json:"type"`
+			Months int    `json:"months"`
+		} `json:"subscription,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -90,6 +94,27 @@ func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	var subscriptionTarget json.RawMessage
+	if req.Subscription != nil {
+		subType, err := models.ParseSubscriptionType(req.Subscription.Type)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if req.Subscription.Months <= 0 {
+			http.Error(w, "subscription months must be positive", http.StatusBadRequest)
+			return
+		}
+		payload, _ := json.Marshal(map[string]any{
+			"type":   subType,
+			"months": req.Subscription.Months,
+		})
+		subscriptionTarget = payload
+		if strings.TrimSpace(req.Description) == "" {
+			req.Description = fmt.Sprintf("subscription %s x%d", subType, req.Subscription.Months)
+		}
+	}
+
 	invID, err := h.InvoiceRepo.CreateInvoice(r.Context(), req.UserID, req.Amount, req.Description)
 	if err != nil {
 		http.Error(w, "create invoice: "+err.Error(), http.StatusInternalServerError)
@@ -103,6 +128,12 @@ func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) 
 			payload = b
 		}
 		if _, err := h.InvoiceRepo.AddTarget(r.Context(), invID, req.Target.Type, req.Target.ID, payload); err != nil {
+			http.Error(w, "store invoice target: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	if subscriptionTarget != nil {
+		if _, err := h.InvoiceRepo.AddTarget(r.Context(), invID, invoiceTargetSubscription, int64(req.UserID), subscriptionTarget); err != nil {
 			http.Error(w, "store invoice target: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -231,11 +262,6 @@ func (h *AirbapayHandler) applyInvoiceReward(ctx context.Context, invoice models
 			quantity = 10
 		}
 		return h.SubscriptionRepo.AddResponsesBalance(ctx, invoice.UserID, quantity)
-	case productSlots:
-		if quantity == 0 {
-			quantity = 1
-		}
-		return h.SubscriptionRepo.AddListingSlots(ctx, invoice.UserID, quantity)
 	default:
 		return nil
 	}
@@ -293,6 +319,27 @@ func (h *AirbapayHandler) executeInvoiceTarget(ctx context.Context, invoice mode
 		if err := courier.DepositBalance(ctx, h.CourierDeps, target.TargetID, amount); err != nil {
 			return fmt.Errorf("deposit courier balance: %w", err)
 		}
+	case invoiceTargetSubscription:
+		if h.SubscriptionRepo == nil {
+			return fmt.Errorf("subscription repo not configured")
+		}
+		var data struct {
+			Type   string `json:"type"`
+			Months int    `json:"months"`
+		}
+		if err := json.Unmarshal(target.Payload, &data); err != nil {
+			return fmt.Errorf("subscription payload: %w", err)
+		}
+		subType, err := models.ParseSubscriptionType(data.Type)
+		if err != nil {
+			return err
+		}
+		if data.Months <= 0 {
+			return fmt.Errorf("subscription months must be positive")
+		}
+		if _, err := h.SubscriptionRepo.ExtendSubscription(ctx, invoice.UserID, subType, data.Months); err != nil {
+			return fmt.Errorf("extend subscription: %w", err)
+		}
 	default:
 		// Unknown target types are ignored to keep backward compatibility.
 		return nil
@@ -320,10 +367,6 @@ func classifyInvoiceDescription(description string) (string, int) {
 
 	if strings.Contains(normalized, "10") && (strings.Contains(normalized, "отклик") || strings.Contains(normalized, "жауап")) {
 		return productResponses, 10
-	}
-
-	if strings.Contains(normalized, "1") && (strings.Contains(normalized, "объяв") || strings.Contains(normalized, "хабарландыру")) {
-		return productSlots, 1
 	}
 
 	return productUnknown, 0

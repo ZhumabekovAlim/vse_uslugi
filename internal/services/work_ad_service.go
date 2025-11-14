@@ -26,7 +26,7 @@ func (s *WorkAdService) UpdateWorkAd(ctx context.Context, work models.WorkAd) (m
 			return models.WorkAd{}, err
 		}
 		if existing.Status != "active" {
-			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID, models.SubscriptionTypeWork)
 			if err != nil {
 				return models.WorkAd{}, err
 			}
