@@ -26,7 +26,7 @@ func (s *RentAdService) UpdateRentAd(ctx context.Context, work models.RentAd) (m
 			return models.RentAd{}, err
 		}
 		if existing.Status != "active" {
-			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID)
+			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, work.UserID, models.SubscriptionTypeRent)
 			if err != nil {
 				return models.RentAd{}, err
 			}

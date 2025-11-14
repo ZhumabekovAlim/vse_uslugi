@@ -12,7 +12,7 @@ type ServiceService struct {
 }
 
 func (s *ServiceService) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
-	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, service.UserID)
+	has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, service.UserID, models.SubscriptionTypeService)
 	if err != nil {
 		return models.Service{}, err
 	}
@@ -33,7 +33,7 @@ func (s *ServiceService) UpdateService(ctx context.Context, service models.Servi
 			return models.Service{}, err
 		}
 		if existing.Status != "active" {
-			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, service.UserID)
+			has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, service.UserID, models.SubscriptionTypeService)
 			if err != nil {
 				return models.Service{}, err
 			}
@@ -52,6 +52,17 @@ func (s *ServiceService) DeleteService(ctx context.Context, id int) error {
 func (s *ServiceService) ArchiveService(ctx context.Context, id int, archive bool) error {
 	status := "archive"
 	if !archive {
+		service, err := s.ServiceRepo.GetServiceByID(ctx, id, 0)
+		if err != nil {
+			return err
+		}
+		has, err := s.SubscriptionRepo.HasActiveSubscription(ctx, service.UserID, models.SubscriptionTypeService)
+		if err != nil {
+			return err
+		}
+		if !has {
+			return ErrNoActiveSubscription
+		}
 		status = "active"
 	}
 	return s.ServiceRepo.UpdateStatus(ctx, id, status)

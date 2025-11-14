@@ -97,6 +97,10 @@ func (h *RentHandler) ArchiveRent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.ArchiveRent(r.Context(), req.RentID, req.Archive == 1); err != nil {
+		if errors.Is(err, services.ErrNoActiveSubscriptionRent) {
+			http.Error(w, "subscription required", http.StatusForbidden)
+			return
+		}
 		http.Error(w, "Failed to archive rent", http.StatusInternalServerError)
 		return
 	}

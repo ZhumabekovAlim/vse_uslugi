@@ -97,6 +97,10 @@ func (h *WorkHandler) ArchiveWork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.ArchiveWork(r.Context(), req.WorkID, req.Archive == 1); err != nil {
+		if errors.Is(err, services.ErrNoActiveSubscriptionWork) {
+			http.Error(w, "subscription required", http.StatusForbidden)
+			return
+		}
 		http.Error(w, "Failed to archive work", http.StatusInternalServerError)
 		return
 	}
