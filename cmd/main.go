@@ -130,6 +130,7 @@ func main() {
 	}
 
 	startTopCleaner(ctx, app.topService, infoLog, errorLog)
+	startSubscriptionCleaner(ctx, app.subscriptionRepo, infoLog, errorLog)
 
 	app.wsManager = NewWebSocketManager()
 	app.locationManager = NewLocationManager()

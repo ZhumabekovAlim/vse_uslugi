@@ -98,6 +98,42 @@ func (r *SubscriptionRepository) ArchiveListingsByType(ctx context.Context, user
 	return err
 }
 
+// ArchiveExpiredExecutorListings finds executor subscriptions that have expired by the
+// provided moment and archives all related listings for the corresponding type
+// (service, rent, work). It returns the number of executor subscription records
+// that triggered the archival.
+func (r *SubscriptionRepository) ArchiveExpiredExecutorListings(ctx context.Context, now time.Time) (int, error) {
+	rows, err := r.DB.QueryContext(ctx, `
+SELECT DISTINCT user_id, subscription_type
+FROM executor_subscriptions
+WHERE expires_at <= ? AND subscription_type IN ('service', 'rent', 'work')
+`, now)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	processed := 0
+	for rows.Next() {
+		var (
+			userID  int
+			rawType string
+		)
+		if err := rows.Scan(&userID, &rawType); err != nil {
+			return processed, err
+		}
+		subType := models.SubscriptionType(rawType)
+		if err := r.ArchiveListingsByType(ctx, userID, subType); err != nil {
+			return processed, err
+		}
+		processed++
+	}
+	if err := rows.Err(); err != nil {
+		return processed, err
+	}
+	return processed, nil
+}
+
 func (r *SubscriptionRepository) ExtendSubscription(ctx context.Context, userID int, subType models.SubscriptionType, months int) (models.ExecutorSubscription, error) {
 	if months <= 0 {
 		return models.ExecutorSubscription{}, fmt.Errorf("months must be positive")
