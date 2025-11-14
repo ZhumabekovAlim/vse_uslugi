@@ -15,22 +15,39 @@ type RentResponseService struct {
 	ChatRepo         *repositories.ChatRepository
 	ConfirmationRepo *repositories.RentConfirmationRepository
 	MessageRepo      *repositories.MessageRepository
+	SubscriptionRepo *repositories.SubscriptionRepository
 }
 
 func (s *RentResponseService) CreateRentResponse(ctx context.Context, resp models.RentResponses) (models.RentResponses, error) {
+	if err := ensureExecutorCanRespond(ctx, s.SubscriptionRepo, resp.UserID, models.SubscriptionTypeRent); err != nil {
+		return models.RentResponses{}, err
+	}
+
 	resp, err := s.RentResponseRepo.CreateRentResponse(ctx, resp)
 	if err != nil {
 		return resp, err
 	}
 
+	if err := s.SubscriptionRepo.ConsumeResponse(ctx, resp.UserID); err != nil {
+		_ = s.RentResponseRepo.DeleteResponse(ctx, resp.ID)
+		return models.RentResponses{}, err
+	}
+
+	rollback := func() {
+		_ = s.SubscriptionRepo.RestoreResponse(ctx, resp.UserID)
+		_ = s.RentResponseRepo.DeleteResponse(ctx, resp.ID)
+	}
+
 	rent, err := s.RentRepo.GetRentByID(ctx, resp.RentID, 0)
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.RentResponses{}, err
 	}
 
 	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: rent.UserID, User2ID: resp.UserID})
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.RentResponses{}, err
 	}
 
 	resp.ChatID = chatID
@@ -44,7 +61,8 @@ func (s *RentResponseService) CreateRentResponse(ctx context.Context, resp model
 		PerformerID: resp.UserID,
 	})
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.RentResponses{}, err
 	}
 
 	text := fmt.Sprintf("Здравствуйте! Предлагаю цену %v. %s", resp.Price, resp.Description)
@@ -55,7 +73,8 @@ func (s *RentResponseService) CreateRentResponse(ctx context.Context, resp model
 
 		ChatID: chatID,
 	}); err != nil {
-		return resp, err
+		rollback()
+		return models.RentResponses{}, err
 	}
 
 	return resp, nil
@@ -84,6 +103,9 @@ func (s *RentResponseService) CancelRentResponse(ctx context.Context, responseID
 		return err
 	}
 	if err := s.ConfirmationRepo.DeletePending(ctx, resp.RentID, userID); err != nil {
+		return err
+	}
+	if err := s.SubscriptionRepo.RestoreResponse(ctx, userID); err != nil {
 		return err
 	}
 	return nil

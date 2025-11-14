@@ -15,23 +15,39 @@ type ServiceResponseService struct {
 	ChatRepo            *repositories.ChatRepository
 	ConfirmationRepo    *repositories.ServiceConfirmationRepository
 	MessageRepo         *repositories.MessageRepository
+	SubscriptionRepo    *repositories.SubscriptionRepository
 }
 
 func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp models.ServiceResponses) (models.ServiceResponses, error) {
+	if err := ensureExecutorCanRespond(ctx, s.SubscriptionRepo, resp.UserID, models.SubscriptionTypeService); err != nil {
+		return models.ServiceResponses{}, err
+	}
 
 	resp, err := s.ServiceResponseRepo.CreateResponse(ctx, resp)
 	if err != nil {
 		return resp, err
 	}
 
+	if err := s.SubscriptionRepo.ConsumeResponse(ctx, resp.UserID); err != nil {
+		_ = s.ServiceResponseRepo.DeleteResponse(ctx, resp.ID)
+		return models.ServiceResponses{}, err
+	}
+
+	rollback := func() {
+		_ = s.SubscriptionRepo.RestoreResponse(ctx, resp.UserID)
+		_ = s.ServiceResponseRepo.DeleteResponse(ctx, resp.ID)
+	}
+
 	service, err := s.ServiceRepo.GetServiceByID(ctx, resp.ServiceID, 0)
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.ServiceResponses{}, err
 	}
 
 	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: service.UserID, User2ID: resp.UserID})
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.ServiceResponses{}, err
 	}
 	resp.ChatID = chatID
 	resp.ClientID = resp.UserID
@@ -44,7 +60,8 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 		PerformerID: service.UserID,
 	})
 	if err != nil {
-		return resp, err
+		rollback()
+		return models.ServiceResponses{}, err
 	}
 
 	text := fmt.Sprintf("Здравствуйте! Предлагаю цену %v. %s", resp.Price, resp.Description)
@@ -55,7 +72,8 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 
 		ChatID: chatID,
 	}); err != nil {
-		return resp, err
+		rollback()
+		return models.ServiceResponses{}, err
 	}
 	return resp, nil
 
@@ -84,6 +102,9 @@ func (s *ServiceResponseService) CancelServiceResponse(ctx context.Context, resp
 		return err
 	}
 	if err := s.ConfirmationRepo.DeletePending(ctx, resp.ServiceID, userID); err != nil {
+		return err
+	}
+	if err := s.SubscriptionRepo.RestoreResponse(ctx, userID); err != nil {
 		return err
 	}
 	return nil
