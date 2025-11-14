@@ -430,9 +430,7 @@ func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.
 func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterAdRequest) ([]models.FilteredAd, error) {
 	query := `
       SELECT
-
               u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
-
              s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
              COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos
       FROM ad s
