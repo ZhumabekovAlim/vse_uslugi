@@ -633,5 +633,10 @@ func (app *application) routes() http.Handler {
 	mux.Get("/rent_ad_favorites/check/user/:user_id/rent/:rent_ad_id", standardMiddleware.ThenFunc(app.rentAdFavoriteHandler.IsRentAdFavorite))
 	mux.Get("/rent_ad_favorites/:user_id", standardMiddleware.ThenFunc(app.rentAdFavoriteHandler.GetRentAdFavoritesByUser))
 
+	// Notify
+	mux.Post("/notify", standardMiddleware.ThenFunc(app.fcmHandler.NotifyChange))
+	mux.Post("/notify/all", standardMiddleware.ThenFunc(app.fcmHandler.NotifyChangeForAll))
+	mux.Post("/notify/token/create", standardMiddleware.ThenFunc(app.fcmHandler.CreateToken))
+	mux.Del("/notify/token/:token", standardMiddleware.ThenFunc(app.fcmHandler.DeleteToken))
 	return mux
 }

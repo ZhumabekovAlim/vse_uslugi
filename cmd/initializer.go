@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	firebase "firebase.google.com/go"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/google/uuid"
 	_ "github.com/joho/godotenv"
+	"google.golang.org/api/option"
 	_ "google.golang.org/api/option"
 	"log"
 	"naimuBack/internal/ai"
@@ -144,9 +147,27 @@ type application struct {
 	taxiDeps    *taxi.TaxiDeps
 	courierMux  http.Handler
 	courierDeps *courier.Deps
+
+	fcmHandler *handlers.FCMHandler
 }
 
 func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
+
+	ctx := context.Background()
+	sa := option.WithCredentialsFile("/root/NaimuBack/vse_uslugi/cmd/serviceAccountKey.json")
+
+	firebaseApp, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: "..."}, sa)
+	if err != nil {
+		errorLog.Fatalf("Ошибка в нахождении приложения: %v\n", err)
+	}
+
+	fcmClient, err := firebaseApp.Messaging(ctx)
+	if err != nil {
+		errorLog.Fatalf("Ошибка при неверном ID устройства: %v\n", err)
+	}
+	// FCM Handler
+	fcmHandler := handlers.NewFCMHandler(fcmClient, db)
+
 	// Repositories\
 	invoiceRepo := repositories.NewInvoiceRepo(db)
 	userRepo := repositories.UserRepository{DB: db}
@@ -502,6 +523,8 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		locationHandler: locationHandler,
 
 		invoiceRepo: invoiceRepo,
+
+		fcmHandler: fcmHandler,
 	}
 }
 
