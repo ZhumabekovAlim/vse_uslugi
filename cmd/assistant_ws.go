@@ -35,6 +35,16 @@ type assistantWSResponse struct {
 	Result    *services.AskResult `json:"result,omitempty"`
 }
 
+func clamp(value, min, max int) int {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
 func (app *application) AssistantWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	if app.assistantHandler == nil || app.assistantHandler.Service == nil {
 		http.Error(w, "assistant service unavailable", http.StatusServiceUnavailable)
