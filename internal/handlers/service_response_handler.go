@@ -31,6 +31,10 @@ func (h *ServiceResponseHandler) CreateServiceResponse(w http.ResponseWriter, r 
 
 			return
 		}
+		if errors.Is(err, models.ErrNoRemainingResponses) || errors.Is(err, models.ErrNoActiveListings) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		http.Error(w, "Could not create response", http.StatusInternalServerError)
 		return
 	}

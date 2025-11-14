@@ -182,6 +182,23 @@ func (r *SubscriptionRepository) CountActiveExecutorListings(ctx context.Context
 	return count, err
 }
 
+func (r *SubscriptionRepository) HasActiveExecutorListing(ctx context.Context, userID int, subType models.SubscriptionType) (bool, error) {
+	var query string
+	switch subType {
+	case models.SubscriptionTypeService:
+		query = `SELECT EXISTS(SELECT 1 FROM service WHERE user_id = ? AND status IN ('active', 'pending'))`
+	case models.SubscriptionTypeRent:
+		query = `SELECT EXISTS(SELECT 1 FROM rent WHERE user_id = ? AND status IN ('active', 'pending'))`
+	case models.SubscriptionTypeWork:
+		query = `SELECT EXISTS(SELECT 1 FROM work WHERE user_id = ? AND status IN ('active', 'pending'))`
+	default:
+		return false, fmt.Errorf("unsupported subscription type: %s", subType)
+	}
+	var exists bool
+	err := r.DB.QueryRowContext(ctx, query, userID).Scan(&exists)
+	return exists, err
+}
+
 func (r *SubscriptionRepository) ConsumeResponse(ctx context.Context, userID int) error {
 	res, err := r.DB.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, userID)
 	if err != nil {
