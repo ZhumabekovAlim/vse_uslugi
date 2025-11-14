@@ -12,4 +12,5 @@ type ResponseUser struct {
 	Price       float64   `json:"price"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
+	ChatID      int       `json:"chat_id"`
 }

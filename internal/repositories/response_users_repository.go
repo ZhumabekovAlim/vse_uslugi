@@ -20,7 +20,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 	case "service":
 		query = `
 
-            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), sr.price, sr.description, sr.created_at
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), sr.price, sr.description, sr.created_at, sc.chat_id
 
             FROM service_responses sr
             JOIN users u ON u.id = sr.user_id
@@ -37,7 +37,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 	case "work":
 		query = `
 
-            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), wr.price, wr.description, wr.created_at
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), wr.price, wr.description, wr.created_at, wc.chat_id
 
             FROM work_responses wr
             JOIN users u ON u.id = wr.user_id
@@ -53,7 +53,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 	case "rent":
 		query = `
 
-            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), rr.price, rr.description, rr.created_at
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), rr.price, rr.description, rr.created_at, rc.chat_id
 
             FROM rent_responses rr
             JOIN users u ON u.id = rr.user_id
@@ -80,7 +80,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 	var users []models.ResponseUser
 	for rows.Next() {
 		var u models.ResponseUser
-		if err := rows.Scan(&u.ID, &u.Name, &u.Surname, &u.AvatarPath, &u.Rating, &u.Price, &u.Description, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Surname, &u.AvatarPath, &u.Rating, &u.Price, &u.Description, &u.CreatedAt, &u.ChatID); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
