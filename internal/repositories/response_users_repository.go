@@ -78,6 +78,8 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 	}
 	defer rows.Close()
 
+	fmt.Println("test: ", rows)
+
 	var users []models.ResponseUser
 	for rows.Next() {
 		var u models.ResponseUser
