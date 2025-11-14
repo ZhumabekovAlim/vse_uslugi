@@ -30,10 +30,11 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 	case "ad":
 		query = `
 
-            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), ar.price, ar.description, ar.created_at
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), ar.price, ar.description, ar.created_at, ac.chat_id
 
             FROM ad_responses ar
             JOIN users u ON u.id = ar.user_id
+            LEFT JOIN ad_confirmations ac ON ac.ad_id = ar.ad_id AND ac.client_id = ar.user_id
             WHERE ar.ad_id = ? `
 	case "work":
 		query = `
@@ -46,10 +47,11 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
             WHERE wr.work_id = ? AND wc.status != 'done' AND wc.status != 'in progress'`
 	case "work_ad":
 		query = `
-            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), war.price, war.description, war.created_at
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), war.price, war.description, war.created_at, wac.chat_id
 
             FROM work_ad_responses war
             JOIN users u ON u.id = war.user_id
+            LEFT JOIN work_ad_confirmations wac ON wac.work_ad_id = war.work_ad_id AND wac.client_id = war.user_id
             WHERE war.work_ad_id = ?`
 	case "rent":
 		query = `
@@ -63,10 +65,11 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 	case "rent_ad":
 		query = `
 
-            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), rar.price, rar.description, rar.created_at
+            SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), rar.price, rar.description, rar.created_at, rac.chat_id
 
             FROM rent_ad_responses rar
             JOIN users u ON u.id = rar.user_id
+            LEFT JOIN rent_ad_confirmations rac ON rac.rent_ad_id = rar.rent_ad_id AND rac.client_id = rar.user_id
             WHERE rar.rent_ad_id = ?`
 	default:
 		return nil, errors.New("unknown item type")
