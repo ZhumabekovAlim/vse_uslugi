@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"naimuBack/internal/models"
 )
@@ -85,6 +86,8 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 		}
 		users = append(users, u)
 	}
+
+	fmt.Println("Fetched users:", users)
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
