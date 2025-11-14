@@ -34,7 +34,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 
             FROM ad_responses ar
             JOIN users u ON u.id = ar.user_id
-            LEFT JOIN ad_confirmations ac ON ac.ad_id = ar.ad_id AND ac.client_id = ar.user_id
+            LEFT JOIN ad_confirmations ac ON ac.ad_id = ar.ad_id
             WHERE ar.ad_id = ? `
 	case "work":
 		query = `
@@ -51,7 +51,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 
             FROM work_ad_responses war
             JOIN users u ON u.id = war.user_id
-            LEFT JOIN work_ad_confirmations wac ON wac.work_ad_id = war.work_ad_id AND wac.client_id = war.user_id
+            LEFT JOIN work_ad_confirmations wac ON wac.work_ad_id = war.work_ad_id
             WHERE war.work_ad_id = ?`
 	case "rent":
 		query = `
