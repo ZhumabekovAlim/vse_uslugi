@@ -4,3 +4,4 @@ config/config_new.yaml
 .env
 .idea/
 .run/
+cmd/serviceAccountKey.json

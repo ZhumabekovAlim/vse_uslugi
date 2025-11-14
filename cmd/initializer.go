@@ -156,7 +156,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	ctx := context.Background()
 	sa := option.WithCredentialsFile("/root/NaimuBack/vse_uslugi/cmd/serviceAccountKey.json")
 
-	firebaseApp, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: "..."}, sa)
+	firebaseApp, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: "vse-uslugi-dc6ed"}, sa)
 	if err != nil {
 		errorLog.Fatalf("Ошибка в нахождении приложения: %v\n", err)
 	}
