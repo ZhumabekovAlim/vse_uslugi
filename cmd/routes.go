@@ -153,7 +153,7 @@ func (app *application) routes() http.Handler {
 
 	mux := pat.New()
 
-	clientAuth := standardMiddleware.Append(app.JWTMiddlewareWithRole("client"))
+	//clientAuth := standardMiddleware.Append(app.JWTMiddlewareWithRole("client"))
 	workerAuth := standardMiddleware.Append(app.JWTMiddlewareWithRole("worker"))
 
 	// mux.Get("/swagger/", httpSwagger.WrapHandler)
