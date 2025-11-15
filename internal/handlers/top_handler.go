@@ -3,24 +3,30 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 	"naimuBack/internal/services"
-	"net/http"
 )
 
 type TopHandler struct {
-	Service *services.TopService
+	Service        *services.TopService
+	InvoiceRepo    *repositories.InvoiceRepo
+	PaymentService *services.AirbapayService
 }
 
-type topResponse struct {
-	Top models.TopInfo `json:"top"`
-	Raw string         `json:"raw"`
+type topActivationPaymentRequest struct {
+	models.TopActivationRequest
+	Amount      float64 `json:"amount"`
+	Description string  `json:"description,omitempty"`
 }
 
 func (h *TopHandler) Activate(w http.ResponseWriter, r *http.Request) {
-	if h == nil || h.Service == nil {
-		http.Error(w, "top service not configured", http.StatusInternalServerError)
+	if h == nil || h.Service == nil || h.InvoiceRepo == nil || h.PaymentService == nil {
+		http.Error(w, "top payments not configured", http.StatusInternalServerError)
 		return
 	}
 
@@ -30,14 +36,17 @@ func (h *TopHandler) Activate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.TopActivationRequest
+	var req topActivationPaymentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+	if req.Amount <= 0 {
+		http.Error(w, "invalid amount", http.StatusBadRequest)
+		return
+	}
 
-	info, err := h.Service.ActivateTop(r.Context(), userID, req)
-	if err != nil {
+	if err := h.Service.EnsureActivationAllowed(r.Context(), userID, req.TopActivationRequest); err != nil {
 		switch {
 		case errors.Is(err, models.ErrInvalidTopType),
 			errors.Is(err, models.ErrInvalidTopDuration),
@@ -53,14 +62,44 @@ func (h *TopHandler) Activate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	raw, err := info.Marshal()
+	description := strings.TrimSpace(req.Description)
+	if description == "" {
+		description = fmt.Sprintf("top promotion %s #%d", req.Type, req.ID)
+	}
+
+	invID, err := h.InvoiceRepo.CreateInvoice(r.Context(), userID, req.Amount, description)
+	if err != nil {
+		http.Error(w, "create invoice: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	payload, err := json.Marshal(req.TopActivationRequest)
 	if err != nil {
 		http.Error(w, "failed to encode top payload", http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(topResponse{Top: info, Raw: raw}); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	if _, err := h.InvoiceRepo.AddTarget(r.Context(), invID, invoiceTargetTopActivation, int64(req.ID), payload); err != nil {
+		http.Error(w, "store invoice target: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	resp, err := h.PaymentService.CreatePaymentLink(r.Context(), invID, req.Amount, description)
+	if err != nil {
+		_ = h.InvoiceRepo.UpdateStatus(r.Context(), invID, "error")
+		http.Error(w, "create payment link: "+err.Error(), airbapayErrorStatus(err))
+		return
+	}
+
+	if err := h.InvoiceRepo.UpdateStatus(r.Context(), invID, strings.ToLower(resp.Status)); err != nil {
+		fmt.Println("airbapay: failed to update invoice status:", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"inv_id":      invID,
+		"order_id":    resp.OrderID,
+		"invoice_id":  resp.InvoiceID,
+		"payment_url": resp.PaymentURL,
+		"status":      resp.Status,
+	})
 }

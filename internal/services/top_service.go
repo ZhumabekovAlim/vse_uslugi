@@ -22,18 +22,9 @@ func NewTopService(repo *repositories.TopRepository) *TopService {
 }
 
 func (s *TopService) ActivateTop(ctx context.Context, userID int, req models.TopActivationRequest) (models.TopInfo, error) {
-	if err := req.Validate(); err != nil {
-		return models.TopInfo{}, err
-	}
-
-	listingType := strings.TrimSpace(req.Type)
-
-	ownerID, err := s.Repo.GetOwnerID(ctx, listingType, req.ID)
+	listingType, err := s.ensureActivationAllowed(ctx, userID, req)
 	if err != nil {
 		return models.TopInfo{}, err
-	}
-	if ownerID != userID {
-		return models.TopInfo{}, ErrTopForbidden
 	}
 
 	now := time.Now().UTC()
@@ -45,6 +36,28 @@ func (s *TopService) ActivateTop(ctx context.Context, userID int, req models.Top
 		return models.TopInfo{}, err
 	}
 	return info, nil
+}
+
+// EnsureActivationAllowed validates the request and checks whether the user can manage the listing.
+func (s *TopService) EnsureActivationAllowed(ctx context.Context, userID int, req models.TopActivationRequest) error {
+	_, err := s.ensureActivationAllowed(ctx, userID, req)
+	return err
+}
+
+func (s *TopService) ensureActivationAllowed(ctx context.Context, userID int, req models.TopActivationRequest) (string, error) {
+	if err := req.Validate(); err != nil {
+		return "", err
+	}
+
+	listingType := strings.TrimSpace(req.Type)
+	ownerID, err := s.Repo.GetOwnerID(ctx, listingType, req.ID)
+	if err != nil {
+		return "", err
+	}
+	if ownerID != userID {
+		return "", ErrTopForbidden
+	}
+	return listingType, nil
 }
 
 func (s *TopService) ClearExpiredTop(ctx context.Context, now time.Time) (int, error) {

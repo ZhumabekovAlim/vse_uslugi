@@ -20,17 +20,19 @@ import (
 )
 
 const (
-	productUnknown            = ""
-	productResponses          = "responses"
-	invoiceTargetTaxiBalance  = "taxi_driver_balance"
-	invoiceTargetCourierFunds = "courier_balance"
-	invoiceTargetSubscription = "subscription_purchase"
+	productUnknown             = ""
+	productResponses           = "responses"
+	invoiceTargetTaxiBalance   = "taxi_driver_balance"
+	invoiceTargetCourierFunds  = "courier_balance"
+	invoiceTargetSubscription  = "subscription_purchase"
+	invoiceTargetTopActivation = "top_activation"
 )
 
 type AirbapayHandler struct {
 	Service          *services.AirbapayService
 	InvoiceRepo      *repositories.InvoiceRepo
 	SubscriptionRepo *repositories.SubscriptionRepository
+	TopService       *services.TopService
 	TaxiMux          http.Handler
 	TaxiDeps         *taxi.TaxiDeps
 	CourierDeps      *courier.Deps
@@ -339,6 +341,17 @@ func (h *AirbapayHandler) executeInvoiceTarget(ctx context.Context, invoice mode
 		}
 		if _, err := h.SubscriptionRepo.ExtendSubscription(ctx, invoice.UserID, subType, data.Months); err != nil {
 			return fmt.Errorf("extend subscription: %w", err)
+		}
+	case invoiceTargetTopActivation:
+		if h.TopService == nil {
+			return fmt.Errorf("top service not configured")
+		}
+		var data models.TopActivationRequest
+		if err := json.Unmarshal(target.Payload, &data); err != nil {
+			return fmt.Errorf("top activation payload: %w", err)
+		}
+		if _, err := h.TopService.ActivateTop(ctx, invoice.UserID, data); err != nil {
+			return fmt.Errorf("activate top: %w", err)
 		}
 	default:
 		// Unknown target types are ignored to keep backward compatibility.
