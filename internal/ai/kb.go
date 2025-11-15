@@ -108,21 +108,71 @@ func (kb *KnowledgeBase) TopEntries(question string, limit int) []ScoredEntry {
 }
 
 func scoreEntry(entry KBEntry, lowerQuestion string) int {
-	score := 0
 	if lowerQuestion == "" {
-		return score
+		return 0
 	}
 
 	question := lowerQuestion
-	for _, keyword := range entry.Keywords {
-		keyword = strings.ToLower(strings.TrimSpace(keyword))
-		if keyword == "" {
+	score := 0
+
+	for _, kw := range entry.Keywords {
+		kw = strings.ToLower(strings.TrimSpace(kw))
+		if kw == "" {
 			continue
 		}
-		if strings.Contains(question, keyword) {
-			score++
+
+		// 1) Сильное совпадение: полное ключевое слово как подстрока
+		if strings.Contains(question, kw) {
+			score += 3
+			continue
+		}
+
+		// 2) Попробуем стем (общий корень) для русского
+		stem := stemRuWord(kw)
+		if stem != "" && strings.Contains(question, stem) {
+			score += 2
+			continue
 		}
 	}
 
 	return score
+}
+
+// Очень простой стеммер для русских слов: обрезает частые суффиксы,
+// чтобы "отклик", "откликнуться", "отклики" давали общий корень.
+func stemRuWord(s string) string {
+	rs := []rune(s)
+	if len(rs) <= 4 {
+		// слишком короткие слова лучше не трогать
+		return ""
+	}
+
+	// Набор простых русских суффиксов (без претензии на полноту)
+	suffixes := []string{
+		"ться", "тся", "тись", "ешься", "ются", "ется",
+		"ировать", "ировать", "овать",
+		"овать", "ировать",
+		"ивать", "ывать",
+		"ить", "ать", "ять", "еть",
+		"ки", "ка", "ку", "кой", "ках",
+		"ов", "ев", "ом", "ами", "ями",
+		"ый", "ий", "ой",
+		"ая", "яя",
+		"ое", "ее",
+		"ые", "ие",
+	}
+
+	for _, suf := range suffixes {
+		sr := []rune(suf)
+		if len(rs) > len(sr)+2 && string(rs[len(rs)-len(sr):]) == suf {
+			return string(rs[:len(rs)-len(sr)])
+		}
+	}
+
+	// fallback: просто отрежем последний символ, если слово всё ещё не слишком короткое
+	if len(rs) > 5 {
+		return string(rs[:len(rs)-1])
+	}
+
+	return ""
 }
