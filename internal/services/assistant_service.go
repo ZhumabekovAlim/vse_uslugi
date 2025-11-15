@@ -89,14 +89,17 @@ func (s *AssistantService) Ask(ctx context.Context, params AskParams) (AskResult
 		kbHasMatch = found && bestScore > 0
 		snippets = s.kb.TopEntries(question, params.MaxKB)
 
-		// ⚡ Если обычный матч не найден — пробуем доменные правила.
-		if !kbHasMatch {
-			if entry, ok := pickDomainKBEntry(s.kb, lowerQ, params.Role); ok {
-				bestEntry = entry
+		// ⚡ Доменный fallback вызываем ВСЕГДА.
+		// Если он нашёл более уместную запись (такси/доставка/объявления/...), она переезжает поверх.
+		if domainEntry, ok := pickDomainKBEntry(s.kb, lowerQ, params.Role); ok {
+			// Если вообще ничего не нашли — просто берём доменную запись
+			// ИЛИ если нашли, но id отличается — считаем, что доменная запись точнее.
+			if !kbHasMatch || domainEntry.ID != bestEntry.ID {
+				bestEntry = domainEntry
 				bestScore = 1
 				kbHasMatch = true
 				snippets = []ai.ScoredEntry{
-					{Entry: entry, Score: 1},
+					{Entry: domainEntry, Score: 1},
 				}
 			}
 		}
