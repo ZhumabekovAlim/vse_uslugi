@@ -2863,6 +2863,7 @@ func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "missing passenger id")
 		return
 	}
+
 	limit := 50
 	if v := r.URL.Query().Get("limit"); v != "" {
 		n, err := strconv.Atoi(v)
