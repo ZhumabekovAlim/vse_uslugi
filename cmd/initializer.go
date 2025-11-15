@@ -273,7 +273,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		RentAdRepo:  &rentAdRepo,
 	}
 
-	kb, err := ai.LoadKnowledgeBase("/root/NaimuBack/vse_uslugi/kb/kb.json")
+	kb, err := ai.LoadKnowledgeBase("/root/NaimuBack/vse_uslugi/kb_base/kb.json")
 	if err != nil {
 		errorLog.Fatalf("load knowledge base: %v", err)
 	}
