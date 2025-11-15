@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -192,8 +193,10 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 	role = strings.ToLower(strings.TrimSpace(role))
 
 	type domainRule struct {
-		substr    string   // что ищем в вопросе (в lowerQ)
-		preferIDs []string // какие KB id пробуем в приоритете
+		substr      string   // что ищем в вопросе
+		preferIDs   []string // какие KB id пробуем в приоритете
+		idPrefixes  []string // какие префиксы id считаем "доменными"
+		fallbackSub string   // чем искать по keyword, если id не нашли
 	}
 
 	rules := make([]domainRule, 0, 16)
@@ -211,6 +214,8 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 					"taxi_driver_history",
 					"taxi_driver_profile",
 				},
+				idPrefixes:  []string{"taxi_"},
+				fallbackSub: "такси",
 			})
 		case "courier", "курьер":
 			rules = append(rules, domainRule{
@@ -220,6 +225,8 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 					"taxi_courier_history",
 					"taxi_courier_profile",
 				},
+				idPrefixes:  []string{"taxi_"},
+				fallbackSub: "такси",
 			})
 		default: // пассажир / пользователь
 			rules = append(rules, domainRule{
@@ -229,6 +236,8 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 					"taxi_passenger_intercity",
 					"taxi_passenger_history",
 				},
+				idPrefixes:  []string{"taxi_"},
+				fallbackSub: "такси",
 			})
 		}
 	}
@@ -242,6 +251,8 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 					"taxi_sender_order",
 					"taxi_sender_history",
 				},
+				idPrefixes:  []string{"taxi_"},
+				fallbackSub: "доставк",
 			},
 			domainRule{
 				substr: "курьер",
@@ -251,6 +262,8 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 					"taxi_courier_history",
 					"taxi_courier_profile",
 				},
+				idPrefixes:  []string{"taxi_"},
+				fallbackSub: "курьер",
 			},
 		)
 	}
@@ -269,6 +282,8 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 				"ad_executor_other_ads",
 				"ad_location_view",
 			},
+			idPrefixes:  []string{"ad_", "home_category_"},
+			fallbackSub: "объявлен",
 		})
 	}
 
@@ -280,6 +295,8 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 				"profile_subscriptions",
 				"ad_respond_balance",
 			},
+			idPrefixes:  []string{"profile_", "ad_"},
+			fallbackSub: "подписк",
 		})
 	}
 
@@ -295,6 +312,8 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 				"taxi_passenger_order",
 				"taxi_sender_order",
 			},
+			idPrefixes:  []string{"order_", "taxi_"},
+			fallbackSub: "заказ",
 		})
 	}
 
@@ -310,6 +329,8 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 				"chat_ad_chats",
 				"ad_respond",
 			},
+			idPrefixes:  []string{"chat_", "ad_"},
+			fallbackSub: "чат",
 		})
 	}
 
@@ -321,6 +342,8 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 				"city_select",
 				"taxi_passenger_intercity",
 			},
+			idPrefixes:  []string{"city_", "taxi_"},
+			fallbackSub: "город",
 		})
 	}
 
@@ -341,30 +364,44 @@ func pickDomainKBEntry(kb *ai.KnowledgeBase, lowerQ, role string) (ai.KBEntry, b
 				"profile_privacy_policy",
 				"delete_account",
 			},
+			idPrefixes:  []string{"profile_", "delete_"},
+			fallbackSub: "профил",
 		})
 	}
 
 	entries := kb.Entries()
 
-	// 1) Пробуем пройти по всем правилам и найти приоритетный ID
 	for _, rule := range rules {
 		if !strings.Contains(lowerQ, rule.substr) {
 			continue
 		}
 
-		// Сначала пытаемся найти по приоритетным ID
-		for _, preferredID := range rule.preferIDs {
+		// 1) Сначала жёстко пробуем preferIDs через FindByID
+		for _, id := range rule.preferIDs {
+			if entry, ok := kb.FindByID(id); ok {
+				log.Printf("[assistant] domain fallback by ID: substr=%q -> id=%s", rule.substr, id)
+				return entry, true
+			}
+		}
+
+		// 2) Если конкретные ID не нашли — ищем по префиксам id (например taxi_, order_, ad_)
+		if len(rule.idPrefixes) > 0 {
 			for _, e := range entries {
-				if e.ID == preferredID {
-					return e, true
+				for _, prefix := range rule.idPrefixes {
+					if strings.HasPrefix(e.ID, prefix) {
+						log.Printf("[assistant] domain fallback by prefix: substr=%q -> id=%s", rule.substr, e.ID)
+						return e, true
+					}
 				}
 			}
 		}
 
-		// Если ни один preferredID не нашелся (например, его удалили из KB),
-		// пробуем общий поиск по подстроке keyword.
-		if entry, ok := kb.FindByKeywordSubstring(rule.substr); ok {
-			return entry, true
+		// 3) Совсем крайний случай — поиск по keyword-сабстроке
+		if rule.fallbackSub != "" {
+			if entry, ok := kb.FindByKeywordSubstring(rule.fallbackSub); ok {
+				log.Printf("[assistant] domain fallback by keyword: substr=%q -> id=%s", rule.substr, entry.ID)
+				return entry, true
+			}
 		}
 	}
 

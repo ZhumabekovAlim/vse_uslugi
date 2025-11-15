@@ -207,3 +207,20 @@ func stemRuWord(s string) string {
 
 	return ""
 }
+
+// FindByID — прямой поиск записи по ID.
+func (kb *KnowledgeBase) FindByID(id string) (KBEntry, bool) {
+	if kb == nil {
+		return KBEntry{}, false
+	}
+	target := strings.TrimSpace(id)
+	if target == "" {
+		return KBEntry{}, false
+	}
+	for _, e := range kb.entries {
+		if e.ID == target {
+			return e, true
+		}
+	}
+	return KBEntry{}, false
+}
