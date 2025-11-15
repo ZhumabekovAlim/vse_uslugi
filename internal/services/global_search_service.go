@@ -142,9 +142,7 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 		return models.GlobalSearchResponse{Results: nil, Total: 0, Page: page, Limit: limit}, nil
 	}
 
-	sort.SliceStable(entries, func(i, j int) bool {
-		return lessByTopState(entries[i].state, entries[i].createdAt, entries[j].state, entries[j].createdAt)
-	})
+	sortGlobalSearchEntries(entries)
 
 	total := len(entries)
 	start := (page - 1) * limit
@@ -169,6 +167,15 @@ type globalSearchEntry struct {
 	item      models.GlobalSearchItem
 	state     listingTopState
 	createdAt time.Time
+}
+
+func sortGlobalSearchEntries(entries []globalSearchEntry) {
+	if len(entries) < 2 {
+		return
+	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		return lessByTopState(entries[i].state, entries[i].createdAt, entries[j].state, entries[j].createdAt)
+	})
 }
 
 func newGlobalSearchEntry(listingType string, item models.GlobalSearchItem, top string, createdAt, now time.Time) globalSearchEntry {

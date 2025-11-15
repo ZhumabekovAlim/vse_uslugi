@@ -395,7 +395,8 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
               u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
              s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
-             COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos
+             COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
+             s.top, s.created_at
       FROM rent_ad s
       JOIN users u ON s.user_id = u.id
       WHERE 1=1
@@ -465,7 +466,7 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 			&s.RentAdID, &s.RentAdName, &s.RentAdAddress, &s.RentAdPrice, &s.RentAdDescription, &s.RentAdLatitude, &s.RentAdLongitude,
-			&imagesJSON, &videosJSON,
+			&imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -482,6 +483,7 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 		rents = append(rents, s)
 	}
 
+	sortFilteredRentAdsByTop(rents)
 	return rents, nil
 }
 
@@ -544,7 +546,8 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
            u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
            s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
-           COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
+       COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
+       s.top, s.created_at,
            CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
            CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
    FROM rent_ad s
@@ -632,7 +635,7 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.RentAdID, &s.RentAdName, &s.RentAdAddress, &s.RentAdPrice, &s.RentAdDescription, &s.RentAdLatitude, &s.RentAdLongitude, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
+			&s.RentAdID, &s.RentAdName, &s.RentAdAddress, &s.RentAdPrice, &s.RentAdDescription, &s.RentAdLatitude, &s.RentAdLongitude, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -657,6 +660,7 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 		return nil, fmt.Errorf("error reading rows: %w", err)
 	}
 
+	sortFilteredRentAdsByTop(rents)
 	log.Printf("[INFO] Successfully fetched %d services", len(rents))
 	return rents, nil
 }

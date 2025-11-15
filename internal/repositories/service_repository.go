@@ -434,10 +434,11 @@ func (r *ServiceRepository) GetFilteredServicesPost(ctx context.Context, req mod
 	query := `
 SELECT
 
-        u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-       s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
-       COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos
+s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
+COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
+s.top, s.created_at
 FROM service s
 JOIN users u ON s.user_id = u.id
 WHERE 1=1
@@ -508,7 +509,7 @@ WHERE 1=1
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON,
+			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -533,6 +534,7 @@ WHERE 1=1
 		services = append(services, s)
 	}
 
+	sortFilteredServicesByTop(services)
 	return services, nil
 }
 
@@ -597,12 +599,13 @@ func (r *ServiceRepository) GetFilteredServicesWithLikes(ctx context.Context, re
 	query := `
 SELECT DISTINCT
 
-       u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-      s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
-      COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
-      CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
-      CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
+s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
+COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
+s.top, s.created_at,
+CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
 FROM service s
 JOIN users u ON s.user_id = u.id
 LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
@@ -682,7 +685,7 @@ WHERE 1=1
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
+			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -715,6 +718,7 @@ WHERE 1=1
 		return nil, fmt.Errorf("error reading rows: %w", err)
 	}
 
+	sortFilteredServicesByTop(services)
 	log.Printf("[INFO] Successfully fetched %d services", len(services))
 	return services, nil
 }

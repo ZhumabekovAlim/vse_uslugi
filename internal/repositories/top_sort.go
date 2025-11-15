@@ -15,24 +15,48 @@ func sortServicesByTop(services []models.Service) {
 	sortListingsByTop(services, func(s models.Service) string { return s.Top }, func(s models.Service) time.Time { return s.CreatedAt })
 }
 
+func sortFilteredServicesByTop(services []models.FilteredService) {
+	sortListingsByTop(services, func(s models.FilteredService) string { return s.Top }, func(s models.FilteredService) time.Time { return s.CreatedAt })
+}
+
 func sortAdsByTop(ads []models.Ad) {
 	sortListingsByTop(ads, func(a models.Ad) string { return a.Top }, func(a models.Ad) time.Time { return a.CreatedAt })
+}
+
+func sortFilteredAdsByTop(ads []models.FilteredAd) {
+	sortListingsByTop(ads, func(a models.FilteredAd) string { return a.Top }, func(a models.FilteredAd) time.Time { return a.CreatedAt })
 }
 
 func sortWorksByTop(works []models.Work) {
 	sortListingsByTop(works, func(w models.Work) string { return w.Top }, func(w models.Work) time.Time { return w.CreatedAt })
 }
 
+func sortFilteredWorksByTop(works []models.FilteredWork) {
+	sortListingsByTop(works, func(w models.FilteredWork) string { return w.Top }, func(w models.FilteredWork) time.Time { return w.CreatedAt })
+}
+
 func sortWorkAdsByTop(works []models.WorkAd) {
 	sortListingsByTop(works, func(w models.WorkAd) string { return w.Top }, func(w models.WorkAd) time.Time { return w.CreatedAt })
+}
+
+func sortFilteredWorkAdsByTop(works []models.FilteredWorkAd) {
+	sortListingsByTop(works, func(w models.FilteredWorkAd) string { return w.Top }, func(w models.FilteredWorkAd) time.Time { return w.CreatedAt })
 }
 
 func sortRentsByTop(rents []models.Rent) {
 	sortListingsByTop(rents, func(r models.Rent) string { return r.Top }, func(r models.Rent) time.Time { return r.CreatedAt })
 }
 
+func sortFilteredRentsByTop(rents []models.FilteredRent) {
+	sortListingsByTop(rents, func(r models.FilteredRent) string { return r.Top }, func(r models.FilteredRent) time.Time { return r.CreatedAt })
+}
+
 func sortRentAdsByTop(rents []models.RentAd) {
 	sortListingsByTop(rents, func(r models.RentAd) string { return r.Top }, func(r models.RentAd) time.Time { return r.CreatedAt })
+}
+
+func sortFilteredRentAdsByTop(rents []models.FilteredRentAd) {
+	sortListingsByTop(rents, func(r models.FilteredRentAd) string { return r.Top }, func(r models.FilteredRentAd) time.Time { return r.CreatedAt })
 }
 
 func sortListingsByTop[T any](items []T, getTop func(item T) string, getCreatedAt func(item T) time.Time) {

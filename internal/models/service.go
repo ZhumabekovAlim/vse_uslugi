@@ -79,22 +79,24 @@ type FilterServicesRequest struct {
 }
 
 type FilteredService struct {
-	UserID             int     `json:"user_id"`
-	UserName           string  `json:"user_name"`
-	UserSurname        string  `json:"user_surname"`
-	UserPhone          string  `json:"-"`
-	UserAvatarPath     *string `json:"user_avatar_path,omitempty"`
-	UserRating         float64 `json:"user_rating"`
-	UserReviewsCount   int     `json:"user_reviews_count"`
-	ServiceID          int     `json:"service_id"`
-	ServiceName        string  `json:"service_name"`
-	ServiceAddress     string  `json:"service_address"`
-	ServicePrice       float64 `json:"service_price"`
-	ServiceDescription string  `json:"service_description"`
-	Images             []Image `json:"images"`
-	Videos             []Video `json:"videos"`
-	ServiceLatitude    *string `json:"latitude"`
-	ServiceLongitude   *string `json:"longitude"`
-	Liked              bool    `json:"liked"`
-	Responded          bool    `json:"is_responded"`
+	UserID             int       `json:"user_id"`
+	UserName           string    `json:"user_name"`
+	UserSurname        string    `json:"user_surname"`
+	UserPhone          string    `json:"-"`
+	UserAvatarPath     *string   `json:"user_avatar_path,omitempty"`
+	UserRating         float64   `json:"user_rating"`
+	UserReviewsCount   int       `json:"user_reviews_count"`
+	ServiceID          int       `json:"service_id"`
+	ServiceName        string    `json:"service_name"`
+	ServiceAddress     string    `json:"service_address"`
+	ServicePrice       float64   `json:"service_price"`
+	ServiceDescription string    `json:"service_description"`
+	Images             []Image   `json:"images"`
+	Videos             []Video   `json:"videos"`
+	ServiceLatitude    *string   `json:"latitude"`
+	ServiceLongitude   *string   `json:"longitude"`
+	Liked              bool      `json:"liked"`
+	Responded          bool      `json:"is_responded"`
+	Top                string    `json:"-"`
+	CreatedAt          time.Time `json:"-"`
 }
