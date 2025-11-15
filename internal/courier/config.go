@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	defaultPricePerKM        = 120
+	defaultPricePerKM        = 170
 	defaultMinPrice          = 500
 	defaultOfferTTL          = 15 * time.Minute
 	defaultSearchTimeout     = 15 * time.Minute

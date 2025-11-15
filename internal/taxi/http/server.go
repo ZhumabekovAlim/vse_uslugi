@@ -2108,25 +2108,56 @@ func (s *Server) handleLifecycleFinish(w http.ResponseWriter, r *http.Request, o
 		return
 	}
 
+	// Уже на последней точке или завершён — просто вернуть текущий статус
 	switch order.Status {
 	case fsm.StatusAtLastPoint, fsm.StatusCompleted:
 		writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
 		return
 	case fsm.StatusInProgress:
+		// ok, идём дальше
 	default:
 		writeError(w, http.StatusConflict, "order not in progress")
 		return
 	}
 
-	if err := s.applyStatusSequence(ctx, &order, fsm.StatusAtLastPoint); err != nil {
-		if errors.Is(err, errOrderStatusConflict) {
+	// Целевой статус — completed, с комиссией как в handleStatus
+	newStatus := fsm.StatusCompleted
+	if !fsm.CanTransition(order.Status, newStatus) {
+		writeError(w, http.StatusConflict, "invalid transition")
+		return
+	}
+
+	// Рассчёт комиссии
+	commission := calculateCommission(order.ClientPrice)
+	updateErr := s.ordersRepo.UpdateStatusWithDriverCharge(
+		ctx,
+		orderID,
+		order.Status, // old
+		newStatus,    // new
+		driverID,
+		commission,
+	)
+
+	if updateErr != nil {
+		if errors.Is(updateErr, sql.ErrNoRows) {
 			writeError(w, http.StatusConflict, "order status changed")
 			return
 		}
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusInternalServerError, "update status failed")
 		return
 	}
+
+	// Локально обновляем статус, чтобы корректно отправить в нотификации
+	order.Status = newStatus
+
+	// Уведомляем пассажира
 	s.notifyPassengerStatus(order.PassengerID, order.ID, order.Status)
+
+	// Если онлайн-оплата — создаём платёж (как в handleStatus)
+	if order.PaymentMethod == "online" && s.payClient != nil {
+		go s.createPayment(orderID, order.ClientPrice)
+	}
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": order.Status})
 }
 
