@@ -64,49 +64,71 @@ func NewAssistantService(kb *ai.KnowledgeBase, client ChatCompletionClient) *Ass
 }
 
 func (s *AssistantService) Ask(ctx context.Context, params AskParams) (AskResult, error) {
-	if s.kb == nil {
+	// Если вообще нет KB и нет LLM — только fallback
+	if s.kb == nil && (s.client == nil || !params.UseLLM) {
 		return AskResult{Answer: assistantFallbackAnswer, Source: "fallback"}, nil
 	}
 
-	// 1) Сначала ищем по KB
-	bestEntry, bestScore, found := s.kb.FindBestMatch(params.Question)
+	var (
+		bestEntry  ai.KBEntry
+		bestScore  int
+		found      bool
+		kbHasMatch bool
+		snippets   []ai.ScoredEntry
+	)
 
-	// "хотя бы как-то связано с приложением"
-	kbHasMatch := found && bestScore > 0
+	question := strings.TrimSpace(params.Question)
+	if question == "" {
+		return AskResult{Answer: assistantFallbackAnswer, Source: "fallback"}, nil
+	}
 
-	// оставим "уверенность" отдельно, если ты захочешь её использовать дальше
-	//kbConfident := found && bestScore >= assistantConfidenceThreshold
+	// 1) Работа с KB, если она есть
+	if s.kb != nil {
+		bestEntry, bestScore, found = s.kb.FindBestMatch(question)
+		// "хотя бы как-то похоже на что-то из приложения"
+		kbHasMatch = found && bestScore > 0
 
-	// 2) Если LLM не просили или клиента нет — отдаем KB (если уверенно) или fallback
+		// Сниппеты только с положительным score (см. обновлённый TopEntries)
+		snippets = s.kb.TopEntries(question, params.MaxKB)
+	}
+
+	// 2) Если LLM выключен или не настроен — отвечаем только KB / fallback
 	if !params.UseLLM || s.client == nil {
 		if kbHasMatch {
+			refs := []KBRef{{ID: bestEntry.ID, Score: bestScore}}
 			return AskResult{
 				Answer: bestEntry.Answer,
 				Source: "kb",
-				KBRefs: []KBRef{{ID: bestEntry.ID, Score: bestScore}},
+				KBRefs: refs,
 			}, nil
 		}
 
-		// KB ничего не нашла
+		// KB не нашла ничего похожего -> честный fallback
 		return AskResult{Answer: assistantFallbackAnswer, Source: "fallback"}, nil
 	}
 
-	// 3) Готовим контекст для LLM
-	snippets := s.kb.TopEntries(params.Question, params.MaxKB)
+	// 3) Используем LLM во всех остальных случаях (универсальное поведение)
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
-	prompt := buildSystemPrompt(params.Role, params.Locale /* экран не передаем */)
+	prompt := buildSystemPrompt(params.Role, params.Locale)
+
 	messages := []ChatMessage{
 		{Role: "system", Content: prompt},
 	}
+
+	// Если есть релевантные сниппеты — добавляем их отдельным системным сообщением
 	if len(snippets) > 0 {
 		messages = append(messages, ChatMessage{
 			Role:    "system",
 			Content: buildContext(snippets),
 		})
 	}
-	messages = append(messages, ChatMessage{Role: "user", Content: strings.TrimSpace(params.Question)})
+
+	messages = append(messages, ChatMessage{
+		Role:    "user",
+		Content: question,
+	})
 
 	resp, err := s.client.Complete(ctx, ChatCompletionRequest{
 		Model:       assistantDefaultModel,
@@ -114,20 +136,24 @@ func (s *AssistantService) Ask(ctx context.Context, params AskParams) (AskResult
 		Messages:    messages,
 	})
 
-	// 4) Если LLM упал/пусто — возвращаем KB, если уверенно, иначе fallback
-	if err != nil || strings.TrimSpace(resp.Content) == "" {
+	answer := strings.TrimSpace(resp.Content)
+
+	// 4) Если LLM отвалился/вернул пустоту — пробуем вернуть хотя бы KB,
+	// и только если вообще ничего нет — fallback.
+	if err != nil || answer == "" {
 		if kbHasMatch {
+			refs := []KBRef{{ID: bestEntry.ID, Score: bestScore}}
 			return AskResult{
 				Answer: bestEntry.Answer,
 				Source: "kb",
-				KBRefs: []KBRef{{ID: bestEntry.ID, Score: bestScore}},
+				KBRefs: refs,
 			}, nil
 		}
+
 		return AskResult{Answer: assistantFallbackAnswer, Source: "fallback"}, nil
 	}
 
-	// 5) Успешный LLM; проставляем refs
-	answer := strings.TrimSpace(resp.Content)
+	// 5) Успешный ответ LLM
 	source := "llm"
 	if len(snippets) > 0 {
 		source = "kb+llm"
@@ -135,10 +161,17 @@ func (s *AssistantService) Ask(ctx context.Context, params AskParams) (AskResult
 
 	refs := make([]KBRef, 0, len(snippets))
 	for _, snippet := range snippets {
-		refs = append(refs, KBRef{ID: snippet.Entry.ID, Score: snippet.Score})
+		refs = append(refs, KBRef{
+			ID:    snippet.Entry.ID,
+			Score: snippet.Score,
+		})
 	}
 
-	return AskResult{Answer: answer, Source: source, KBRefs: refs}, nil
+	return AskResult{
+		Answer: answer,
+		Source: source,
+		KBRefs: refs,
+	}, nil
 }
 
 // Было: в шаблоне 3 %s, а передавали 2 → %!s(MISSING)

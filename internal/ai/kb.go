@@ -80,10 +80,17 @@ func (kb *KnowledgeBase) TopEntries(question string, limit int) []ScoredEntry {
 	scored := make([]ScoredEntry, 0, len(kb.entries))
 	for _, entry := range kb.entries {
 		score := scoreEntry(entry, lowerQuestion)
+		if score <= 0 {
+			continue // важное изменение: пропускаем нерелевантные
+		}
 		scored = append(scored, ScoredEntry{
 			Entry: entry,
 			Score: score,
 		})
+	}
+
+	if len(scored) == 0 {
+		return nil
 	}
 
 	sort.Slice(scored, func(i, j int) bool {
