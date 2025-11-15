@@ -396,7 +396,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/api/taxi/orders/:id/confirm-cash", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
 	mux.Post("/api/taxi/orders/:id/cancel", authMiddleware.Append(app.withTaxiRoleHeaders).Then(app.taxiMux))
 	mux.Post("/api/taxi/orders/:id/no-show", workerAuth.Then(app.withHeaderFromCtx(app.taxiMux, "X-Driver-ID")))
-	mux.Get("/ws/passenger", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("client")).Then(app.wsWithQueryUserID(app.taxiMux, "passenger_id")))
+	mux.Get("/ws/passenger", wsMiddleware.Append(app.wsWithAuthFromQuery).Then(app.wsWithQueryUserID(app.taxiMux, "passenger_id")))
 	mux.Get("/ws/driver", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("worker")).Then(app.wsWithQueryUserID(app.taxiMux, "driver_id")))
 
 	mux.Post("/location", authMiddleware.ThenFunc(app.locationHandler.UpdateLocation))
