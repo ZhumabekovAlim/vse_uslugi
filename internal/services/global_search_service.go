@@ -55,13 +55,17 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 	now := time.Now().UTC()
 	entries := make([]globalSearchEntry, 0)
 
+	ratings := req.Ratings
+	priceFrom := req.PriceFrom
+	priceTo := req.PriceTo
+	sortOption := req.SortOption
 	for _, listingType := range req.Types {
 		switch listingType {
 		case "service":
 			if s.ServiceRepo == nil {
 				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
 			}
-			services, _, _, err := s.ServiceRepo.GetServicesWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			services, _, _, err := s.ServiceRepo.GetServicesWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, priceFrom, priceTo, ratings, sortOption, perTypeLimit, 0)
 			if err != nil {
 				return models.GlobalSearchResponse{}, err
 			}
@@ -73,7 +77,7 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			if s.AdRepo == nil {
 				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
 			}
-			ads, _, _, err := s.AdRepo.GetAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			ads, _, _, err := s.AdRepo.GetAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, priceFrom, priceTo, ratings, sortOption, perTypeLimit, 0)
 			if err != nil {
 				return models.GlobalSearchResponse{}, err
 			}
@@ -85,7 +89,7 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			if s.WorkRepo == nil {
 				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
 			}
-			works, _, _, err := s.WorkRepo.GetWorksWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			works, _, _, err := s.WorkRepo.GetWorksWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, priceFrom, priceTo, ratings, sortOption, perTypeLimit, 0)
 			if err != nil {
 				return models.GlobalSearchResponse{}, err
 			}
@@ -97,7 +101,7 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			if s.WorkAdRepo == nil {
 				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
 			}
-			workAds, _, _, err := s.WorkAdRepo.GetWorksAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			workAds, _, _, err := s.WorkAdRepo.GetWorksAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, priceFrom, priceTo, ratings, sortOption, perTypeLimit, 0)
 			if err != nil {
 				return models.GlobalSearchResponse{}, err
 			}
@@ -109,7 +113,7 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			if s.RentRepo == nil {
 				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
 			}
-			rents, _, _, err := s.RentRepo.GetRentsWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			rents, _, _, err := s.RentRepo.GetRentsWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, priceFrom, priceTo, ratings, sortOption, perTypeLimit, 0)
 			if err != nil {
 				return models.GlobalSearchResponse{}, err
 			}
@@ -121,7 +125,7 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			if s.RentAdRepo == nil {
 				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
 			}
-			rentAds, _, _, err := s.RentAdRepo.GetRentsAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, 0, 0, nil, 0, perTypeLimit, 0)
+			rentAds, _, _, err := s.RentAdRepo.GetRentsAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, priceFrom, priceTo, ratings, sortOption, perTypeLimit, 0)
 			if err != nil {
 				return models.GlobalSearchResponse{}, err
 			}

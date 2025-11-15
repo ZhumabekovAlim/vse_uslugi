@@ -63,6 +63,19 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	limit := parsePositiveInt(r.URL.Query().Get("limit"), 20)
 	page := parsePositiveInt(r.URL.Query().Get("page"), 1)
+	priceFrom := parseFloat(r.URL.Query().Get("priceFrom"))
+	if priceFrom == 0 {
+		priceFrom = parseFloat(r.URL.Query().Get("price_from"))
+	}
+	priceTo := parseFloat(r.URL.Query().Get("priceTo"))
+	if priceTo == 0 {
+		priceTo = parseFloat(r.URL.Query().Get("price_to"))
+	}
+	ratings := parseFloatList(r.URL.Query().Get("ratings"))
+	sortOption := parsePositiveIntAllowZero(r.URL.Query().Get("sortOption"))
+	if sortOption == 0 {
+		sortOption = parsePositiveIntAllowZero(r.URL.Query().Get("sort_option"))
+	}
 
 	userID := extractUserIDFromRequest(r)
 
@@ -72,6 +85,10 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		SubcategoryIDs: subcategories,
 		Limit:          limit,
 		Page:           page,
+		PriceFrom:      priceFrom,
+		PriceTo:        priceTo,
+		Ratings:        ratings,
+		SortOption:     sortOption,
 		UserID:         userID,
 	}
 
@@ -106,6 +123,27 @@ func parseIntList(input string) []int {
 	return result
 }
 
+func parseFloatList(input string) []float64 {
+	if input == "" {
+		return nil
+	}
+	parts := strings.Split(input, ",")
+	result := make([]float64, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		if value, err := strconv.ParseFloat(trimmed, 64); err == nil {
+			result = append(result, value)
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
 func parsePositiveInt(input string, fallback int) int {
 	if input == "" {
 		return fallback
@@ -114,6 +152,26 @@ func parsePositiveInt(input string, fallback int) int {
 		return value
 	}
 	return fallback
+}
+
+func parsePositiveIntAllowZero(input string) int {
+	if input == "" {
+		return 0
+	}
+	if value, err := strconv.Atoi(input); err == nil && value >= 0 {
+		return value
+	}
+	return 0
+}
+
+func parseFloat(input string) float64 {
+	if input == "" {
+		return 0
+	}
+	if value, err := strconv.ParseFloat(input, 64); err == nil {
+		return value
+	}
+	return 0
 }
 
 func extractUserIDFromRequest(r *http.Request) int {

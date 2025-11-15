@@ -2,12 +2,16 @@ package models
 
 // GlobalSearchRequest describes filters for the global search endpoint.
 type GlobalSearchRequest struct {
-	Types          []string `json:"types"`
-	CategoryIDs    []int    `json:"category_ids"`
-	SubcategoryIDs []int    `json:"subcategory_ids"`
-	Limit          int      `json:"limit"`
-	Page           int      `json:"page"`
-	UserID         int      `json:"-"`
+	Types          []string  `json:"types"`
+	CategoryIDs    []int     `json:"category_ids"`
+	SubcategoryIDs []int     `json:"subcategory_ids"`
+	Limit          int       `json:"limit"`
+	Page           int       `json:"page"`
+	PriceFrom      float64   `json:"price_from"`
+	PriceTo        float64   `json:"price_to"`
+	Ratings        []float64 `json:"ratings"`
+	SortOption     int       `json:"sort_option"`
+	UserID         int       `json:"-"`
 }
 
 // GlobalSearchItem represents a single listing returned by the global search.
