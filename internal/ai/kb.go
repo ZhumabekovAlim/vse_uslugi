@@ -81,7 +81,8 @@ func (kb *KnowledgeBase) TopEntries(question string, limit int) []ScoredEntry {
 	for _, entry := range kb.entries {
 		score := scoreEntry(entry, lowerQuestion)
 		if score <= 0 {
-			continue // важное изменение: пропускаем нерелевантные
+			// нерелевантные записи не тащим в контекст LLM
+			continue
 		}
 		scored = append(scored, ScoredEntry{
 			Entry: entry,
@@ -121,13 +122,13 @@ func scoreEntry(entry KBEntry, lowerQuestion string) int {
 			continue
 		}
 
-		// 1) Сильное совпадение: полное ключевое слово как подстрока
+		// 1) Сильное совпадение: ключевое слово целиком как подстрока
 		if strings.Contains(question, kw) {
 			score += 3
 			continue
 		}
 
-		// 2) Попробуем стем (общий корень) для русского
+		// 2) Попробуем корень (stem) для русского слова
 		stem := stemRuWord(kw)
 		if stem != "" && strings.Contains(question, stem) {
 			score += 2
@@ -147,13 +148,13 @@ func stemRuWord(s string) string {
 		return ""
 	}
 
-	// Набор простых русских суффиксов (без претензии на полноту)
 	suffixes := []string{
-		"ться", "тся", "тись", "ешься", "ются", "ется",
-		"ировать", "ировать", "овать",
-		"овать", "ировать",
-		"ивать", "ывать",
+		// возвратные глаголы
+		"ться", "тся", "тись",
+		// глагольные суффиксы
+		"ировать", "ировать", "овать", "ивать", "ывать",
 		"ить", "ать", "ять", "еть",
+		// типичные существительные / прилагательные
 		"ки", "ка", "ку", "кой", "ках",
 		"ов", "ев", "ом", "ами", "ями",
 		"ый", "ий", "ой",
@@ -169,7 +170,7 @@ func stemRuWord(s string) string {
 		}
 	}
 
-	// fallback: просто отрежем последний символ, если слово всё ещё не слишком короткое
+	// fallback: отрезаем один символ, если слово не станет слишком коротким
 	if len(rs) > 5 {
 		return string(rs[:len(rs)-1])
 	}

@@ -63,9 +63,77 @@ func NewAssistantService(kb *ai.KnowledgeBase, client ChatCompletionClient) *Ass
 	return &AssistantService{kb: kb, client: client, timeout: 25 * time.Second}
 }
 
+// answerFromKBViaLLM использует LLM ТОЛЬКО как безопасный форматер ответа из KB.
+// Все факты должны браться из bestEntry.Answer, LLM не имеет права придумывать новый функционал.
+func (s *AssistantService) answerFromKBViaLLM(
+	ctx context.Context,
+	params AskParams,
+	question string,
+	bestEntry ai.KBEntry,
+	bestScore int,
+) (AskResult, error) {
+	llmCtx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+
+	systemPrompt := "" +
+		"Ты — ассистент приложения «Все Услуги».\n" +
+		"Тебе дан исходный ответ из базы знаний (это ИСТИНА), а также вопрос пользователя.\n\n" +
+		"ТВОЯ ЗАДАЧА:\n" +
+		"1) Проверить, что итоговый ответ НЕ противоречит исходному тексту.\n" +
+		"2) НЕ ДОБАВЛЯТЬ новый функционал, экраны или возможности, которых НЕТ в исходном ответе.\n" +
+		"3) Переписать ответ в следующем формате и стиле:\n" +
+		"   - 1) Краткое резюме (1–2 предложения).\n" +
+		"   - 2) Пошагово (нумерованный список: 1, 2, 3...).\n" +
+		"   - 3) Где найти в приложении (путь по экранам).\n" +
+		"   - 4) Советы/важно (1–3 пункта).\n\n" +
+		"ОЧЕНЬ ВАЖНО:\n" +
+		"- Используй только ту информацию, которая явно содержится в исходном ответе.\n" +
+		"- Если вопрос пользователя шире, чем исходный ответ, всё равно не придумывай новых деталей; просто переформулируй и акцентируй то, что есть.\n" +
+		"- Никаких ссылок на внешний мир, только логика приложения и текст базы знаний.\n"
+
+	originalAnswer := bestEntry.Answer
+
+	messages := []ChatMessage{
+		{Role: "system", Content: systemPrompt},
+		{
+			Role: "system",
+			Content: fmt.Sprintf(
+				"Исходный ответ из базы знаний (источник правды):\n\n%s",
+				originalAnswer,
+			),
+		},
+		{
+			Role:    "user",
+			Content: fmt.Sprintf("Вопрос пользователя: %s\nСформируй итоговый ответ по правилам.", question),
+		},
+	}
+
+	resp, err := s.client.Complete(llmCtx, ChatCompletionRequest{
+		Model:       assistantDefaultModel,
+		Temperature: 0.1, // ещё более консервативно
+		Messages:    messages,
+	})
+
+	finalAnswer := strings.TrimSpace(resp.Content)
+	if err != nil || finalAnswer == "" {
+		// Если LLM всё равно упал — просто отдаем чистый KB-ответ
+		return AskResult{
+			Answer: originalAnswer,
+			Source: "kb",
+			KBRefs: []KBRef{{ID: bestEntry.ID, Score: bestScore}},
+		}, nil
+	}
+
+	return AskResult{
+		Answer: finalAnswer,
+		Source: "kb+llm", // факты из KB, текст от LLM
+		KBRefs: []KBRef{{ID: bestEntry.ID, Score: bestScore}},
+	}, nil
+}
+
 func (s *AssistantService) Ask(ctx context.Context, params AskParams) (AskResult, error) {
-	// Если вообще нет KB и нет LLM — только fallback
-	if s.kb == nil && (s.client == nil || !params.UseLLM) {
+	question := strings.TrimSpace(params.Question)
+	if question == "" {
 		return AskResult{Answer: assistantFallbackAnswer, Source: "fallback"}, nil
 	}
 
@@ -77,47 +145,44 @@ func (s *AssistantService) Ask(ctx context.Context, params AskParams) (AskResult
 		snippets   []ai.ScoredEntry
 	)
 
-	question := strings.TrimSpace(params.Question)
-	if question == "" {
-		return AskResult{Answer: assistantFallbackAnswer, Source: "fallback"}, nil
-	}
-
 	// 1) Работа с KB, если она есть
 	if s.kb != nil {
 		bestEntry, bestScore, found = s.kb.FindBestMatch(question)
-		// "хотя бы как-то похоже на что-то из приложения"
 		kbHasMatch = found && bestScore > 0
-
-		// Сниппеты только с положительным score (см. обновлённый TopEntries)
 		snippets = s.kb.TopEntries(question, params.MaxKB)
 	}
 
-	// 2) Если LLM выключен или не настроен — отвечаем только KB / fallback
-	if !params.UseLLM || s.client == nil {
-		if kbHasMatch {
-			refs := []KBRef{{ID: bestEntry.ID, Score: bestScore}}
-			return AskResult{
-				Answer: bestEntry.Answer,
-				Source: "kb",
-				KBRefs: refs,
-			}, nil
+	// 2) Если есть хороший матч в KB
+	if kbHasMatch {
+		// 2.1) LLM есть и включён → используем LLM как безопасный форматер KB
+		if params.UseLLM && s.client != nil {
+			return s.answerFromKBViaLLM(ctx, params, question, bestEntry, bestScore)
 		}
 
-		// KB не нашла ничего похожего -> честный fallback
+		// 2.2) LLM нет → отдаём KB «как есть»
+		return AskResult{
+			Answer: bestEntry.Answer,
+			Source: "kb",
+			KBRefs: []KBRef{{ID: bestEntry.ID, Score: bestScore}},
+		}, nil
+	}
+
+	// 3) KB не нашла ничего уверенного. Если LLM отключен/нет клиента — остаётся fallback.
+	if !params.UseLLM || s.client == nil {
 		return AskResult{Answer: assistantFallbackAnswer, Source: "fallback"}, nil
 	}
 
-	// 3) Используем LLM во всех остальных случаях (универсальное поведение)
-	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+	// 4) Используем LLM без явного попадания в KB, но всё равно с жёстким системным prompt’ом
+	llmCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
-	prompt := buildSystemPrompt(params.Role, params.Locale)
+	systemPrompt := buildSystemPrompt(params.Role, params.Locale)
 
 	messages := []ChatMessage{
-		{Role: "system", Content: prompt},
+		{Role: "system", Content: systemPrompt},
 	}
 
-	// Если есть релевантные сниппеты — добавляем их отдельным системным сообщением
+	// Если есть какие-то сниппеты (даже слабые) – добавим, но они уже >0 score
 	if len(snippets) > 0 {
 		messages = append(messages, ChatMessage{
 			Role:    "system",
@@ -130,41 +195,26 @@ func (s *AssistantService) Ask(ctx context.Context, params AskParams) (AskResult
 		Content: question,
 	})
 
-	resp, err := s.client.Complete(ctx, ChatCompletionRequest{
+	resp, err := s.client.Complete(llmCtx, ChatCompletionRequest{
 		Model:       assistantDefaultModel,
 		Temperature: 0.2,
 		Messages:    messages,
 	})
 
 	answer := strings.TrimSpace(resp.Content)
-
-	// 4) Если LLM отвалился/вернул пустоту — пробуем вернуть хотя бы KB,
-	// и только если вообще ничего нет — fallback.
 	if err != nil || answer == "" {
-		if kbHasMatch {
-			refs := []KBRef{{ID: bestEntry.ID, Score: bestScore}}
-			return AskResult{
-				Answer: bestEntry.Answer,
-				Source: "kb",
-				KBRefs: refs,
-			}, nil
-		}
-
+		// KB ничего уверенного не нашла, LLM упал → только честный fallback
 		return AskResult{Answer: assistantFallbackAnswer, Source: "fallback"}, nil
-	}
-
-	// 5) Успешный ответ LLM
-	source := "llm"
-	if len(snippets) > 0 {
-		source = "kb+llm"
 	}
 
 	refs := make([]KBRef, 0, len(snippets))
 	for _, snippet := range snippets {
-		refs = append(refs, KBRef{
-			ID:    snippet.Entry.ID,
-			Score: snippet.Score,
-		})
+		refs = append(refs, KBRef{ID: snippet.Entry.ID, Score: snippet.Score})
+	}
+
+	source := "llm"
+	if len(snippets) > 0 {
+		source = "kb+llm"
 	}
 
 	return AskResult{
