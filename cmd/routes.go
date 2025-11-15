@@ -345,7 +345,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/api/v1/courier/:id/stats", authMiddleware.Then(app.courierMux))
 
 	mux.Get("/ws/courier", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("worker")).Then(app.courierMux))
-	mux.Get("/ws/sender", wsMiddleware.Append(app.wsWithAuthFromQuery).Append(app.JWTMiddlewareWithRole("client")).Then(app.courierMux))
+	mux.Get("/ws/sender", wsMiddleware.Append(app.wsWithAuthFromQuery).Then(app.courierMux))
 
 	// === Taxi API & WS ===
 	mux.Get("/api/v1/admin/taxi/orders/stats", adminAuthMiddleware.Then(app.taxiMux))
