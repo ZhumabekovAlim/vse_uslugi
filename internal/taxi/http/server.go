@@ -44,10 +44,10 @@ type Server struct {
 }
 
 const (
-	lifecycleArrivalRadiusMeters  = 100.0
-	lifecycleStartRadiusMeters    = 100.0
-	lifecycleWaypointRadiusMeters = 50.0
-	lifecycleFinishRadiusMeters   = 100.0
+	lifecycleArrivalRadiusMeters  = 300.0
+	lifecycleStartRadiusMeters    = 300.0
+	lifecycleWaypointRadiusMeters = 200.0
+	lifecycleFinishRadiusMeters   = 300.0
 	lifecycleStationarySpeedKPH   = 5.0
 	minDriverBalanceTenge         = 1000
 	driverCommissionPercent       = 10
