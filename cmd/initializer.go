@@ -363,9 +363,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
 	subscriptionHandler := &handlers.SubscriptionHandler{Service: subscriptionService}
 	airbapayHandler := handlers.NewAirbapayHandler(airbapayService, invoiceRepo, &subscriptionRepo)
+	airbapayHandler.TopService = topService
 	locationHandler := &handlers.LocationHandler{Service: locationService}
 	assistantHandler := handlers.NewAssistantHandler(assistantService)
-	topHandler := &handlers.TopHandler{Service: topService}
+	topHandler := &handlers.TopHandler{Service: topService, InvoiceRepo: invoiceRepo, PaymentService: airbapayService}
 	globalSearchHandler := &handlers.GlobalSearchHandler{Service: globalSearchService}
 
 	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
