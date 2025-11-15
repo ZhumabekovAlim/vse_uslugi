@@ -47,6 +47,7 @@ func (kb *KnowledgeBase) Entries() []KBEntry {
 	return result
 }
 
+// FindBestMatch — базовый поиск лучшего совпадения по score.
 func (kb *KnowledgeBase) FindBestMatch(question string) (KBEntry, int, bool) {
 	if kb == nil {
 		return KBEntry{}, 0, false
@@ -70,6 +71,8 @@ func (kb *KnowledgeBase) FindBestMatch(question string) (KBEntry, int, bool) {
 	return best, bestScore, found
 }
 
+// TopEntries — возвращает только релевантные записи (score > 0),
+// отсортированные по убыванию score.
 func (kb *KnowledgeBase) TopEntries(question string, limit int) []ScoredEntry {
 	if kb == nil || limit <= 0 {
 		return nil
@@ -108,6 +111,32 @@ func (kb *KnowledgeBase) TopEntries(question string, limit int) []ScoredEntry {
 	return scored
 }
 
+// FindByKeywordSubstring — запасной поиск: ищет первую запись,
+// у которой какой-либо keyword содержит substr (в нижнем регистре).
+func (kb *KnowledgeBase) FindByKeywordSubstring(substr string) (KBEntry, bool) {
+	if kb == nil {
+		return KBEntry{}, false
+	}
+
+	target := strings.ToLower(strings.TrimSpace(substr))
+	if target == "" {
+		return KBEntry{}, false
+	}
+
+	for _, entry := range kb.entries {
+		for _, kw := range entry.Keywords {
+			if strings.Contains(strings.ToLower(kw), target) {
+				return entry, true
+			}
+		}
+	}
+
+	return KBEntry{}, false
+}
+
+// scoreEntry — считаем "похожесть" вопроса и записи KB.
+// Сначала пытаемся найти keyword целиком как подстроку,
+// затем — его "корень" (stem) для разных форм слова.
 func scoreEntry(entry KBEntry, lowerQuestion string) int {
 	if lowerQuestion == "" {
 		return 0
@@ -122,13 +151,13 @@ func scoreEntry(entry KBEntry, lowerQuestion string) int {
 			continue
 		}
 
-		// 1) Сильное совпадение: ключевое слово целиком как подстрока
+		// 1) Сильное совпадение: keyword целиком в вопросе
 		if strings.Contains(question, kw) {
 			score += 3
 			continue
 		}
 
-		// 2) Попробуем корень (stem) для русского слова
+		// 2) Попробуем корень слова (для форм типа отклик/откликнуться/отклики)
 		stem := stemRuWord(kw)
 		if stem != "" && strings.Contains(question, stem) {
 			score += 2
@@ -139,12 +168,13 @@ func scoreEntry(entry KBEntry, lowerQuestion string) int {
 	return score
 }
 
-// Очень простой стеммер для русских слов: обрезает частые суффиксы,
-// чтобы "отклик", "откликнуться", "отклики" давали общий корень.
+// Очень простой "стеммер" для русских слов.
+// Нужен, чтобы формы типа "отклик / откликнуться / отклики"
+// мапились к одному корню, и т.п.
 func stemRuWord(s string) string {
 	rs := []rune(s)
 	if len(rs) <= 4 {
-		// слишком короткие слова лучше не трогать
+		// слишком короткие — не трогаем
 		return ""
 	}
 
@@ -152,9 +182,9 @@ func stemRuWord(s string) string {
 		// возвратные глаголы
 		"ться", "тся", "тись",
 		// глагольные суффиксы
-		"ировать", "ировать", "овать", "ивать", "ывать",
+		"ировать", "овать", "ивать", "ывать",
 		"ить", "ать", "ять", "еть",
-		// типичные существительные / прилагательные
+		// существительные / прилагательные
 		"ки", "ка", "ку", "кой", "ках",
 		"ов", "ев", "ом", "ами", "ями",
 		"ый", "ий", "ой",
@@ -170,7 +200,7 @@ func stemRuWord(s string) string {
 		}
 	}
 
-	// fallback: отрезаем один символ, если слово не станет слишком коротким
+	// fallback: отрежем последний символ, если слово длинное
 	if len(rs) > 5 {
 		return string(rs[:len(rs)-1])
 	}
