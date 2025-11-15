@@ -11,7 +11,7 @@ import (
 
 const (
 	assistantFallbackAnswer      = "Извините, сейчас не могу помочь. Попробуйте переформулировать вопрос или уточните детали."
-	assistantConfidenceThreshold = 2
+	assistantConfidenceThreshold = 1
 	assistantDefaultModel        = "gpt-4o-mini"
 )
 
@@ -70,13 +70,24 @@ func (s *AssistantService) Ask(ctx context.Context, params AskParams) (AskResult
 
 	// 1) Сначала ищем по KB
 	bestEntry, bestScore, found := s.kb.FindBestMatch(params.Question)
-	kbConfident := found && bestScore >= assistantConfidenceThreshold
+
+	// "хотя бы как-то связано с приложением"
+	kbHasMatch := found && bestScore > 0
+
+	// оставим "уверенность" отдельно, если ты захочешь её использовать дальше
+	//kbConfident := found && bestScore >= assistantConfidenceThreshold
 
 	// 2) Если LLM не просили или клиента нет — отдаем KB (если уверенно) или fallback
 	if !params.UseLLM || s.client == nil {
-		if kbConfident {
-			return AskResult{Answer: bestEntry.Answer, Source: "kb"}, nil
+		if kbHasMatch {
+			return AskResult{
+				Answer: bestEntry.Answer,
+				Source: "kb",
+				KBRefs: []KBRef{{ID: bestEntry.ID, Score: bestScore}},
+			}, nil
 		}
+
+		// KB ничего не нашла
 		return AskResult{Answer: assistantFallbackAnswer, Source: "fallback"}, nil
 	}
 
@@ -105,8 +116,12 @@ func (s *AssistantService) Ask(ctx context.Context, params AskParams) (AskResult
 
 	// 4) Если LLM упал/пусто — возвращаем KB, если уверенно, иначе fallback
 	if err != nil || strings.TrimSpace(resp.Content) == "" {
-		if kbConfident {
-			return AskResult{Answer: bestEntry.Answer, Source: "kb"}, nil
+		if kbHasMatch {
+			return AskResult{
+				Answer: bestEntry.Answer,
+				Source: "kb",
+				KBRefs: []KBRef{{ID: bestEntry.ID, Score: bestScore}},
+			}, nil
 		}
 		return AskResult{Answer: assistantFallbackAnswer, Source: "fallback"}, nil
 	}
