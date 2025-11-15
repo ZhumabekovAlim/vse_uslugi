@@ -97,4 +97,6 @@ type FilteredWork struct {
 	WorkLongitude    string      `json:"longitude"`
 	Liked            bool        `json:"liked"`
 	Responded        bool        `json:"is_responded"`
+	Top              string      `json:"-"`
+	CreatedAt        time.Time   `json:"-"`
 }

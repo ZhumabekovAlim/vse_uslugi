@@ -388,15 +388,16 @@ func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) (
 
 func (r *WorkAdRepository) GetFilteredWorksAdPost(ctx context.Context, req models.FilterWorkAdRequest) ([]models.FilteredWorkAd, error) {
 	query := `
-      SELECT
+SELECT
 
-              u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-             s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
-             COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos
-      FROM work_ad s
-      JOIN users u ON s.user_id = u.id
-      WHERE 1=1
+s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
+COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
+s.top, s.created_at
+FROM work_ad s
+JOIN users u ON s.user_id = u.id
+WHERE 1=1
 `
 	args := []interface{}{}
 
@@ -463,7 +464,7 @@ func (r *WorkAdRepository) GetFilteredWorksAdPost(ctx context.Context, req model
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 			&s.WorkAdID, &s.WorkAdName, &s.WorkAdAddress, &s.WorkAdPrice, &s.WorkAdDescription, &s.WorkAdLatitude, &s.WorkAdLongitude,
-			&imagesJSON, &videosJSON,
+			&imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -480,6 +481,7 @@ func (r *WorkAdRepository) GetFilteredWorksAdPost(ctx context.Context, req model
 		works = append(works, s)
 	}
 
+	sortFilteredWorkAdsByTop(works)
 	return works, nil
 }
 
@@ -540,7 +542,8 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
            u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
            s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
-           COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
+       COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
+       s.top, s.created_at,
            CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
            CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
    FROM work_ad s
@@ -628,7 +631,7 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.WorkAdID, &s.WorkAdName, &s.WorkAdAddress, &s.WorkAdPrice, &s.WorkAdDescription, &s.WorkAdLatitude, &s.WorkAdLongitude, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
+			&s.WorkAdID, &s.WorkAdName, &s.WorkAdAddress, &s.WorkAdPrice, &s.WorkAdDescription, &s.WorkAdLatitude, &s.WorkAdLongitude, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -653,6 +656,7 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 		return nil, fmt.Errorf("error reading rows: %w", err)
 	}
 
+	sortFilteredWorkAdsByTop(works)
 	log.Printf("[INFO] Successfully fetched %d services", len(works))
 	return works, nil
 }

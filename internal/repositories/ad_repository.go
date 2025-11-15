@@ -430,12 +430,13 @@ func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.
 func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterAdRequest) ([]models.FilteredAd, error) {
 	query := `
       SELECT
-              u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
-             s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
-             COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos
-      FROM ad s
-      JOIN users u ON s.user_id = u.id
-      WHERE 1=1
+      u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+     s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
+     COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
+     s.top, s.created_at
+FROM ad s
+JOIN users u ON s.user_id = u.id
+WHERE 1=1
 `
 	args := []interface{}{}
 
@@ -503,7 +504,7 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.AdID, &s.AdName, &s.AdAddress, &s.AdPrice, &s.AdDescription, &lat, &lon, &imagesJSON, &videosJSON,
+			&s.AdID, &s.AdName, &s.AdAddress, &s.AdPrice, &s.AdDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -528,6 +529,7 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 		ads = append(ads, s)
 	}
 
+	sortFilteredAdsByTop(ads)
 	return ads, nil
 }
 
@@ -583,14 +585,15 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 	log.Printf("[INFO] Start GetFilteredServicesWithLikes for user_id=%d", userID)
 
 	query := `
-    SELECT DISTINCT
+SELECT DISTINCT
 
-           u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
+u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-           s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
-           COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
-           CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
-           CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
+s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
+COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
+s.top, s.created_at,
+CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
    FROM ad s
    JOIN users u ON s.user_id = u.id
    LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
@@ -677,7 +680,7 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.AdID, &s.AdName, &s.AdAddress, &s.AdPrice, &s.AdDescription, &lat, &lon, &imagesJSON, &videosJSON, &likedStr, &respondedStr,
+			&s.AdID, &s.AdName, &s.AdAddress, &s.AdPrice, &s.AdDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -710,6 +713,7 @@ func (r *AdRepository) GetFilteredAdWithLikes(ctx context.Context, req models.Fi
 		return nil, fmt.Errorf("error reading rows: %w", err)
 	}
 
+	sortFilteredAdsByTop(ads)
 	log.Printf("[INFO] Successfully fetched %d services", len(ads))
 	return ads, nil
 }
