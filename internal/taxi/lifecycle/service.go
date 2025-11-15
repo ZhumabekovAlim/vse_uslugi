@@ -80,7 +80,7 @@ func (s *Service) MarkDriverAtPickup(order *Order, now time.Time, telemetry Tele
 	if telemetry.Position.DistanceTo(pickup.Point) > s.cfg.ArrivalRadiusMeters {
 		return ErrGeoConstraintViolation
 	}
-	fmt.Println("Max distance:", s.cfg.ArrivalRadiusMeters)
+
 	order.recordTelemetry(telemetry)
 	order.ensureWaypointReached(0, now)
 	order.ArrivedAt = &now

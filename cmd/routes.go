@@ -295,7 +295,7 @@ func (app *application) routes() http.Handler {
 	mux.Del("/city/:id", authMiddleware.ThenFunc(app.cityHandler.DeleteCity))
 
 	// Chat
-	mux.Get("/ws", wsMiddleware.ThenFunc(app.WebSocketHandler))
+	mux.Get("/ws/chat", wsMiddleware.ThenFunc(app.WebSocketHandler))
 	mux.Get("/ws/location", wsMiddleware.ThenFunc(app.LocationWebSocketHandler))
 
 	// === Courier API & WS ===
