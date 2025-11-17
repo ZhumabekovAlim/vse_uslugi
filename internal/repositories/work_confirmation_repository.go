@@ -42,11 +42,7 @@ func (r *WorkConfirmationRepository) Confirm(ctx context.Context, workID, client
 	}
 
 	now := time.Now()
-	if _, err = tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = true, status = 'in progress', updated_at = ? WHERE work_id = ? AND client_id = ?`, now, workID, actualClientID); err != nil {
-		return err
-	}
-
-	if _, err = tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, actualClientID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = true, status = 'active', updated_at = ? WHERE work_id = ? AND client_id = ?`, now, workID, actualClientID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -63,17 +59,8 @@ func (r *WorkConfirmationRepository) Cancel(ctx context.Context, workID, userID 
 	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM work_confirmations WHERE work_id = ? AND confirmed = true`, workID).Scan(&clientID, &performerID); err != nil {
 		return err
 	}
-	if userID == clientID {
-		if _, err := tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining - 1 WHERE user_id = ? AND remaining > 0`, clientID); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE subscription_responses SET remaining = remaining + 1 WHERE user_id = ?`, performerID); err != nil {
-			return err
-		}
-	}
-
 	now := time.Now()
-	if _, err := tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = false, status = 'cancelled', updated_at = ? WHERE work_id = ? AND client_id = ? AND performer_id = ?`, now, workID, clientID, performerID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = false, status = 'archived', updated_at = ? WHERE work_id = ? AND client_id = ? AND performer_id = ?`, now, workID, clientID, performerID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -87,7 +74,7 @@ func (r *WorkConfirmationRepository) Done(ctx context.Context, workID int) error
 	defer tx.Rollback()
 
 	now := time.Now()
-	if _, err := tx.ExecContext(ctx, `UPDATE work_confirmations SET status = 'done', updated_at = ? WHERE work_id = ? AND confirmed = true`, now, workID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE work_confirmations SET status = 'archived', updated_at = ? WHERE work_id = ? AND confirmed = true`, now, workID); err != nil {
 		return err
 	}
 	return tx.Commit()
