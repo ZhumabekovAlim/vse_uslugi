@@ -272,10 +272,6 @@ ORDER BY 1
 			return nil, err
 		}
 
-		if status != "in progress" {
-			user.Phone = ""
-		}
-
 		if rating, err := getUserAverageRating(ctx, r.Db, user.ID); err == nil {
 			user.ReviewRating = rating
 		}
@@ -287,6 +283,10 @@ ORDER BY 1
 		if confirmedPerformer.Valid {
 			pid := int(confirmedPerformer.Int64)
 			performerID = &pid
+		}
+
+		if status != "active" || performerID == nil {
+			user.Phone = ""
 		}
 
 		key := fmt.Sprintf("%s:%d", adType, adID)

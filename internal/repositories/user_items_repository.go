@@ -67,36 +67,36 @@ func (r *UserItemsRepository) GetAdWorkAdRentAdByUserID(ctx context.Context, use
 // GetOrderHistoryByUserID returns completed service, work, rent, ad, work_ad and rent_ad items for the user ordered by creation time.
 func (r *UserItemsRepository) GetOrderHistoryByUserID(ctx context.Context, userID int) ([]models.UserItem, error) {
 	query := `
-    SELECT id, name, price, description, created_at, status, type FROM (
-        SELECT s.id, s.name, s.price, s.description, sc.created_at, sc.status, 'service' AS type
-        FROM service_confirmations sc
-        JOIN service s ON s.id = sc.service_id
-        WHERE (sc.performer_id = ? OR sc.client_id = ?) AND sc.status IN ('in progress', 'done')
+SELECT id, name, price, description, created_at, status, type FROM (
+SELECT s.id, s.name, s.price, s.description, sc.created_at, sc.status, 'service' AS type
+FROM service_confirmations sc
+JOIN service s ON s.id = sc.service_id
+WHERE (sc.performer_id = ? OR sc.client_id = ?) AND sc.status IN ('active', 'archived')
         UNION ALL
-        SELECT w.id, w.name, w.price, w.description, wc.created_at, wc.status, 'work' AS type
-        FROM work_confirmations wc
-        JOIN work w ON w.id = wc.work_id
-        WHERE (wc.performer_id = ? OR wc.client_id = ?) AND wc.status IN ('in progress', 'done')
+SELECT w.id, w.name, w.price, w.description, wc.created_at, wc.status, 'work' AS type
+FROM work_confirmations wc
+JOIN work w ON w.id = wc.work_id
+WHERE (wc.performer_id = ? OR wc.client_id = ?) AND wc.status IN ('active', 'archived')
         UNION ALL
-        SELECT r.id, r.name, r.price, r.description, rc.created_at, rc.status, 'rent' AS type
-        FROM rent_confirmations rc
-        JOIN rent r ON r.id = rc.rent_id
-        WHERE (rc.performer_id = ? OR rc.client_id = ?) AND rc.status IN ('in progress', 'done')
+SELECT r.id, r.name, r.price, r.description, rc.created_at, rc.status, 'rent' AS type
+FROM rent_confirmations rc
+JOIN rent r ON r.id = rc.rent_id
+WHERE (rc.performer_id = ? OR rc.client_id = ?) AND rc.status IN ('active', 'archived')
         UNION ALL
-        SELECT a.id, a.name, a.price, a.description, ac.created_at, ac.status, 'ad' AS type
-        FROM ad_confirmations ac
-        JOIN ad a ON a.id = ac.ad_id
-        WHERE (ac.performer_id = ? OR ac.client_id = ?) AND ac.status IN ('in progress', 'done')
+SELECT a.id, a.name, a.price, a.description, ac.created_at, ac.status, 'ad' AS type
+FROM ad_confirmations ac
+JOIN ad a ON a.id = ac.ad_id
+WHERE (ac.performer_id = ? OR ac.client_id = ?) AND ac.status IN ('active', 'archived')
         UNION ALL
-        SELECT wa.id, wa.name, wa.price, wa.description, wac.created_at, wac.status, 'work_ad' AS type
-        FROM work_ad_confirmations wac
-        JOIN work_ad wa ON wa.id = wac.work_ad_id
-        WHERE (wac.performer_id = ? OR wac.client_id = ?) AND wac.status IN ('in progress', 'done')
+SELECT wa.id, wa.name, wa.price, wa.description, wac.created_at, wac.status, 'work_ad' AS type
+FROM work_ad_confirmations wac
+JOIN work_ad wa ON wa.id = wac.work_ad_id
+WHERE (wac.performer_id = ? OR wac.client_id = ?) AND wac.status IN ('active', 'archived')
         UNION ALL
-        SELECT ra.id, ra.name, ra.price, ra.description, rac.created_at, rac.status, 'rent_ad' AS type
-        FROM rent_ad_confirmations rac
-        JOIN rent_ad ra ON ra.id = rac.rent_ad_id
-        WHERE (rac.performer_id = ? OR rac.client_id = ?) AND rac.status IN ('in progress', 'done')
+SELECT ra.id, ra.name, ra.price, ra.description, rac.created_at, rac.status, 'rent_ad' AS type
+FROM rent_ad_confirmations rac
+JOIN rent_ad ra ON ra.id = rac.rent_ad_id
+WHERE (rac.performer_id = ? OR rac.client_id = ?) AND rac.status IN ('active', 'archived')
     ) AS combined
     ORDER BY created_at DESC`
 	rows, err := r.DB.QueryContext(ctx, query,
@@ -123,38 +123,38 @@ func (r *UserItemsRepository) GetOrderHistoryByUserID(ctx context.Context, userI
 	return items, rows.Err()
 }
 
-// GetActiveOrdersByUserID returns all orders with status in progress or done where the user is the performer.
+// GetActiveOrdersByUserID returns all orders with status active where the user is the performer.
 func (r *UserItemsRepository) GetActiveOrdersByUserID(ctx context.Context, userID int) ([]models.UserItem, error) {
 	query := `
     SELECT s.id, s.name, s.price, s.description, sc.created_at, sc.status, 'service' AS type
     FROM service_confirmations sc
     JOIN service s ON s.id = sc.service_id
-    WHERE sc.performer_id = ? AND sc.confirmed = true AND sc.status IN ('in progress', 'done')
+    WHERE sc.performer_id = ? AND sc.confirmed = true AND sc.status = 'active'
     UNION ALL
     SELECT w.id, w.name, w.price, w.description, wc.created_at, wc.status, 'work' AS type
     FROM work_confirmations wc
     JOIN work w ON w.id = wc.work_id
-    WHERE wc.performer_id = ? AND wc.confirmed = true AND wc.status IN ('in progress', 'done')
+    WHERE wc.performer_id = ? AND wc.confirmed = true AND wc.status = 'active'
     UNION ALL
     SELECT r.id, r.name, r.price, r.description, rc.created_at, rc.status, 'rent' AS type
     FROM rent_confirmations rc
     JOIN rent r ON r.id = rc.rent_id
-    WHERE rc.performer_id = ? AND rc.confirmed = true AND rc.status IN ('in progress', 'done')
+    WHERE rc.performer_id = ? AND rc.confirmed = true AND rc.status = 'active'
     UNION ALL
     SELECT a.id, a.name, a.price, a.description, ac.created_at, ac.status, 'ad' AS type
     FROM ad_confirmations ac
     JOIN ad a ON a.id = ac.ad_id
-    WHERE ac.performer_id = ? AND ac.confirmed = true AND ac.status IN ('in progress', 'done')
+    WHERE ac.performer_id = ? AND ac.confirmed = true AND ac.status = 'active'
     UNION ALL
     SELECT wa.id, wa.name, wa.price, wa.description, wac.created_at, wac.status, 'work_ad' AS type
     FROM work_ad_confirmations wac
     JOIN work_ad wa ON wa.id = wac.work_ad_id
-    WHERE wac.performer_id = ? AND wac.confirmed = true AND wac.status IN ('in progress', 'done')
+    WHERE wac.performer_id = ? AND wac.confirmed = true AND wac.status = 'active'
     UNION ALL
     SELECT ra.id, ra.name, ra.price, ra.description, rac.created_at, rac.status, 'rent_ad' AS type
     FROM rent_ad_confirmations rac
     JOIN rent_ad ra ON ra.id = rac.rent_ad_id
-    WHERE rac.performer_id = ? AND rac.confirmed = true AND rac.status IN ('in progress', 'done')
+    WHERE rac.performer_id = ? AND rac.confirmed = true AND rac.status = 'active'
     ORDER BY created_at DESC`
 
 	rows, err := r.DB.QueryContext(ctx, query, userID, userID, userID, userID, userID, userID)

@@ -25,8 +25,8 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
 
             FROM service_responses sr
             JOIN users u ON u.id = sr.user_id
-            LEFT JOIN service_confirmations sc ON sc.service_id = sr.service_id 
-            WHERE sr.service_id = ? AND sc.status != 'done' AND sc.status != 'in progress'`
+            LEFT JOIN service_confirmations sc ON sc.service_id = sr.service_id
+            WHERE sr.service_id = ? AND (sc.status IS NULL OR sc.status = 'active')`
 	case "ad":
 		query = `
 
@@ -44,7 +44,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
             FROM work_responses wr
             JOIN users u ON u.id = wr.user_id
             LEFT JOIN work_confirmations wc ON wc.work_id = wr.work_id
-            WHERE wr.work_id = ? AND wc.status != 'done' AND wc.status != 'in progress'`
+            WHERE wr.work_id = ? AND (wc.status IS NULL OR wc.status = 'active')`
 	case "work_ad":
 		query = `
             SELECT u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0), war.price, war.description, war.created_at, wac.chat_id
@@ -61,7 +61,7 @@ func (r *ResponseUsersRepository) GetUsersByItemID(ctx context.Context, itemType
             FROM rent_responses rr
             JOIN users u ON u.id = rr.user_id
             LEFT JOIN rent_confirmations rc ON rc.rent_id = rr.rent_id
-            WHERE rr.rent_id = ? AND rc.status != 'done' AND rc.status != 'in progress'`
+            WHERE rr.rent_id = ? AND (rc.status IS NULL OR rc.status = 'active')`
 	case "rent_ad":
 		query = `
 
