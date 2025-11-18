@@ -98,10 +98,12 @@ WITH last_messages AS (
 
 SELECT a.id, 'ad' AS ad_type, a.name, ac.status, CASE WHEN ac.confirmed THEN ac.performer_id END AS performer_id,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
-       ar.price, ac.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role
+       ar.price, ac.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
+       u.phone AS provider_phone, owner.phone AS client_phone
 FROM ad a
 JOIN ad_confirmations ac ON ac.ad_id = a.id
 JOIN users u ON u.id = ac.performer_id
+JOIN users owner ON owner.id = a.user_id
 JOIN ad_responses ar ON ar.ad_id = a.id AND ar.user_id = ac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = ac.chat_id
 WHERE a.user_id = ?
@@ -110,10 +112,12 @@ UNION ALL
 
 SELECT a.id, 'ad' AS ad_type, a.name, ac.status, CASE WHEN ac.confirmed THEN ac.performer_id END AS performer_id,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
-       ar.price, ac.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role
+       ar.price, ac.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
+       performer.phone AS provider_phone, owner.phone AS client_phone
 FROM ad a
 JOIN ad_confirmations ac ON ac.ad_id = a.id
 JOIN users owner ON owner.id = a.user_id
+JOIN users performer ON performer.id = ac.performer_id
 JOIN ad_responses ar ON ar.ad_id = a.id AND ar.user_id = ac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = ac.chat_id
 WHERE ac.performer_id = ?
@@ -122,10 +126,12 @@ UNION ALL
 
 SELECT s.id, 'service' AS ad_type, s.name, sc.status, CASE WHEN sc.confirmed THEN sc.performer_id END AS performer_id,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
-       sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role
+       sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
+       owner.phone AS provider_phone, u.phone AS client_phone
 FROM service s
 JOIN service_confirmations sc ON sc.service_id = s.id
 JOIN users u ON u.id = sc.client_id
+JOIN users owner ON owner.id = s.user_id
 JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.client_id
 LEFT JOIN last_messages lm ON lm.chat_id = sc.chat_id
 WHERE s.user_id = ?
@@ -134,10 +140,12 @@ UNION ALL
 
 SELECT s.id, 'service' AS ad_type, s.name, sc.status, CASE WHEN sc.confirmed THEN sc.performer_id END AS performer_id,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
-       sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role
+       sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
+       owner.phone AS provider_phone, client.phone AS client_phone
 FROM service s
 JOIN service_confirmations sc ON sc.service_id = s.id
 JOIN users owner ON owner.id = s.user_id
+JOIN users client ON client.id = sc.client_id
 JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.client_id
 LEFT JOIN last_messages lm ON lm.chat_id = sc.chat_id
 WHERE sc.client_id = ?
@@ -146,10 +154,12 @@ UNION ALL
 
 SELECT ra.id, 'rent_ad' AS ad_type, ra.name, rac.status, CASE WHEN rac.confirmed THEN rac.performer_id END AS performer_id,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
-       rar.price, rac.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role
+       rar.price, rac.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
+       u.phone AS provider_phone, owner.phone AS client_phone
 FROM rent_ad ra
 JOIN rent_ad_confirmations rac ON rac.rent_ad_id = ra.id
 JOIN users u ON u.id = rac.performer_id
+JOIN users owner ON owner.id = ra.user_id
 JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id AND rar.user_id = rac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = rac.chat_id
 WHERE ra.user_id = ?
@@ -158,10 +168,12 @@ UNION ALL
 
 SELECT ra.id, 'rent_ad' AS ad_type, ra.name, rac.status, CASE WHEN rac.confirmed THEN rac.performer_id END AS performer_id,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
-       rar.price, rac.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role
+       rar.price, rac.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
+       performer.phone AS provider_phone, owner.phone AS client_phone
 FROM rent_ad ra
 JOIN rent_ad_confirmations rac ON rac.rent_ad_id = ra.id
 JOIN users owner ON owner.id = ra.user_id
+JOIN users performer ON performer.id = rac.performer_id
 JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id AND rar.user_id = rac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = rac.chat_id
 WHERE rac.performer_id = ?
@@ -170,10 +182,12 @@ UNION ALL
 
 SELECT wa.id, 'work_ad' AS ad_type, wa.name, wac.status, CASE WHEN wac.confirmed THEN wac.performer_id END AS performer_id,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
-       war.price, wac.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role
+       war.price, wac.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
+       u.phone AS provider_phone, owner.phone AS client_phone
 FROM work_ad wa
 JOIN work_ad_confirmations wac ON wac.work_ad_id = wa.id
 JOIN users u ON u.id = wac.performer_id
+JOIN users owner ON owner.id = wa.user_id
 JOIN work_ad_responses war ON war.work_ad_id = wa.id AND war.user_id = wac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = wac.chat_id
 WHERE wa.user_id = ?
@@ -182,10 +196,12 @@ UNION ALL
 
 SELECT wa.id, 'work_ad' AS ad_type, wa.name, wac.status, CASE WHEN wac.confirmed THEN wac.performer_id END AS performer_id,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
-       war.price, wac.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role
+       war.price, wac.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
+       performer.phone AS provider_phone, owner.phone AS client_phone
 FROM work_ad wa
 JOIN work_ad_confirmations wac ON wac.work_ad_id = wa.id
 JOIN users owner ON owner.id = wa.user_id
+JOIN users performer ON performer.id = wac.performer_id
 JOIN work_ad_responses war ON war.work_ad_id = wa.id AND war.user_id = wac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = wac.chat_id
 WHERE wac.performer_id = ?
@@ -194,10 +210,12 @@ UNION ALL
 
 SELECT r.id, 'rent' AS ad_type, r.name, rc.status, CASE WHEN rc.confirmed THEN rc.performer_id END AS performer_id,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
-       rr.price, rc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role
+       rr.price, rc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
+       u.phone AS provider_phone, owner.phone AS client_phone
 FROM rent r
 JOIN rent_confirmations rc ON rc.rent_id = r.id
 JOIN users u ON u.id = rc.performer_id
+JOIN users owner ON owner.id = r.user_id
 JOIN rent_responses rr ON rr.rent_id = r.id AND rr.user_id = rc.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = rc.chat_id
 WHERE r.user_id = ?
@@ -206,10 +224,12 @@ UNION ALL
 
 SELECT r.id, 'rent' AS ad_type, r.name, rc.status, CASE WHEN rc.confirmed THEN rc.performer_id END AS performer_id,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
-       rr.price, rc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role
+       rr.price, rc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
+       performer.phone AS provider_phone, owner.phone AS client_phone
 FROM rent r
 JOIN rent_confirmations rc ON rc.rent_id = r.id
 JOIN users owner ON owner.id = r.user_id
+JOIN users performer ON performer.id = rc.performer_id
 JOIN rent_responses rr ON rr.rent_id = r.id AND rr.user_id = rc.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = rc.chat_id
 WHERE rc.performer_id = ?
@@ -218,10 +238,12 @@ UNION ALL
 
 SELECT w.id, 'work' AS ad_type, w.name, wc.status, CASE WHEN wc.confirmed THEN wc.performer_id END AS performer_id,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
-       wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role
+       wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
+       provider.phone AS provider_phone, u.phone AS client_phone
 FROM work w
 JOIN work_confirmations wc ON wc.work_id = w.id
 JOIN users u ON u.id = wc.client_id
+JOIN users provider ON provider.id = w.user_id
 JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.client_id
 LEFT JOIN last_messages lm ON lm.chat_id = wc.chat_id
 WHERE w.user_id = ?
@@ -230,10 +252,12 @@ UNION ALL
 
 SELECT w.id, 'work' AS ad_type, w.name, wc.status, CASE WHEN wc.confirmed THEN wc.performer_id END AS performer_id,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
-       wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role
+       wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
+       owner.phone AS provider_phone, client.phone AS client_phone
 FROM work w
 JOIN work_confirmations wc ON wc.work_id = w.id
 JOIN users owner ON owner.id = w.user_id
+JOIN users client ON client.id = wc.client_id
 JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.client_id
 LEFT JOIN last_messages lm ON lm.chat_id = wc.chat_id
 WHERE wc.client_id = ?
@@ -267,7 +291,8 @@ ORDER BY 1
 		if err := rows.Scan(
 			&adID, &adType, &adName, &status, &confirmedPerformer,
 			&user.ID, &user.Name, &user.Surname, &user.AvatarPath, &user.Phone,
-			&user.Price, &user.ChatID, &user.LastMessage, &user.MyRole, // ← тут новое поле
+			&user.Price, &user.ChatID, &user.LastMessage, &user.MyRole,
+			&user.ProviderPhone, &user.ClientPhone,
 		); err != nil {
 			return nil, err
 		}
@@ -283,10 +308,6 @@ ORDER BY 1
 		if confirmedPerformer.Valid {
 			pid := int(confirmedPerformer.Int64)
 			performerID = &pid
-		}
-
-		if status != "active" || performerID == nil {
-			user.Phone = ""
 		}
 
 		key := fmt.Sprintf("%s:%d", adType, adID)
