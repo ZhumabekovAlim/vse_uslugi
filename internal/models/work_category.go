@@ -5,6 +5,7 @@ import "time"
 type WorkCategory struct {
 	ID             int               `json:"id"`
 	Name           string            `json:"name"`
+	NameKz         string            `json:"name_kz"`
 	ImagePath      string            `json:"image_path"`
 	Subcategories  []WorkSubcategory `json:"subcategories,omitempty"`
 	MinPrice       float64           `json:"min_price"`
