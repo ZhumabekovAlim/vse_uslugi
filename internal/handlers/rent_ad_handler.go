@@ -394,7 +394,15 @@ func (h *RentAdHandler) CreateRentAd(w http.ResponseWriter, r *http.Request) {
 	}
 	service.Description = r.FormValue("description")
 	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
+	if service.CategoryID == 0 {
+		http.Error(w, "Missing category_id", http.StatusBadRequest)
+		return
+	}
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
+	if service.SubcategoryID == 0 {
+		http.Error(w, "Missing subcategory_id", http.StatusBadRequest)
+		return
+	}
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.RentType = r.FormValue("rent_type")
 	service.Deposit = r.FormValue("deposit")
