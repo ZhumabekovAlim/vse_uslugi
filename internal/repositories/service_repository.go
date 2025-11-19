@@ -81,7 +81,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 	query := `
              SELECT s.id, s.name, s.address, s.price, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                      s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name,
+                      s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
                       s.description, s.avg_rating, s.top, s.liked,
                       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                       s.latitude, s.longitude, s.status, s.created_at, s.updated_at
@@ -102,7 +102,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
 		&s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr,
 		&lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
@@ -729,7 +729,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
                     s.id, s.name, s.address, s.price, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                        s.images, s.videos, s.category_id, c.name,
-                       s.subcategory_id, sub.name,
+                       s.subcategory_id, sub.name, sub.name_kz,
                        s.description, s.avg_rating, s.top,
                        CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
                        CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
@@ -754,7 +754,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
-		&s.SubcategoryID, &s.SubcategoryName,
+		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
 		&s.Description, &s.AvgRating, &s.Top,
 		&likedStr, &respondedStr, &lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)

@@ -15,8 +15,8 @@ type SubcategoryRepository struct {
 }
 
 func (r *SubcategoryRepository) CreateSubcategory(ctx context.Context, s models.Subcategory) (models.Subcategory, error) {
-	query := `INSERT INTO subcategories (category_id, name) VALUES (?, ?)`
-	result, err := r.DB.ExecContext(ctx, query, s.CategoryID, s.Name)
+	query := `INSERT INTO subcategories (category_id, name, name_kz) VALUES (?, ?, ?)`
+	result, err := r.DB.ExecContext(ctx, query, s.CategoryID, s.Name, s.NameKz)
 	if err != nil {
 		return models.Subcategory{}, err
 	}
@@ -26,7 +26,7 @@ func (r *SubcategoryRepository) CreateSubcategory(ctx context.Context, s models.
 }
 
 func (r *SubcategoryRepository) GetAllSubcategories(ctx context.Context) ([]models.Subcategory, error) {
-	rows, err := r.DB.QueryContext(ctx, `SELECT id, category_id, name, created_at, updated_at FROM subcategories`)
+	rows, err := r.DB.QueryContext(ctx, `SELECT id, category_id, name, name_kz, created_at, updated_at FROM subcategories`)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func (r *SubcategoryRepository) GetAllSubcategories(ctx context.Context) ([]mode
 	var subs []models.Subcategory
 	for rows.Next() {
 		var s models.Subcategory
-		if err := rows.Scan(&s.ID, &s.CategoryID, &s.Name, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.CategoryID, &s.Name, &s.NameKz, &s.CreatedAt, &s.UpdatedAt); err != nil {
 			return nil, err
 		}
 		subs = append(subs, s)
@@ -44,7 +44,7 @@ func (r *SubcategoryRepository) GetAllSubcategories(ctx context.Context) ([]mode
 }
 
 func (r *SubcategoryRepository) GetByCategoryID(ctx context.Context, categoryID int) ([]models.Subcategory, error) {
-	rows, err := r.DB.QueryContext(ctx, `SELECT id, category_id, name, created_at, updated_at FROM subcategories WHERE category_id = ?`, categoryID)
+	rows, err := r.DB.QueryContext(ctx, `SELECT id, category_id, name, name_kz, created_at, updated_at FROM subcategories WHERE category_id = ?`, categoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (r *SubcategoryRepository) GetByCategoryID(ctx context.Context, categoryID 
 	var subs []models.Subcategory
 	for rows.Next() {
 		var s models.Subcategory
-		if err := rows.Scan(&s.ID, &s.CategoryID, &s.Name, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.CategoryID, &s.Name, &s.NameKz, &s.CreatedAt, &s.UpdatedAt); err != nil {
 			return nil, err
 		}
 		subs = append(subs, s)
@@ -63,13 +63,13 @@ func (r *SubcategoryRepository) GetByCategoryID(ctx context.Context, categoryID 
 
 func (r *SubcategoryRepository) GetSubcategoryByID(ctx context.Context, id int) (models.Subcategory, error) {
 	query := `
-        SELECT id, category_id, name, created_at, updated_at
+        SELECT id, category_id, name, name_kz, created_at, updated_at
         FROM subcategories
         WHERE id = ?
     `
 	var s models.Subcategory
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.CategoryID, &s.Name, &s.CreatedAt, &s.UpdatedAt,
+		&s.ID, &s.CategoryID, &s.Name, &s.NameKz, &s.CreatedAt, &s.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return models.Subcategory{}, ErrSubcategoryNotFound
@@ -82,15 +82,15 @@ func (r *SubcategoryRepository) GetSubcategoryByID(ctx context.Context, id int) 
 
 func (r *SubcategoryRepository) UpdateSubcategoryByID(ctx context.Context, sub models.Subcategory) (models.Subcategory, error) {
 	query := `
-		UPDATE subcategories 
-		SET name = ?, category_id = ?, updated_at = ?
-		WHERE id = ?
-	`
+                UPDATE subcategories
+                SET name = ?, name_kz = ?, category_id = ?, updated_at = ?
+                WHERE id = ?
+        `
 
 	now := time.Now()
 	sub.UpdatedAt = &now
 
-	result, err := r.DB.ExecContext(ctx, query, sub.Name, sub.CategoryID, sub.UpdatedAt, sub.ID)
+	result, err := r.DB.ExecContext(ctx, query, sub.Name, sub.NameKz, sub.CategoryID, sub.UpdatedAt, sub.ID)
 	if err != nil {
 		return models.Subcategory{}, err
 	}

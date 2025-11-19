@@ -81,7 +81,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	query := `
              SELECT s.id, s.name, s.address, s.price, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                      s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name,
+                      s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
                       s.description, s.avg_rating, s.top, s.liked,
                       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                       s.latitude, s.longitude, s.status, s.created_at, s.updated_at
@@ -103,7 +103,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &lat, &lon, &s.Status,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &lat, &lon, &s.Status,
 
 		&s.CreatedAt, &s.UpdatedAt,
 	)
@@ -795,7 +795,7 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]models.AdItem, int, error) {
 	baseQuery := `
         SELECT s.id, 'service' as type, s.name as title, s.description, s.price, s.address, s.created_at,
-               s.category_id, c.name as category_name, s.subcategory_id, sub.name as subcategory_name,
+               s.category_id, c.name as category_name, s.subcategory_id, sub.name as subcategory_name, sub.name_kz as subcategory_name_kz,
                0 as views_count,
                (SELECT COUNT(*) FROM service_responses sr WHERE sr.service_id = s.id) as responses_count,
                u.id as author_id, u.name as author_name, u.review_rating as author_rating,
@@ -810,7 +810,7 @@ func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]m
         UNION ALL
 
         SELECT r.id, 'rental' as type, r.name as title, r.description, r.price, r.address, r.created_at,
-               r.category_id, rc.name as category_name, r.subcategory_id, rsub.name as subcategory_name,
+               r.category_id, rc.name as category_name, r.subcategory_id, rsub.name as subcategory_name, rsub.name_kz as subcategory_name_kz,
                0 as views_count,
                (SELECT COUNT(*) FROM rent_ad_responses rr WHERE rr.rent_ad_id = r.id) as responses_count,
                u.id as author_id, u.name as author_name, u.review_rating as author_rating,
@@ -825,7 +825,7 @@ func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]m
         UNION ALL
 
         SELECT w.id, 'job' as type, w.name as title, w.description, w.price, w.address, w.created_at,
-               w.category_id, c.name as category_name, w.subcategory_id, sub.name as subcategory_name,
+               w.category_id, c.name as category_name, w.subcategory_id, sub.name as subcategory_name, sub.name_kz as subcategory_name_kz,
                0 as views_count,
                (SELECT COUNT(*) FROM work_ad_responses wr WHERE wr.work_ad_id = w.id) as responses_count,
                u.id as author_id, u.name as author_name, u.review_rating as author_rating,
@@ -914,6 +914,7 @@ func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]m
 			&item.Category.Name,
 			&item.Subcategory.ID,
 			&item.Subcategory.Name,
+			&item.Subcategory.NameKz,
 			&viewsCount,
 			&responsesCount,
 			&item.Author.ID,
