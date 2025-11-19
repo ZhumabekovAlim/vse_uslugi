@@ -94,6 +94,7 @@ func (h *RentCategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Requ
 	}
 
 	name := r.FormValue("name")
+	nameKz := r.FormValue("name_kz")
 	if name == "" {
 		http.Error(w, "missing category name", http.StatusBadRequest)
 		return
@@ -131,6 +132,7 @@ func (h *RentCategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Requ
 
 	category := models.RentCategory{
 		Name:      name,
+		NameKz:    nameKz,
 		ImagePath: publicURL,
 		MinPrice:  0,
 	}
@@ -188,6 +190,7 @@ func (h *RentCategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Requ
 	}
 
 	name := r.FormValue("name")
+	nameKz := r.FormValue("name_kz")
 	var imagePath string
 
 	file, header, err := r.FormFile("image")
@@ -219,6 +222,7 @@ func (h *RentCategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Requ
 	category := models.RentCategory{
 		ID:        id,
 		Name:      name,
+		NameKz:    nameKz,
 		ImagePath: imagePath,
 	}
 

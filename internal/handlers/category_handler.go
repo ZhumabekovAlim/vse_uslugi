@@ -100,6 +100,8 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	nameKz := r.FormValue("name_kz")
+
 	// Обработка изображения
 	file, header, err := r.FormFile("image")
 	if err != nil {
@@ -137,6 +139,7 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	// Создаём категорию
 	category := models.Category{
 		Name:      name,
+		NameKz:    nameKz,
 		ImagePath: publicURL,
 		MinPrice:  0, // по умолчанию
 	}
@@ -203,6 +206,8 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	nameKz := r.FormValue("name_kz")
+
 	var imagePath string
 	file, header, err := r.FormFile("image")
 	if err == nil {
@@ -241,6 +246,7 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 	category := models.Category{
 		ID:        id,
 		Name:      name,
+		NameKz:    nameKz,
 		ImagePath: imagePath,
 	}
 

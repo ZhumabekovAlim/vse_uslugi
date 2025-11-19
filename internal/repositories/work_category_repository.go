@@ -24,10 +24,10 @@ func (r *WorkCategoryRepository) CreateCategory(ctx context.Context, category mo
 
 	// Вставка категории
 	query := `
-		INSERT INTO work_categories (name, image_path, created_at, updated_at)
-		VALUES (?, ?, ?, ?)
-	`
-	result, err := tx.ExecContext(ctx, query, category.Name, category.ImagePath, category.CreatedAt, category.UpdatedAt)
+            INSERT INTO work_categories (name, name_kz, image_path, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+    `
+	result, err := tx.ExecContext(ctx, query, category.Name, category.NameKz, category.ImagePath, category.CreatedAt, category.UpdatedAt)
 	if err != nil {
 		tx.Rollback()
 		return models.WorkCategory{}, err
@@ -62,11 +62,11 @@ func (r *WorkCategoryRepository) UpdateCategory(ctx context.Context, category mo
 
 	// Обновляем имя и путь к изображению
 	query := `
-		UPDATE work_categories
-		SET name = ?, image_path = ?, updated_at = ?
-		WHERE id = ?
-	`
-	_, err = tx.ExecContext(ctx, query, category.Name, category.ImagePath, time.Now(), category.ID)
+            UPDATE work_categories
+            SET name = ?, name_kz = ?, image_path = ?, updated_at = ?
+            WHERE id = ?
+    `
+	_, err = tx.ExecContext(ctx, query, category.Name, category.NameKz, category.ImagePath, time.Now(), category.ID)
 	if err != nil {
 		tx.Rollback()
 		return models.WorkCategory{}, err
@@ -74,16 +74,17 @@ func (r *WorkCategoryRepository) UpdateCategory(ctx context.Context, category mo
 
 	// Получаем обратно обновлённые данные
 	row := tx.QueryRowContext(ctx, `
-                SELECT id, name, image_path, created_at, updated_at
-                FROM work_categories
-                WHERE id = ?
-        `, category.ID)
+            SELECT id, name, name_kz, image_path, created_at, updated_at
+            FROM work_categories
+            WHERE id = ?
+    `, category.ID)
 
 	var updated models.WorkCategory
 	var imagePath sql.NullString
 	err = row.Scan(
 		&updated.ID,
 		&updated.Name,
+		&updated.NameKz,
 		&imagePath,
 		&updated.CreatedAt,
 		&updated.UpdatedAt,
@@ -149,7 +150,7 @@ func (r *WorkCategoryRepository) DeleteCategory(ctx context.Context, id int) err
 func (r *WorkCategoryRepository) GetAllCategories(ctx context.Context) ([]models.WorkCategory, error) {
 	var work_categories []models.WorkCategory
 
-	query := `SELECT id, name, image_path, created_at, updated_at FROM work_categories`
+	query := `SELECT id, name, name_kz, image_path, created_at, updated_at FROM work_categories`
 	rows, err := r.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -159,7 +160,7 @@ func (r *WorkCategoryRepository) GetAllCategories(ctx context.Context) ([]models
 	for rows.Next() {
 		var category models.WorkCategory
 		var imagePath sql.NullString
-		err := rows.Scan(&category.ID, &category.Name, &imagePath, &category.CreatedAt, &category.UpdatedAt)
+		err := rows.Scan(&category.ID, &category.Name, &category.NameKz, &imagePath, &category.CreatedAt, &category.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -202,14 +203,15 @@ func (r *WorkCategoryRepository) GetCategoryByID(ctx context.Context, id int) (m
 
 	// Получаем саму категорию
 	query := `
-		SELECT id, name, image_path, created_at, updated_at
-		FROM work_categories
-		WHERE id = ?
-	`
+            SELECT id, name, name_kz, image_path, created_at, updated_at
+            FROM work_categories
+            WHERE id = ?
+    `
 	var imagePath sql.NullString
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
 		&category.ID,
 		&category.Name,
+		&category.NameKz,
 		&imagePath,
 		&category.CreatedAt,
 		&category.UpdatedAt,

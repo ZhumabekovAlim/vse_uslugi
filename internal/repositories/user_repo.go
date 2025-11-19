@@ -70,10 +70,10 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.Us
 
 	// 🆕 Получаем список категорий с названиями
 	catQuery := `
-		SELECT c.id, c.name
-		FROM user_categories uc
-		JOIN categories c ON uc.category_id = c.id
-		WHERE uc.user_id = ?`
+            SELECT c.id, c.name, c.name_kz
+            FROM user_categories uc
+            JOIN categories c ON uc.category_id = c.id
+            WHERE uc.user_id = ?`
 	rows, err := r.DB.QueryContext(ctx, catQuery, userID)
 	if err != nil {
 		return models.User{}, err
@@ -82,7 +82,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.Us
 
 	for rows.Next() {
 		var cat models.Category
-		if err := rows.Scan(&cat.ID, &cat.Name); err != nil {
+		if err := rows.Scan(&cat.ID, &cat.Name, &cat.NameKz); err != nil {
 			return models.User{}, err
 		}
 		user.Categories = append(user.Categories, cat)
