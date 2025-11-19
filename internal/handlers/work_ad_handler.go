@@ -410,12 +410,20 @@ func (h *WorkAdHandler) CreateWorkAd(w http.ResponseWriter, r *http.Request) {
 	}
 	service.Description = r.FormValue("description")
 	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
+	if service.CategoryID == 0 {
+		http.Error(w, "Missing category_id", http.StatusBadRequest)
+		return
+	}
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.Top = r.FormValue("top")
 	service.Status = normalizeListingStatus(r.FormValue("status"))
 	service.WorkExperience = r.FormValue("work_experience")
 	service.CityID, _ = strconv.Atoi(r.FormValue("city_id"))
+	if service.CityID == 0 {
+		http.Error(w, "Missing city_id", http.StatusBadRequest)
+		return
+	}
 	service.Schedule = r.FormValue("schedule")
 	service.DistanceWork = r.FormValue("distance_work")
 	service.PaymentPeriod = r.FormValue("payment_period")
