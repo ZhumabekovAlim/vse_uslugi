@@ -523,6 +523,10 @@ func (h *AdHandler) CreateAd(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}
+		if isForeignKeyConstraintError(err) {
+			http.Error(w, "Invalid user_id, category_id, or subcategory_id", http.StatusBadRequest)
+			return
+		}
 		log.Printf("Failed to create service: %v", err)
 		http.Error(w, "Failed to create service", http.StatusInternalServerError)
 		return
