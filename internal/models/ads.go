@@ -33,8 +33,9 @@ type AdItem struct {
 		Name string `json:"name"`
 	} `json:"category"`
 	Subcategory struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
+		ID     int    `json:"id"`
+		Name   string `json:"name"`
+		NameKz string `json:"name_kz"`
 	} `json:"subcategory"`
 	ViewsCount     int `json:"views_count"`
 	ResponsesCount int `json:"responses_count"`

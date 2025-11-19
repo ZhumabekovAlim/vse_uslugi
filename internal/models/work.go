@@ -19,29 +19,30 @@ type Work struct {
 		ReviewsCount int     `json:"reviews_count"`
 		AvatarPath   *string `json:"avatar_path,omitempty"`
 	} `json:"user"`
-	Images          []ImageWork `json:"images"`
-	Videos          []Video     `json:"videos"`
-	CategoryID      int         `json:"category_id, omitempty"`
-	SubcategoryID   int         `json:"subcategory_id, omitempty"`
-	Description     string      `json:"description"`
-	AvgRating       float64     `json:"avg_rating"`
-	Top             string      `json:"top, omitempty"`
-	Liked           bool        `json:"liked, omitempty"`
-	Responded       bool        `json:"is_responded"`
-	Status          string      `json:"status, omitempty"`
-	CategoryName    string      `json:"category_name"`
-	SubcategoryName string      `json:"subcategory_name"`
-	WorkExperience  string      `json:"work_experience,omitempty"`
-	CityID          int         `json:"city_id"`
-	CityName        string      `json:"city_name"`
-	CityType        string      `json:"city_type"`
-	Schedule        string      `json:"schedule, omitempty"`
-	DistanceWork    string      `json:"distance_work,omitempty"`
-	PaymentPeriod   string      `json:"payment_period,omitempty"`
-	Latitude        string      `json:"latitude,omitempty"`
-	Longitude       string      `json:"longitude,omitempty"`
-	CreatedAt       time.Time   `json:"created_at"`
-	UpdatedAt       *time.Time  `json:"updated_at,omitempty"`
+	Images            []ImageWork `json:"images"`
+	Videos            []Video     `json:"videos"`
+	CategoryID        int         `json:"category_id, omitempty"`
+	SubcategoryID     int         `json:"subcategory_id, omitempty"`
+	Description       string      `json:"description"`
+	AvgRating         float64     `json:"avg_rating"`
+	Top               string      `json:"top, omitempty"`
+	Liked             bool        `json:"liked, omitempty"`
+	Responded         bool        `json:"is_responded"`
+	Status            string      `json:"status, omitempty"`
+	CategoryName      string      `json:"category_name"`
+	SubcategoryName   string      `json:"subcategory_name"`
+	SubcategoryNameKz string      `json:"subcategory_name_kz"`
+	WorkExperience    string      `json:"work_experience,omitempty"`
+	CityID            int         `json:"city_id"`
+	CityName          string      `json:"city_name"`
+	CityType          string      `json:"city_type"`
+	Schedule          string      `json:"schedule, omitempty"`
+	DistanceWork      string      `json:"distance_work,omitempty"`
+	PaymentPeriod     string      `json:"payment_period,omitempty"`
+	Latitude          string      `json:"latitude,omitempty"`
+	Longitude         string      `json:"longitude,omitempty"`
+	CreatedAt         time.Time   `json:"created_at"`
+	UpdatedAt         *time.Time  `json:"updated_at,omitempty"`
 }
 
 type ImageWork struct {

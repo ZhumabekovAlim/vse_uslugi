@@ -104,10 +104,10 @@ func (r *WorkCategoryRepository) UpdateCategory(ctx context.Context, category mo
 
 	// Подтягиваем work_subcategories
 	subQuery := `
-		SELECT id, category_id, name, created_at, updated_at
-		FROM work_subcategories
-		WHERE category_id = ?
-	`
+                SELECT id, category_id, name, name_kz, created_at, updated_at
+                FROM work_subcategories
+                WHERE category_id = ?
+        `
 	subRows, err := tx.QueryContext(ctx, subQuery, updated.ID)
 	if err != nil {
 		tx.Rollback()
@@ -117,7 +117,7 @@ func (r *WorkCategoryRepository) UpdateCategory(ctx context.Context, category mo
 
 	for subRows.Next() {
 		var sub models.WorkSubcategory
-		if err := subRows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
+		if err := subRows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.NameKz, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
 			tx.Rollback()
 			return models.WorkCategory{}, err
 		}
@@ -174,10 +174,10 @@ func (r *WorkCategoryRepository) GetAllCategories(ctx context.Context) ([]models
 
 		// Получаем подкатегории для каждой категории
 		subQuery := `
-			SELECT id, category_id, name, created_at, updated_at
-			FROM work_subcategories
-			WHERE category_id = ?
-		`
+                        SELECT id, category_id, name, name_kz, created_at, updated_at
+                        FROM work_subcategories
+                        WHERE category_id = ?
+                `
 		subRows, err := r.DB.QueryContext(ctx, subQuery, category.ID)
 		if err != nil {
 			return nil, err
@@ -185,7 +185,7 @@ func (r *WorkCategoryRepository) GetAllCategories(ctx context.Context) ([]models
 
 		for subRows.Next() {
 			var sub models.WorkSubcategory
-			if err := subRows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
+			if err := subRows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.NameKz, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
 				return nil, err
 			}
 			category.Subcategories = append(category.Subcategories, sub)
@@ -232,10 +232,10 @@ func (r *WorkCategoryRepository) GetCategoryByID(ctx context.Context, id int) (m
 
 	// Загружаем связанные субкатегории через category_subcategory
 	subQuery := `
-			SELECT id, category_id, name, created_at, updated_at
-			FROM work_subcategories
-			WHERE category_id = ?
-		`
+                        SELECT id, category_id, name, name_kz, created_at, updated_at
+                        FROM work_subcategories
+                        WHERE category_id = ?
+                `
 	rows, err := r.DB.QueryContext(ctx, subQuery, id)
 	if err != nil {
 		return category, err
@@ -244,7 +244,7 @@ func (r *WorkCategoryRepository) GetCategoryByID(ctx context.Context, id int) (m
 
 	for rows.Next() {
 		var sub models.WorkSubcategory
-		if err := rows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
+		if err := rows.Scan(&sub.ID, &sub.CategoryID, &sub.Name, &sub.NameKz, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
 			return category, err
 		}
 		category.Subcategories = append(category.Subcategories, sub)

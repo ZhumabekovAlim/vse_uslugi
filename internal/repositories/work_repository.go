@@ -77,7 +77,7 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
 	query := `
           SELECT w.id, w.name, w.address, w.price, w.user_id,
                  u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                    w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
+                    w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, sub.name_kz, w.description, w.avg_rating, w.top, w.liked,
                     CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                     w.status, w.work_experience, u.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
               FROM work w
@@ -98,7 +98,7 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
 
 		&s.UpdatedAt,
 	)
@@ -688,7 +688,7 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
                     s.id, s.name, s.address, s.price, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                        s.images, s.videos, s.category_id, c.name,
-                       s.subcategory_id, sub.name,
+                       s.subcategory_id, sub.name, sub.name_kz,
                        s.description, s.avg_rating, s.top,
               CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
               CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
@@ -713,7 +713,7 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
-		&s.SubcategoryID, &s.SubcategoryName,
+		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
 		&s.Description, &s.AvgRating, &s.Top,
 		&likedStr, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
 	)
