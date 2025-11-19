@@ -410,12 +410,24 @@ func (h *WorkAdHandler) CreateWorkAd(w http.ResponseWriter, r *http.Request) {
 	}
 	service.Description = r.FormValue("description")
 	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
+	if service.CategoryID == 0 {
+		http.Error(w, "Missing category_id", http.StatusBadRequest)
+		return
+	}
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
+	if service.SubcategoryID == 0 {
+		http.Error(w, "Missing subcategory_id", http.StatusBadRequest)
+		return
+	}
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.Top = r.FormValue("top")
 	service.Status = normalizeListingStatus(r.FormValue("status"))
 	service.WorkExperience = r.FormValue("work_experience")
 	service.CityID, _ = strconv.Atoi(r.FormValue("city_id"))
+	if service.CityID == 0 {
+		http.Error(w, "Missing city_id", http.StatusBadRequest)
+		return
+	}
 	service.Schedule = r.FormValue("schedule")
 	service.DistanceWork = r.FormValue("distance_work")
 	service.PaymentPeriod = r.FormValue("payment_period")
@@ -530,6 +542,10 @@ func (h *WorkAdHandler) CreateWorkAd(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, services.ErrNoActiveSubscription) {
 			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
+		if isForeignKeyConstraintError(err) {
+			http.Error(w, "Invalid user_id, category_id, city_id, or subcategory_id", http.StatusBadRequest)
 			return
 		}
 		log.Printf("Failed to create service: %v", err)
