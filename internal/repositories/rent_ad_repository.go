@@ -38,6 +38,11 @@ func (r *RentAdRepository) CreateRentAd(ctx context.Context, rent models.RentAd)
 		return models.RentAd{}, err
 	}
 
+	var subcategory interface{}
+	if rent.SubcategoryID != 0 {
+		subcategory = rent.SubcategoryID
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
 		rent.Name,
 		rent.Address,
@@ -46,7 +51,7 @@ func (r *RentAdRepository) CreateRentAd(ctx context.Context, rent models.RentAd)
 		string(imagesJSON),
 		string(videosJSON),
 		rent.CategoryID,
-		rent.SubcategoryID,
+		subcategory,
 		rent.Description,
 		rent.AvgRating,
 		rent.Top,

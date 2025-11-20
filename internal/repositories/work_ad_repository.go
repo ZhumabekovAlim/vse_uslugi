@@ -37,6 +37,11 @@ func (r *WorkAdRepository) CreateWorkAd(ctx context.Context, work models.WorkAd)
 		return models.WorkAd{}, err
 	}
 
+	var subcategory interface{}
+	if work.SubcategoryID != 0 {
+		subcategory = work.SubcategoryID
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
 		work.Name,
 		work.Address,
@@ -45,7 +50,7 @@ func (r *WorkAdRepository) CreateWorkAd(ctx context.Context, work models.WorkAd)
 		string(imagesJSON),
 		string(videosJSON),
 		work.CategoryID,
-		work.SubcategoryID,
+		subcategory,
 		work.Description,
 		work.AvgRating,
 		work.Top,
