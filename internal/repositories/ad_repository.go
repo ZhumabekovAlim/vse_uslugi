@@ -47,6 +47,11 @@ func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, e
 		longitude = *ad.Longitude
 	}
 
+	var subcategory interface{}
+	if ad.SubcategoryID != 0 {
+		subcategory = ad.SubcategoryID
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
 		ad.Name,
 		ad.Address,
@@ -55,7 +60,7 @@ func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, e
 		string(imagesJSON),
 		string(videosJSON),
 		ad.CategoryID,
-		ad.SubcategoryID,
+		subcategory,
 		ad.Description,
 		ad.AvgRating,
 		ad.Top,

@@ -47,6 +47,11 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		longitude = *service.Longitude
 	}
 
+	var subcategory interface{}
+	if service.SubcategoryID != 0 {
+		subcategory = service.SubcategoryID
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
 		service.Name,
 		service.Address,
@@ -55,7 +60,7 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		string(imagesJSON),
 		string(videosJSON),
 		service.CategoryID,
-		service.SubcategoryID,
+		subcategory,
 		service.Description,
 		service.AvgRating,
 		service.Top,
