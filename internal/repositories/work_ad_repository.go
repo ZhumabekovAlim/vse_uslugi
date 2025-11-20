@@ -74,19 +74,19 @@ func (r *WorkAdRepository) CreateWorkAd(ctx context.Context, work models.WorkAd)
 
 func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int) (models.WorkAd, error) {
 	query := `
-             SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
+     SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
 
-                     CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+             CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
 
-                     w.status, w.work_experience, u.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
-                FROM work_ad w
-                JOIN users u ON w.user_id = u.id
-                JOIN work_categories c ON w.category_id = c.id
-                JOIN work_subcategories sub ON w.subcategory_id = sub.id
-               JOIN cities city ON u.city_id = city.id
-               LEFT JOIN work_ad_responses sr ON sr.work_ad_id = w.id AND sr.user_id = ?
-                WHERE w.id = ?
-       `
+             w.status, w.work_experience, u.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
+       FROM work_ad w
+       JOIN users u ON w.user_id = u.id
+       JOIN work_categories c ON w.category_id = c.id
+       JOIN work_subcategories sub ON w.subcategory_id = sub.id
+       JOIN cities city ON u.city_id = city.id
+       LEFT JOIN work_ad_responses sr ON sr.work_ad_id = w.id AND sr.user_id = ?
+       WHERE w.id = ? AND w.status <> 'archive'
+`
 
 	var s models.WorkAd
 	var imagesJSON []byte
