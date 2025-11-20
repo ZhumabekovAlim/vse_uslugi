@@ -31,6 +31,7 @@ var (
 	ErrReviewNotFound         = errors.New("review not found")
 	ErrSubcategoryNotFound    = errors.New("subcategory not found")
 	ErrAlreadyResponded       = errors.New("user already responded")
+	ErrAlreadyReviewed        = errors.New("user already reviewed")
 	ErrNoRemainingResponses   = errors.New("no remaining responses")
 	ErrNoActiveListings       = errors.New("no active listings")
 	ErrForbidden              = errors.New("forbidden")
