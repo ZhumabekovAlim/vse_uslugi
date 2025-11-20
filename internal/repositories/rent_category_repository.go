@@ -145,7 +145,7 @@ func (r *RentCategoryRepository) DeleteCategory(ctx context.Context, id int) err
 func (r *RentCategoryRepository) GetAllCategories(ctx context.Context) ([]models.RentCategory, error) {
 	var rent_categories []models.RentCategory
 
-	query := `SELECT id, name, name_kz, image_path, created_at, updated_at FROM rent_categories`
+query := `SELECT id, name, name_kz, image_path, created_at, updated_at FROM rent_categories ORDER BY name`
 	rows, err := r.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -163,11 +163,12 @@ func (r *RentCategoryRepository) GetAllCategories(ctx context.Context) ([]models
 		_ = r.DB.QueryRowContext(ctx, priceQuery, category.ID).Scan(&category.MinPrice)
 
 		// Получаем подкатегории для каждой категории
-		subQuery := `
-                        SELECT id, category_id, name, name_kz, created_at, updated_at
-                        FROM rent_subcategories
-                        WHERE category_id = ?
-                `
+subQuery := `
+SELECT id, category_id, name, name_kz, created_at, updated_at
+FROM rent_subcategories
+WHERE category_id = ?
+ORDER BY name
+`
 		subRows, err := r.DB.QueryContext(ctx, subQuery, category.ID)
 		if err != nil {
 			return nil, err
@@ -216,11 +217,12 @@ func (r *RentCategoryRepository) GetCategoryByID(ctx context.Context, id int) (m
 	}
 
 	// Загружаем связанные субкатегории через category_subcategory
-	subQuery := `
-                        SELECT id, category_id, name, name_kz, created_at, updated_at
-                        FROM rent_subcategories
-                        WHERE category_id = ?
-                `
+subQuery := `
+SELECT id, category_id, name, name_kz, created_at, updated_at
+FROM rent_subcategories
+WHERE category_id = ?
+ORDER BY name
+`
 	rows, err := r.DB.QueryContext(ctx, subQuery, id)
 	if err != nil {
 		return category, err

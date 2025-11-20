@@ -150,7 +150,7 @@ func (r *WorkCategoryRepository) DeleteCategory(ctx context.Context, id int) err
 func (r *WorkCategoryRepository) GetAllCategories(ctx context.Context) ([]models.WorkCategory, error) {
 	var work_categories []models.WorkCategory
 
-	query := `SELECT id, name, name_kz, image_path, created_at, updated_at FROM work_categories`
+query := `SELECT id, name, name_kz, image_path, created_at, updated_at FROM work_categories ORDER BY name`
 	rows, err := r.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -173,11 +173,12 @@ func (r *WorkCategoryRepository) GetAllCategories(ctx context.Context) ([]models
 		_ = r.DB.QueryRowContext(ctx, priceQuery, category.ID).Scan(&category.MinPrice)
 
 		// Получаем подкатегории для каждой категории
-		subQuery := `
-                        SELECT id, category_id, name, name_kz, created_at, updated_at
-                        FROM work_subcategories
-                        WHERE category_id = ?
-                `
+subQuery := `
+SELECT id, category_id, name, name_kz, created_at, updated_at
+FROM work_subcategories
+WHERE category_id = ?
+ORDER BY name
+`
 		subRows, err := r.DB.QueryContext(ctx, subQuery, category.ID)
 		if err != nil {
 			return nil, err
@@ -231,11 +232,12 @@ func (r *WorkCategoryRepository) GetCategoryByID(ctx context.Context, id int) (m
 	}
 
 	// Загружаем связанные субкатегории через category_subcategory
-	subQuery := `
-                        SELECT id, category_id, name, name_kz, created_at, updated_at
-                        FROM work_subcategories
-                        WHERE category_id = ?
-                `
+subQuery := `
+SELECT id, category_id, name, name_kz, created_at, updated_at
+FROM work_subcategories
+WHERE category_id = ?
+ORDER BY name
+`
 	rows, err := r.DB.QueryContext(ctx, subQuery, id)
 	if err != nil {
 		return category, err
