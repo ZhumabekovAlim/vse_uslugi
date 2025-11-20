@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -22,6 +23,10 @@ func (h *RentReviewHandler) CreateRentReview(w http.ResponseWriter, r *http.Requ
 	}
 	reviews, err := h.Service.CreateRentReview(r.Context(), reviews)
 	if err != nil {
+		if errors.Is(err, models.ErrAlreadyReviewed) {
+			http.Error(w, "user already reviewed", http.StatusConflict)
+			return
+		}
 		log.Printf("CreateReview error: %v", err)
 		http.Error(w, "Failed to create review", http.StatusInternalServerError)
 		return

@@ -11,9 +11,17 @@ type RentAdReviewRepository struct {
 }
 
 func (r *RentAdReviewRepository) CreateRentAdReview(ctx context.Context, rev models.RentAdReviews) (models.RentAdReviews, error) {
+	var count int
+	if err := r.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM rent_ad_reviews WHERE user_id = ? AND rent_ad_id = ?`, rev.UserID, rev.RentAdID).Scan(&count); err != nil {
+		return models.RentAdReviews{}, err
+	}
+	if count > 0 {
+		return models.RentAdReviews{}, models.ErrAlreadyReviewed
+	}
+
 	query := `
-		INSERT INTO rent_ad_reviews (user_id, rent_ad_id, rating, review, created_at, updated_at)
-		VALUES (?, ?, ?, ?, NOW(), NOW())
+INSERT INTO rent_ad_reviews (user_id, rent_ad_id, rating, review, created_at, updated_at)
+VALUES (?, ?, ?, ?, NOW(), NOW())
 	`
 	result, err := r.DB.ExecContext(ctx, query,
 		rev.UserID, rev.RentAdID, rev.Rating, rev.Review,

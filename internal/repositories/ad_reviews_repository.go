@@ -11,9 +11,17 @@ type AdReviewRepository struct {
 }
 
 func (r *AdReviewRepository) CreateAdReview(ctx context.Context, rev models.AdReviews) (models.AdReviews, error) {
+	var count int
+	if err := r.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM ad_reviews WHERE user_id = ? AND ad_id = ?`, rev.UserID, rev.AdID).Scan(&count); err != nil {
+		return models.AdReviews{}, err
+	}
+	if count > 0 {
+		return models.AdReviews{}, models.ErrAlreadyReviewed
+	}
+
 	query := `
-		INSERT INTO ad_reviews (user_id, ad_id, rating, review, created_at, updated_at)
-		VALUES (?, ?, ?, ?, NOW(), NOW())
+INSERT INTO ad_reviews (user_id, ad_id, rating, review, created_at, updated_at)
+VALUES (?, ?, ?, ?, NOW(), NOW())
 	`
 	result, err := r.DB.ExecContext(ctx, query,
 		rev.UserID, rev.AdID, rev.Rating, rev.Review,

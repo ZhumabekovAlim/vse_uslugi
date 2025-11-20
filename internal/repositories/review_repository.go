@@ -11,9 +11,17 @@ type ReviewRepository struct {
 }
 
 func (r *ReviewRepository) CreateReview(ctx context.Context, rev models.Reviews) (models.Reviews, error) {
+	var count int
+	if err := r.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM reviews WHERE user_id = ? AND service_id = ?`, rev.UserID, rev.ServiceID).Scan(&count); err != nil {
+		return models.Reviews{}, err
+	}
+	if count > 0 {
+		return models.Reviews{}, models.ErrAlreadyReviewed
+	}
+
 	query := `
-		INSERT INTO reviews (user_id, service_id, rating, review, created_at, updated_at)
-		VALUES (?, ?, ?, ?, NOW(), NOW())
+INSERT INTO reviews (user_id, service_id, rating, review, created_at, updated_at)
+VALUES (?, ?, ?, ?, NOW(), NOW())
 	`
 	result, err := r.DB.ExecContext(ctx, query,
 		rev.UserID, rev.ServiceID, rev.Rating, rev.Review,

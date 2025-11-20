@@ -11,9 +11,17 @@ type WorkAdReviewRepository struct {
 }
 
 func (r *WorkAdReviewRepository) CreateWorkAdReview(ctx context.Context, rev models.WorkAdReviews) (models.WorkAdReviews, error) {
+	var count int
+	if err := r.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM work_ad_reviews WHERE user_id = ? AND work_ad_id = ?`, rev.UserID, rev.WorkAdID).Scan(&count); err != nil {
+		return models.WorkAdReviews{}, err
+	}
+	if count > 0 {
+		return models.WorkAdReviews{}, models.ErrAlreadyReviewed
+	}
+
 	query := `
-		INSERT INTO work_ad_reviews (user_id, work_ad_id, rating, review, created_at, updated_at)
-		VALUES (?, ?, ?, ?, NOW(), NOW())
+INSERT INTO work_ad_reviews (user_id, work_ad_id, rating, review, created_at, updated_at)
+VALUES (?, ?, ?, ?, NOW(), NOW())
 	`
 	result, err := r.DB.ExecContext(ctx, query,
 		rev.UserID, rev.WorkAdID, rev.Rating, rev.Review,
