@@ -2,19 +2,27 @@ package models
 
 // ChatUser contains information about a user participating in a chat and the price they offered.
 type ChatUser struct {
-	ID            int     `json:"id"`
-	Name          string  `json:"name"`
-	Surname       string  `json:"surname"`
-	AvatarPath    string  `json:"avatar_path"`
-	Phone         string  `json:"phone,omitempty"`
-	ProviderPhone string  `json:"provider_phone"`
-	ClientPhone   string  `json:"client_phone"`
-	Price         float64 `json:"price"`
-	ChatID        int     `json:"chat_id"`
-	LastMessage   string  `json:"lastMessage,omitempty"`
-	ReviewRating  float64 `json:"review_rating"`
-	ReviewsCount  int     `json:"reviews_count"`
-	MyRole        string  `json:"my_role"`
+	ID            int             `json:"id"`
+	Name          string          `json:"name"`
+	Surname       string          `json:"surname"`
+	AvatarPath    string          `json:"avatar_path"`
+	Phone         string          `json:"phone,omitempty"`
+	ProviderPhone string          `json:"provider_phone"`
+	ClientPhone   string          `json:"client_phone"`
+	Price         float64         `json:"price"`
+	ChatID        int             `json:"chat_id"`
+	LastMessage   string          `json:"lastMessage,omitempty"`
+	ReviewRating  float64         `json:"review_rating"`
+	ReviewsCount  int             `json:"reviews_count"`
+	MyRole        string          `json:"my_role"`
+	AdReview      *ChatUserReview `json:"ad_review,omitempty"`
+}
+
+// ChatUserReview describes a review left by a user for a particular advertisement.
+type ChatUserReview struct {
+	UserID int     `json:"user_id"`
+	Rating float64 `json:"rating"`
+	Review string  `json:"review"`
 }
 
 // AdChats groups chat users by advertisement.

@@ -3,7 +3,9 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+
 	"naimuBack/internal/models"
 )
 
@@ -304,6 +306,10 @@ ORDER BY 1
 			user.ReviewsCount = count
 		}
 
+		if review, err := getUserReviewForAd(ctx, r.Db, adType, adID, user.ID); err == nil {
+			user.AdReview = review
+		}
+
 		var performerID *int
 		if confirmedPerformer.Valid {
 			pid := int(confirmedPerformer.Int64)
@@ -331,4 +337,36 @@ ORDER BY 1
 	}
 	return result, nil
 
+}
+
+// getUserReviewForAd fetches a review left by a user for a specific advertisement type.
+func getUserReviewForAd(ctx context.Context, db *sql.DB, adType string, adID, userID int) (*models.ChatUserReview, error) {
+	var query string
+
+	switch adType {
+	case "ad":
+		query = "SELECT user_id, rating, review FROM ad_reviews WHERE ad_id = ? AND user_id = ? LIMIT 1"
+	case "service":
+		query = "SELECT user_id, rating, review FROM reviews WHERE service_id = ? AND user_id = ? LIMIT 1"
+	case "rent_ad":
+		query = "SELECT user_id, rating, review FROM rent_ad_reviews WHERE rent_ad_id = ? AND user_id = ? LIMIT 1"
+	case "work_ad":
+		query = "SELECT user_id, rating, review FROM work_ad_reviews WHERE work_ad_id = ? AND user_id = ? LIMIT 1"
+	case "rent":
+		query = "SELECT user_id, rating, review FROM rent_reviews WHERE rent_id = ? AND user_id = ? LIMIT 1"
+	case "work":
+		query = "SELECT user_id, rating, review FROM work_reviews WHERE work_id = ? AND user_id = ? LIMIT 1"
+	default:
+		return nil, nil
+	}
+
+	var review models.ChatUserReview
+	if err := db.QueryRowContext(ctx, query, adID, userID).Scan(&review.UserID, &review.Rating, &review.Review); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &review, nil
 }
