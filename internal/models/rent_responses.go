@@ -12,7 +12,8 @@ type RentResponses struct {
 	ClientID    int        `json:"client_id,omitempty"`
 	PerformerID int        `json:"performer_id,omitempty"`
 	Price       float64    `json:"price"`
-	Description string     `json:"description"`
+	Description string     `json:"description,omitempty"`
+	Phone       string     `json:"phone,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 }
