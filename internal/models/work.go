@@ -14,7 +14,7 @@ type Work struct {
 		ID           int     `json:"id"`
 		Name         string  `json:"name"`
 		Surname      string  `json:"surname"`
-		Phone        string  `json:"-"`
+		Phone        string  `json:"phone,omitempty"`
 		ReviewRating float64 `json:"review_rating"`
 		ReviewsCount int     `json:"reviews_count"`
 		AvatarPath   *string `json:"avatar_path,omitempty"`
