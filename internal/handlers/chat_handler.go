@@ -10,7 +10,8 @@ import (
 )
 
 type ChatHandler struct {
-	ChatService *service.ChatService
+	ChatService        *service.ChatService
+	UserReviewsService *service.UserReviewsService
 }
 
 func (h *ChatHandler) CreateChat(w http.ResponseWriter, r *http.Request) {
@@ -79,6 +80,12 @@ func (h *ChatHandler) GetChatsByUserID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	reviews, err := h.UserReviewsService.GetReviewsByUserID(r.Context(), userID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve reviews", http.StatusInternalServerError)
+		return
+	}
+
 	response := make([]map[string]interface{}, 0, len(chats))
 
 	for _, chat := range chats {
@@ -111,8 +118,13 @@ func (h *ChatHandler) GetChatsByUserID(w http.ResponseWriter, r *http.Request) {
 		response = append(response, item)
 	}
 
+	payload := map[string]interface{}{
+		"chats":   response,
+		"reviews": reviews,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(payload)
 }
 
 func (h *ChatHandler) DeleteChat(w http.ResponseWriter, r *http.Request) {
