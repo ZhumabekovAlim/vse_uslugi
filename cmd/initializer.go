@@ -387,7 +387,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	wsManager := NewWebSocketManager()
 	// Создание сервиса и обработчика для чатов
 	chatService := &services.ChatService{ChatRepo: &chatRepo}
-	chatHandler := &handlers.ChatHandler{ChatService: chatService, UserReviewsService: userReviewsService}
+	chatHandler := &handlers.ChatHandler{ChatService: chatService}
 
 	// Создание репозитория, сервиса и обработчика для сообщений
 	messageService := &services.MessageService{MessageRepo: &messageRepo}
