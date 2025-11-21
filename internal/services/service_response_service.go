@@ -16,6 +16,7 @@ type ServiceResponseService struct {
 	ConfirmationRepo    *repositories.ServiceConfirmationRepository
 	MessageRepo         *repositories.MessageRepository
 	SubscriptionRepo    *repositories.SubscriptionRepository
+	UserRepo            *repositories.UserRepository
 }
 
 func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp models.ServiceResponses) (models.ServiceResponses, error) {
@@ -44,6 +45,12 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 		return models.ServiceResponses{}, err
 	}
 
+	performer, err := s.UserRepo.GetUserByID(ctx, service.UserID)
+	if err != nil {
+		rollback()
+		return models.ServiceResponses{}, err
+	}
+
 	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: service.UserID, User2ID: resp.UserID})
 	if err != nil {
 		rollback()
@@ -52,6 +59,7 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 	resp.ChatID = chatID
 	resp.ClientID = resp.UserID
 	resp.PerformerID = service.UserID
+	resp.Phone = performer.Phone
 
 	_, err = s.ConfirmationRepo.Create(ctx, models.ServiceConfirmation{
 		ServiceID:   resp.ServiceID,

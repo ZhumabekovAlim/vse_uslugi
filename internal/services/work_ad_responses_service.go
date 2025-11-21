@@ -16,6 +16,7 @@ type WorkAdResponseService struct {
 	ConfirmationRepo   *repositories.WorkAdConfirmationRepository
 	MessageRepo        *repositories.MessageRepository
 	SubscriptionRepo   *repositories.SubscriptionRepository
+	UserRepo           *repositories.UserRepository
 }
 
 func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp models.WorkAdResponses) (models.WorkAdResponses, error) {
@@ -40,6 +41,12 @@ func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp m
 		return models.WorkAdResponses{}, err
 	}
 
+	client, err := s.UserRepo.GetUserByID(ctx, work.UserID)
+	if err != nil {
+		rollback()
+		return models.WorkAdResponses{}, err
+	}
+
 	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: work.UserID, User2ID: resp.UserID})
 	if err != nil {
 		rollback()
@@ -49,6 +56,7 @@ func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp m
 	resp.ChatID = chatID
 	resp.ClientID = work.UserID
 	resp.PerformerID = resp.UserID
+	resp.Phone = client.Phone
 
 	_, err = s.ConfirmationRepo.Create(ctx, models.WorkAdConfirmation{
 		WorkAdID:    resp.WorkAdID,

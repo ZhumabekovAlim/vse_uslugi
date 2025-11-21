@@ -16,6 +16,7 @@ type AdResponseService struct {
 	ConfirmationRepo *repositories.AdConfirmationRepository
 	MessageRepo      *repositories.MessageRepository
 	SubscriptionRepo *repositories.SubscriptionRepository
+	UserRepo         *repositories.UserRepository
 }
 
 func (s *AdResponseService) CreateAdResponse(ctx context.Context, resp models.AdResponses) (models.AdResponses, error) {
@@ -40,6 +41,12 @@ func (s *AdResponseService) CreateAdResponse(ctx context.Context, resp models.Ad
 		return models.AdResponses{}, err
 	}
 
+	client, err := s.UserRepo.GetUserByID(ctx, ad.UserID)
+	if err != nil {
+		rollback()
+		return models.AdResponses{}, err
+	}
+
 	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: ad.UserID, User2ID: resp.UserID})
 	if err != nil {
 		rollback()
@@ -49,6 +56,7 @@ func (s *AdResponseService) CreateAdResponse(ctx context.Context, resp models.Ad
 	resp.ChatID = chatID
 	resp.ClientID = ad.UserID
 	resp.PerformerID = resp.UserID
+	resp.Phone = client.Phone
 
 	_, err = s.ConfirmationRepo.Create(ctx, models.AdConfirmation{
 		AdID:        resp.AdID,

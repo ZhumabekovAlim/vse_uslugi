@@ -16,6 +16,7 @@ type RentAdResponseService struct {
 	ConfirmationRepo   *repositories.RentAdConfirmationRepository
 	MessageRepo        *repositories.MessageRepository
 	SubscriptionRepo   *repositories.SubscriptionRepository
+	UserRepo           *repositories.UserRepository
 }
 
 func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp models.RentAdResponses) (models.RentAdResponses, error) {
@@ -40,6 +41,12 @@ func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp m
 		return models.RentAdResponses{}, err
 	}
 
+	client, err := s.UserRepo.GetUserByID(ctx, rent.UserID)
+	if err != nil {
+		rollback()
+		return models.RentAdResponses{}, err
+	}
+
 	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: rent.UserID, User2ID: resp.UserID})
 	if err != nil {
 		rollback()
@@ -49,6 +56,7 @@ func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp m
 	resp.ChatID = chatID
 	resp.ClientID = rent.UserID
 	resp.PerformerID = resp.UserID
+	resp.Phone = client.Phone
 
 	_, err = s.ConfirmationRepo.Create(ctx, models.RentAdConfirmation{
 		RentAdID:    resp.RentAdID,
