@@ -728,6 +728,7 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
             SELECT
                     s.id, s.name, s.address, s.price, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+                      CASE WHEN sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                        s.images, s.videos, s.category_id, c.name,
                        s.subcategory_id, sub.name,
                        s.description, s.avg_rating, s.top,
@@ -752,7 +753,7 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, adID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
-		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
