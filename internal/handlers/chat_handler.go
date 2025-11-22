@@ -7,10 +7,15 @@ import (
 	service "naimuBack/internal/services"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type ChatHandler struct {
 	ChatService *service.ChatService
+}
+
+type chatUserRequest struct {
+	Phone string `json:"phone"`
 }
 
 func (h *ChatHandler) CreateChat(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +38,28 @@ func (h *ChatHandler) CreateChat(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ChatHandler) GetChatByID(w http.ResponseWriter, r *http.Request) {
+	var req chatUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	req.Phone = strings.TrimSpace(req.Phone)
+	if req.Phone == "" {
+		http.Error(w, "Phone is required", http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.ChatService.GetUserByPhone(r.Context(), req.Phone)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, models.ErrUserNotFound) {
+			status = http.StatusNotFound
+		}
+		http.Error(w, "Failed to retrieve user", status)
+		return
+	}
+
 	idParam := r.URL.Query().Get(":id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil || id <= 0 {
@@ -42,11 +69,17 @@ func (h *ChatHandler) GetChatByID(w http.ResponseWriter, r *http.Request) {
 
 	chat, err := h.ChatService.GetChatByID(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, models.ErrCategoryNotFound) {
-			http.Error(w, "Chat not found", http.StatusNotFound)
-			return
-		}
 		http.Error(w, "Failed to retrieve chat", http.StatusInternalServerError)
+		return
+	}
+
+	if chat.ID == 0 {
+		http.Error(w, "Chat not found", http.StatusNotFound)
+		return
+	}
+
+	if chat.User1ID != user.ID && chat.User2ID != user.ID {
+		http.Error(w, "User does not have access to this chat", http.StatusForbidden)
 		return
 	}
 
@@ -66,14 +99,43 @@ func (h *ChatHandler) GetAllChats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ChatHandler) GetChatsByUserID(w http.ResponseWriter, r *http.Request) {
-	idParam := r.URL.Query().Get(":user_id")
-	userID, err := strconv.Atoi(idParam)
-	if err != nil || userID <= 0 {
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+	var req chatUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	chats, err := h.ChatService.GetChatsByUserID(r.Context(), userID)
+	req.Phone = strings.TrimSpace(req.Phone)
+	if req.Phone == "" {
+		http.Error(w, "Phone is required", http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.ChatService.GetUserByPhone(r.Context(), req.Phone)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, models.ErrUserNotFound) {
+			status = http.StatusNotFound
+		}
+		http.Error(w, "Failed to retrieve user", status)
+		return
+	}
+
+	idParam := r.URL.Query().Get(":user_id")
+	if idParam != "" {
+		userID, err := strconv.Atoi(idParam)
+		if err != nil || userID <= 0 {
+			http.Error(w, "Invalid user ID", http.StatusBadRequest)
+			return
+		}
+
+		if user.ID != userID {
+			http.Error(w, "Phone does not match requested user", http.StatusForbidden)
+			return
+		}
+	}
+
+	chats, err := h.ChatService.GetChatsByUserID(r.Context(), user.ID)
 	if err != nil {
 		http.Error(w, "Failed to retrieve chats", http.StatusInternalServerError)
 		return
