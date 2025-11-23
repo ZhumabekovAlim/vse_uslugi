@@ -9,6 +9,7 @@ import (
 
 type ChatService struct {
 	ChatRepo *repositories.ChatRepository
+	UserRepo *repositories.UserRepository
 }
 
 func (s *ChatService) CreateChat(ctx context.Context, chat models.Chat) (models.Chat, error) {
@@ -37,6 +38,14 @@ func (s *ChatService) GetAllChats(ctx context.Context) ([]models.Chat, error) {
 
 func (s *ChatService) GetChatsByUserID(ctx context.Context, userID int) ([]models.AdChats, error) {
 	return s.ChatRepo.GetChatsByUserID(ctx, userID)
+}
+
+func (s *ChatService) GetUserByPhone(ctx context.Context, phone string) (models.User, error) {
+	if s.UserRepo == nil {
+		return models.User{}, errors.New("user repository is not configured")
+	}
+
+	return s.UserRepo.GetUserByPhone(ctx, phone)
 }
 
 func (s *ChatService) DeleteChat(ctx context.Context, id int) error {
