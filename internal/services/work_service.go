@@ -4,11 +4,13 @@ import (
 	"context"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
+	"time"
 )
 
 type WorkService struct {
-	WorkRepo         *repositories.WorkRepository
-	SubscriptionRepo *repositories.SubscriptionRepository
+	WorkRepo          *repositories.WorkRepository
+	SubscriptionRepo  *repositories.SubscriptionRepository
+	ResponseUsersRepo *repositories.ResponseUsersRepository
 }
 
 func (s *WorkService) CreateWork(ctx context.Context, work models.Work) (models.Work, error) {
@@ -23,7 +25,19 @@ func (s *WorkService) CreateWork(ctx context.Context, work models.Work) (models.
 }
 
 func (s *WorkService) GetWorkByID(ctx context.Context, id int, userID int) (models.Work, error) {
-	return s.WorkRepo.GetWorkByID(ctx, id, userID)
+	work, err := s.WorkRepo.GetWorkByID(ctx, id, userID)
+	if err != nil {
+		return models.Work{}, err
+	}
+	work.TopActive, work.TopExpiresAt = computeTopFields(work.Top, time.Now())
+	if s.ResponseUsersRepo != nil {
+		users, usersErr := s.ResponseUsersRepo.GetUsersByItemID(ctx, "work", id)
+		if usersErr != nil {
+			return models.Work{}, usersErr
+		}
+		work.ResponseUsers = users
+	}
+	return work, nil
 }
 
 func (s *WorkService) UpdateWork(ctx context.Context, work models.Work) (models.Work, error) {

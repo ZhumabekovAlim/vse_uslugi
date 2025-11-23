@@ -4,11 +4,13 @@ import (
 	"context"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
+	"time"
 )
 
 type RentAdService struct {
-	RentAdRepo       *repositories.RentAdRepository
-	SubscriptionRepo *repositories.SubscriptionRepository
+	RentAdRepo        *repositories.RentAdRepository
+	SubscriptionRepo  *repositories.SubscriptionRepository
+	ResponseUsersRepo *repositories.ResponseUsersRepository
 }
 
 func (s *RentAdService) CreateRentAd(ctx context.Context, work models.RentAd) (models.RentAd, error) {
@@ -16,7 +18,19 @@ func (s *RentAdService) CreateRentAd(ctx context.Context, work models.RentAd) (m
 }
 
 func (s *RentAdService) GetRentAdByID(ctx context.Context, id int, userID int) (models.RentAd, error) {
-	return s.RentAdRepo.GetRentAdByID(ctx, id, userID)
+	rentAd, err := s.RentAdRepo.GetRentAdByID(ctx, id, userID)
+	if err != nil {
+		return models.RentAd{}, err
+	}
+	rentAd.TopActive, rentAd.TopExpiresAt = computeTopFields(rentAd.Top, time.Now())
+	if s.ResponseUsersRepo != nil {
+		users, usersErr := s.ResponseUsersRepo.GetUsersByItemID(ctx, "rent_ad", id)
+		if usersErr != nil {
+			return models.RentAd{}, usersErr
+		}
+		rentAd.ResponseUsers = users
+	}
+	return rentAd, nil
 }
 
 func (s *RentAdService) UpdateRentAd(ctx context.Context, work models.RentAd) (models.RentAd, error) {
