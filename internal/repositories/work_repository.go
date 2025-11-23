@@ -698,13 +698,17 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
             SELECT
                     s.id, s.name, s.address, s.price, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                      CASE WHEN sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
-                       s.images, s.videos, s.category_id, c.name,
-                       s.subcategory_id, sub.name, sub.name_kz,
-                       s.description, s.avg_rating, s.top,
-              CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
-              CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-              s.status, s.work_experience, u.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
+                     CASE WHEN sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
+                      s.images, s.videos, s.category_id, c.name,
+                      s.subcategory_id, sub.name, sub.name_kz,
+                      s.description, s.avg_rating, s.top,
+             CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+             CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+             wc.chat_id,
+             cch.user1_id, cu1.name, cu1.surname, cu1.avatar_path,
+             cch.user2_id, cu2.name, cu2.surname, cu2.avatar_path,
+             cch.created_at,
+             s.status, s.work_experience, u.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at
                FROM work s
                JOIN users u ON s.user_id = u.id
                JOIN work_categories c ON s.category_id = c.id
@@ -712,6 +716,10 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
                JOIN cities city ON u.city_id = city.id
                LEFT JOIN work_favorites sf ON sf.work_id = s.id AND sf.user_id = ?
                LEFT JOIN work_responses sr ON sr.work_id = s.id AND sr.user_id = ?
+               LEFT JOIN work_confirmations wc ON wc.work_id = s.id AND (wc.client_id = ? OR wc.performer_id = ?)
+               LEFT JOIN chats cch ON cch.id = wc.chat_id
+               LEFT JOIN users cu1 ON cu1.id = cch.user1_id
+               LEFT JOIN users cu2 ON cu2.id = cch.user2_id
                WHERE s.id = ?
        `
 
@@ -720,14 +728,23 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
 	var videosJSON []byte
 
 	var likedStr, respondedStr string
+	var chatID, chatUser1ID, chatUser2ID sql.NullInt64
+	var chatUser1Name, chatUser1Surname, chatUser2Name, chatUser2Surname sql.NullString
+	var chatUser1Avatar, chatUser2Avatar sql.NullString
+	var chatCreatedAt sql.NullTime
 
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, workID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, userID, userID, workID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
 		&s.Description, &s.AvgRating, &s.Top,
-		&likedStr, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
+		&likedStr, &respondedStr,
+		&chatID,
+		&chatUser1ID, &chatUser1Name, &chatUser1Surname, &chatUser1Avatar,
+		&chatUser2ID, &chatUser2Name, &chatUser2Surname, &chatUser2Avatar,
+		&chatCreatedAt,
+		&s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -751,6 +768,32 @@ func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID in
 
 	s.Liked = likedStr == "1"
 	s.Responded = respondedStr == "1"
+
+	if chatID.Valid {
+		s.Chat = &models.Chat{ID: int(chatID.Int64)}
+
+		if chatUser1ID.Valid {
+			s.Chat.User1ID = int(chatUser1ID.Int64)
+			s.Chat.User1.Name = chatUser1Name.String
+			s.Chat.User1.Surname = chatUser1Surname.String
+			if chatUser1Avatar.Valid {
+				s.Chat.User1.AvatarPath = &chatUser1Avatar.String
+			}
+		}
+
+		if chatUser2ID.Valid {
+			s.Chat.User2ID = int(chatUser2ID.Int64)
+			s.Chat.User2.Name = chatUser2Name.String
+			s.Chat.User2.Surname = chatUser2Surname.String
+			if chatUser2Avatar.Valid {
+				s.Chat.User2.AvatarPath = &chatUser2Avatar.String
+			}
+		}
+
+		if chatCreatedAt.Valid {
+			s.Chat.CreatedAt = chatCreatedAt.Time
+		}
+	}
 
 	s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
 

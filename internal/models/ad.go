@@ -30,6 +30,7 @@ type Ad struct {
 	TopExpiresAt      *time.Time     `json:"top_expires_at,omitempty"`
 	Liked             bool           `json:"liked, omitempty"`
 	Responded         bool           `json:"is_responded"`
+	Chat              *Chat          `json:"chat,omitempty"`
 	ResponseUsers     []ResponseUser `json:"response_users,omitempty"`
 	Status            string         `json:"status, omitempty"`
 	CategoryName      string         `json:"category_name"`
