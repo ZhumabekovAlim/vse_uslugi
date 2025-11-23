@@ -231,6 +231,8 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		conditions []string
 	)
 
+	conditions = append(conditions, "s.status = 'active'")
+
 	baseQuery := `
             SELECT s.id, s.name, s.address, s.price, s.user_id,
                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
@@ -445,6 +447,8 @@ WHERE 1=1
 `
 	args := []interface{}{}
 
+	query += " AND s.status = 'active'"
+
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
 		query += " AND s.price BETWEEN ? AND ?"
@@ -607,6 +611,8 @@ CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
 `
 
 	args := []interface{}{userID, userID}
+
+	query += " AND s.status = 'active'"
 
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {

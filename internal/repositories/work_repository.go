@@ -210,6 +210,8 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
 		conditions []string
 	)
 
+	conditions = append(conditions, "s.status = 'active'")
+
 	baseQuery := `
                SELECT s.id, s.name, s.address, s.price, s.user_id,
                       u.id, u.name, u.surname, u.review_rating, u.avatar_path,
@@ -414,6 +416,8 @@ WHERE 1=1
 `
 	args := []interface{}{}
 
+	query += " AND s.status = 'active'"
+
 	if req.CityID > 0 {
 		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
@@ -573,6 +577,8 @@ WHERE 1=1
 `
 
 	args := []interface{}{userID, userID}
+
+	query += " AND s.status = 'active'"
 
 	if req.CityID > 0 {
 		query += " AND u.city_id = ?"
