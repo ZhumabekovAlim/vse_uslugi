@@ -212,6 +212,8 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 		conditions []string
 	)
 
+	conditions = append(conditions, "s.status = 'active'")
+
 	baseQuery := `
 
                SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.rent_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
@@ -421,6 +423,8 @@ WHERE 1=1
 `
 	args := []interface{}{}
 
+	query += " AND s.status = 'active'"
+
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
 		query += " AND s.price BETWEEN ? AND ?"
@@ -587,6 +591,8 @@ WHERE 1=1
 `
 
 	args := []interface{}{userID, userID}
+
+	query += " AND s.status = 'active'"
 
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
