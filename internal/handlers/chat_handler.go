@@ -85,6 +85,7 @@ func (h *ChatHandler) GetChatsByUserID(w http.ResponseWriter, r *http.Request) {
 		item := map[string]interface{}{
 			"ad_name":      chat.AdName,
 			"status":       chat.Status,
+			"is_author":    chat.IsAuthor,
 			"performer_id": chat.PerformerID,
 			"users":        chat.Users,
 		}
