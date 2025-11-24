@@ -59,7 +59,7 @@ func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) 
 	}
 
 	chatObject := getChatObject(r.Context(), h.ChatService, userID, "service", id)
-
+	fmt.Println(chatObject)
 	w.Header().Set("Content-Type", "application/json")
 	if err := respondWithChatObject(w, service, chatObject); err != nil {
 		log.Printf("[ERROR] Failed to encode response with chat object: %v", err)
