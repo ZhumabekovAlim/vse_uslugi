@@ -80,9 +80,10 @@ func findChatByTypeAndID(chats []models.AdChats, itemType string, itemID int) (m
 
 func buildChatObject(chat models.AdChats) map[string]interface{} {
 	result := map[string]interface{}{
-		"ad_name": chat.AdName,
-		"status":  chat.Status,
-		"users":   chat.Users,
+		"ad_name":   chat.AdName,
+		"status":    chat.Status,
+		"is_author": chat.IsAuthor,
+		"users":     chat.Users,
 	}
 
 	performerID := chat.PerformerID
