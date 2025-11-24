@@ -24,7 +24,7 @@ type WorkAdHandler struct {
 }
 
 func (h *WorkAdHandler) GetWorkAdByID(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -62,7 +62,7 @@ func (h *WorkAdHandler) GetWorkAdByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkAdHandler) DeleteWorkAd(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -554,7 +554,7 @@ func (h *WorkAdHandler) CreateWorkAd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkAdHandler) UpdateWorkAd(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -874,6 +874,9 @@ func (h *WorkAdHandler) GetWorkAdByWorkIDAndUserID(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 	workadIDStr := r.URL.Query().Get(":work_ad_id")
 	if workadIDStr == "" {
+		workadIDStr = r.URL.Query().Get("work_ad_id")
+	}
+	if workadIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
 	}
@@ -884,6 +887,9 @@ func (h *WorkAdHandler) GetWorkAdByWorkIDAndUserID(w http.ResponseWriter, r *htt
 		return
 	}
 	userIDStr := r.URL.Query().Get(":user_id")
+	if userIDStr == "" {
+		userIDStr = r.URL.Query().Get("user_id")
+	}
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
