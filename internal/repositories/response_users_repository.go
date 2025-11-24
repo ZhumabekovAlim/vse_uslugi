@@ -36,9 +36,9 @@ WITH last_messages AS (
     ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
 )
 
-SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, COALESCE(u.reviews_count, 0), u.phone,
-       sr.price, sr.description, sr.created_at,
-       COALESCE(sc.status, ''), sc.chat_id, COALESCE(lm.text, ''), owner.phone, u.phone, 'performer' AS my_role,
+SELECT u.id, u.name, u.surname, u.avatar_path, COALESCE(u.review_rating, 0), COALESCE(u.reviews_count, 0), u.phone,
+       COALESCE(sr.price, 0), COALESCE(sr.description, ''), sr.created_at,
+       COALESCE(sc.status, ''), COALESCE(sc.chat_id, 0), COALESCE(lm.text, ''), owner.phone, u.phone, 'performer' AS my_role,
        rv.user_id, rv.rating, rv.review
 FROM service_responses sr
 JOIN users u ON u.id = sr.user_id
@@ -65,9 +65,9 @@ WITH last_messages AS (
     ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
 )
 
-SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, COALESCE(u.reviews_count, 0), u.phone,
-       ar.price, ar.description, ar.created_at,
-       COALESCE(ac.status, ''), ac.chat_id, COALESCE(lm.text, ''), u.phone, owner.phone, 'customer' AS my_role,
+SELECT u.id, u.name, u.surname, u.avatar_path, COALESCE(u.review_rating, 0), COALESCE(u.reviews_count, 0), u.phone,
+       COALESCE(ar.price, 0), COALESCE(ar.description, ''), ar.created_at,
+       COALESCE(ac.status, ''), COALESCE(ac.chat_id, 0), COALESCE(lm.text, ''), u.phone, owner.phone, 'customer' AS my_role,
        arw.user_id, arw.rating, arw.review
 FROM ad_responses ar
 JOIN users u ON u.id = ar.user_id
@@ -94,9 +94,9 @@ WITH last_messages AS (
     ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
 )
 
-SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, COALESCE(u.reviews_count, 0), u.phone,
-       wr.price, wr.description, wr.created_at,
-       COALESCE(wc.status, ''), wc.chat_id, COALESCE(lm.text, ''), provider.phone, u.phone, 'performer' AS my_role,
+SELECT u.id, u.name, u.surname, u.avatar_path, COALESCE(u.review_rating, 0), COALESCE(u.reviews_count, 0), u.phone,
+       COALESCE(wr.price, 0), COALESCE(wr.description, ''), wr.created_at,
+       COALESCE(wc.status, ''), COALESCE(wc.chat_id, 0), COALESCE(lm.text, ''), provider.phone, u.phone, 'performer' AS my_role,
        wrv.user_id, wrv.rating, wrv.review
 FROM work_responses wr
 JOIN users u ON u.id = wr.user_id
@@ -123,9 +123,9 @@ WITH last_messages AS (
     ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
 )
 
-SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, COALESCE(u.reviews_count, 0), u.phone,
-       war.price, war.description, war.created_at,
-       COALESCE(wac.status, ''), wac.chat_id, COALESCE(lm.text, ''), u.phone, owner.phone, 'customer' AS my_role,
+SELECT u.id, u.name, u.surname, u.avatar_path, COALESCE(u.review_rating, 0), COALESCE(u.reviews_count, 0), u.phone,
+       COALESCE(war.price, 0), COALESCE(war.description, ''), war.created_at,
+       COALESCE(wac.status, ''), COALESCE(wac.chat_id, 0), COALESCE(lm.text, ''), u.phone, owner.phone, 'customer' AS my_role,
        wadr.user_id, wadr.rating, wadr.review
 FROM work_ad_responses war
 JOIN users u ON u.id = war.user_id
@@ -152,9 +152,9 @@ WITH last_messages AS (
     ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
 )
 
-SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, COALESCE(u.reviews_count, 0), u.phone,
-       rr.price, rr.description, rr.created_at,
-       COALESCE(rc.status, ''), rc.chat_id, COALESCE(lm.text, ''), u.phone, owner.phone, 'customer' AS my_role,
+SELECT u.id, u.name, u.surname, u.avatar_path, COALESCE(u.review_rating, 0), COALESCE(u.reviews_count, 0), u.phone,
+       COALESCE(rr.price, 0), COALESCE(rr.description, ''), rr.created_at,
+       COALESCE(rc.status, ''), COALESCE(rc.chat_id, 0), COALESCE(lm.text, ''), u.phone, owner.phone, 'customer' AS my_role,
        rrv.user_id, rrv.rating, rrv.review
 FROM rent_responses rr
 JOIN users u ON u.id = rr.user_id
@@ -181,9 +181,9 @@ WITH last_messages AS (
     ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
 )
 
-SELECT u.id, u.name, u.surname, u.avatar_path, u.review_rating, COALESCE(u.reviews_count, 0), u.phone,
-       rar.price, rar.description, rar.created_at,
-       COALESCE(rac.status, ''), rac.chat_id, COALESCE(lm.text, ''), u.phone, owner.phone, 'customer' AS my_role,
+SELECT u.id, u.name, u.surname, u.avatar_path, COALESCE(u.review_rating, 0), COALESCE(u.reviews_count, 0), u.phone,
+       COALESCE(rar.price, 0), COALESCE(rar.description, ''), rar.created_at,
+       COALESCE(rac.status, ''), COALESCE(rac.chat_id, 0), COALESCE(lm.text, ''), u.phone, owner.phone, 'customer' AS my_role,
        radr.user_id, radr.rating, radr.review
 FROM rent_ad_responses rar
 JOIN users u ON u.id = rar.user_id
