@@ -85,7 +85,7 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID int) (models.Service, error) {
 	query := `
          SELECT s.id, s.name, s.address, s.price, s.user_id,
-                u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+                u.id, u.name, u.surname, COALESCE(u.review_rating, 0), u.avatar_path,
                   CASE WHEN sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                   s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
                   s.description, s.avg_rating, s.top, s.liked,

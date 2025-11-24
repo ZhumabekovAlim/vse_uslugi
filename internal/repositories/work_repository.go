@@ -81,7 +81,7 @@ func (r *WorkRepository) CreateWork(ctx context.Context, work models.Work) (mode
 func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (models.Work, error) {
 	query := `
   SELECT w.id, w.name, w.address, w.price, w.user_id,
-         u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+         u.id, u.name, u.surname, COALESCE(u.review_rating, 0), u.avatar_path,
             w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, sub.name_kz, w.description, w.avg_rating, w.top, w.liked,
             CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
             w.status, w.work_experience, u.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
