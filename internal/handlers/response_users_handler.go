@@ -84,10 +84,17 @@ func findChatByTypeAndID(chats []models.AdChats, itemType string, itemID int) (m
 
 func buildChatObject(chat models.AdChats) map[string]interface{} {
 	result := map[string]interface{}{
-		"ad_name":      chat.AdName,
-		"status":       chat.Status,
-		"performer_id": chat.PerformerID,
-		"users":        chat.Users,
+		"ad_name": chat.AdName,
+		"status":  chat.Status,
+		"users":   chat.Users,
+	}
+
+	performerID := chat.PerformerID
+	if performerID == nil {
+		performerID = findPerformerID(chat.Users)
+	}
+	if performerID != nil {
+		result["performer_id"] = *performerID
 	}
 
 	if chat.AdID != nil {
@@ -110,4 +117,15 @@ func buildChatObject(chat models.AdChats) map[string]interface{} {
 	}
 
 	return result
+}
+
+func findPerformerID(users []models.ChatUser) *int {
+	for _, user := range users {
+		if user.MyRole == "performer" {
+			pid := user.ID
+			return &pid
+		}
+	}
+
+	return nil
 }
