@@ -32,12 +32,8 @@ func (h *ResponseUsersHandler) GetUsersByItemID(w http.ResponseWriter, r *http.R
 	}
 
 	var chatObject map[string]interface{}
-	if userID, ok := r.Context().Value("user_id").(int); ok && h.ChatService != nil {
-		if chats, err := h.ChatService.GetChatsByUserID(r.Context(), userID); err == nil {
-			if chat, found := findChatByTypeAndID(chats, itemType, itemID); found {
-				chatObject = buildChatObject(chat)
-			}
-		}
+	if userID, ok := r.Context().Value("user_id").(int); ok {
+		chatObject = getChatObject(r.Context(), h.ChatService, userID, itemType, itemID)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -97,23 +93,24 @@ func buildChatObject(chat models.AdChats) map[string]interface{} {
 		result["performer_id"] = *performerID
 	}
 
-	if chat.AdID != nil {
-		result["ad_id"] = *chat.AdID
+	var adID *int
+	switch {
+	case chat.AdID != nil:
+		adID = chat.AdID
+	case chat.ServiceID != nil:
+		adID = chat.ServiceID
+	case chat.RentAdID != nil:
+		adID = chat.RentAdID
+	case chat.WorkAdID != nil:
+		adID = chat.WorkAdID
+	case chat.RentID != nil:
+		adID = chat.RentID
+	case chat.WorkID != nil:
+		adID = chat.WorkID
 	}
-	if chat.ServiceID != nil {
-		result["service_id"] = *chat.ServiceID
-	}
-	if chat.RentAdID != nil {
-		result["rentad_id"] = *chat.RentAdID
-	}
-	if chat.WorkAdID != nil {
-		result["workad_id"] = *chat.WorkAdID
-	}
-	if chat.RentID != nil {
-		result["rent_id"] = *chat.RentID
-	}
-	if chat.WorkID != nil {
-		result["work_id"] = *chat.WorkID
+
+	if adID != nil {
+		result["ad_id"] = *adID
 	}
 
 	return result

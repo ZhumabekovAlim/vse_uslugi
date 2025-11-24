@@ -20,7 +20,8 @@ import (
 )
 
 type WorkAdHandler struct {
-	Service *services.WorkAdService
+	Service     *services.WorkAdService
+	ChatService *services.ChatService
 }
 
 func (h *WorkAdHandler) GetWorkAdByID(w http.ResponseWriter, r *http.Request) {
@@ -57,8 +58,13 @@ func (h *WorkAdHandler) GetWorkAdByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	chatObject := getChatObject(r.Context(), h.ChatService, userID, "work_ad", id)
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(work)
+	if err := respondWithChatObject(w, work, chatObject); err != nil {
+		log.Printf("Failed to encode work ad with chat object: %v", err)
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *WorkAdHandler) DeleteWorkAd(w http.ResponseWriter, r *http.Request) {
@@ -903,9 +909,11 @@ func (h *WorkAdHandler) GetWorkAdByWorkIDAndUserID(w http.ResponseWriter, r *htt
 		return
 	}
 
+	chatObject := getChatObject(r.Context(), h.ChatService, userID, "work_ad", workadID)
+
 	// Успешный ответ
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(work); err != nil {
+	if err := respondWithChatObject(w, work, chatObject); err != nil {
 		log.Printf("[ERROR] Failed to encode response: %v", err)
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}

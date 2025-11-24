@@ -328,7 +328,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 
 	// Handlers
 	userHandler := &handlers.UserHandler{Service: userService}
-	serviceHandler := &handlers.ServiceHandler{Service: serviceService}
+	serviceHandler := &handlers.ServiceHandler{Service: serviceService, ChatService: chatService}
 	categoryHandler := &handlers.CategoryHandler{Service: categoryService}
 	rentCategoryHandler := &handlers.RentCategoryHandler{Service: rentCategoryService}
 	workCategoryHandler := &handlers.WorkCategoryHandler{Service: workCategoryService}
@@ -350,15 +350,15 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	userReviewsHandler := &handlers.UserReviewsHandler{Service: userReviewsService}
 	userItemsHandler := &handlers.UserItemsHandler{Service: userItemsService}
 	responseUsersHandler := &handlers.ResponseUsersHandler{Service: responseUsersService, ChatService: chatService}
-	workHandler := &handlers.WorkHandler{Service: workService}
-	rentHandler := &handlers.RentHandler{Service: rentService}
+	workHandler := &handlers.WorkHandler{Service: workService, ChatService: chatService}
+	rentHandler := &handlers.RentHandler{Service: rentService, ChatService: chatService}
 	workReviewHandler := &handlers.WorkReviewHandler{Service: workReviewService}
 	workResponseHandler := &handlers.WorkResponseHandler{Service: workResponseService}
 	workFavoriteHandler := &handlers.WorkFavoriteHandler{Service: workFavoriteService}
 	rentReviewHandler := &handlers.RentReviewHandler{Service: rentReviewService}
 	rentResponseHandler := &handlers.RentResponseHandler{Service: rentResponseService}
 	rentFavoriteHandler := &handlers.RentFavoriteHandler{Service: rentFavoriteService}
-	adHandler := &handlers.AdHandler{Service: adService}
+	adHandler := &handlers.AdHandler{Service: adService, ChatService: chatService}
 	adReviewHandler := &handlers.AdReviewHandler{Service: adReviewService}
 	adResponseHandler := &handlers.AdResponseHandler{Service: adResponseService}
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
@@ -371,12 +371,12 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	globalSearchHandler := &handlers.GlobalSearchHandler{Service: globalSearchService}
 
 	adConfirmationHandler := &handlers.AdConfirmationHandler{Service: adConfirmationService}
-	workAdHandler := &handlers.WorkAdHandler{Service: workAdService}
+	workAdHandler := &handlers.WorkAdHandler{Service: workAdService, ChatService: chatService}
 	workAdReviewHandler := &handlers.WorkAdReviewHandler{Service: workAdReviewService}
 	workAdResponseHandler := &handlers.WorkAdResponseHandler{Service: workAdResponseService}
 	workAdFavoriteHandler := &handlers.WorkAdFavoriteHandler{Service: workAdFavoriteService}
 	workAdConfirmationHandler := &handlers.WorkAdConfirmationHandler{Service: workAdConfirmationService}
-	rentAdHandler := &handlers.RentAdHandler{Service: rentAdService}
+	rentAdHandler := &handlers.RentAdHandler{Service: rentAdService, ChatService: chatService}
 	rentADReviewHandler := &handlers.RentAdReviewHandler{Service: rentAdReviewService}
 	rentAdResponseHandler := &handlers.RentAdResponseHandler{Service: rentAdResponseService}
 	rentAdFavoriteHandler := &handlers.RentAdFavoriteHandler{Service: rentAdFavoriteService}

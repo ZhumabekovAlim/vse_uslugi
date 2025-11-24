@@ -20,7 +20,8 @@ import (
 )
 
 type RentAdHandler struct {
-	Service *services.RentAdService
+	Service     *services.RentAdService
+	ChatService *services.ChatService
 }
 
 func (h *RentAdHandler) GetRentAdByID(w http.ResponseWriter, r *http.Request) {
@@ -57,8 +58,13 @@ func (h *RentAdHandler) GetRentAdByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	chatObject := getChatObject(r.Context(), h.ChatService, userID, "rent_ad", id)
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(rent)
+	if err := respondWithChatObject(w, rent, chatObject); err != nil {
+		log.Printf("Failed to encode rent ad with chat object: %v", err)
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *RentAdHandler) DeleteRentAd(w http.ResponseWriter, r *http.Request) {
@@ -871,9 +877,11 @@ func (h *RentAdHandler) GetRentAdByRentIDAndUserID(w http.ResponseWriter, r *htt
 		return
 	}
 
+	chatObject := getChatObject(r.Context(), h.ChatService, userID, "rent_ad", rentAdID)
+
 	// Успешный ответ
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(rent); err != nil {
+	if err := respondWithChatObject(w, rent, chatObject); err != nil {
 		log.Printf("[ERROR] Failed to encode response: %v", err)
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}

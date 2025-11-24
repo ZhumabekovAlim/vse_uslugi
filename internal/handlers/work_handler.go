@@ -20,7 +20,8 @@ import (
 )
 
 type WorkHandler struct {
-	Service *services.WorkService
+	Service     *services.WorkService
+	ChatService *services.ChatService
 }
 
 func (h *WorkHandler) GetWorkByID(w http.ResponseWriter, r *http.Request) {
@@ -57,8 +58,13 @@ func (h *WorkHandler) GetWorkByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	chatObject := getChatObject(r.Context(), h.ChatService, userID, "work", id)
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(work)
+	if err := respondWithChatObject(w, work, chatObject); err != nil {
+		log.Printf("Failed to encode work with chat object: %v", err)
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *WorkHandler) DeleteWork(w http.ResponseWriter, r *http.Request) {
@@ -942,9 +948,11 @@ func (h *WorkHandler) GetWorkByWorkIDAndUserID(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	chatObject := getChatObject(r.Context(), h.ChatService, userID, "work", workID)
+
 	// Успешный ответ
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(work); err != nil {
+	if err := respondWithChatObject(w, work, chatObject); err != nil {
 		log.Printf("[ERROR] Failed to encode response: %v", err)
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}

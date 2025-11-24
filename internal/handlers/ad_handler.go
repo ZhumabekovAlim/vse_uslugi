@@ -20,7 +20,8 @@ import (
 )
 
 type AdHandler struct {
-	Service *services.AdService
+	Service     *services.AdService
+	ChatService *services.ChatService
 }
 
 func (h *AdHandler) GetAdByID(w http.ResponseWriter, r *http.Request) {
@@ -57,8 +58,13 @@ func (h *AdHandler) GetAdByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	chatObject := getChatObject(r.Context(), h.ChatService, userID, "ad", id)
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ad)
+	if err := respondWithChatObject(w, ad, chatObject); err != nil {
+		log.Printf("Failed to encode ad with chat object: %v", err)
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *AdHandler) DeleteAd(w http.ResponseWriter, r *http.Request) {
@@ -870,9 +876,11 @@ func (h *AdHandler) GetAdByAdIDAndUserID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	chatObject := getChatObject(r.Context(), h.ChatService, userID, "ad", adID)
+
 	// Успешный ответ
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(ad); err != nil {
+	if err := respondWithChatObject(w, ad, chatObject); err != nil {
 		log.Printf("[ERROR] Failed to encode response: %v", err)
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}
