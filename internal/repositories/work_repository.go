@@ -100,13 +100,15 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
 	var respondedStr string
 	var subcategoryID sql.NullInt64
 	var subcategoryName, subcategoryNameKz sql.NullString
+	var status, description, top, workExperience, schedule, distanceWork, paymentPeriod sql.NullString
+	var lat, lon sql.NullString
+	var avgRating sql.NullFloat64
+	var liked sql.NullBool
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &subcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
-
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &subcategoryNameKz, &description, &avgRating, &top, &liked, &respondedStr, &status, &workExperience, &s.CityID, &s.CityName, &s.CityType, &schedule, &distanceWork, &paymentPeriod, &lat, &lon, &s.CreatedAt,
 		&s.UpdatedAt,
 	)
 
@@ -115,6 +117,50 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
 	}
 	if err != nil {
 		return models.Work{}, err
+	}
+
+	if status.Valid {
+		s.Status = status.String
+	}
+
+	if description.Valid {
+		s.Description = description.String
+	}
+
+	if avgRating.Valid {
+		s.AvgRating = avgRating.Float64
+	}
+
+	if top.Valid {
+		s.Top = top.String
+	}
+
+	if liked.Valid {
+		s.Liked = liked.Bool
+	}
+
+	if workExperience.Valid {
+		s.WorkExperience = workExperience.String
+	}
+
+	if schedule.Valid {
+		s.Schedule = schedule.String
+	}
+
+	if distanceWork.Valid {
+		s.DistanceWork = distanceWork.String
+	}
+
+	if paymentPeriod.Valid {
+		s.PaymentPeriod = paymentPeriod.String
+	}
+
+	if lat.Valid {
+		s.Latitude = lat.String
+	}
+
+	if lon.Valid {
+		s.Longitude = lon.String
 	}
 
 	if subcategoryID.Valid {
