@@ -323,6 +323,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workAdConfirmationService := &services.WorkAdConfirmationService{ConfirmationRepo: &workAdConfirmationRepo}
 	rentConfirmationService := &services.RentConfirmationService{ConfirmationRepo: &rentConfirmationRepo}
 	rentAdConfirmationService := &services.RentAdConfirmationService{ConfirmationRepo: &rentAdConfirmationRepo}
+	chatService := &services.ChatService{ChatRepo: &chatRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -348,7 +349,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	userResponsesHandler := &handlers.UserResponsesHandler{Service: userResponsesService}
 	userReviewsHandler := &handlers.UserReviewsHandler{Service: userReviewsService}
 	userItemsHandler := &handlers.UserItemsHandler{Service: userItemsService}
-	responseUsersHandler := &handlers.ResponseUsersHandler{Service: responseUsersService}
+	responseUsersHandler := &handlers.ResponseUsersHandler{Service: responseUsersService, ChatService: chatService}
 	workHandler := &handlers.WorkHandler{Service: workService}
 	rentHandler := &handlers.RentHandler{Service: rentService}
 	workReviewHandler := &handlers.WorkReviewHandler{Service: workReviewService}
@@ -386,7 +387,6 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	// Chat
 	wsManager := NewWebSocketManager()
 	// Создание сервиса и обработчика для чатов
-	chatService := &services.ChatService{ChatRepo: &chatRepo}
 	chatHandler := &handlers.ChatHandler{ChatService: chatService}
 
 	// Создание репозитория, сервиса и обработчика для сообщений
