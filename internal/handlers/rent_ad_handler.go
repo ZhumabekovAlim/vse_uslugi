@@ -53,7 +53,11 @@ func (h *RentAdHandler) GetRentAdByID(w http.ResponseWriter, r *http.Request) {
 
 	rent, err := h.Service.GetRentAdByID(r.Context(), id, userID)
 	if err != nil {
-		http.Error(w, "Service not found", http.StatusNotFound)
+		if errors.Is(err, repositories.ErrRentAdNotFound) {
+			http.Error(w, "Service not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to fetch service", http.StatusInternalServerError)
 		return
 	}
 

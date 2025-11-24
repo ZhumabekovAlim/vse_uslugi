@@ -107,7 +107,7 @@ func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int
 	)
 
 	if err == sql.ErrNoRows {
-		return models.RentAd{}, errors.New("not found")
+		return models.RentAd{}, ErrRentAdNotFound
 	}
 	if err != nil {
 		return models.RentAd{}, err

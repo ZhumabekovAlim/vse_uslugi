@@ -53,7 +53,11 @@ func (h *WorkHandler) GetWorkByID(w http.ResponseWriter, r *http.Request) {
 
 	work, err := h.Service.GetWorkByID(r.Context(), id, userID)
 	if err != nil {
-		http.Error(w, "Service not found", http.StatusNotFound)
+		if errors.Is(err, repositories.ErrWorkNotFound) {
+			http.Error(w, "Service not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to fetch service", http.StatusInternalServerError)
 		return
 	}
 

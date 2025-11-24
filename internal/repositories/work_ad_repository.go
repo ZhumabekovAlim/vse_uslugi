@@ -109,7 +109,7 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int
 	)
 
 	if err == sql.ErrNoRows {
-		return models.WorkAd{}, errors.New("not found")
+		return models.WorkAd{}, ErrWorkAdNotFound
 	}
 	if err != nil {
 		return models.WorkAd{}, err

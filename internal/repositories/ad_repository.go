@@ -116,7 +116,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	)
 
 	if err == sql.ErrNoRows {
-		return models.Ad{}, errors.New("not found")
+		return models.Ad{}, ErrAdNotFound
 	}
 	if err != nil {
 		return models.Ad{}, err
