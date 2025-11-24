@@ -24,7 +24,7 @@ type RentAdHandler struct {
 }
 
 func (h *RentAdHandler) GetRentAdByID(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -62,7 +62,7 @@ func (h *RentAdHandler) GetRentAdByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RentAdHandler) DeleteRentAd(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -531,7 +531,7 @@ func (h *RentAdHandler) CreateRentAd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RentAdHandler) UpdateRentAd(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return

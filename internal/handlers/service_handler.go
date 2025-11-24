@@ -24,7 +24,7 @@ type ServiceHandler struct {
 }
 
 func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -62,7 +62,7 @@ func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -549,7 +549,7 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return

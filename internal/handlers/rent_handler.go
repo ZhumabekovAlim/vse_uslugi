@@ -24,7 +24,7 @@ type RentHandler struct {
 }
 
 func (h *RentHandler) GetRentByID(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -62,7 +62,7 @@ func (h *RentHandler) GetRentByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RentHandler) DeleteRent(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -532,7 +532,7 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return

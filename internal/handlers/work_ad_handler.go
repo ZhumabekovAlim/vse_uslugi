@@ -24,7 +24,7 @@ type WorkAdHandler struct {
 }
 
 func (h *WorkAdHandler) GetWorkAdByID(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -62,7 +62,7 @@ func (h *WorkAdHandler) GetWorkAdByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkAdHandler) DeleteWorkAd(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -554,7 +554,7 @@ func (h *WorkAdHandler) CreateWorkAd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkAdHandler) UpdateWorkAd(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return

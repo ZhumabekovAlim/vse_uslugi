@@ -24,7 +24,7 @@ type AdHandler struct {
 }
 
 func (h *AdHandler) GetAdByID(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -62,7 +62,7 @@ func (h *AdHandler) GetAdByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdHandler) DeleteAd(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -533,7 +533,7 @@ func (h *AdHandler) CreateAd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdHandler) UpdateAd(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return

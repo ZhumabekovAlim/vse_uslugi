@@ -24,7 +24,7 @@ type WorkHandler struct {
 }
 
 func (h *WorkHandler) GetWorkByID(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -62,7 +62,7 @@ func (h *WorkHandler) GetWorkByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkHandler) DeleteWork(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -546,7 +546,7 @@ func (h *WorkHandler) CreateWork(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkHandler) UpdateWork(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get(":id")
+	idStr := getParam(r, "id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
