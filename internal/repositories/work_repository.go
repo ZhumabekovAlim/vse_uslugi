@@ -111,7 +111,7 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
 	)
 
 	if err == sql.ErrNoRows {
-		return models.Work{}, errors.New("not found")
+		return models.Work{}, ErrWorkNotFound
 	}
 	if err != nil {
 		return models.Work{}, err

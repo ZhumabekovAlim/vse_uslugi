@@ -116,7 +116,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 	)
 
 	if err == sql.ErrNoRows {
-		return models.Service{}, errors.New("not found")
+		return models.Service{}, ErrServiceNotFound
 	}
 	if err != nil {
 		return models.Service{}, err

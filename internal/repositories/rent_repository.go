@@ -107,7 +107,7 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 	)
 
 	if err == sql.ErrNoRows {
-		return models.Rent{}, errors.New("not found")
+		return models.Rent{}, ErrRentNotFound
 	}
 	if err != nil {
 		return models.Rent{}, err
