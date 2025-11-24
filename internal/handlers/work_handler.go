@@ -913,6 +913,9 @@ func (h *WorkHandler) GetWorkByWorkIDAndUserID(w http.ResponseWriter, r *http.Re
 	ctx := r.Context()
 	workIDStr := r.URL.Query().Get(":work_id")
 	if workIDStr == "" {
+		workIDStr = r.URL.Query().Get("work_id")
+	}
+	if workIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
 	}
@@ -923,6 +926,9 @@ func (h *WorkHandler) GetWorkByWorkIDAndUserID(w http.ResponseWriter, r *http.Re
 		return
 	}
 	userIDStr := r.URL.Query().Get(":user_id")
+	if userIDStr == "" {
+		userIDStr = r.URL.Query().Get("user_id")
+	}
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
