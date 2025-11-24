@@ -12,18 +12,7 @@ type ResponseUsersService struct {
 	Repo *repositories.ResponseUsersRepository
 }
 
-// GetItemResponses fetches item details alongside users who responded to it.
-func (s *ResponseUsersService) GetItemResponses(ctx context.Context, itemType string, itemID int) (models.ItemResponse, error) {
-	users, err := s.Repo.GetUsersByItemID(ctx, itemType, itemID)
-	if err != nil {
-		return models.ItemResponse{}, err
-	}
-
-	itemInfo, err := s.Repo.GetItemInfo(ctx, itemType, itemID)
-	if err != nil {
-		return models.ItemResponse{}, err
-	}
-
-	itemInfo.Users = users
-	return itemInfo, nil
+// GetUsersByItemID fetches users who responded to the given item type and ID.
+func (s *ResponseUsersService) GetUsersByItemID(ctx context.Context, itemType string, itemID int) ([]models.ResponseUser, error) {
+	return s.Repo.GetUsersByItemID(ctx, itemType, itemID)
 }

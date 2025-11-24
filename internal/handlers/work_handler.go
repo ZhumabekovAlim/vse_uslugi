@@ -24,7 +24,7 @@ type WorkHandler struct {
 }
 
 func (h *WorkHandler) GetWorkByID(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -53,11 +53,7 @@ func (h *WorkHandler) GetWorkByID(w http.ResponseWriter, r *http.Request) {
 
 	work, err := h.Service.GetWorkByID(r.Context(), id, userID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrWorkNotFound) {
-			http.Error(w, "Service not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "Failed to fetch service", http.StatusInternalServerError)
+		http.Error(w, "Service not found", http.StatusNotFound)
 		return
 	}
 
@@ -66,7 +62,7 @@ func (h *WorkHandler) GetWorkByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkHandler) DeleteWork(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -550,7 +546,7 @@ func (h *WorkHandler) CreateWork(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WorkHandler) UpdateWork(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -917,9 +913,6 @@ func (h *WorkHandler) GetWorkByWorkIDAndUserID(w http.ResponseWriter, r *http.Re
 	ctx := r.Context()
 	workIDStr := r.URL.Query().Get(":work_id")
 	if workIDStr == "" {
-		workIDStr = r.URL.Query().Get("work_id")
-	}
-	if workIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
 	}
@@ -930,9 +923,6 @@ func (h *WorkHandler) GetWorkByWorkIDAndUserID(w http.ResponseWriter, r *http.Re
 		return
 	}
 	userIDStr := r.URL.Query().Get(":user_id")
-	if userIDStr == "" {
-		userIDStr = r.URL.Query().Get("user_id")
-	}
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {

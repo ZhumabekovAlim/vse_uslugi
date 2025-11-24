@@ -77,17 +77,17 @@ func (r *RentAdRepository) CreateRentAd(ctx context.Context, rent models.RentAd)
 
 func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int) (models.RentAd, error) {
 	query := `
- SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
+     SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
 
-          CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+              CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
 
-          w.status, w.rent_type, w.deposit, w.latitude, w.longitude, w.created_at, w.updated_at
-   FROM rent_ad w
-   JOIN users u ON w.user_id = u.id
-   JOIN rent_categories c ON w.category_id = c.id
-   LEFT JOIN rent_subcategories sub ON w.subcategory_id = sub.id
-  LEFT JOIN rent_ad_responses sr ON sr.rent_ad_id = w.id AND sr.user_id = ?
-   WHERE w.id = ? AND w.status <> 'archive'
+              w.status, w.rent_type, w.deposit, w.latitude, w.longitude, w.created_at, w.updated_at
+       FROM rent_ad w
+       JOIN users u ON w.user_id = u.id
+       JOIN rent_categories c ON w.category_id = c.id
+       JOIN rent_subcategories sub ON w.subcategory_id = sub.id
+      LEFT JOIN rent_ad_responses sr ON sr.rent_ad_id = w.id AND sr.user_id = ?
+       WHERE w.id = ? AND w.status <> 'archive'
 `
 
 	var s models.RentAd
@@ -95,58 +95,20 @@ func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int
 	var videosJSON []byte
 	var lat, lon sql.NullString
 	var respondedStr string
-	var subcategoryID sql.NullInt64
-	var subcategoryName sql.NullString
-	var status, description, top, rentType, deposit sql.NullString
-	var avgRating sql.NullFloat64
-	var liked sql.NullBool
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &description, &avgRating, &top, &liked, &respondedStr, &status, &rentType, &deposit, &lat, &lon, &s.CreatedAt,
+
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
+
 		&s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
-		return models.RentAd{}, ErrRentAdNotFound
+		return models.RentAd{}, errors.New("not found")
 	}
 	if err != nil {
 		return models.RentAd{}, err
-	}
-
-	if status.Valid {
-		s.Status = status.String
-	}
-
-	if description.Valid {
-		s.Description = description.String
-	}
-
-	if avgRating.Valid {
-		s.AvgRating = avgRating.Float64
-	}
-
-	if top.Valid {
-		s.Top = top.String
-	}
-
-	if liked.Valid {
-		s.Liked = liked.Bool
-	}
-
-	if rentType.Valid {
-		s.RentType = rentType.String
-	}
-
-	if deposit.Valid {
-		s.Deposit = deposit.String
-	}
-
-	if subcategoryID.Valid {
-		s.SubcategoryID = int(subcategoryID.Int64)
-	}
-	if subcategoryName.Valid {
-		s.SubcategoryName = subcategoryName.String
 	}
 
 	if len(imagesJSON) > 0 {
@@ -162,6 +124,7 @@ func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int
 	}
 
 	s.Responded = respondedStr == "1"
+
 	if lat.Valid {
 		s.Latitude = lat.String
 	}
@@ -248,8 +211,6 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 		params     []interface{}
 		conditions []string
 	)
-
-	conditions = append(conditions, "s.status = 'active'")
 
 	baseQuery := `
 
@@ -447,8 +408,6 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 `
 	args := []interface{}{}
 
-	query += " AND s.status = 'active'"
-
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
 		query += " AND s.price BETWEEN ? AND ?"
@@ -605,8 +564,6 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 
 	args := []interface{}{userID, userID}
 
-	query += " AND s.status = 'active'"
-
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
 		query += " AND s.price BETWEEN ? AND ?"
@@ -724,10 +681,6 @@ func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentA
                        s.description, s.avg_rating, s.top,
                        CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
                        CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-                       rac.chat_id,
-                       cch.user1_id, cu1.name, cu1.surname, cu1.avatar_path,
-                       cch.user2_id, cu2.name, cu2.surname, cu2.avatar_path,
-                       cch.created_at,
                        s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
                FROM rent_ad s
                JOIN users u ON s.user_id = u.id
@@ -735,10 +688,6 @@ func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentA
                JOIN rent_subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN rent_ad_favorites sf ON sf.rent_ad_id = s.id AND sf.user_id = ?
                LEFT JOIN rent_ad_responses sr ON sr.rent_ad_id = s.id AND sr.user_id = ?
-               LEFT JOIN rent_ad_confirmations rac ON rac.rent_ad_id = s.id AND (rac.client_id = ? OR rac.performer_id = ?)
-               LEFT JOIN chats cch ON cch.id = rac.chat_id
-               LEFT JOIN users cu1 ON cu1.id = cch.user1_id
-               LEFT JOIN users cu2 ON cu2.id = cch.user2_id
                WHERE s.id = ?
        `
 
@@ -747,23 +696,14 @@ func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentA
 	var videosJSON []byte
 
 	var likedStr, respondedStr string
-	var chatID, chatUser1ID, chatUser2ID sql.NullInt64
-	var chatUser1Name, chatUser1Surname, chatUser2Name, chatUser2Surname sql.NullString
-	var chatUser1Avatar, chatUser2Avatar sql.NullString
-	var chatCreatedAt sql.NullTime
 
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, userID, userID, rentAdID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, rentAdID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&likedStr, &respondedStr,
-		&chatID,
-		&chatUser1ID, &chatUser1Name, &chatUser1Surname, &chatUser1Avatar,
-		&chatUser2ID, &chatUser2Name, &chatUser2Surname, &chatUser2Avatar,
-		&chatCreatedAt,
-		&s.Status, &s.RentType, &s.Deposit, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
+		&likedStr, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -787,32 +727,6 @@ func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentA
 
 	s.Liked = likedStr == "1"
 	s.Responded = respondedStr == "1"
-
-	if chatID.Valid {
-		s.Chat = &models.Chat{ID: int(chatID.Int64)}
-
-		if chatUser1ID.Valid {
-			s.Chat.User1ID = int(chatUser1ID.Int64)
-			s.Chat.User1.Name = chatUser1Name.String
-			s.Chat.User1.Surname = chatUser1Surname.String
-			if chatUser1Avatar.Valid {
-				s.Chat.User1.AvatarPath = &chatUser1Avatar.String
-			}
-		}
-
-		if chatUser2ID.Valid {
-			s.Chat.User2ID = int(chatUser2ID.Int64)
-			s.Chat.User2.Name = chatUser2Name.String
-			s.Chat.User2.Surname = chatUser2Surname.String
-			if chatUser2Avatar.Valid {
-				s.Chat.User2.AvatarPath = &chatUser2Avatar.String
-			}
-		}
-
-		if chatCreatedAt.Valid {
-			s.Chat.CreatedAt = chatCreatedAt.Time
-		}
-	}
 
 	s.AvgRating = getAverageRating(ctx, r.DB, "rent_ad_reviews", "rent_ad_id", s.ID)
 

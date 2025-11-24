@@ -24,7 +24,7 @@ type RentAdHandler struct {
 }
 
 func (h *RentAdHandler) GetRentAdByID(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -53,11 +53,7 @@ func (h *RentAdHandler) GetRentAdByID(w http.ResponseWriter, r *http.Request) {
 
 	rent, err := h.Service.GetRentAdByID(r.Context(), id, userID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrRentAdNotFound) {
-			http.Error(w, "Service not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "Failed to fetch service", http.StatusInternalServerError)
+		http.Error(w, "Service not found", http.StatusNotFound)
 		return
 	}
 
@@ -66,7 +62,7 @@ func (h *RentAdHandler) GetRentAdByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RentAdHandler) DeleteRentAd(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -535,7 +531,7 @@ func (h *RentAdHandler) CreateRentAd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RentAdHandler) UpdateRentAd(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -846,9 +842,6 @@ func (h *RentAdHandler) GetRentAdByRentIDAndUserID(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 	rentAdIDStr := r.URL.Query().Get(":rent_ad_id")
 	if rentAdIDStr == "" {
-		rentAdIDStr = r.URL.Query().Get("rent_ad_id")
-	}
-	if rentAdIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
 	}
@@ -859,9 +852,6 @@ func (h *RentAdHandler) GetRentAdByRentIDAndUserID(w http.ResponseWriter, r *htt
 		return
 	}
 	userIDStr := r.URL.Query().Get(":user_id")
-	if userIDStr == "" {
-		userIDStr = r.URL.Query().Get("user_id")
-	}
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {

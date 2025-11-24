@@ -4,13 +4,11 @@ import (
 	"context"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
-	"time"
 )
 
 type AdService struct {
-	AdRepo            *repositories.AdRepository
-	SubscriptionRepo  *repositories.SubscriptionRepository
-	ResponseUsersRepo *repositories.ResponseUsersRepository
+	AdRepo           *repositories.AdRepository
+	SubscriptionRepo *repositories.SubscriptionRepository
 }
 
 func (s *AdService) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, error) {
@@ -18,19 +16,7 @@ func (s *AdService) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, erro
 }
 
 func (s *AdService) GetAdByID(ctx context.Context, id int, userID int) (models.Ad, error) {
-	ad, err := s.AdRepo.GetAdByID(ctx, id, userID)
-	if err != nil {
-		return models.Ad{}, err
-	}
-	ad.TopActive, ad.TopExpiresAt = computeTopFields(ad.Top, time.Now())
-	if s.ResponseUsersRepo != nil {
-		users, usersErr := s.ResponseUsersRepo.GetUsersByItemID(ctx, "ad", id)
-		if usersErr != nil {
-			return models.Ad{}, usersErr
-		}
-		ad.ResponseUsers = users
-	}
-	return ad, nil
+	return s.AdRepo.GetAdByID(ctx, id, userID)
 }
 
 func (s *AdService) UpdateAd(ctx context.Context, service models.Ad) (models.Ad, error) {

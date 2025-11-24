@@ -24,7 +24,7 @@ type ServiceHandler struct {
 }
 
 func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -53,11 +53,7 @@ func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) 
 
 	service, err := h.Service.GetServiceByID(r.Context(), id, userID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrServiceNotFound) {
-			http.Error(w, "Service not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "Failed to fetch service", http.StatusInternalServerError)
+		http.Error(w, "Service not found", http.StatusNotFound)
 		return
 	}
 
@@ -66,7 +62,7 @@ func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -553,7 +549,7 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -863,9 +859,6 @@ func (h *ServiceHandler) GetServiceByServiceIDAndUserID(w http.ResponseWriter, r
 	ctx := r.Context()
 	serviceIDStr := r.URL.Query().Get(":service_id")
 	if serviceIDStr == "" {
-		serviceIDStr = r.URL.Query().Get("service_id")
-	}
-	if serviceIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
 	}
@@ -876,9 +869,6 @@ func (h *ServiceHandler) GetServiceByServiceIDAndUserID(w http.ResponseWriter, r
 		return
 	}
 	userIDStr := r.URL.Query().Get(":user_id")
-	if userIDStr == "" {
-		userIDStr = r.URL.Query().Get("user_id")
-	}
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {

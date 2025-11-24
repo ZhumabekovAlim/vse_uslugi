@@ -4,13 +4,11 @@ import (
 	"context"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
-	"time"
 )
 
 type WorkAdService struct {
-	WorkAdRepo        *repositories.WorkAdRepository
-	SubscriptionRepo  *repositories.SubscriptionRepository
-	ResponseUsersRepo *repositories.ResponseUsersRepository
+	WorkAdRepo       *repositories.WorkAdRepository
+	SubscriptionRepo *repositories.SubscriptionRepository
 }
 
 func (s *WorkAdService) CreateWorkAd(ctx context.Context, work models.WorkAd) (models.WorkAd, error) {
@@ -18,19 +16,7 @@ func (s *WorkAdService) CreateWorkAd(ctx context.Context, work models.WorkAd) (m
 }
 
 func (s *WorkAdService) GetWorkAdByID(ctx context.Context, id int, userID int) (models.WorkAd, error) {
-	workAd, err := s.WorkAdRepo.GetWorkAdByID(ctx, id, userID)
-	if err != nil {
-		return models.WorkAd{}, err
-	}
-	workAd.TopActive, workAd.TopExpiresAt = computeTopFields(workAd.Top, time.Now())
-	if s.ResponseUsersRepo != nil {
-		users, usersErr := s.ResponseUsersRepo.GetUsersByItemID(ctx, "work_ad", id)
-		if usersErr != nil {
-			return models.WorkAd{}, usersErr
-		}
-		workAd.ResponseUsers = users
-	}
-	return workAd, nil
+	return s.WorkAdRepo.GetWorkAdByID(ctx, id, userID)
 }
 
 func (s *WorkAdService) UpdateWorkAd(ctx context.Context, work models.WorkAd) (models.WorkAd, error) {

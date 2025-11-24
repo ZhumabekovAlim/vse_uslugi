@@ -4,13 +4,11 @@ import (
 	"context"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
-	"time"
 )
 
 type ServiceService struct {
-	ServiceRepo       *repositories.ServiceRepository
-	SubscriptionRepo  *repositories.SubscriptionRepository
-	ResponseUsersRepo *repositories.ResponseUsersRepository
+	ServiceRepo      *repositories.ServiceRepository
+	SubscriptionRepo *repositories.SubscriptionRepository
 }
 
 func (s *ServiceService) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
@@ -25,19 +23,7 @@ func (s *ServiceService) CreateService(ctx context.Context, service models.Servi
 }
 
 func (s *ServiceService) GetServiceByID(ctx context.Context, id int, userID int) (models.Service, error) {
-	service, err := s.ServiceRepo.GetServiceByID(ctx, id, userID)
-	if err != nil {
-		return models.Service{}, err
-	}
-	service.TopActive, service.TopExpiresAt = computeTopFields(service.Top, time.Now())
-	if s.ResponseUsersRepo != nil {
-		users, usersErr := s.ResponseUsersRepo.GetUsersByItemID(ctx, "service", id)
-		if usersErr != nil {
-			return models.Service{}, usersErr
-		}
-		service.ResponseUsers = users
-	}
-	return service, nil
+	return s.ServiceRepo.GetServiceByID(ctx, id, userID)
 }
 
 func (s *ServiceService) UpdateService(ctx context.Context, service models.Service) (models.Service, error) {

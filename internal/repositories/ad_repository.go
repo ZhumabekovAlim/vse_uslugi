@@ -84,18 +84,18 @@ func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, e
 
 func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (models.Ad, error) {
 	query := `
- SELECT s.id, s.name, s.address, s.price, s.user_id,
-        u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-          s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
-          s.description, s.avg_rating, s.top, s.liked,
-          CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-          s.latitude, s.longitude, s.status, s.created_at, s.updated_at
-   FROM ad s
-   JOIN users u ON s.user_id = u.id
-   JOIN categories c ON s.category_id = c.id
-   LEFT JOIN subcategories sub ON s.subcategory_id = sub.id
-   LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
-   WHERE s.id = ? AND s.status <> 'archive'
+     SELECT s.id, s.name, s.address, s.price, s.user_id,
+            u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+              s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
+              s.description, s.avg_rating, s.top, s.liked,
+              CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+              s.latitude, s.longitude, s.status, s.created_at, s.updated_at
+       FROM ad s
+       JOIN users u ON s.user_id = u.id
+       JOIN categories c ON s.category_id = c.id
+       JOIN subcategories sub ON s.subcategory_id = sub.id
+       LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
+       WHERE s.id = ? AND s.status <> 'archive'
 `
 
 	var s models.Ad
@@ -103,62 +103,21 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	var videosJSON []byte
 	var lat, lon sql.NullString
 	var respondedStr string
-	var subcategoryID sql.NullInt64
-	var subcategoryName, subcategoryNameKz sql.NullString
-	var status, description, top sql.NullString
-	var avgRating sql.NullFloat64
-	var liked sql.NullBool
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &subcategoryNameKz, &description, &avgRating, &top, &liked, &respondedStr, &lat, &lon, &status,
+
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &lat, &lon, &s.Status,
+
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
-		return models.Ad{}, ErrAdNotFound
+		return models.Ad{}, errors.New("not found")
 	}
 	if err != nil {
 		return models.Ad{}, err
-	}
-
-	if status.Valid {
-		s.Status = status.String
-	}
-
-	if description.Valid {
-		s.Description = description.String
-	}
-
-	if avgRating.Valid {
-		s.AvgRating = avgRating.Float64
-	}
-
-	if top.Valid {
-		s.Top = top.String
-	}
-
-	if liked.Valid {
-		s.Liked = liked.Bool
-	}
-
-	if lat.Valid {
-		s.Latitude = &lat.String
-	}
-
-	if lon.Valid {
-		s.Longitude = &lon.String
-	}
-
-	if subcategoryID.Valid {
-		s.SubcategoryID = int(subcategoryID.Int64)
-	}
-	if subcategoryName.Valid {
-		s.SubcategoryName = subcategoryName.String
-	}
-	if subcategoryNameKz.Valid {
-		s.SubcategoryNameKz = subcategoryNameKz.String
 	}
 
 	if len(imagesJSON) > 0 {
@@ -271,8 +230,6 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		params     []interface{}
 		conditions []string
 	)
-
-	conditions = append(conditions, "s.status = 'active'")
 
 	baseQuery := `
             SELECT s.id, s.name, s.address, s.price, s.user_id,
@@ -488,8 +445,6 @@ WHERE 1=1
 `
 	args := []interface{}{}
 
-	query += " AND s.status = 'active'"
-
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
 		query += " AND s.price BETWEEN ? AND ?"
@@ -653,8 +608,6 @@ CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
 
 	args := []interface{}{userID, userID}
 
-	query += " AND s.status = 'active'"
-
 	// Price filter (optional)
 	if req.PriceFrom > 0 && req.PriceTo > 0 {
 		query += " AND s.price BETWEEN ? AND ?"
@@ -781,10 +734,6 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
                        s.description, s.avg_rating, s.top,
                        CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
                        CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-                       ac.chat_id,
-                       cch.user1_id, cu1.name, cu1.surname, cu1.avatar_path,
-                       cch.user2_id, cu2.name, cu2.surname, cu2.avatar_path,
-                       cch.created_at,
                        s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                FROM ad s
                JOIN users u ON s.user_id = u.id
@@ -792,10 +741,6 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
                JOIN subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
                LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
-               LEFT JOIN ad_confirmations ac ON ac.ad_id = s.id AND (ac.client_id = ? OR ac.performer_id = ?)
-               LEFT JOIN chats cch ON cch.id = ac.chat_id
-               LEFT JOIN users cu1 ON cu1.id = cch.user1_id
-               LEFT JOIN users cu2 ON cu2.id = cch.user2_id
                WHERE s.id = ?
        `
 
@@ -805,23 +750,14 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 	var lat, lon sql.NullString
 
 	var likedStr, respondedStr string
-	var chatID, chatUser1ID, chatUser2ID sql.NullInt64
-	var chatUser1Name, chatUser1Surname, chatUser2Name, chatUser2Surname sql.NullString
-	var chatUser1Avatar, chatUser2Avatar sql.NullString
-	var chatCreatedAt sql.NullTime
 
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, userID, userID, adID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, adID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&likedStr, &respondedStr,
-		&chatID,
-		&chatUser1ID, &chatUser1Name, &chatUser1Surname, &chatUser1Avatar,
-		&chatUser2ID, &chatUser2Name, &chatUser2Surname, &chatUser2Avatar,
-		&chatCreatedAt,
-		&lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+		&likedStr, &respondedStr, &lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -851,32 +787,6 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 	}
 	s.Liked = likedStr == "1"
 	s.Responded = respondedStr == "1"
-
-	if chatID.Valid {
-		s.Chat = &models.Chat{ID: int(chatID.Int64)}
-
-		if chatUser1ID.Valid {
-			s.Chat.User1ID = int(chatUser1ID.Int64)
-			s.Chat.User1.Name = chatUser1Name.String
-			s.Chat.User1.Surname = chatUser1Surname.String
-			if chatUser1Avatar.Valid {
-				s.Chat.User1.AvatarPath = &chatUser1Avatar.String
-			}
-		}
-
-		if chatUser2ID.Valid {
-			s.Chat.User2ID = int(chatUser2ID.Int64)
-			s.Chat.User2.Name = chatUser2Name.String
-			s.Chat.User2.Surname = chatUser2Surname.String
-			if chatUser2Avatar.Valid {
-				s.Chat.User2.AvatarPath = &chatUser2Avatar.String
-			}
-		}
-
-		if chatCreatedAt.Valid {
-			s.Chat.CreatedAt = chatCreatedAt.Time
-		}
-	}
 
 	s.AvgRating = getAverageRating(ctx, r.DB, "ad_reviews", "ad_id", s.ID)
 

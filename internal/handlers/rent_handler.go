@@ -24,7 +24,7 @@ type RentHandler struct {
 }
 
 func (h *RentHandler) GetRentByID(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -53,11 +53,7 @@ func (h *RentHandler) GetRentByID(w http.ResponseWriter, r *http.Request) {
 
 	rent, err := h.Service.GetRentByID(r.Context(), id, userID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrRentNotFound) {
-			http.Error(w, "Service not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "Failed to fetch service", http.StatusInternalServerError)
+		http.Error(w, "Service not found", http.StatusNotFound)
 		return
 	}
 
@@ -66,7 +62,7 @@ func (h *RentHandler) GetRentByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RentHandler) DeleteRent(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -536,7 +532,7 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
-	idStr := getParam(r, "id")
+	idStr := r.URL.Query().Get(":id")
 	if idStr == "" {
 		http.Error(w, "Missing service ID", http.StatusBadRequest)
 		return
@@ -895,9 +891,6 @@ func (h *RentHandler) GetRentByRentIDAndUserID(w http.ResponseWriter, r *http.Re
 	ctx := r.Context()
 	rentIDStr := r.URL.Query().Get(":rent_id")
 	if rentIDStr == "" {
-		rentIDStr = r.URL.Query().Get("rent_id")
-	}
-	if rentIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
 	}
@@ -908,9 +901,6 @@ func (h *RentHandler) GetRentByRentIDAndUserID(w http.ResponseWriter, r *http.Re
 		return
 	}
 	userIDStr := r.URL.Query().Get(":user_id")
-	if userIDStr == "" {
-		userIDStr = r.URL.Query().Get("user_id")
-	}
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
