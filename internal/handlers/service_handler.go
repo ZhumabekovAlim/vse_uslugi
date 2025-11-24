@@ -859,6 +859,9 @@ func (h *ServiceHandler) GetServiceByServiceIDAndUserID(w http.ResponseWriter, r
 	ctx := r.Context()
 	serviceIDStr := r.URL.Query().Get(":service_id")
 	if serviceIDStr == "" {
+		serviceIDStr = r.URL.Query().Get("service_id")
+	}
+	if serviceIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
 	}
@@ -869,6 +872,9 @@ func (h *ServiceHandler) GetServiceByServiceIDAndUserID(w http.ResponseWriter, r
 		return
 	}
 	userIDStr := r.URL.Query().Get(":user_id")
+	if userIDStr == "" {
+		userIDStr = r.URL.Query().Get("user_id")
+	}
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {

@@ -874,6 +874,9 @@ func (h *WorkAdHandler) GetWorkAdByWorkIDAndUserID(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 	workadIDStr := r.URL.Query().Get(":work_ad_id")
 	if workadIDStr == "" {
+		workadIDStr = r.URL.Query().Get("work_ad_id")
+	}
+	if workadIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
 	}
@@ -884,6 +887,9 @@ func (h *WorkAdHandler) GetWorkAdByWorkIDAndUserID(w http.ResponseWriter, r *htt
 		return
 	}
 	userIDStr := r.URL.Query().Get(":user_id")
+	if userIDStr == "" {
+		userIDStr = r.URL.Query().Get("user_id")
+	}
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {

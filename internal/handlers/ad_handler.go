@@ -841,6 +841,9 @@ func (h *AdHandler) GetAdByAdIDAndUserID(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 	adIDStr := r.URL.Query().Get(":ad_id")
 	if adIDStr == "" {
+		adIDStr = r.URL.Query().Get("ad_id")
+	}
+	if adIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
 	}
@@ -851,6 +854,9 @@ func (h *AdHandler) GetAdByAdIDAndUserID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	userIDStr := r.URL.Query().Get(":user_id")
+	if userIDStr == "" {
+		userIDStr = r.URL.Query().Get("user_id")
+	}
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {

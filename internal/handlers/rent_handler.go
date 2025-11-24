@@ -891,6 +891,9 @@ func (h *RentHandler) GetRentByRentIDAndUserID(w http.ResponseWriter, r *http.Re
 	ctx := r.Context()
 	rentIDStr := r.URL.Query().Get(":rent_id")
 	if rentIDStr == "" {
+		rentIDStr = r.URL.Query().Get("rent_id")
+	}
+	if rentIDStr == "" {
 		http.Error(w, "service ID is required", http.StatusBadRequest)
 		return
 	}
@@ -901,6 +904,9 @@ func (h *RentHandler) GetRentByRentIDAndUserID(w http.ResponseWriter, r *http.Re
 		return
 	}
 	userIDStr := r.URL.Query().Get(":user_id")
+	if userIDStr == "" {
+		userIDStr = r.URL.Query().Get("user_id")
+	}
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
