@@ -97,12 +97,13 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 	var respondedStr string
 	var subcategoryID sql.NullInt64
 	var subcategoryName, subcategoryNameKz sql.NullString
+	var status, description, top, rentType, deposit sql.NullString
+	var avgRating sql.NullFloat64
+	var liked sql.NullBool
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &subcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
-
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &subcategoryNameKz, &description, &avgRating, &top, &liked, &respondedStr, &status, &rentType, &deposit, &lat, &lon, &s.CreatedAt,
 		&s.UpdatedAt,
 	)
 
@@ -111,6 +112,42 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 	}
 	if err != nil {
 		return models.Rent{}, err
+	}
+
+	if status.Valid {
+		s.Status = status.String
+	}
+
+	if description.Valid {
+		s.Description = description.String
+	}
+
+	if avgRating.Valid {
+		s.AvgRating = avgRating.Float64
+	}
+
+	if top.Valid {
+		s.Top = top.String
+	}
+
+	if liked.Valid {
+		s.Liked = liked.Bool
+	}
+
+	if rentType.Valid {
+		s.RentType = rentType.String
+	}
+
+	if deposit.Valid {
+		s.Deposit = deposit.String
+	}
+
+	if lat.Valid {
+		s.Latitude = &lat.String
+	}
+
+	if lon.Valid {
+		s.Longitude = &lon.String
 	}
 
 	if subcategoryID.Valid {
