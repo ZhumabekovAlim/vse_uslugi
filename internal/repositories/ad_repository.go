@@ -105,14 +105,14 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	var respondedStr string
 	var subcategoryID sql.NullInt64
 	var subcategoryName, subcategoryNameKz sql.NullString
-	var status sql.NullString
+	var status, description, top sql.NullString
+	var avgRating sql.NullFloat64
+	var liked sql.NullBool
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &subcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &lat, &lon, &status,
-
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &subcategoryNameKz, &description, &avgRating, &top, &liked, &respondedStr, &lat, &lon, &status,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 
@@ -125,6 +125,30 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 
 	if status.Valid {
 		s.Status = status.String
+	}
+
+	if description.Valid {
+		s.Description = description.String
+	}
+
+	if avgRating.Valid {
+		s.AvgRating = avgRating.Float64
+	}
+
+	if top.Valid {
+		s.Top = top.String
+	}
+
+	if liked.Valid {
+		s.Liked = liked.Bool
+	}
+
+	if lat.Valid {
+		s.Latitude = &lat.String
+	}
+
+	if lon.Valid {
+		s.Longitude = &lon.String
 	}
 
 	if subcategoryID.Valid {
