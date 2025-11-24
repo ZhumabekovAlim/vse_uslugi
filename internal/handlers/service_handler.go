@@ -20,7 +20,8 @@ import (
 )
 
 type ServiceHandler struct {
-	Service *services.ServiceService
+	Service     *services.ServiceService
+	ChatService *services.ChatService
 }
 
 func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) {
@@ -57,8 +58,13 @@ func (h *ServiceHandler) GetServiceByID(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	chatObject := getChatObject(r.Context(), h.ChatService, userID, "service", id)
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(service)
+	if err := respondWithChatObject(w, service, chatObject); err != nil {
+		log.Printf("[ERROR] Failed to encode response with chat object: %v", err)
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
@@ -888,9 +894,11 @@ func (h *ServiceHandler) GetServiceByServiceIDAndUserID(w http.ResponseWriter, r
 		return
 	}
 
+	chatObject := getChatObject(r.Context(), h.ChatService, userID, "service", serviceID)
+
 	// Успешный ответ
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(service); err != nil {
+	if err := respondWithChatObject(w, service, chatObject); err != nil {
 		log.Printf("[ERROR] Failed to encode response: %v", err)
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}
