@@ -84,31 +84,33 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 
 func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID int) (models.Service, error) {
 	query := `
-             SELECT s.id, s.name, s.address, s.price, s.user_id,
-                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                      CASE WHEN sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
-                      s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
-                      s.description, s.avg_rating, s.top, s.liked,
-                      CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-                      s.latitude, s.longitude, s.status, s.created_at, s.updated_at
-               FROM service s
-               JOIN users u ON s.user_id = u.id
-               JOIN categories c ON s.category_id = c.id
-               JOIN subcategories sub ON s.subcategory_id = sub.id
-               LEFT JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = ?
-               WHERE s.id = ?
-       `
+         SELECT s.id, s.name, s.address, s.price, s.user_id,
+                u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+                  CASE WHEN sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
+                  s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
+                  s.description, s.avg_rating, s.top, s.liked,
+                  CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+                  s.latitude, s.longitude, s.status, s.created_at, s.updated_at
+           FROM service s
+           JOIN users u ON s.user_id = u.id
+           JOIN categories c ON s.category_id = c.id
+           LEFT JOIN subcategories sub ON s.subcategory_id = sub.id
+           LEFT JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = ?
+           WHERE s.id = ?
+   `
 
 	var s models.Service
 	var imagesJSON []byte
 	var videosJSON []byte
 	var lat, lon sql.NullString
 	var respondedStr string
+	var subcategoryID sql.NullInt64
+	var subcategoryName, subcategoryNameKz sql.NullString
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &subcategoryNameKz,
 		&s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr,
 		&lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
@@ -118,6 +120,16 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 	}
 	if err != nil {
 		return models.Service{}, err
+	}
+
+	if subcategoryID.Valid {
+		s.SubcategoryID = int(subcategoryID.Int64)
+	}
+	if subcategoryName.Valid {
+		s.SubcategoryName = subcategoryName.String
+	}
+	if subcategoryNameKz.Valid {
+		s.SubcategoryNameKz = subcategoryNameKz.String
 	}
 
 	if len(imagesJSON) > 0 {

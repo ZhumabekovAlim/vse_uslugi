@@ -80,30 +80,32 @@ func (r *WorkRepository) CreateWork(ctx context.Context, work models.Work) (mode
 
 func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (models.Work, error) {
 	query := `
-          SELECT w.id, w.name, w.address, w.price, w.user_id,
-                 u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                    w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, sub.name_kz, w.description, w.avg_rating, w.top, w.liked,
-                    CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-                    w.status, w.work_experience, u.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
-              FROM work w
-              JOIN users u ON w.user_id = u.id
-              JOIN work_categories c ON w.category_id = c.id
-              JOIN work_subcategories sub ON w.subcategory_id = sub.id
-              JOIN cities city ON u.city_id = city.id
-              LEFT JOIN work_responses sr ON sr.work_id = w.id AND sr.user_id = ?
-              WHERE w.id = ?
-       `
+  SELECT w.id, w.name, w.address, w.price, w.user_id,
+         u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+            w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, sub.name_kz, w.description, w.avg_rating, w.top, w.liked,
+            CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+            w.status, w.work_experience, u.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.latitude, w.longitude, w.created_at, w.updated_at
+      FROM work w
+      JOIN users u ON w.user_id = u.id
+      JOIN work_categories c ON w.category_id = c.id
+      LEFT JOIN work_subcategories sub ON w.subcategory_id = sub.id
+      JOIN cities city ON u.city_id = city.id
+      LEFT JOIN work_responses sr ON sr.work_id = w.id AND sr.user_id = ?
+      WHERE w.id = ?
+`
 
 	var s models.Work
 	var imagesJSON []byte
 	var videosJSON []byte
 	var respondedStr string
+	var subcategoryID sql.NullInt64
+	var subcategoryName, subcategoryNameKz sql.NullString
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &subcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt,
 
 		&s.UpdatedAt,
 	)
@@ -113,6 +115,16 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
 	}
 	if err != nil {
 		return models.Work{}, err
+	}
+
+	if subcategoryID.Valid {
+		s.SubcategoryID = int(subcategoryID.Int64)
+	}
+	if subcategoryName.Valid {
+		s.SubcategoryName = subcategoryName.String
+	}
+	if subcategoryNameKz.Valid {
+		s.SubcategoryNameKz = subcategoryNameKz.String
 	}
 
 	if len(imagesJSON) > 0 {

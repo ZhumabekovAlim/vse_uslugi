@@ -77,17 +77,17 @@ func (r *RentAdRepository) CreateRentAd(ctx context.Context, rent models.RentAd)
 
 func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int) (models.RentAd, error) {
 	query := `
-     SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
+ SELECT w.id, w.name, w.address, w.price, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
 
-              CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+          CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
 
-              w.status, w.rent_type, w.deposit, w.latitude, w.longitude, w.created_at, w.updated_at
-       FROM rent_ad w
-       JOIN users u ON w.user_id = u.id
-       JOIN rent_categories c ON w.category_id = c.id
-       JOIN rent_subcategories sub ON w.subcategory_id = sub.id
-      LEFT JOIN rent_ad_responses sr ON sr.rent_ad_id = w.id AND sr.user_id = ?
-       WHERE w.id = ? AND w.status <> 'archive'
+          w.status, w.rent_type, w.deposit, w.latitude, w.longitude, w.created_at, w.updated_at
+   FROM rent_ad w
+   JOIN users u ON w.user_id = u.id
+   JOIN rent_categories c ON w.category_id = c.id
+   LEFT JOIN rent_subcategories sub ON w.subcategory_id = sub.id
+  LEFT JOIN rent_ad_responses sr ON sr.rent_ad_id = w.id AND sr.user_id = ?
+   WHERE w.id = ? AND w.status <> 'archive'
 `
 
 	var s models.RentAd
@@ -95,11 +95,13 @@ func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int
 	var videosJSON []byte
 	var lat, lon sql.NullString
 	var respondedStr string
+	var subcategoryID sql.NullInt64
+	var subcategoryName sql.NullString
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
 
 		&s.UpdatedAt,
 	)
@@ -109,6 +111,13 @@ func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int
 	}
 	if err != nil {
 		return models.RentAd{}, err
+	}
+
+	if subcategoryID.Valid {
+		s.SubcategoryID = int(subcategoryID.Int64)
+	}
+	if subcategoryName.Valid {
+		s.SubcategoryName = subcategoryName.String
 	}
 
 	if len(imagesJSON) > 0 {

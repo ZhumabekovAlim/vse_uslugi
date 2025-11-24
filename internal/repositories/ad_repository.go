@@ -84,18 +84,18 @@ func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, e
 
 func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (models.Ad, error) {
 	query := `
-     SELECT s.id, s.name, s.address, s.price, s.user_id,
-            u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-              s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
-              s.description, s.avg_rating, s.top, s.liked,
-              CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-              s.latitude, s.longitude, s.status, s.created_at, s.updated_at
-       FROM ad s
-       JOIN users u ON s.user_id = u.id
-       JOIN categories c ON s.category_id = c.id
-       JOIN subcategories sub ON s.subcategory_id = sub.id
-       LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
-       WHERE s.id = ? AND s.status <> 'archive'
+ SELECT s.id, s.name, s.address, s.price, s.user_id,
+        u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+          s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
+          s.description, s.avg_rating, s.top, s.liked,
+          CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+          s.latitude, s.longitude, s.status, s.created_at, s.updated_at
+   FROM ad s
+   JOIN users u ON s.user_id = u.id
+   JOIN categories c ON s.category_id = c.id
+   LEFT JOIN subcategories sub ON s.subcategory_id = sub.id
+   LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
+   WHERE s.id = ? AND s.status <> 'archive'
 `
 
 	var s models.Ad
@@ -103,12 +103,14 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	var videosJSON []byte
 	var lat, lon sql.NullString
 	var respondedStr string
+	var subcategoryID sql.NullInt64
+	var subcategoryName, subcategoryNameKz sql.NullString
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &lat, &lon, &s.Status,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &subcategoryID, &subcategoryName, &subcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &lat, &lon, &s.Status,
 
 		&s.CreatedAt, &s.UpdatedAt,
 	)
@@ -118,6 +120,16 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	}
 	if err != nil {
 		return models.Ad{}, err
+	}
+
+	if subcategoryID.Valid {
+		s.SubcategoryID = int(subcategoryID.Int64)
+	}
+	if subcategoryName.Valid {
+		s.SubcategoryName = subcategoryName.String
+	}
+	if subcategoryNameKz.Valid {
+		s.SubcategoryNameKz = subcategoryNameKz.String
 	}
 
 	if len(imagesJSON) > 0 {
