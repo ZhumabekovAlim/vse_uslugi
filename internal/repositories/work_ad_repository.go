@@ -154,11 +154,11 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int
 	}
 
 	if lat.Valid {
-		s.Latitude = &lat.String
+		s.Latitude = lat.String
 	}
 
 	if lon.Valid {
-		s.Longitude = &lon.String
+		s.Longitude = lon.String
 	}
 
 	if subcategoryID.Valid {

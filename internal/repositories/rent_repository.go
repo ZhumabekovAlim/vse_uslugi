@@ -142,14 +142,6 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 		s.Deposit = deposit.String
 	}
 
-	if lat.Valid {
-		s.Latitude = &lat.String
-	}
-
-	if lon.Valid {
-		s.Longitude = &lon.String
-	}
-
 	if subcategoryID.Valid {
 		s.SubcategoryID = int(subcategoryID.Int64)
 	}
@@ -173,7 +165,6 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 	}
 
 	s.Responded = respondedStr == "1"
-
 	if lat.Valid {
 		s.Latitude = lat.String
 	}
