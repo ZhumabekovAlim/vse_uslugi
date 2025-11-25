@@ -5,12 +5,16 @@ import (
 )
 
 type Service struct {
-	ID      int     `json:"id"`
-	Name    string  `json:"name"`
-	Address string  `json:"address"`
-	Price   float64 `json:"price"`
-	UserID  int     `json:"user_id"`
-	User    struct {
+	ID         int      `json:"id"`
+	Name       string   `json:"name"`
+	Address    string   `json:"address"`
+	Price      *float64 `json:"price"`
+	PriceTo    *float64 `json:"price_to"`
+	OnSite     bool     `json:"on_site"`
+	Negotiable bool     `json:"negotiable"`
+	HidePhone  bool     `json:"hide_phone"`
+	UserID     int      `json:"user_id"`
+	User       struct {
 		ID           int     `json:"id"`
 		Name         string  `json:"name"`
 		Surname      string  `json:"surname"`
@@ -90,7 +94,11 @@ type FilteredService struct {
 	ServiceID          int       `json:"service_id"`
 	ServiceName        string    `json:"service_name"`
 	ServiceAddress     string    `json:"service_address"`
-	ServicePrice       float64   `json:"service_price"`
+	ServicePrice       *float64  `json:"service_price"`
+	ServicePriceTo     *float64  `json:"service_price_to"`
+	ServiceOnSite      bool      `json:"on_site"`
+	ServiceNegotiable  bool      `json:"negotiable"`
+	ServiceHidePhone   bool      `json:"hide_phone"`
 	ServiceDescription string    `json:"service_description"`
 	Images             []Image   `json:"images"`
 	Videos             []Video   `json:"videos"`
