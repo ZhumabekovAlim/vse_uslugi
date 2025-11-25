@@ -380,7 +380,24 @@ func (h *RentAdHandler) CreateRentAd(w http.ResponseWriter, r *http.Request) {
 	var service models.RentAd
 	service.Name = r.FormValue("name")
 	service.Address = r.FormValue("address")
-	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+	if priceStr := r.FormValue("price"); priceStr != "" {
+		if price, err := strconv.ParseFloat(priceStr, 64); err == nil {
+			service.Price = &price
+		} else {
+			http.Error(w, "Invalid price", http.StatusBadRequest)
+			return
+		}
+	}
+	if priceToStr := r.FormValue("price_to"); priceToStr != "" {
+		if priceTo, err := strconv.ParseFloat(priceToStr, 64); err == nil {
+			service.PriceTo = &priceTo
+		} else {
+			http.Error(w, "Invalid price_to", http.StatusBadRequest)
+			return
+		}
+	}
+	service.Negotiable = r.FormValue("negotiable") == "true"
+	service.HidePhone = r.FormValue("hide_phone") == "true"
 	if userIDStr := r.FormValue("user_id"); userIDStr != "" {
 		userID, err := strconv.Atoi(userIDStr)
 		if err != nil {
@@ -595,7 +612,30 @@ func (h *RentAdHandler) UpdateRentAd(w http.ResponseWriter, r *http.Request) {
 		service.Address = r.FormValue("address")
 	}
 	if v, ok := r.MultipartForm.Value["price"]; ok {
-		service.Price, _ = strconv.ParseFloat(v[0], 64)
+		if v[0] == "" {
+			service.Price = nil
+		} else if price, err := strconv.ParseFloat(v[0], 64); err == nil {
+			service.Price = &price
+		} else {
+			http.Error(w, "Invalid price", http.StatusBadRequest)
+			return
+		}
+	}
+	if v, ok := r.MultipartForm.Value["price_to"]; ok {
+		if v[0] == "" {
+			service.PriceTo = nil
+		} else if priceTo, err := strconv.ParseFloat(v[0], 64); err == nil {
+			service.PriceTo = &priceTo
+		} else {
+			http.Error(w, "Invalid price_to", http.StatusBadRequest)
+			return
+		}
+	}
+	if _, ok := r.MultipartForm.Value["negotiable"]; ok {
+		service.Negotiable = r.FormValue("negotiable") == "true"
+	}
+	if _, ok := r.MultipartForm.Value["hide_phone"]; ok {
+		service.HidePhone = r.FormValue("hide_phone") == "true"
 	}
 	if v, ok := r.MultipartForm.Value["user_id"]; ok {
 		service.UserID, _ = strconv.Atoi(v[0])
