@@ -30,7 +30,7 @@ func (r *AdFavoriteRepository) IsAdFavorite(ctx context.Context, userID, adID in
 }
 
 func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID int) ([]models.AdFavorite, error) {
-	query := `SELECT af.id, af.user_id, af.ad_id, a.name, a.price, a.status, a.created_at
+	query := `SELECT af.id, af.user_id, af.ad_id, a.name, a.price, a.price_to, a.negotiable, a.hide_phone, a.status, a.created_at
                  FROM ad_favorites af
                  JOIN ad a ON af.ad_id = a.id
                  WHERE af.user_id = ?`
@@ -43,9 +43,16 @@ func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID 
 	var favs []models.AdFavorite
 	for rows.Next() {
 		var fav models.AdFavorite
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.AdID, &fav.Name, &fav.Price, &fav.Status, &fav.CreatedAt)
+		var price, priceTo sql.NullFloat64
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.AdID, &fav.Name, &price, &priceTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt)
 		if err != nil {
 			return nil, err
+		}
+		if price.Valid {
+			fav.Price = &price.Float64
+		}
+		if priceTo.Valid {
+			fav.PriceTo = &priceTo.Float64
 		}
 		favs = append(favs, fav)
 	}
