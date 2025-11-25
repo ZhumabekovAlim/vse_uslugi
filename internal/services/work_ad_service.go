@@ -71,6 +71,7 @@ func (s *WorkAdService) GetFilteredWorksAd(ctx context.Context, filter models.Wo
 		filter.SortOption,
 		filter.Limit,
 		offset,
+		nil,
 	)
 	if err != nil {
 		return models.WorkAdListResponse{}, err

@@ -71,6 +71,8 @@ func (s *AdService) GetFilteredAd(ctx context.Context, filter models.AdFilterReq
 		filter.SortOption,
 		filter.Limit,
 		offset,
+		nil,
+		nil,
 	)
 	if err != nil {
 		return models.AdListResponse{}, err

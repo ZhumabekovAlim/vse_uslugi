@@ -89,6 +89,7 @@ func (s *WorkService) GetFilteredWorks(ctx context.Context, filter models.WorkFi
 		filter.SortOption,
 		filter.Limit,
 		offset,
+		nil,
 	)
 	if err != nil {
 		return models.WorkListResponse{}, err

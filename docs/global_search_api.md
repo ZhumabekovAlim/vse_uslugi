@@ -20,6 +20,8 @@
 | `priceTo`, `price_to` | число с плавающей точкой | нет | `0` | Верхняя граница цены. Аналогично `priceFrom`.|
 | `ratings` | строка (CSV чисел) | нет | `null` | Список минимальных рейтингов. Непарсибельные элементы пропускаются, пустой результат трактуется как отсутствие фильтра.【F:internal/handlers/global_search_handler.go†L74-L75】【F:internal/handlers/global_search_handler.go†L126-L145】|
 | `sortOption`, `sort_option` | неотрицательное целое | нет | `0` | Код сортировки, передаваемый напрямую в репозитории. Неверные значения приводят к 0.【F:internal/handlers/global_search_handler.go†L74-L78】【F:internal/handlers/global_search_handler.go†L157-L165】|
+| `on_site` | `"yes"/"no"`, `"да"/"нет"`, `true/false/1/0` | нет | `null` | Фильтр только для типов `service` и `ad`. Принимает значения «да/yes» или «нет/no» в любом регистре; при пустом значении фильтр не применяется. Неверное значение приводит к 400.【F:internal/handlers/global_search_handler.go†L79-L94】【F:internal/models/global_search.go†L5-L14】【F:internal/services/global_search_service.go†L62-L90】|
+| `negotiable` | `"yes"/"no"`, `"да"/"нет"`, `true/false/1/0` | нет | `null` | Фильтр по признаку «договорная цена». Применяется ко всем типам, но для `service` и `ad` идёт вместе с `on_site`. Неверные значения приводят к 400.【F:internal/handlers/global_search_handler.go†L79-L94】【F:internal/models/global_search.go†L5-L14】【F:internal/services/global_search_service.go†L62-L136】|
 
 ## Формат ответа
 
@@ -53,6 +55,7 @@
 | Передан недопустимый тип | 400 | `unsupported listing type: <type>`【F:internal/handlers/global_search_handler.go†L32-L44】|
 | Ни один валидный тип не найден | 400 | `at least one valid type must be provided`【F:internal/handlers/global_search_handler.go†L52-L55】|
 | Передано больше 6 типов | 400 | `no more than 6 listing types allowed`【F:internal/handlers/global_search_handler.go†L56-L58】|
+| Неверное значение `on_site` или `negotiable` | 400 | `invalid on_site value` / `invalid negotiable value`【F:internal/handlers/global_search_handler.go†L79-L96】|
 | Недоступен сервис глобального поиска | 500 | `service unavailable` (ошибка конфигурации обработчика)【F:internal/handlers/global_search_handler.go†L21-L24】|
 | Ошибка бизнес-логики или репозиториев | 500 | Текст ошибки, проброшенный из `GlobalSearchService` или репозитория. Например, `unsupported listing type` при попытке запросить тип, для которого не инициализирован соответствующий репозиторий.【F:internal/handlers/global_search_handler.go†L95-L99】【F:internal/services/global_search_service.go†L29-L138】|
 
@@ -71,12 +74,12 @@
 
 | Тип (`types`) | Используемый репозиторий | Метод | Комментарии |
 | --- | --- | --- | --- |
-| `service` | `ServiceRepository` | `GetServicesWithFilters` | Передаются `user_id`, категории, подкатегории, ценовые границы, рейтинги и `sortOption`.【F:internal/services/global_search_service.go†L62-L76】|
-| `ad` | `AdRepository` | `GetAdWithFilters` | Аналогичные фильтры, результат оборачивается в `GlobalSearchItem.Ad`.【F:internal/services/global_search_service.go†L76-L88】|
-| `work` | `WorkRepository` | `GetWorksWithFilters` | Возвращает вакансии/резюме.【F:internal/services/global_search_service.go†L88-L99】|
-| `work_ad` | `WorkAdRepository` | `GetWorksAdWithFilters` | Предложения о поиске сотрудников.【F:internal/services/global_search_service.go†L100-L111】|
-| `rent` | `RentRepository` | `GetRentsWithFilters` | Объявления об аренде.【F:internal/services/global_search_service.go†L112-L123】|
-| `rent_ad` | `RentAdRepository` | `GetRentsAdWithFilters` | Запросы на аренду.【F:internal/services/global_search_service.go†L124-L135】|
+| `service` | `ServiceRepository` | `GetServicesWithFilters` | Передаются `user_id`, категории, подкатегории, ценовые границы, рейтинги, `sortOption`, а также фильтры `on_site` и `negotiable` для договорных цен.【F:internal/services/global_search_service.go†L62-L76】|
+| `ad` | `AdRepository` | `GetAdWithFilters` | Аналогичные фильтры, включая `on_site` и `negotiable`, результат оборачивается в `GlobalSearchItem.Ad`.【F:internal/services/global_search_service.go†L76-L88】|
+| `work` | `WorkRepository` | `GetWorksWithFilters` | Возвращает вакансии/резюме с возможностью фильтрации по `negotiable`.【F:internal/services/global_search_service.go†L88-L99】|
+| `work_ad` | `WorkAdRepository` | `GetWorksAdWithFilters` | Предложения о поиске сотрудников с фильтром `negotiable`.【F:internal/services/global_search_service.go†L100-L111】|
+| `rent` | `RentRepository` | `GetRentsWithFilters` | Объявления об аренде с фильтром `negotiable`.【F:internal/services/global_search_service.go†L112-L123】|
+| `rent_ad` | `RentAdRepository` | `GetRentsAdWithFilters` | Запросы на аренду с фильтром `negotiable`.【F:internal/services/global_search_service.go†L124-L135】|
 
 Если соответствующий репозиторий не сконфигурирован (nil), сервис немедленно возвращает ошибку `unsupported listing type`. Это защитный механизм при неполной инициализации зависимостей.【F:internal/services/global_search_service.go†L62-L136】
 

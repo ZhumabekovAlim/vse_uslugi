@@ -77,6 +77,18 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		sortOption = parsePositiveIntAllowZero(r.URL.Query().Get("sort_option"))
 	}
 
+	onSite, ok := parseBoolChoice(r.URL.Query().Get("on_site"))
+	if !ok {
+		http.Error(w, "invalid on_site value", http.StatusBadRequest)
+		return
+	}
+
+	negotiable, ok := parseBoolChoice(r.URL.Query().Get("negotiable"))
+	if !ok {
+		http.Error(w, "invalid negotiable value", http.StatusBadRequest)
+		return
+	}
+
 	userID := extractUserIDFromRequest(r)
 
 	req := models.GlobalSearchRequest{
@@ -89,6 +101,8 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		PriceTo:        priceTo,
 		Ratings:        ratings,
 		SortOption:     sortOption,
+		OnSite:         onSite,
+		Negotiable:     negotiable,
 		UserID:         userID,
 	}
 
@@ -172,6 +186,27 @@ func parseFloat(input string) float64 {
 		return value
 	}
 	return 0
+}
+
+// parseBoolChoice returns a pointer to bool when the input represents a yes/no choice.
+// Supported truthy values: "yes", "true", "1", "да". False values: "no", "false", "0", "нет".
+// Empty input returns nil. Any other value leads to ok=false.
+func parseBoolChoice(input string) (*bool, bool) {
+	if input == "" {
+		return nil, true
+	}
+
+	normalized := strings.ToLower(strings.TrimSpace(input))
+	switch normalized {
+	case "yes", "true", "1", "да":
+		value := true
+		return &value, true
+	case "no", "false", "0", "нет":
+		value := false
+		return &value, true
+	default:
+		return nil, false
+	}
 }
 
 func extractUserIDFromRequest(r *http.Request) int {
