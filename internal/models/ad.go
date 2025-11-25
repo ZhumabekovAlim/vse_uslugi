@@ -5,12 +5,16 @@ import (
 )
 
 type Ad struct {
-	ID      int     `json:"id"`
-	Name    string  `json:"name"`
-	Address string  `json:"address"`
-	Price   float64 `json:"price"`
-	UserID  int     `json:"user_id"`
-	User    struct {
+	ID         int      `json:"id"`
+	Name       string   `json:"name"`
+	Address    string   `json:"address"`
+	OnSite     bool     `json:"on_site"`
+	Price      *float64 `json:"price"`
+	PriceTo    *float64 `json:"price_to"`
+	Negotiable bool     `json:"negotiable"`
+	HidePhone  bool     `json:"hide_phone"`
+	UserID     int      `json:"user_id"`
+	User       struct {
 		ID           int     `json:"id"`
 		Name         string  `json:"name"`
 		Surname      string  `json:"surname"`
@@ -83,7 +87,11 @@ type FilteredAd struct {
 	AdID             int       `json:"ad_id"`
 	AdName           string    `json:"ad_name"`
 	AdAddress        string    `json:"ad_address"`
-	AdPrice          float64   `json:"ad_price"`
+	AdOnSite         bool      `json:"on_site"`
+	AdPrice          *float64  `json:"ad_price"`
+	AdPriceTo        *float64  `json:"price_to"`
+	AdNegotiable     bool      `json:"negotiable"`
+	AdHidePhone      bool      `json:"hide_phone"`
 	AdDescription    string    `json:"ad_description"`
 	Images           []ImageAd `json:"images"`
 	Videos           []Video   `json:"videos"`

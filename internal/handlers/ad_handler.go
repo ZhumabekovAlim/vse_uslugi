@@ -380,7 +380,19 @@ func (h *AdHandler) CreateAd(w http.ResponseWriter, r *http.Request) {
 	var service models.Ad
 	service.Name = r.FormValue("name")
 	service.Address = r.FormValue("address")
-	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+	if priceStr := strings.TrimSpace(r.FormValue("price")); priceStr != "" {
+		if price, err := strconv.ParseFloat(priceStr, 64); err == nil {
+			service.Price = &price
+		}
+	}
+	if priceToStr := strings.TrimSpace(r.FormValue("price_to")); priceToStr != "" {
+		if priceTo, err := strconv.ParseFloat(priceToStr, 64); err == nil {
+			service.PriceTo = &priceTo
+		}
+	}
+	service.OnSite = strings.TrimSpace(r.FormValue("on_site")) == "true"
+	service.Negotiable = strings.TrimSpace(r.FormValue("negotiable")) == "true"
+	service.HidePhone = strings.TrimSpace(r.FormValue("hide_phone")) == "true"
 	if userIDStr := r.FormValue("user_id"); userIDStr != "" {
 		userID, err := strconv.Atoi(userIDStr)
 		if err != nil {
@@ -597,7 +609,27 @@ func (h *AdHandler) UpdateAd(w http.ResponseWriter, r *http.Request) {
 		service.Address = r.FormValue("address")
 	}
 	if v, ok := r.MultipartForm.Value["price"]; ok {
-		service.Price, _ = strconv.ParseFloat(v[0], 64)
+		if parsed, err := strconv.ParseFloat(strings.TrimSpace(v[0]), 64); err == nil {
+			service.Price = &parsed
+		} else {
+			service.Price = nil
+		}
+	}
+	if v, ok := r.MultipartForm.Value["price_to"]; ok {
+		if parsed, err := strconv.ParseFloat(strings.TrimSpace(v[0]), 64); err == nil {
+			service.PriceTo = &parsed
+		} else {
+			service.PriceTo = nil
+		}
+	}
+	if v, ok := r.MultipartForm.Value["on_site"]; ok {
+		service.OnSite = strings.TrimSpace(v[0]) == "true"
+	}
+	if v, ok := r.MultipartForm.Value["negotiable"]; ok {
+		service.Negotiable = strings.TrimSpace(v[0]) == "true"
+	}
+	if v, ok := r.MultipartForm.Value["hide_phone"]; ok {
+		service.HidePhone = strings.TrimSpace(v[0]) == "true"
 	}
 	if v, ok := r.MultipartForm.Value["user_id"]; ok {
 		service.UserID, _ = strconv.Atoi(v[0])

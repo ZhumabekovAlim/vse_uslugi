@@ -23,8 +23,8 @@ type AdRepository struct {
 
 func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, error) {
 	query := `
-        INSERT INTO ad (name, address, price, user_id, images, videos, category_id, subcategory_id, description, avg_rating, top, liked, status, latitude, longitude, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO ad (name, address, on_site, price, price_to, negotiable, hide_phone, user_id, images, videos, category_id, subcategory_id, description, avg_rating, top, liked, status, latitude, longitude, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `
 	// Сохраняем images как JSON
 	imagesJSON, err := json.Marshal(ad.Images)
@@ -52,10 +52,24 @@ func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, e
 		subcategory = ad.SubcategoryID
 	}
 
+	price := sql.NullFloat64{}
+	if ad.Price != nil {
+		price = sql.NullFloat64{Float64: *ad.Price, Valid: true}
+	}
+
+	priceTo := sql.NullFloat64{}
+	if ad.PriceTo != nil {
+		priceTo = sql.NullFloat64{Float64: *ad.PriceTo, Valid: true}
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
 		ad.Name,
 		ad.Address,
-		ad.Price,
+		ad.OnSite,
+		price,
+		priceTo,
+		ad.Negotiable,
+		ad.HidePhone,
 		ad.UserID,
 		string(imagesJSON),
 		string(videosJSON),
@@ -84,7 +98,7 @@ func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, e
 
 func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (models.Ad, error) {
 	query := `
-     SELECT s.id, s.name, s.address, s.price, s.user_id,
+     SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
             u.id, u.name, u.surname, u.review_rating, u.avatar_path,
               s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
               s.description, s.avg_rating, s.top, s.liked,
@@ -103,9 +117,10 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	var videosJSON []byte
 	var lat, lon sql.NullString
 	var respondedStr string
+	var price, priceTo sql.NullFloat64
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
-		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &lat, &lon, &s.Status,
@@ -152,7 +167,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 func (r *AdRepository) UpdateAd(ctx context.Context, service models.Ad) (models.Ad, error) {
 	query := `
         UPDATE ad
-        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
+        SET name = ?, address = ?, on_site = ?, price = ?, price_to = ?, negotiable = ?, hide_phone = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
             description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, latitude = ?, longitude = ?, updated_at = ?
         WHERE id = ?
     `
@@ -176,8 +191,18 @@ func (r *AdRepository) UpdateAd(ctx context.Context, service models.Ad) (models.
 		longitude = *service.Longitude
 	}
 
+	price := sql.NullFloat64{}
+	if service.Price != nil {
+		price = sql.NullFloat64{Float64: *service.Price, Valid: true}
+	}
+
+	priceTo := sql.NullFloat64{}
+	if service.PriceTo != nil {
+		priceTo = sql.NullFloat64{Float64: *service.PriceTo, Valid: true}
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
-		service.Name, service.Address, service.Price, service.UserID, imagesJSON, videosJSON,
+		service.Name, service.Address, service.OnSite, price, priceTo, service.Negotiable, service.HidePhone, service.UserID, imagesJSON, videosJSON,
 		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, latitude, longitude, service.UpdatedAt, service.ID,
 	)
 	if err != nil {
@@ -232,7 +257,7 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 	)
 
 	baseQuery := `
-            SELECT s.id, s.name, s.address, s.price, s.user_id,
+            SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                       s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
 
@@ -321,8 +346,9 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		var videosJSON []byte
 		var lat, lon sql.NullString
 		var likedStr string
+		var price, priceTo sql.NullFloat64
 		err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
 			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &lat, &lon, &s.Status,
@@ -331,6 +357,13 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
+		}
+
+		if price.Valid {
+			s.Price = &price.Float64
+		}
+		if priceTo.Valid {
+			s.PriceTo = &priceTo.Float64
 		}
 
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
@@ -375,7 +408,7 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 
 func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.Ad, error) {
 	query := `
-                SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.latitude, s.longitude, s.status, s.created_at, s.updated_at
+                SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                 FROM ad s
                 JOIN users u ON s.user_id = u.id
                 WHERE user_id = ?
@@ -393,11 +426,19 @@ func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.
 		var imagesJSON []byte
 		var videosJSON []byte
 		var lat, lon sql.NullString
+		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
+			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
 			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
+		}
+
+		if price.Valid {
+			s.Price = &price.Float64
+		}
+		if priceTo.Valid {
+			s.PriceTo = &priceTo.Float64
 		}
 
 		if len(imagesJSON) > 0 {
@@ -436,7 +477,7 @@ func (r *AdRepository) GetFilteredAdPost(ctx context.Context, req models.FilterA
 	query := `
       SELECT
       u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
-     s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
+     s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.latitude, s.longitude,
      COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
      s.top, s.created_at
 FROM ad s
@@ -506,12 +547,20 @@ WHERE 1=1
 		var s models.FilteredAd
 		var lat, lon sql.NullString
 		var imagesJSON, videosJSON []byte
+		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.AdID, &s.AdName, &s.AdAddress, &s.AdPrice, &s.AdDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
+			&s.AdID, &s.AdName, &s.AdAddress, &s.AdOnSite, &price, &priceTo, &s.AdNegotiable, &s.AdHidePhone, &s.AdDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
 		); err != nil {
 			return nil, err
+		}
+
+		if price.Valid {
+			s.AdPrice = &price.Float64
+		}
+		if priceTo.Valid {
+			s.AdPriceTo = &priceTo.Float64
 		}
 		if lat.Valid {
 			latVal := lat.String
@@ -541,7 +590,7 @@ WHERE 1=1
 func (r *AdRepository) FetchAdByStatusAndUserID(ctx context.Context, userID int, status string) ([]models.Ad, error) {
 	query := `
         SELECT
-                s.id, s.name, s.address, s.price, s.user_id,
+                s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
                 u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                 s.images, s.videos, s.category_id, s.subcategory_id, s.description,
                 s.avg_rating, s.top, s.liked, s.status,
@@ -561,8 +610,9 @@ func (r *AdRepository) FetchAdByStatusAndUserID(ctx context.Context, userID int,
 		var s models.Ad
 		var imagesJSON []byte
 		var videosJSON []byte
+		var price, priceTo sql.NullFloat64
 		err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID,
 			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status,
@@ -570,6 +620,12 @@ func (r *AdRepository) FetchAdByStatusAndUserID(ctx context.Context, userID int,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan error: %w", err)
+		}
+		if price.Valid {
+			s.Price = &price.Float64
+		}
+		if priceTo.Valid {
+			s.PriceTo = &priceTo.Float64
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("json decode error: %w", err)
@@ -594,7 +650,7 @@ SELECT DISTINCT
 
 u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
+s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.latitude, s.longitude,
 COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at,
 CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -682,13 +738,20 @@ CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
 		var lat, lon sql.NullString
 		var imagesJSON, videosJSON []byte
 		var likedStr, respondedStr string
+		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.AdID, &s.AdName, &s.AdAddress, &s.AdPrice, &s.AdDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
+			&s.AdID, &s.AdName, &s.AdAddress, &s.AdOnSite, &price, &priceTo, &s.AdNegotiable, &s.AdHidePhone, &s.AdDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		if price.Valid {
+			s.AdPrice = &price.Float64
+		}
+		if priceTo.Valid {
+			s.AdPriceTo = &priceTo.Float64
 		}
 		if lat.Valid {
 			latVal := lat.String
@@ -726,7 +789,7 @@ CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
 func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userID int) (models.Ad, error) {
 	query := `
             SELECT
-                    s.id, s.name, s.address, s.price, s.user_id,
+                    s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                       CASE WHEN sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                        s.images, s.videos, s.category_id, c.name,
@@ -748,11 +811,12 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 	var imagesJSON []byte
 	var videosJSON []byte
 	var lat, lon sql.NullString
+	var price, priceTo sql.NullFloat64
 
 	var likedStr, respondedStr string
 
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, adID).Scan(
-		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
@@ -765,6 +829,13 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 	}
 	if err != nil {
 		return models.Ad{}, fmt.Errorf("failed to get service: %w", err)
+	}
+
+	if price.Valid {
+		s.Price = &price.Float64
+	}
+	if priceTo.Valid {
+		s.PriceTo = &priceTo.Float64
 	}
 
 	if len(imagesJSON) > 0 {
@@ -800,7 +871,7 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 
 func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]models.AdItem, int, error) {
 	baseQuery := `
-        SELECT s.id, 'service' as type, s.name as title, s.description, s.price, s.address, s.created_at,
+        SELECT s.id, 'service' as type, s.name as title, s.description, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.address, s.created_at,
                s.category_id, c.name as category_name, s.subcategory_id, sub.name as subcategory_name, sub.name_kz as subcategory_name_kz,
                0 as views_count,
                (SELECT COUNT(*) FROM service_responses sr WHERE sr.service_id = s.id) as responses_count,
@@ -815,7 +886,7 @@ func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]m
 
         UNION ALL
 
-        SELECT r.id, 'rental' as type, r.name as title, r.description, r.price, r.address, r.created_at,
+        SELECT r.id, 'rental' as type, r.name as title, r.description, FALSE as on_site, r.price, r.price_to, FALSE as negotiable, FALSE as hide_phone, r.address, r.created_at,
                r.category_id, rc.name as category_name, r.subcategory_id, rsub.name as subcategory_name, rsub.name_kz as subcategory_name_kz,
                0 as views_count,
                (SELECT COUNT(*) FROM rent_ad_responses rr WHERE rr.rent_ad_id = r.id) as responses_count,
@@ -830,7 +901,7 @@ func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]m
 
         UNION ALL
 
-        SELECT w.id, 'job' as type, w.name as title, w.description, w.price, w.address, w.created_at,
+        SELECT w.id, 'job' as type, w.name as title, w.description, FALSE as on_site, w.price, w.price_to, FALSE as negotiable, FALSE as hide_phone, w.address, w.created_at,
                w.category_id, c.name as category_name, w.subcategory_id, sub.name as subcategory_name, sub.name_kz as subcategory_name_kz,
                0 as views_count,
                (SELECT COUNT(*) FROM work_ad_responses wr WHERE wr.work_ad_id = w.id) as responses_count,
@@ -907,13 +978,19 @@ func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]m
 			employmentType sql.NullString
 			salaryFrom     sql.NullFloat64
 			salaryTo       sql.NullFloat64
+			price          sql.NullFloat64
+			priceTo        sql.NullFloat64
 		)
 		if err := rows.Scan(
 			&item.ID,
 			&item.Type,
 			&item.Title,
 			&item.Description,
-			&item.Price,
+			&item.OnSite,
+			&price,
+			&priceTo,
+			&item.Negotiable,
+			&item.HidePhone,
 			&item.Address,
 			&item.CreatedAt,
 			&item.Category.ID,
@@ -935,6 +1012,12 @@ func (r *AdRepository) GetAds(ctx context.Context, filter models.AdsFilter) ([]m
 			&salaryTo,
 		); err != nil {
 			return nil, 0, err
+		}
+		if price.Valid {
+			item.Price = &price.Float64
+		}
+		if priceTo.Valid {
+			item.PriceTo = &priceTo.Float64
 		}
 		item.ViewsCount = int(viewsCount.Int64)
 		item.ResponsesCount = int(responsesCount.Int64)
