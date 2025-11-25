@@ -11,6 +11,7 @@ type AdFavorite struct {
 	Name       string    `json:"name"`
 	Price      *float64  `json:"price"`
 	PriceTo    *float64  `json:"price_to"`
+	OnSite     bool      `json:"on_site"`
 	Negotiable bool      `json:"negotiable"`
 	HidePhone  bool      `json:"hide_phone"`
 	Status     string    `json:"status"`
