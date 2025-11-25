@@ -214,7 +214,7 @@ func (r *WorkRepository) UpdateStatus(ctx context.Context, id int, status string
 	}
 	return nil
 }
-func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Work, float64, float64, error) {
+func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool) ([]models.Work, float64, float64, error) {
 	var (
 		works      []models.Work
 		params     []interface{}
@@ -258,6 +258,11 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
 		for _, sub := range subcategories {
 			params = append(params, sub)
 		}
+	}
+
+	if negotiable != nil {
+		conditions = append(conditions, "s.negotiable = ?")
+		params = append(params, *negotiable)
 	}
 
 	if priceFrom > 0 {

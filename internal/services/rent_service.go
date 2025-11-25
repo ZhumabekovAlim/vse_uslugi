@@ -89,6 +89,7 @@ func (s *RentService) GetFilteredRents(ctx context.Context, filter models.RentFi
 		filter.SortOption,
 		filter.Limit,
 		offset,
+		nil,
 	)
 	if err != nil {
 		return models.RentListResponse{}, err

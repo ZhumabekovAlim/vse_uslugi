@@ -249,7 +249,7 @@ func (r *AdRepository) UpdateStatus(ctx context.Context, id int, status string) 
 	}
 	return nil
 }
-func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Ad, float64, float64, error) {
+func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, onSite, negotiable *bool) ([]models.Ad, float64, float64, error) {
 	var (
 		ads        []models.Ad
 		params     []interface{}
@@ -292,6 +292,16 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		for _, sub := range subcategories {
 			params = append(params, sub)
 		}
+	}
+
+	if onSite != nil {
+		conditions = append(conditions, "s.on_site = ?")
+		params = append(params, *onSite)
+	}
+
+	if negotiable != nil {
+		conditions = append(conditions, "s.negotiable = ?")
+		params = append(params, *negotiable)
 	}
 
 	if priceFrom > 0 {

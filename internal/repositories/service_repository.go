@@ -255,7 +255,7 @@ func (r *ServiceRepository) UpdateStatus(ctx context.Context, id int, status str
 	}
 	return nil
 }
-func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.Service, float64, float64, error) {
+func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, onSite, negotiable *bool) ([]models.Service, float64, float64, error) {
 	var (
 		services   []models.Service
 		params     []interface{}
@@ -299,6 +299,16 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 		for _, sub := range subcategories {
 			params = append(params, sub)
 		}
+	}
+
+	if onSite != nil {
+		conditions = append(conditions, "s.on_site = ?")
+		params = append(params, *onSite)
+	}
+
+	if negotiable != nil {
+		conditions = append(conditions, "s.negotiable = ?")
+		params = append(params, *negotiable)
 	}
 
 	if priceFrom > 0 {

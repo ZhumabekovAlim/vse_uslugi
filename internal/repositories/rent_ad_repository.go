@@ -236,7 +236,7 @@ func (r *RentAdRepository) UpdateStatus(ctx context.Context, id int, status stri
 	}
 	return nil
 }
-func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int) ([]models.RentAd, float64, float64, error) {
+func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool) ([]models.RentAd, float64, float64, error) {
 	var (
 		rents      []models.RentAd
 		params     []interface{}
@@ -275,6 +275,11 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 		for _, sub := range subcategories {
 			params = append(params, sub)
 		}
+	}
+
+	if negotiable != nil {
+		conditions = append(conditions, "s.negotiable = ?")
+		params = append(params, *negotiable)
 	}
 
 	if priceFrom > 0 {

@@ -89,6 +89,8 @@ func (s *ServiceService) GetFilteredServices(ctx context.Context, filter models.
 		filter.SortOption,
 		filter.Limit,
 		offset,
+		nil,
+		nil,
 	)
 	if err != nil {
 		return models.ServiceListResponse{}, err
