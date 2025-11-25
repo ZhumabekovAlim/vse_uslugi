@@ -25,7 +25,11 @@ type AdItem struct {
 	Type        string    `json:"type"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
-	Price       float64   `json:"price"`
+	OnSite      bool      `json:"on_site"`
+	Price       *float64  `json:"price"`
+	PriceTo     *float64  `json:"price_to"`
+	Negotiable  bool      `json:"negotiable"`
+	HidePhone   bool      `json:"hide_phone"`
 	Address     string    `json:"address"`
 	CreatedAt   time.Time `json:"created_at"`
 	Category    struct {
