@@ -30,7 +30,7 @@ func (r *RentAdFavoriteRepository) IsRentAdFavorite(ctx context.Context, userID,
 }
 
 func (r *RentAdFavoriteRepository) GetRentAdFavoritesByUser(ctx context.Context, userID int) ([]models.RentAdFavorite, error) {
-	query := `SELECT rf.id, rf.user_id, rf.rent_ad_id, ra.name, ra.price, ra.status, ra.created_at
+	query := `SELECT rf.id, rf.user_id, rf.rent_ad_id, ra.name, ra.price, ra.price_to, ra.negotiable, ra.hide_phone, ra.status, ra.created_at
                  FROM rent_ad_favorites rf
                  JOIN rent_ad ra ON rf.rent_ad_id = ra.id
                  WHERE rf.user_id = ?`
@@ -43,9 +43,15 @@ func (r *RentAdFavoriteRepository) GetRentAdFavoritesByUser(ctx context.Context,
 	var favs []models.RentAdFavorite
 	for rows.Next() {
 		var fav models.RentAdFavorite
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.RentAdID, &fav.Name, &fav.Price, &fav.Status, &fav.CreatedAt)
-		if err != nil {
+		var price, priceTo sql.NullFloat64
+		if err := rows.Scan(&fav.ID, &fav.UserID, &fav.RentAdID, &fav.Name, &price, &priceTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt); err != nil {
 			return nil, err
+		}
+		if price.Valid {
+			fav.Price = &price.Float64
+		}
+		if priceTo.Valid {
+			fav.PriceTo = &priceTo.Float64
 		}
 		favs = append(favs, fav)
 	}
