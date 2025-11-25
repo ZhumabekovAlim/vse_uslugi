@@ -23,9 +23,9 @@ type ServiceRepository struct {
 
 func (r *ServiceRepository) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
-        INSERT INTO service (name, address, price, user_id, images, videos, category_id, subcategory_id, description, avg_rating, top, liked, status, latitude, longitude, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `
+    INSERT INTO service (name, address, on_site, price, price_to, negotiable, hide_phone, user_id, images, videos, category_id, subcategory_id, description, avg_rating, top, liked, status, latitude, longitude, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
 	// Сохраняем images как JSON
 	imagesJSON, err := json.Marshal(service.Images)
 	if err != nil {
@@ -52,10 +52,24 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		subcategory = service.SubcategoryID
 	}
 
+	var price interface{}
+	if service.Price != nil {
+		price = *service.Price
+	}
+
+	var priceTo interface{}
+	if service.PriceTo != nil {
+		priceTo = *service.PriceTo
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
 		service.Name,
 		service.Address,
-		service.Price,
+		service.OnSite,
+		price,
+		priceTo,
+		service.Negotiable,
+		service.HidePhone,
 		service.UserID,
 		string(imagesJSON),
 		string(videosJSON),
@@ -84,13 +98,13 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 
 func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID int) (models.Service, error) {
 	query := `
-             SELECT s.id, s.name, s.address, s.price, s.user_id,
-                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                      CASE WHEN sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
-                      s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
-                      s.description, s.avg_rating, s.top, s.liked,
-                      CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-                      s.latitude, s.longitude, s.status, s.created_at, s.updated_at
+         SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id,
+                u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+                  CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
+                  s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
+                  s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked,
+                  CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+                  s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                FROM service s
                JOIN users u ON s.user_id = u.id
                JOIN categories c ON s.category_id = c.id
@@ -103,13 +117,14 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 	var imagesJSON []byte
 	var videosJSON []byte
 	var lat, lon sql.NullString
+	var price, priceTo sql.NullFloat64
 	var respondedStr string
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
-		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
-		&s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr,
+		&s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &respondedStr,
 		&lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
 
@@ -134,6 +149,12 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 
 	s.Responded = respondedStr == "1"
 
+	if price.Valid {
+		s.Price = &price.Float64
+	}
+	if priceTo.Valid {
+		s.PriceTo = &priceTo.Float64
+	}
 	if lat.Valid {
 		s.Latitude = &lat.String
 	}
@@ -152,11 +173,11 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 
 func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
-        UPDATE service
-        SET name = ?, address = ?, price = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
-            description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, latitude = ?, longitude = ?, updated_at = ?
-        WHERE id = ?
-    `
+    UPDATE service
+    SET name = ?, address = ?, on_site = ?, price = ?, price_to = ?, negotiable = ?, hide_phone = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
+        description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, latitude = ?, longitude = ?, updated_at = ?
+    WHERE id = ?
+`
 	imagesJSON, err := json.Marshal(service.Images)
 	if err != nil {
 		return models.Service{}, fmt.Errorf("failed to marshal images: %w", err)
@@ -177,8 +198,17 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
 		longitude = *service.Longitude
 	}
 
+	var price interface{}
+	if service.Price != nil {
+		price = *service.Price
+	}
+	var priceTo interface{}
+	if service.PriceTo != nil {
+		priceTo = *service.PriceTo
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
-		service.Name, service.Address, service.Price, service.UserID, imagesJSON, videosJSON,
+		service.Name, service.Address, service.OnSite, price, priceTo, service.Negotiable, service.HidePhone, service.UserID, imagesJSON, videosJSON,
 		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, latitude, longitude, service.UpdatedAt, service.ID,
 	)
 	if err != nil {
@@ -233,10 +263,10 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	)
 
 	baseQuery := `
-           SELECT s.id, s.name, s.address, s.price, s.user_id,
-                  u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                     s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top,
-                     s.latitude, s.longitude,
+          SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id,
+                 u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+                    s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone,
+                    s.latitude, s.longitude,
 
              CASE WHEN sf.service_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
 
@@ -322,12 +352,13 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 		var imagesJSON []byte
 		var videosJSON []byte
 		var lat, lon sql.NullString
+		var price, priceTo sql.NullFloat64
 		var likedStr string
 		err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &lat, &lon, &likedStr, &s.Status,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &lat, &lon, &likedStr, &s.Status,
 
 			&s.CreatedAt, &s.UpdatedAt,
 		)
@@ -335,6 +366,12 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
 		}
 
+		if price.Valid {
+			s.Price = &price.Float64
+		}
+		if priceTo.Valid {
+			s.PriceTo = &priceTo.Float64
+		}
 		if lat.Valid {
 			s.Latitude = &lat.String
 		}
@@ -367,22 +404,22 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	sortServicesByTop(services)
 
 	// Get min/max prices
-	var minPrice, maxPrice float64
+	var minPrice, maxPrice sql.NullFloat64
 	err = r.DB.QueryRowContext(ctx, `SELECT MIN(price), MAX(price) FROM service`).Scan(&minPrice, &maxPrice)
 	if err != nil {
 		return services, 0, 0, nil // fallback
 	}
 
-	return services, minPrice, maxPrice, nil
+	return services, minPrice.Float64, maxPrice.Float64, nil
 }
 
 func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
 	query := `
-           SELECT s.id, s.name, s.address, s.price, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
-              FROM service s
-              JOIN users u ON s.user_id = u.id
-              WHERE user_id = ?
-       `
+       SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
+          FROM service s
+          JOIN users u ON s.user_id = u.id
+          WHERE user_id = ?
+   `
 
 	rows, err := r.DB.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -396,11 +433,19 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 		var imagesJSON []byte
 		var videosJSON []byte
 		var lat, lon sql.NullString
+		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
+			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
+			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &s.Status, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
+		}
+
+		if price.Valid {
+			s.Price = &price.Float64
+		}
+		if priceTo.Valid {
+			s.PriceTo = &priceTo.Float64
 		}
 
 		if len(imagesJSON) > 0 {
@@ -442,7 +487,7 @@ SELECT
 
 u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
+s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.latitude, s.longitude,
 COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at
 FROM service s
@@ -512,12 +557,19 @@ WHERE 1=1
 		var s models.FilteredService
 		var lat, lon sql.NullString
 		var imagesJSON, videosJSON []byte
+		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
+			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServiceOnSite, &price, &priceTo, &s.ServiceNegotiable, &s.ServiceHidePhone, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
 		); err != nil {
 			return nil, err
+		}
+		if price.Valid {
+			s.ServicePrice = &price.Float64
+		}
+		if priceTo.Valid {
+			s.ServicePriceTo = &priceTo.Float64
 		}
 		if lat.Valid {
 			latVal := lat.String
@@ -547,11 +599,11 @@ WHERE 1=1
 func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID int, status string) ([]models.Service, error) {
 	query := `
      SELECT
-             s.id, s.name, s.address, s.price, s.user_id,
-             u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                s.images, s.videos, s.category_id, s.subcategory_id, s.description,
-                s.avg_rating, s.top, s.liked, s.status, s.latitude, s.longitude,
-                s.created_at, s.updated_at
+            s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id,
+            u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+            s.images, s.videos, s.category_id, s.subcategory_id, s.description,
+            s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked, s.status, s.latitude, s.longitude,
+            s.created_at, s.updated_at
         FROM service s
         JOIN users u ON s.user_id = u.id
         WHERE s.status = ? AND s.user_id = ?`
@@ -568,15 +620,22 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 		var imagesJSON []byte
 		var videosJSON []byte
 		var lat, lon sql.NullString
+		var price, priceTo sql.NullFloat64
 		err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID,
-			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &lat, &lon,
+			&s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &s.Status, &lat, &lon,
 			&s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan error: %w", err)
+		}
+		if price.Valid {
+			s.Price = &price.Float64
+		}
+		if priceTo.Valid {
+			s.PriceTo = &priceTo.Float64
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("json decode error: %w", err)
@@ -607,7 +666,7 @@ SELECT DISTINCT
 
 u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-s.id, s.name, s.address, s.price, s.description, s.latitude, s.longitude,
+s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.latitude, s.longitude,
 COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at,
 CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -688,13 +747,20 @@ WHERE 1=1
 		var lat, lon sql.NullString
 		var imagesJSON, videosJSON []byte
 		var likedStr, respondedStr string
+		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServicePrice, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
+			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServiceOnSite, &price, &priceTo, &s.ServiceNegotiable, &s.ServiceHidePhone, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		if price.Valid {
+			s.ServicePrice = &price.Float64
+		}
+		if priceTo.Valid {
+			s.ServicePriceTo = &priceTo.Float64
 		}
 		if lat.Valid {
 			latVal := lat.String
@@ -732,12 +798,12 @@ WHERE 1=1
 func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, serviceID int, userID int) (models.Service, error) {
 	query := `
             SELECT
-                    s.id, s.name, s.address, s.price, s.user_id,
+                    s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                       CASE WHEN sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
+                       CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                        s.images, s.videos, s.category_id, c.name,
                        s.subcategory_id, sub.name, sub.name_kz,
-                       s.description, s.avg_rating, s.top,
+                       s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone,
                        CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
                        CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                        s.latitude, s.longitude, s.status, s.created_at, s.updated_at
@@ -756,13 +822,14 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 	var lat, lon sql.NullString
 
 	var likedStr, respondedStr string
+	var price, priceTo sql.NullFloat64
 
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, serviceID).Scan(
-		&s.ID, &s.Name, &s.Address, &s.Price, &s.UserID,
+		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
-		&s.Description, &s.AvgRating, &s.Top,
+		&s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone,
 		&likedStr, &respondedStr, &lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
 
@@ -773,6 +840,12 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 		return models.Service{}, fmt.Errorf("failed to get service: %w", err)
 	}
 
+	if price.Valid {
+		s.Price = &price.Float64
+	}
+	if priceTo.Valid {
+		s.PriceTo = &priceTo.Float64
+	}
 	if len(imagesJSON) > 0 {
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return models.Service{}, fmt.Errorf("failed to decode images json: %w", err)

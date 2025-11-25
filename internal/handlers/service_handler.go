@@ -199,6 +199,15 @@ func parseStringArray(input string) []string {
 	return strings.Split(input, ",")
 }
 
+func parseBool(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
 func (h *ServiceHandler) GetServicesSorted(w http.ResponseWriter, r *http.Request) {
 	sortStr := r.URL.Query().Get(":type")
 	sortOption, err := strconv.Atoi(sortStr)
@@ -388,7 +397,25 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	var service models.Service
 	service.Name = r.FormValue("name")
 	service.Address = r.FormValue("address")
-	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+	if priceStr := strings.TrimSpace(r.FormValue("price")); priceStr != "" {
+		price, err := strconv.ParseFloat(priceStr, 64)
+		if err != nil {
+			http.Error(w, "Invalid price", http.StatusBadRequest)
+			return
+		}
+		service.Price = &price
+	}
+	if priceToStr := strings.TrimSpace(r.FormValue("price_to")); priceToStr != "" {
+		priceTo, err := strconv.ParseFloat(priceToStr, 64)
+		if err != nil {
+			http.Error(w, "Invalid price_to", http.StatusBadRequest)
+			return
+		}
+		service.PriceTo = &priceTo
+	}
+	service.OnSite = parseBool(r.FormValue("on_site"))
+	service.Negotiable = parseBool(r.FormValue("negotiable"))
+	service.HidePhone = parseBool(r.FormValue("hide_phone"))
 	if userIDStr := r.FormValue("user_id"); userIDStr != "" {
 		userID, err := strconv.Atoi(userIDStr)
 		if err != nil {
@@ -613,7 +640,39 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 		service.Address = r.FormValue("address")
 	}
 	if v, ok := r.MultipartForm.Value["price"]; ok {
-		service.Price, _ = strconv.ParseFloat(v[0], 64)
+		priceStr := strings.TrimSpace(v[0])
+		if priceStr != "" {
+			price, err := strconv.ParseFloat(priceStr, 64)
+			if err != nil {
+				http.Error(w, "Invalid price", http.StatusBadRequest)
+				return
+			}
+			service.Price = &price
+		} else {
+			service.Price = nil
+		}
+	}
+	if v, ok := r.MultipartForm.Value["price_to"]; ok {
+		priceStr := strings.TrimSpace(v[0])
+		if priceStr != "" {
+			priceTo, err := strconv.ParseFloat(priceStr, 64)
+			if err != nil {
+				http.Error(w, "Invalid price_to", http.StatusBadRequest)
+				return
+			}
+			service.PriceTo = &priceTo
+		} else {
+			service.PriceTo = nil
+		}
+	}
+	if v, ok := r.MultipartForm.Value["on_site"]; ok {
+		service.OnSite = parseBool(v[0])
+	}
+	if v, ok := r.MultipartForm.Value["negotiable"]; ok {
+		service.Negotiable = parseBool(v[0])
+	}
+	if v, ok := r.MultipartForm.Value["hide_phone"]; ok {
+		service.HidePhone = parseBool(v[0])
 	}
 	if v, ok := r.MultipartForm.Value["user_id"]; ok {
 		service.UserID, _ = strconv.Atoi(v[0])
