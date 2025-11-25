@@ -6,7 +6,7 @@ import "time"
 type UserItem struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`
-	Price       float64   `json:"price"`
+	Price       *float64  `json:"price"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
 	Status      string    `json:"status"`

@@ -30,7 +30,7 @@ func (r *WorkFavoriteRepository) IsWorkFavorite(ctx context.Context, userID, wor
 }
 
 func (r *WorkFavoriteRepository) GetWorkFavoritesByUser(ctx context.Context, userID int) ([]models.WorkFavorite, error) {
-	query := `SELECT wf.id, wf.user_id, wf.work_id, w.name, w.price, w.status, w.created_at
+	query := `SELECT wf.id, wf.user_id, wf.work_id, w.name, w.price, w.price_to, w.negotiable, w.hide_phone, w.status, w.created_at
                  FROM work_favorites wf
                  JOIN work w ON wf.work_id = w.id
                  WHERE wf.user_id = ?`
@@ -43,10 +43,14 @@ func (r *WorkFavoriteRepository) GetWorkFavoritesByUser(ctx context.Context, use
 	var favs []models.WorkFavorite
 	for rows.Next() {
 		var fav models.WorkFavorite
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkID, &fav.Name, &fav.Price, &fav.Status, &fav.CreatedAt)
+		var price, priceTo sql.NullFloat64
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkID, &fav.Name, &price, &priceTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
+
+		fav.Price = floatFromNull(price)
+		fav.PriceTo = floatFromNull(priceTo)
 		favs = append(favs, fav)
 	}
 	return favs, nil

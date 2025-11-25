@@ -30,8 +30,12 @@ func (r *UserItemsRepository) GetServiceWorkRentByUserID(ctx context.Context, us
 	var items []models.UserItem
 	for rows.Next() {
 		var item models.UserItem
-		if err := rows.Scan(&item.ID, &item.Name, &item.Price, &item.Description, &item.CreatedAt, &item.Status, &item.Type); err != nil {
+		var price sql.NullFloat64
+		if err := rows.Scan(&item.ID, &item.Name, &price, &item.Description, &item.CreatedAt, &item.Status, &item.Type); err != nil {
 			return nil, err
+		}
+		if price.Valid {
+			item.Price = &price.Float64
 		}
 		items = append(items, item)
 	}
@@ -56,8 +60,12 @@ func (r *UserItemsRepository) GetAdWorkAdRentAdByUserID(ctx context.Context, use
 	var items []models.UserItem
 	for rows.Next() {
 		var item models.UserItem
-		if err := rows.Scan(&item.ID, &item.Name, &item.Price, &item.Description, &item.CreatedAt, &item.Status, &item.Type); err != nil {
+		var price sql.NullFloat64
+		if err := rows.Scan(&item.ID, &item.Name, &price, &item.Description, &item.CreatedAt, &item.Status, &item.Type); err != nil {
 			return nil, err
+		}
+		if price.Valid {
+			item.Price = &price.Float64
 		}
 		items = append(items, item)
 	}
@@ -115,8 +123,12 @@ WHERE (rac.performer_id = ? OR rac.client_id = ?) AND rac.status IN ('active', '
 	var items []models.UserItem
 	for rows.Next() {
 		var item models.UserItem
-		if err := rows.Scan(&item.ID, &item.Name, &item.Price, &item.Description, &item.CreatedAt, &item.Status, &item.Type); err != nil {
+		var price sql.NullFloat64
+		if err := rows.Scan(&item.ID, &item.Name, &price, &item.Description, &item.CreatedAt, &item.Status, &item.Type); err != nil {
 			return nil, err
+		}
+		if price.Valid {
+			item.Price = &price.Float64
 		}
 		items = append(items, item)
 	}
@@ -166,8 +178,12 @@ func (r *UserItemsRepository) GetActiveOrdersByUserID(ctx context.Context, userI
 	var items []models.UserItem
 	for rows.Next() {
 		var item models.UserItem
-		if err := rows.Scan(&item.ID, &item.Name, &item.Price, &item.Description, &item.CreatedAt, &item.Status, &item.Type); err != nil {
+		var price sql.NullFloat64
+		if err := rows.Scan(&item.ID, &item.Name, &price, &item.Description, &item.CreatedAt, &item.Status, &item.Type); err != nil {
 			return nil, err
+		}
+		if price.Valid {
+			item.Price = &price.Float64
 		}
 		items = append(items, item)
 	}

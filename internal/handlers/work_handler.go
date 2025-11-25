@@ -199,6 +199,21 @@ func parseStringArrayWork(input string) []string {
 	return strings.Split(input, ",")
 }
 
+func parseOptionalFloat(value string) *float64 {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	if f, err := strconv.ParseFloat(value, 64); err == nil {
+		return &f
+	}
+	return nil
+}
+
+func parseBoolFlag(value string) bool {
+	val := strings.ToLower(strings.TrimSpace(value))
+	return val == "true" || val == "1"
+}
+
 func (h *WorkHandler) GetWorksSorted(w http.ResponseWriter, r *http.Request) {
 	sortStr := r.URL.Query().Get(":type")
 	sortOption, err := strconv.Atoi(sortStr)
@@ -399,7 +414,9 @@ func (h *WorkHandler) CreateWork(w http.ResponseWriter, r *http.Request) {
 	var service models.Work
 	service.Name = r.FormValue("name")
 	service.Address = r.FormValue("address")
-	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+	service.Price = parseOptionalFloat(r.FormValue("price"))
+	service.PriceTo = parseOptionalFloat(r.FormValue("price_to"))
+	service.Negotiable = parseBoolFlag(r.FormValue("negotiable"))
 	if userIDStr := r.FormValue("user_id"); userIDStr != "" {
 		userID, err := strconv.Atoi(userIDStr)
 		if err != nil {
@@ -430,6 +447,7 @@ func (h *WorkHandler) CreateWork(w http.ResponseWriter, r *http.Request) {
 	service.PaymentPeriod = r.FormValue("payment_period")
 	service.Latitude = r.FormValue("latitude")
 	service.Longitude = r.FormValue("longitude")
+	service.HidePhone = parseBoolFlag(r.FormValue("hide_phone"))
 	service.CreatedAt = time.Now()
 
 	// Сохраняем изображения
@@ -610,7 +628,10 @@ func (h *WorkHandler) UpdateWork(w http.ResponseWriter, r *http.Request) {
 		service.Address = r.FormValue("address")
 	}
 	if v, ok := r.MultipartForm.Value["price"]; ok {
-		service.Price, _ = strconv.ParseFloat(v[0], 64)
+		service.Price = parseOptionalFloat(v[0])
+	}
+	if v, ok := r.MultipartForm.Value["price_to"]; ok {
+		service.PriceTo = parseOptionalFloat(v[0])
 	}
 	if v, ok := r.MultipartForm.Value["user_id"]; ok {
 		service.UserID, _ = strconv.Atoi(v[0])
@@ -656,6 +677,12 @@ func (h *WorkHandler) UpdateWork(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, ok := r.MultipartForm.Value["longitude"]; ok {
 		service.Longitude = r.FormValue("longitude")
+	}
+	if v, ok := r.MultipartForm.Value["negotiable"]; ok {
+		service.Negotiable = parseBoolFlag(v[0])
+	}
+	if v, ok := r.MultipartForm.Value["hide_phone"]; ok {
+		service.HidePhone = parseBoolFlag(v[0])
 	}
 
 	images := service.Images
