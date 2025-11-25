@@ -3605,7 +3605,12 @@ func (s *Server) handleOfferPrice(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	driver, ok := s.getDriverForAction(w, ctx, driverID)
+
 	if !ok {
+		return
+	}
+	if driver.Balance < minDriverBalanceTenge {
+		writeError(w, http.StatusForbidden, "insufficient driver balance")
 		return
 	}
 
@@ -3710,7 +3715,7 @@ func (s *Server) handleOfferResponse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	driver, err := s.ensureDriverEligible(ctx, req.DriverID)
+	_, err = s.ensureDriverEligible(ctx, req.DriverID)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -3720,10 +3725,6 @@ func (s *Server) handleOfferResponse(w http.ResponseWriter, r *http.Request) {
 		default:
 			writeError(w, http.StatusInternalServerError, "driver lookup failed")
 		}
-		return
-	}
-	if driver.Balance < minDriverBalanceTenge {
-		writeError(w, http.StatusForbidden, "insufficient driver balance")
 		return
 	}
 
@@ -3803,12 +3804,8 @@ func (s *Server) handleOfferAccept(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	driver, ok := s.getDriverForAction(w, ctx, driverID)
+	_, ok := s.getDriverForAction(w, ctx, driverID)
 	if !ok {
-		return
-	}
-	if driver.Balance < minDriverBalanceTenge {
-		writeError(w, http.StatusForbidden, "insufficient driver balance")
 		return
 	}
 
