@@ -5,12 +5,15 @@ import (
 )
 
 type Rent struct {
-	ID      int     `json:"id"`
-	Name    string  `json:"name"`
-	Address string  `json:"address"`
-	Price   float64 `json:"price"`
-	UserID  int     `json:"user_id"`
-	User    struct {
+	ID         int      `json:"id"`
+	Name       string   `json:"name"`
+	Address    string   `json:"address"`
+	Price      *float64 `json:"price"`
+	PriceTo    *float64 `json:"price_to"`
+	Negotiable bool     `json:"negotiable"`
+	HidePhone  bool     `json:"hide_phone"`
+	UserID     int      `json:"user_id"`
+	User       struct {
 		ID           int     `json:"id"`
 		Name         string  `json:"name"`
 		Surname      string  `json:"surname"`
@@ -85,7 +88,10 @@ type FilteredRent struct {
 	RentID           int         `json:"rent_id"`
 	RentName         string      `json:"rent_name"`
 	RentAddress      string      `json:"rent_address"`
-	RentPrice        float64     `json:"rent_price"`
+	RentPrice        *float64    `json:"rent_price"`
+	RentPriceTo      *float64    `json:"rent_price_to"`
+	RentNegotiable   bool        `json:"negotiable"`
+	RentHidePhone    bool        `json:"hide_phone"`
 	RentDescription  string      `json:"rent_description"`
 	Images           []ImageRent `json:"images"`
 	Videos           []Video     `json:"videos"`
