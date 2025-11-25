@@ -149,6 +149,13 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 
 	s.Responded = respondedStr == "1"
 
+	if price.Valid {
+		s.Price = &price.Float64
+	}
+	if priceTo.Valid {
+		s.PriceTo = &priceTo.Float64
+	}
+
 	if lat.Valid {
 		s.Latitude = &lat.String
 	}
