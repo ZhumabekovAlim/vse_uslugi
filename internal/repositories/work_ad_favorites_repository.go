@@ -30,7 +30,7 @@ func (r *WorkAdFavoriteRepository) IsWorkAdFavorite(ctx context.Context, userID,
 }
 
 func (r *WorkAdFavoriteRepository) GetWorkAdFavoritesByUser(ctx context.Context, userID int) ([]models.WorkAdFavorite, error) {
-	query := `SELECT wf.id, wf.user_id, wf.work_ad_id, w.name, w.price, w.status, w.created_at
+	query := `SELECT wf.id, wf.user_id, wf.work_ad_id, w.name, w.price, w.price_to, w.negotiable, w.hide_phone, w.status, w.created_at
                  FROM work_ad_favorites wf
                  JOIN work_ad w ON wf.work_ad_id = w.id
                  WHERE wf.user_id = ?`
@@ -43,9 +43,16 @@ func (r *WorkAdFavoriteRepository) GetWorkAdFavoritesByUser(ctx context.Context,
 	var favs []models.WorkAdFavorite
 	for rows.Next() {
 		var fav models.WorkAdFavorite
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkAdID, &fav.Name, &fav.Price, &fav.Status, &fav.CreatedAt)
+		var price, priceTo sql.NullFloat64
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkAdID, &fav.Name, &price, &priceTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt)
 		if err != nil {
 			return nil, err
+		}
+		if price.Valid {
+			fav.Price = &price.Float64
+		}
+		if priceTo.Valid {
+			fav.PriceTo = &priceTo.Float64
 		}
 		favs = append(favs, fav)
 	}
