@@ -396,7 +396,38 @@ func (h *WorkAdHandler) CreateWorkAd(w http.ResponseWriter, r *http.Request) {
 	var service models.WorkAd
 	service.Name = r.FormValue("name")
 	service.Address = r.FormValue("address")
-	service.Price, _ = strconv.ParseFloat(r.FormValue("price"), 64)
+	if priceStr := r.FormValue("price"); priceStr != "" {
+		price, err := strconv.ParseFloat(priceStr, 64)
+		if err != nil {
+			http.Error(w, "Invalid price", http.StatusBadRequest)
+			return
+		}
+		service.Price = &price
+	}
+	if priceToStr := r.FormValue("price_to"); priceToStr != "" {
+		priceTo, err := strconv.ParseFloat(priceToStr, 64)
+		if err != nil {
+			http.Error(w, "Invalid price_to", http.StatusBadRequest)
+			return
+		}
+		service.PriceTo = &priceTo
+	}
+	if negotiableStr := r.FormValue("negotiable"); negotiableStr != "" {
+		negotiable, err := strconv.ParseBool(negotiableStr)
+		if err != nil {
+			http.Error(w, "Invalid negotiable flag", http.StatusBadRequest)
+			return
+		}
+		service.Negotiable = negotiable
+	}
+	if hidePhoneStr := r.FormValue("hide_phone"); hidePhoneStr != "" {
+		hidePhone, err := strconv.ParseBool(hidePhoneStr)
+		if err != nil {
+			http.Error(w, "Invalid hide_phone flag", http.StatusBadRequest)
+			return
+		}
+		service.HidePhone = hidePhone
+	}
 	if userIDStr := r.FormValue("user_id"); userIDStr != "" {
 		userID, err := strconv.Atoi(userIDStr)
 		if err != nil {
@@ -618,7 +649,40 @@ func (h *WorkAdHandler) UpdateWorkAd(w http.ResponseWriter, r *http.Request) {
 		service.Address = r.FormValue("address")
 	}
 	if v, ok := r.MultipartForm.Value["price"]; ok {
-		service.Price, _ = strconv.ParseFloat(v[0], 64)
+		if v[0] == "" {
+			service.Price = nil
+		} else if price, err := strconv.ParseFloat(v[0], 64); err == nil {
+			service.Price = &price
+		} else {
+			http.Error(w, "Invalid price", http.StatusBadRequest)
+			return
+		}
+	}
+	if v, ok := r.MultipartForm.Value["price_to"]; ok {
+		if v[0] == "" {
+			service.PriceTo = nil
+		} else if priceTo, err := strconv.ParseFloat(v[0], 64); err == nil {
+			service.PriceTo = &priceTo
+		} else {
+			http.Error(w, "Invalid price_to", http.StatusBadRequest)
+			return
+		}
+	}
+	if v, ok := r.MultipartForm.Value["negotiable"]; ok {
+		negotiable, err := strconv.ParseBool(v[0])
+		if err != nil {
+			http.Error(w, "Invalid negotiable flag", http.StatusBadRequest)
+			return
+		}
+		service.Negotiable = negotiable
+	}
+	if v, ok := r.MultipartForm.Value["hide_phone"]; ok {
+		hidePhone, err := strconv.ParseBool(v[0])
+		if err != nil {
+			http.Error(w, "Invalid hide_phone flag", http.StatusBadRequest)
+			return
+		}
+		service.HidePhone = hidePhone
 	}
 	if v, ok := r.MultipartForm.Value["user_id"]; ok {
 		service.UserID, _ = strconv.Atoi(v[0])
