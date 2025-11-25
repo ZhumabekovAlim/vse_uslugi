@@ -5,12 +5,14 @@ import (
 )
 
 type Work struct {
-	ID      int     `json:"id"`
-	Name    string  `json:"name"`
-	Address string  `json:"address"`
-	Price   float64 `json:"price"`
-	UserID  int     `json:"user_id"`
-	User    struct {
+	ID         int      `json:"id"`
+	Name       string   `json:"name"`
+	Address    string   `json:"address"`
+	Price      *float64 `json:"price"`
+	PriceTo    *float64 `json:"price_to"`
+	Negotiable bool     `json:"negotiable"`
+	UserID     int      `json:"user_id"`
+	User       struct {
 		ID           int     `json:"id"`
 		Name         string  `json:"name"`
 		Surname      string  `json:"surname"`
@@ -29,6 +31,7 @@ type Work struct {
 	Liked             bool        `json:"liked, omitempty"`
 	Responded         bool        `json:"is_responded"`
 	Status            string      `json:"status, omitempty"`
+	HidePhone         bool        `json:"hide_phone"`
 	CategoryName      string      `json:"category_name"`
 	SubcategoryName   string      `json:"subcategory_name"`
 	SubcategoryNameKz string      `json:"subcategory_name_kz"`
@@ -90,7 +93,9 @@ type FilteredWork struct {
 	WorkID           int         `json:"work_id"`
 	WorkName         string      `json:"work_name"`
 	WorkAddress      string      `json:"work_address"`
-	WorkPrice        float64     `json:"work_price"`
+	WorkPrice        *float64    `json:"work_price"`
+	WorkPriceTo      *float64    `json:"work_price_to"`
+	Negotiable       bool        `json:"negotiable"`
 	WorkDescription  string      `json:"work_description"`
 	Images           []ImageWork `json:"images"`
 	Videos           []Video     `json:"videos"`
@@ -99,5 +104,6 @@ type FilteredWork struct {
 	Liked            bool        `json:"liked"`
 	Responded        bool        `json:"is_responded"`
 	Top              string      `json:"-"`
+	HidePhone        bool        `json:"hide_phone"`
 	CreatedAt        time.Time   `json:"-"`
 }
