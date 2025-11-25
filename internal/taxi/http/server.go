@@ -4051,7 +4051,7 @@ func (s *Server) handlePassengerCancel(ctx context.Context, w http.ResponseWrite
 	}
 
 	switch order.Status {
-	case fsm.StatusSearching, fsm.StatusAccepted, fsm.StatusArrived, fsm.StatusWaitingFree, fsm.StatusWaitingPaid:
+	case fsm.StatusSearching, fsm.StatusAccepted, fsm.StatusArrived, fsm.StatusWaitingFree, fsm.StatusWaitingPaid, fsm.StatusInProgress:
 	default:
 		msg := fmt.Sprintf("order cannot be canceled in status %s", order.Status)
 		s.pushPassengerError(passengerID, order.ID, msg)
