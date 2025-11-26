@@ -214,6 +214,11 @@ func (r *WorkAdRepository) UpdateStatus(ctx context.Context, id int, status stri
 	}
 	return nil
 }
+
+func (r *WorkAdRepository) ArchiveByUserID(ctx context.Context, userID int) error {
+	_, err := r.DB.ExecContext(ctx, `UPDATE work_ad SET status = 'archive', updated_at = ? WHERE user_id = ?`, time.Now(), userID)
+	return err
+}
 func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool) ([]models.WorkAd, float64, float64, error) {
 	var (
 		works_ad   []models.WorkAd

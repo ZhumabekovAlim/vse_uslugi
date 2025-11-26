@@ -255,6 +255,11 @@ func (r *ServiceRepository) UpdateStatus(ctx context.Context, id int, status str
 	}
 	return nil
 }
+
+func (r *ServiceRepository) ArchiveByUserID(ctx context.Context, userID int) error {
+	_, err := r.DB.ExecContext(ctx, `UPDATE service SET status = 'archive', updated_at = ? WHERE user_id = ?`, time.Now(), userID)
+	return err
+}
 func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, onSite, negotiable *bool) ([]models.Service, float64, float64, error) {
 	var (
 		services   []models.Service
