@@ -1,2 +1,2 @@
 ALTER TABLE users
-    ADD COLUMN banned TINYINT(1) NOT NULL DEFAULT 1 AFTER expires_at;
+    ADD COLUMN banned TINYINT(1) NOT NULL DEFAULT 0 AFTER expires_at;

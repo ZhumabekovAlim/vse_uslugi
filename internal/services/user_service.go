@@ -144,7 +144,7 @@ func (s *UserService) SignUp(ctx context.Context, user models.User, inputCode st
 	}
 	user.Password = string(hashedPassword)
 	user.Role = "client"
-	user.Banned = true
+	user.Banned = false
 
 	// 4. Сохраняем пользователя
 	newUser, err := s.UserRepo.CreateUser(ctx, user)
