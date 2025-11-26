@@ -295,6 +295,9 @@ func (s *UserService) archiveUserListings(ctx context.Context, userID int) error
 }
 
 func (s *UserService) CreateUser(ctx context.Context, user models.User) (models.User, error) {
+	if !user.Banned {
+		user.Banned = true
+	}
 	return s.UserRepo.CreateUser(ctx, user)
 }
 
