@@ -20,9 +20,6 @@ type WorkResponseService struct {
 }
 
 func (s *WorkResponseService) CreateWorkResponse(ctx context.Context, resp models.WorkResponses) (models.WorkResponses, error) {
-	if err := ensureExecutorCanRespond(ctx, s.SubscriptionRepo, resp.UserID, models.SubscriptionTypeWork); err != nil {
-		return models.WorkResponses{}, err
-	}
 
 	resp, err := s.WorkResponseRepo.CreateWorkResponse(ctx, resp)
 	if err != nil {

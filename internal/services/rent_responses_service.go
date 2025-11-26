@@ -20,9 +20,6 @@ type RentResponseService struct {
 }
 
 func (s *RentResponseService) CreateRentResponse(ctx context.Context, resp models.RentResponses) (models.RentResponses, error) {
-	if err := ensureExecutorCanRespond(ctx, s.SubscriptionRepo, resp.UserID, models.SubscriptionTypeRent); err != nil {
-		return models.RentResponses{}, err
-	}
 
 	resp, err := s.RentResponseRepo.CreateRentResponse(ctx, resp)
 	if err != nil {
