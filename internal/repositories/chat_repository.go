@@ -98,7 +98,7 @@ WITH last_messages AS (
     ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
 )
 
-SELECT a.id, 'ad' AS ad_type, a.name, ac.status, CASE WHEN ac.confirmed THEN ac.performer_id END AS performer_id, 1 AS is_author,
+SELECT a.id, 'ad' AS ad_type, a.name, a.hide_phone, ac.status, CASE WHEN ac.confirmed THEN ac.performer_id END AS performer_id, 1 AS is_author,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        ar.price, ac.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
        u.phone AS provider_phone, owner.phone AS client_phone
@@ -112,7 +112,7 @@ WHERE a.user_id = ?
 
 UNION ALL
 
-SELECT a.id, 'ad' AS ad_type, a.name, ac.status, CASE WHEN ac.confirmed THEN ac.performer_id END AS performer_id, 0 AS is_author,
+SELECT a.id, 'ad' AS ad_type, a.name, a.hide_phone, ac.status, CASE WHEN ac.confirmed THEN ac.performer_id END AS performer_id, 0 AS is_author,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        ar.price, ac.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
        performer.phone AS provider_phone, owner.phone AS client_phone
@@ -126,7 +126,7 @@ WHERE ac.performer_id = ?
 
 UNION ALL
 
-SELECT s.id, 'service' AS ad_type, s.name, sc.status, CASE WHEN sc.confirmed THEN sc.performer_id END AS performer_id, 1 AS is_author,
+SELECT s.id, 'service' AS ad_type, s.name, s.hide_phone, sc.status, CASE WHEN sc.confirmed THEN sc.performer_id END AS performer_id, 1 AS is_author,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
        owner.phone AS provider_phone, u.phone AS client_phone
@@ -140,7 +140,7 @@ WHERE s.user_id = ?
 
 UNION ALL
 
-SELECT s.id, 'service' AS ad_type, s.name, sc.status, CASE WHEN sc.confirmed THEN sc.performer_id END AS performer_id, 0 AS is_author,
+SELECT s.id, 'service' AS ad_type, s.name, s.hide_phone, sc.status, CASE WHEN sc.confirmed THEN sc.performer_id END AS performer_id, 0 AS is_author,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
        owner.phone AS provider_phone, client.phone AS client_phone
@@ -154,7 +154,7 @@ WHERE sc.client_id = ?
 
 UNION ALL
 
-SELECT ra.id, 'rent_ad' AS ad_type, ra.name, rac.status, CASE WHEN rac.confirmed THEN rac.performer_id END AS performer_id, 1 AS is_author,
+SELECT ra.id, 'rent_ad' AS ad_type, ra.name, ra.hide_phone, rac.status, CASE WHEN rac.confirmed THEN rac.performer_id END AS performer_id, 1 AS is_author,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        rar.price, rac.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
        u.phone AS provider_phone, owner.phone AS client_phone
@@ -168,7 +168,7 @@ WHERE ra.user_id = ?
 
 UNION ALL
 
-SELECT ra.id, 'rent_ad' AS ad_type, ra.name, rac.status, CASE WHEN rac.confirmed THEN rac.performer_id END AS performer_id, 0 AS is_author,
+SELECT ra.id, 'rent_ad' AS ad_type, ra.name, ra.hide_phone, rac.status, CASE WHEN rac.confirmed THEN rac.performer_id END AS performer_id, 0 AS is_author,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        rar.price, rac.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
        performer.phone AS provider_phone, owner.phone AS client_phone
@@ -182,7 +182,7 @@ WHERE rac.performer_id = ?
 
 UNION ALL
 
-SELECT wa.id, 'work_ad' AS ad_type, wa.name, wac.status, CASE WHEN wac.confirmed THEN wac.performer_id END AS performer_id, 1 AS is_author,
+SELECT wa.id, 'work_ad' AS ad_type, wa.name, wa.hide_phone, wac.status, CASE WHEN wac.confirmed THEN wac.performer_id END AS performer_id, 1 AS is_author,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        war.price, wac.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
        u.phone AS provider_phone, owner.phone AS client_phone
@@ -196,7 +196,7 @@ WHERE wa.user_id = ?
 
 UNION ALL
 
-SELECT wa.id, 'work_ad' AS ad_type, wa.name, wac.status, CASE WHEN wac.confirmed THEN wac.performer_id END AS performer_id, 0 AS is_author,
+SELECT wa.id, 'work_ad' AS ad_type, wa.name, wa.hide_phone, wac.status, CASE WHEN wac.confirmed THEN wac.performer_id END AS performer_id, 0 AS is_author,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        war.price, wac.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
        performer.phone AS provider_phone, owner.phone AS client_phone
@@ -210,7 +210,7 @@ WHERE wac.performer_id = ?
 
 UNION ALL
 
-SELECT r.id, 'rent' AS ad_type, r.name, rc.status, CASE WHEN rc.confirmed THEN rc.performer_id END AS performer_id, 1 AS is_author,
+SELECT r.id, 'rent' AS ad_type, r.name, r.hide_phone, rc.status, CASE WHEN rc.confirmed THEN rc.performer_id END AS performer_id, 1 AS is_author,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        rr.price, rc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
        u.phone AS provider_phone, owner.phone AS client_phone
@@ -224,7 +224,7 @@ WHERE r.user_id = ?
 
 UNION ALL
 
-SELECT r.id, 'rent' AS ad_type, r.name, rc.status, CASE WHEN rc.confirmed THEN rc.performer_id END AS performer_id, 0 AS is_author,
+SELECT r.id, 'rent' AS ad_type, r.name, r.hide_phone, rc.status, CASE WHEN rc.confirmed THEN rc.performer_id END AS performer_id, 0 AS is_author,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        rr.price, rc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
        performer.phone AS provider_phone, owner.phone AS client_phone
@@ -238,7 +238,7 @@ WHERE rc.performer_id = ?
 
 UNION ALL
 
-SELECT w.id, 'work' AS ad_type, w.name, wc.status, CASE WHEN wc.confirmed THEN wc.performer_id END AS performer_id, 1 AS is_author,
+SELECT w.id, 'work' AS ad_type, w.name, w.hide_phone, wc.status, CASE WHEN wc.confirmed THEN wc.performer_id END AS performer_id, 1 AS is_author,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, 'performer' AS my_role,
        provider.phone AS provider_phone, u.phone AS client_phone
@@ -252,7 +252,7 @@ WHERE w.user_id = ?
 
 UNION ALL
 
-SELECT w.id, 'work' AS ad_type, w.name, wc.status, CASE WHEN wc.confirmed THEN wc.performer_id END AS performer_id, 0 AS is_author,
+SELECT w.id, 'work' AS ad_type, w.name, w.hide_phone, wc.status, CASE WHEN wc.confirmed THEN wc.performer_id END AS performer_id, 0 AS is_author,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, 'customer' AS my_role,
        owner.phone AS provider_phone, client.phone AS client_phone
@@ -287,12 +287,13 @@ ORDER BY 1
 	for rows.Next() {
 		var adID int
 		var adType, adName, status string
+		var hidePhone bool
 		var confirmedPerformer sql.NullInt64
 		var isAuthor bool
 		var user models.ChatUser
 
 		if err := rows.Scan(
-			&adID, &adType, &adName, &status, &confirmedPerformer, &isAuthor,
+			&adID, &adType, &adName, &hidePhone, &status, &confirmedPerformer, &isAuthor,
 			&user.ID, &user.Name, &user.Surname, &user.AvatarPath, &user.Phone,
 			&user.Price, &user.ChatID, &user.LastMessage, &user.MyRole,
 			&user.ProviderPhone, &user.ClientPhone,
@@ -323,6 +324,7 @@ ORDER BY 1
 		} else {
 			chatGroup := models.AdChats{
 				AdName:      adName,
+				HidePhone:   hidePhone,
 				Status:      status,
 				IsAuthor:    isAuthor,
 				PerformerID: performerID,

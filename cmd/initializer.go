@@ -225,7 +225,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	topRepo := repositories.NewTopRepository(db)
 
 	// Services
-	userService := &services.UserService{UserRepo: &userRepo}
+	userService := &services.UserService{UserRepo: &userRepo, ServiceRepo: &serviceRepo, AdRepo: &adRepo, RentRepo: &rentRepo, WorkRepo: &workRepo, RentAdRepo: &rentAdRepo, WorkAdRepo: &workAdRepo}
 	serviceService := &services.ServiceService{ServiceRepo: &serviceRepo, SubscriptionRepo: &subscriptionRepo}
 	categoryService := &services.CategoryService{CategoryRepo: &categoryRepo}
 	rentCategoryService := &services.RentCategoryService{CategoryRepo: &rentCategoryRepo}

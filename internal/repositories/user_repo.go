@@ -26,13 +26,13 @@ type Session struct {
 
 func (r *UserRepository) CreateUser(ctx context.Context, user models.User) (models.User, error) {
 	query := `
-        INSERT INTO users (name, surname, middlename, phone, email, password, city_id, review_rating, role, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (name, surname, middlename, phone, email, password, city_id, review_rating, role, banned, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = &user.CreatedAt
 	result, err := r.DB.ExecContext(ctx, query,
-		user.Name, user.Surname, user.Middlename, user.Phone, user.Email, user.Password, user.CityID, user.ReviewRating, user.Role,
+		user.Name, user.Surname, user.Middlename, user.Phone, user.Email, user.Password, user.CityID, user.ReviewRating, user.Role, user.Banned,
 		user.CreatedAt, user.UpdatedAt,
 	)
 	if err != nil {
@@ -51,17 +51,17 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.Us
 	var user models.User
 
 	// Получаем основную информацию о пользователе
-	query := `SELECT users.id, name, COALESCE(middlename, ''), surname, users.phone, email, password, city_id, role,
+	query := `SELECT users.id, name, COALESCE(middlename, ''), surname, users.phone, email, password, city_id, role, users.banned,
                years_of_exp,  COALESCE(skills, '') AS skills, doc_of_proof, avatar_path, users.created_at, users.updated_at, drivers.id AS driver_id, couriers.id AS courier_id
-               FROM users 
+               FROM users
                LEFT JOIN drivers ON users.id = drivers.user_id
                LEFT JOIN couriers ON users.id = couriers.user_id
-			   WHERE users.id = ?
+                           WHERE users.id = ?
                `
 
 	err := r.DB.QueryRowContext(ctx, query, userID).Scan(
 		&user.ID, &user.Name, &user.Middlename, &user.Surname, &user.Phone, &user.Email, &user.Password,
-		&user.CityID, &user.Role, &user.YearsOfExp, &user.Skills, &user.DocOfProof, &user.AvatarPath,
+		&user.CityID, &user.Role, &user.Banned, &user.YearsOfExp, &user.Skills, &user.DocOfProof, &user.AvatarPath,
 		&user.CreatedAt, &user.UpdatedAt, &user.DriverID, &user.CourierID,
 	)
 	if err != nil {
@@ -203,13 +203,13 @@ func (r *UserRepository) DeleteUser(ctx context.Context, id int) error {
 func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (models.User, error) {
 	var user models.User
 	query := `
-       SELECT id, name, surname, phone, email, password, city_id, role
+       SELECT id, name, surname, phone, email, password, city_id, role, banned
         FROM users
         WHERE phone = ?
     `
 	fmt.Println(query)
 	err := r.DB.QueryRowContext(ctx, query, phone).Scan(
-		&user.ID, &user.Name, &user.Surname, &user.Phone, &user.Email, &user.Password, &user.CityID, &user.Role,
+		&user.ID, &user.Name, &user.Surname, &user.Phone, &user.Email, &user.Password, &user.CityID, &user.Role, &user.Banned,
 	)
 	fmt.Println(user)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -223,7 +223,7 @@ func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (mode
 
 func (r *UserRepository) GetUsersByRole(ctx context.Context, role string) ([]models.User, error) {
 	query := `
-       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
+       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, banned, latitude, longitude, created_at, updated_at
         FROM users
         WHERE role = ?
     `
@@ -238,7 +238,7 @@ func (r *UserRepository) GetUsersByRole(ctx context.Context, role string) ([]mod
 		var user models.User
 		err := rows.Scan(
 			&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-			&user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
+			&user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role, &user.Banned,
 			&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
@@ -257,7 +257,7 @@ func (r *UserRepository) GetUsersByRole(ctx context.Context, role string) ([]mod
 
 func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	query := `
-       SELECT id, name, surname, COALESCE(middlename,''), phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
+       SELECT id, name, surname, COALESCE(middlename,''), phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, banned, latitude, longitude, created_at, updated_at
         FROM users
     `
 	rows, err := r.DB.QueryContext(ctx, query)
@@ -271,7 +271,7 @@ func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error)
 		var user models.User
 		err := rows.Scan(
 			&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-			&user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
+			&user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role, &user.Banned,
 			&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
@@ -337,13 +337,13 @@ func (r *UserRepository) GetSessionByToken(ctx context.Context, token string) (m
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (models.User, error) {
 	var user models.User
 	query := `
-       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
+       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, banned, latitude, longitude, created_at, updated_at
         FROM users
         WHERE email = ?
     `
 	err := r.DB.QueryRowContext(ctx, query, email).Scan(
 		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-		&user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
+		&user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role, &user.Banned,
 		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
@@ -373,16 +373,34 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, userID int, newPass
 	return err
 }
 
+func (r *UserRepository) SetBannedStatus(ctx context.Context, userID int, banned bool) error {
+	query := `UPDATE users SET banned = ?, updated_at = ? WHERE id = ?`
+	res, err := r.DB.ExecContext(ctx, query, banned, time.Now(), userID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrUserNotFound
+	}
+
+	return nil
+}
+
 func (r *UserRepository) GetUserByPhone1(ctx context.Context, phone string) (models.User, error) {
 	var user models.User
 	query := `
-       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, latitude, longitude, created_at, updated_at
+       SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, banned, latitude, longitude, created_at, updated_at
         FROM users
         WHERE phone = ?
     `
 	err := r.DB.QueryRowContext(ctx, query, phone).Scan(
 		&user.ID, &user.Name, &user.Surname, &user.Middlename, &user.Phone, &user.Email, &user.Password, &user.CityID,
-		&user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role,
+		&user.YearsOfExp, &user.DocOfProof, &user.AvatarPath, &user.ReviewRating, &user.Role, &user.Banned,
 		&user.Latitude, &user.Longitude, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
