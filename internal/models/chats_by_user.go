@@ -36,6 +36,7 @@ type AdChats struct {
 	AdName      string     `json:"ad_name"`
 	Status      string     `json:"status"`
 	IsAuthor    bool       `json:"is_author"`
+	HidePhone   bool       `json:"hide_phone"`
 	PerformerID *int       `json:"performer_id,omitempty"`
 	Users       []ChatUser `json:"users"`
 }
