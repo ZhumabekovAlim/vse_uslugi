@@ -19,6 +19,7 @@ type User struct {
 	DocOfProof   sql.NullString
 	ReviewRating sql.NullFloat64
 	Role         sql.NullString
+	Banned       sql.NullBool
 	Latitude     sql.NullString
 	Longitude    sql.NullString
 	AvatarPath   sql.NullString
@@ -56,6 +57,7 @@ func (r *UsersRepo) Get(ctx context.Context, id int64) (User, error) {
         latitude,
         longitude,
         avatar_path,
+        banned,
         skills,
         is_online,
         created_at,
@@ -77,6 +79,7 @@ func (r *UsersRepo) Get(ctx context.Context, id int64) (User, error) {
 		&u.Latitude,
 		&u.Longitude,
 		&u.AvatarPath,
+		&u.Banned,
 		&u.Skills,
 		&u.IsOnline,
 		&u.CreatedAt,

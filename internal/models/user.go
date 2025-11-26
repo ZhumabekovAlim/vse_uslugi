@@ -20,6 +20,7 @@ type User struct {
 	AvatarPath   *string    `json:"avatar_path,omitempty"`
 	ReviewRating float64    `json:"review_rating"`
 	Role         string     `json:"role,omitempty"`
+	Banned       bool       `json:"banned"`
 	Latitude     *string    `json:"latitude,omitempty"`
 	Longitude    *string    `json:"longitude,omitempty"`
 	IsOnline     bool       `json:"is_online"`

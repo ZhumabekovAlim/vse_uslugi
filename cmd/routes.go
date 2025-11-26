@@ -168,9 +168,11 @@ func (app *application) routes() http.Handler {
 	mux.Get("/user/:id", authMiddleware.ThenFunc(app.userHandler.GetUserByID))      //РАБОТАЕТ
 	mux.Put("/user/:id", authMiddleware.ThenFunc(app.userHandler.UpdateUser))       //РАБОТАЕТ
 	mux.Del("/user/me", authMiddleware.ThenFunc(app.userHandler.DeleteOwnAccount))
-	mux.Del("/user/:id", authMiddleware.ThenFunc(app.userHandler.DeleteUser))                  //ИСПРАВИТЬ
-	mux.Post("/user/sign_up", standardMiddleware.ThenFunc(app.userHandler.SignUp))             //РАБОТАЕТ
-	mux.Post("/user/sign_in", standardMiddleware.ThenFunc(app.userHandler.SignIn))             //РАБОТАЕТ
+	mux.Del("/user/:id", authMiddleware.ThenFunc(app.userHandler.DeleteUser))      //ИСПРАВИТЬ
+	mux.Post("/user/sign_up", standardMiddleware.ThenFunc(app.userHandler.SignUp)) //РАБОТАЕТ
+	mux.Post("/user/sign_in", standardMiddleware.ThenFunc(app.userHandler.SignIn)) //РАБОТАЕТ
+	mux.Post("/user/:id/ban", adminAuthMiddleware.ThenFunc(app.userHandler.BanUser))
+	mux.Post("/user/:id/unban", adminAuthMiddleware.ThenFunc(app.userHandler.UnbanUser))
 	mux.Post("/user/change_number", standardMiddleware.ThenFunc(app.userHandler.ChangeNumber)) //РАБОТАЕТ
 	mux.Post("/user/change_email", standardMiddleware.ThenFunc(app.userHandler.ChangeEmail))   //РАБОТАЕТ
 	mux.Post("/user/change_password", authMiddleware.ThenFunc(app.userHandler.UpdatePassword))
