@@ -231,6 +231,11 @@ func (r *RentRepository) UpdateStatus(ctx context.Context, id int, status string
 	}
 	return nil
 }
+
+func (r *RentRepository) ArchiveByUserID(ctx context.Context, userID int) error {
+	_, err := r.DB.ExecContext(ctx, `UPDATE rent SET status = 'archive', updated_at = ? WHERE user_id = ?`, time.Now(), userID)
+	return err
+}
 func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool) ([]models.Rent, float64, float64, error) {
 	var (
 		rents      []models.Rent

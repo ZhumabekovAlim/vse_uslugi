@@ -37,6 +37,12 @@ type tokenClaims struct {
 }
 type UserService struct {
 	UserRepo     *repositories.UserRepository
+	ServiceRepo  *repositories.ServiceRepository
+	AdRepo       *repositories.AdRepository
+	RentRepo     *repositories.RentRepository
+	WorkRepo     *repositories.WorkRepository
+	RentAdRepo   *repositories.RentAdRepository
+	WorkAdRepo   *repositories.WorkAdRepository
 	TokenManager *utils.Manager
 }
 
@@ -47,6 +53,8 @@ const (
 	tokenTTL   = 1000 * time.Minute
 	signingKey = "asdadsadadaadsasd"
 )
+
+var ErrUserBanned = errors.New("user is banned")
 
 func generateVerificationCode() string {
 	rand.Seed(time.Now().UnixNano())
@@ -169,6 +177,10 @@ func (s *UserService) SignIn(ctx context.Context, name, phone, email, password s
 		return models.Tokens{}, errors.New("user not found")
 	}
 
+	if user.Banned {
+		return models.Tokens{}, ErrUserBanned
+	}
+
 	// Compare the provided password with the hashed password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		log.Printf("Invalid password for user: %s", phone)
@@ -236,6 +248,49 @@ func (s *UserService) CreateSession(ctx context.Context, user models.User, acces
 	}
 
 	return res, nil
+}
+
+func (s *UserService) BanUser(ctx context.Context, userID int) error {
+	if err := s.UserRepo.SetBannedStatus(ctx, userID, true); err != nil {
+		return err
+	}
+
+	return s.archiveUserListings(ctx, userID)
+}
+
+func (s *UserService) UnbanUser(ctx context.Context, userID int) error {
+	return s.UserRepo.SetBannedStatus(ctx, userID, false)
+}
+
+func (s *UserService) archiveUserListings(ctx context.Context, userID int) error {
+	repoCalls := []func(context.Context, int) error{}
+
+	if s.ServiceRepo != nil {
+		repoCalls = append(repoCalls, s.ServiceRepo.ArchiveByUserID)
+	}
+	if s.AdRepo != nil {
+		repoCalls = append(repoCalls, s.AdRepo.ArchiveByUserID)
+	}
+	if s.RentRepo != nil {
+		repoCalls = append(repoCalls, s.RentRepo.ArchiveByUserID)
+	}
+	if s.WorkRepo != nil {
+		repoCalls = append(repoCalls, s.WorkRepo.ArchiveByUserID)
+	}
+	if s.RentAdRepo != nil {
+		repoCalls = append(repoCalls, s.RentAdRepo.ArchiveByUserID)
+	}
+	if s.WorkAdRepo != nil {
+		repoCalls = append(repoCalls, s.WorkAdRepo.ArchiveByUserID)
+	}
+
+	for _, call := range repoCalls {
+		if err := call(ctx, userID); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *UserService) CreateUser(ctx context.Context, user models.User) (models.User, error) {

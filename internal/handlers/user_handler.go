@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"naimuBack/internal/models"
+	"naimuBack/internal/repositories"
 	"naimuBack/internal/services"
 )
 
@@ -166,6 +167,60 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *UserHandler) BanUser(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get(":id")
+	if idStr == "" {
+		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Service.BanUser(r.Context(), id); err != nil {
+		if errors.Is(err, repositories.ErrUserNotFound) {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to ban user", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "User banned"})
+}
+
+func (h *UserHandler) UnbanUser(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get(":id")
+	if idStr == "" {
+		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Service.UnbanUser(r.Context(), id); err != nil {
+		if errors.Is(err, repositories.ErrUserNotFound) {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to unban user", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "User unbanned"})
+}
+
 func (h *UserHandler) DeleteOwnAccount(w http.ResponseWriter, r *http.Request) {
 	requesterID, ok := r.Context().Value("user_id").(int)
 	if !ok || requesterID == 0 {
@@ -306,6 +361,10 @@ func (h *UserHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.Service.SignIn(r.Context(), req.Name, req.Phone, req.Email, req.Password)
 	if err != nil {
 		log.Printf("error: %v", err)
+		if errors.Is(err, services.ErrUserBanned) {
+			http.Error(w, "Этот пользователь заблокирован", http.StatusForbidden)
+			return
+		}
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
