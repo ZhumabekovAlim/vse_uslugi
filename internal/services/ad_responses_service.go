@@ -20,6 +20,10 @@ type AdResponseService struct {
 }
 
 func (s *AdResponseService) CreateAdResponse(ctx context.Context, resp models.AdResponses) (models.AdResponses, error) {
+	if err := ensureExecutorCanRespond(ctx, s.SubscriptionRepo, resp.UserID, models.SubscriptionTypeService); err != nil {
+		return models.AdResponses{}, err
+	}
+
 	resp, err := s.AdResponseRepo.CreateAdResponse(ctx, resp)
 	if err != nil {
 		return resp, err

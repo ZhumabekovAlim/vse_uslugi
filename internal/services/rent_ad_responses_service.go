@@ -20,6 +20,10 @@ type RentAdResponseService struct {
 }
 
 func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp models.RentAdResponses) (models.RentAdResponses, error) {
+	if err := ensureExecutorCanRespond(ctx, s.SubscriptionRepo, resp.UserID, models.SubscriptionTypeService); err != nil {
+		return models.RentAdResponses{}, err
+	}
+
 	resp, err := s.RentAdResponseRepo.CreateRentAdResponse(ctx, resp)
 	if err != nil {
 		return resp, err

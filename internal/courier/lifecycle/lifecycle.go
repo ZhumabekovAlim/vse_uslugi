@@ -36,6 +36,7 @@ var transitions = map[string]map[string]struct{}{
 	StatusInProgress: {
 		StatusCompleted:         {},
 		StatusCanceledByCourier: {},
+		StatusCanceledBySender:  {},
 	},
 	StatusCompleted: {
 		StatusClosed: {},
