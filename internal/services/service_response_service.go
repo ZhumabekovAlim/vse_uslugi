@@ -20,10 +20,6 @@ type ServiceResponseService struct {
 }
 
 func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp models.ServiceResponses) (models.ServiceResponses, error) {
-	if err := ensureExecutorCanRespond(ctx, s.SubscriptionRepo, resp.UserID, models.SubscriptionTypeService); err != nil {
-		return models.ServiceResponses{}, err
-	}
-
 	resp, err := s.ServiceResponseRepo.CreateResponse(ctx, resp)
 	if err != nil {
 		return resp, err
