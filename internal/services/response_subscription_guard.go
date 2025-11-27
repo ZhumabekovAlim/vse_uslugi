@@ -12,14 +12,6 @@ func ensureExecutorCanRespond(ctx context.Context, repo *repositories.Subscripti
 		return nil
 	}
 
-	hasListing, err := repo.HasActiveExecutorListing(ctx, userID, subType)
-	if err != nil {
-		return err
-	}
-	if !hasListing {
-		return models.ErrNoActiveListings
-	}
-
 	responses, err := repo.GetResponses(ctx, userID)
 	if err != nil {
 		return err
