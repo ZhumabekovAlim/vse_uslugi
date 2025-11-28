@@ -15,6 +15,7 @@ type ExecutorLocationFilter struct {
 	PriceTo        float64   `json:"price_to"`
 	AvgRating      []float64 `json:"avg_rating"`
 	BusinessUserID int       `json:"business_user_id"`
+	WorkerIDs      []int     `json:"worker_ids"`
 	Type           string    `json:"-"`
 }
 

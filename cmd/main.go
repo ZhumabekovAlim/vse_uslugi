@@ -134,7 +134,7 @@ func main() {
 
 	app.wsManager = NewWebSocketManager()
 	app.locationManager = NewLocationManager()
-	app.locationHandler.Broadcast = app.locationManager.broadcast
+	app.locationHandler.Broadcast = app.locationManager.broadcastLocation
 	go app.wsManager.Run(db)
 	go app.locationManager.Run()
 

@@ -179,6 +179,14 @@ func buildExecutorQuery(table string, f models.ExecutorLocationFilter) (string, 
 		args = append(args, f.BusinessUserID)
 	}
 
+	if len(f.WorkerIDs) > 0 {
+		placeholders := strings.TrimRight(strings.Repeat("?,", len(f.WorkerIDs)), ",")
+		where = append(where, fmt.Sprintf("u.id IN (%s)", placeholders))
+		for _, id := range f.WorkerIDs {
+			args = append(args, id)
+		}
+	}
+
 	if len(f.CategoryIDs) > 0 {
 		placeholders := strings.TrimRight(strings.Repeat("?,", len(f.CategoryIDs)), ",")
 		where = append(where, fmt.Sprintf("s.category_id IN (%s)", placeholders))
