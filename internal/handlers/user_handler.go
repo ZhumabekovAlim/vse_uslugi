@@ -358,7 +358,7 @@ func (h *UserHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.Service.SignIn(r.Context(), req.Name, req.Phone, req.Email, req.Password)
+	resp, err := h.Service.SignIn(r.Context(), req.Login, req.Phone, req.Email, req.Password)
 	if err != nil {
 		log.Printf("error: %v", err)
 		if errors.Is(err, services.ErrUserBanned) {

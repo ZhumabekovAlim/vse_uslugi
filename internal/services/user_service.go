@@ -172,8 +172,18 @@ func (s *UserService) CheckVerificationCode(ctx context.Context, email, inputCod
 }
 
 func (s *UserService) SignIn(ctx context.Context, name, phone, email, password string) (models.Tokens, error) {
-	user, err := s.UserRepo.GetUserByPhone(ctx, phone)
-	if err != nil {
+	var (
+		user models.User
+		err  error
+	)
+
+	if phone != "" {
+		user, err = s.UserRepo.GetUserByPhone(ctx, phone)
+	}
+	if (err != nil || user.ID == 0) && name != "" {
+		user, err = s.UserRepo.GetUserByBusinessLogin(ctx, name)
+	}
+	if err != nil || user.ID == 0 {
 		log.Printf("User not found: %s", phone)
 		return models.Tokens{}, errors.New("user not found")
 	}
