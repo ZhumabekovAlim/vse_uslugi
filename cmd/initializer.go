@@ -396,7 +396,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	chatHandler := &handlers.ChatHandler{ChatService: chatService}
 
 	// Создание репозитория, сервиса и обработчика для сообщений
-	messageService := &services.MessageService{MessageRepo: &messageRepo}
+        messageService := &services.MessageService{MessageRepo: &messageRepo, UserRepo: &userRepo}
 	messageHandler := &handlers.MessageHandler{MessageService: messageService}
 
 	return &application{

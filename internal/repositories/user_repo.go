@@ -91,6 +91,16 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (models.Us
 	return user, nil
 }
 
+// GetUserRole returns only the role field for a given user.
+func (r *UserRepository) GetUserRole(ctx context.Context, userID int) (string, error) {
+	var role string
+	err := r.DB.QueryRowContext(ctx, `SELECT role FROM users WHERE id = ?`, userID).Scan(&role)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(role), nil
+}
+
 func (r *UserRepository) UpdateUser(ctx context.Context, user models.User) (models.User, error) {
 	query := `UPDATE users SET `
 	args := []interface{}{}

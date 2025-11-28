@@ -73,6 +73,13 @@ func (h *ChatHandler) GetChatsByUserID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	requesterID, _ := r.Context().Value("user_id").(int)
+	requesterRole, _ := r.Context().Value("role").(string)
+	if requesterRole == "business_worker" && requesterID != userID {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
 	chats, err := h.ChatService.GetChatsByUserID(r.Context(), userID)
 	if err != nil {
 		http.Error(w, "Failed to retrieve chats", http.StatusInternalServerError)

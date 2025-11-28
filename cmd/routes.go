@@ -207,6 +207,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/business/workers/listings", businessAuthMiddleware.ThenFunc(app.businessHandler.ListWorkerListings))
 	mux.Get("/business/workers/chats", businessAuthMiddleware.ThenFunc(app.chatHandler.GetWorkerChats))
 	mux.Get("/business/workers/listing_chats", businessAuthMiddleware.ThenFunc(app.chatHandler.GetPerformerChats))
+	mux.Get("/business/map/workers", businessAuthMiddleware.ThenFunc(app.locationHandler.GetBusinessWorkers))
 	mux.Post("/top/activate", authMiddleware.ThenFunc(app.topHandler.Activate))
 	mux.Get("/search/global", standardMiddleware.ThenFunc(app.globalSearchHandler.Search))
 

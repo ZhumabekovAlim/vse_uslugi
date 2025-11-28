@@ -23,6 +23,13 @@ func (h *LocationHandler) UpdateLocation(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
+	if loc.UserID == 0 {
+		loc.UserID, _ = r.Context().Value("user_id").(int)
+	}
+	if loc.UserID == 0 {
+		http.Error(w, "user_id required", http.StatusBadRequest)
+		return
+	}
 	if err := h.Service.SetLocation(r.Context(), loc); err != nil {
 		http.Error(w, "Failed to update location", http.StatusInternalServerError)
 		return
@@ -58,6 +65,13 @@ func (h *LocationHandler) GoOffline(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
+	if payload.UserID == 0 {
+		payload.UserID, _ = r.Context().Value("user_id").(int)
+	}
+	if payload.UserID == 0 {
+		http.Error(w, "user_id required", http.StatusBadRequest)
+		return
+	}
 	if err := h.Service.GoOffline(r.Context(), payload.UserID); err != nil {
 		http.Error(w, "Failed to go offline", http.StatusInternalServerError)
 		return
@@ -90,4 +104,36 @@ func (h *LocationHandler) GetExecutors(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = json.NewEncoder(w).Encode(execs)
+}
+
+// GetBusinessWorkers returns worker coordinates for the authenticated business account.
+func (h *LocationHandler) GetBusinessWorkers(w http.ResponseWriter, r *http.Request) {
+	businessUserID, _ := r.Context().Value("user_id").(int)
+	if businessUserID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var filter models.ExecutorLocationFilter
+	_ = json.NewDecoder(r.Body).Decode(&filter)
+	filter.BusinessUserID = businessUserID
+
+	if rawType := strings.TrimSpace(strings.ToLower(r.URL.Query().Get(":type"))); rawType != "" {
+		normalized := strings.ReplaceAll(rawType, "-", "_")
+		switch normalized {
+		case "service", "work", "rent", "ad", "work_ad", "rent_ad":
+			filter.Type = normalized
+		default:
+			http.Error(w, "Invalid executor type", http.StatusBadRequest)
+			return
+		}
+	}
+
+	execs, err := h.Service.GetExecutors(r.Context(), filter)
+	if err != nil {
+		http.Error(w, "Failed to get executors", http.StatusInternalServerError)
+		return
+	}
+
+	_ = json.NewEncoder(w).Encode(map[string]any{"workers": execs})
 }

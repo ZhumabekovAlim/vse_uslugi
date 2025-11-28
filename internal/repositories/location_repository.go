@@ -165,10 +165,10 @@ func (r *LocationRepository) GetExecutors(ctx context.Context, f models.Executor
 
 func buildExecutorQuery(table string, f models.ExecutorLocationFilter) (string, []interface{}) {
 
-	base := fmt.Sprintf(`SELECT u.id, u.name, u.surname, u.avatar_path, u.latitude, u.longitude, s.id, s.name, s.description, s.price, s.avg_rating FROM %s s JOIN users u ON u.id = s.user_id`, table)
+	base := fmt.Sprintf(`SELECT COALESCE(bwl.worker_user_id, s.user_id) AS user_id, u.name, u.surname, u.avatar_path, u.latitude, u.longitude, s.id, s.name, s.description, s.price, s.avg_rating FROM %s s LEFT JOIN business_worker_listings bwl ON bwl.business_user_id = s.user_id AND bwl.listing_type = ? AND bwl.listing_id = s.id JOIN users u ON u.id = COALESCE(bwl.worker_user_id, s.user_id)`, table)
 
 	var where []string
-	var args []interface{}
+	args := []interface{}{table}
 	where = append(where, "s.status = 'active'")
 	where = append(where, "u.is_online = 1")
 	where = append(where, "u.latitude IS NOT NULL")
