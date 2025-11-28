@@ -209,6 +209,10 @@ func buildExecutorQuery(table string, f models.ExecutorLocationFilter) (string, 
 		listingTypes = append(listingTypes, "work_ads")
 	case "work":
 		listingTypes = append(listingTypes, "works")
+	case "rent":
+		listingTypes = append(listingTypes, "rents")
+	case "rent_ad":
+		listingTypes = append(listingTypes, "rent_ads")
 	}
 
 	placeholders := strings.TrimRight(strings.Repeat("?,", len(listingTypes)), ",")

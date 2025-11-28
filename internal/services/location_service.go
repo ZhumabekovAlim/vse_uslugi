@@ -39,6 +39,15 @@ func (s *LocationService) GetBusinessMarkers(ctx context.Context) ([]models.Busi
 	return s.Repo.GetBusinessMarkers(ctx)
 }
 
+// GetBusinessMarker returns aggregated marker for a single business.
+func (s *LocationService) GetBusinessMarker(ctx context.Context, businessUserID int) (*models.BusinessAggregatedMarker, error) {
+	if businessUserID == 0 {
+		return nil, fmt.Errorf("business user id required")
+	}
+
+	return s.buildAggregatedMarker(ctx, businessUserID)
+}
+
 // UpdateBusinessWorkerLocation stores coordinates for a business worker and returns detailed payloads for broadcasting.
 func (s *LocationService) UpdateBusinessWorkerLocation(ctx context.Context, workerUserID int, lat, lon float64) (models.BusinessWorkerLocation, *models.BusinessAggregatedMarker, error) {
 	if s.BusinessRepo == nil {
