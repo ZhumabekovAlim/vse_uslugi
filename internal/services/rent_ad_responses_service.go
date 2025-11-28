@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 )
@@ -17,6 +18,7 @@ type RentAdResponseService struct {
 	MessageRepo        *repositories.MessageRepository
 	SubscriptionRepo   *repositories.SubscriptionRepository
 	UserRepo           *repositories.UserRepository
+	BusinessRepo       *repositories.BusinessRepository
 }
 
 func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp models.RentAdResponses) (models.RentAdResponses, error) {
@@ -45,28 +47,40 @@ func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp m
 		return models.RentAdResponses{}, err
 	}
 
-	client, err := s.UserRepo.GetUserByID(ctx, rent.UserID)
+	clientID, err := resolveBusinessContact(ctx, s.BusinessRepo, rent.UserID)
 	if err != nil {
 		rollback()
 		return models.RentAdResponses{}, err
 	}
 
-	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: rent.UserID, User2ID: resp.UserID})
+	performerID, err := resolveBusinessContact(ctx, s.BusinessRepo, resp.UserID)
+	if err != nil {
+		rollback()
+		return models.RentAdResponses{}, err
+	}
+
+	client, err := s.UserRepo.GetUserByID(ctx, clientID)
+	if err != nil {
+		rollback()
+		return models.RentAdResponses{}, err
+	}
+
+	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: clientID, User2ID: performerID})
 	if err != nil {
 		rollback()
 		return models.RentAdResponses{}, err
 	}
 
 	resp.ChatID = chatID
-	resp.ClientID = rent.UserID
-	resp.PerformerID = resp.UserID
+	resp.ClientID = clientID
+	resp.PerformerID = performerID
 	resp.Phone = client.Phone
 
 	_, err = s.ConfirmationRepo.Create(ctx, models.RentAdConfirmation{
 		RentAdID:    resp.RentAdID,
 		ChatID:      chatID,
-		ClientID:    rent.UserID,
-		PerformerID: resp.UserID,
+		ClientID:    clientID,
+		PerformerID: performerID,
 	})
 	if err != nil {
 		rollback()
@@ -75,8 +89,8 @@ func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp m
 
 	text := fmt.Sprintf("Здравствуйте! Предлагаю цену %v. %s", resp.Price, resp.Description)
 	if _, err = s.MessageRepo.CreateMessage(ctx, models.Message{
-		SenderID:   resp.UserID,
-		ReceiverID: rent.UserID,
+		SenderID:   performerID,
+		ReceiverID: clientID,
 		Text:       text,
 
 		ChatID: chatID,

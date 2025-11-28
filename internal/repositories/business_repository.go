@@ -121,6 +121,22 @@ func (r *BusinessRepository) GetWorkerByID(ctx context.Context, workerID int) (m
 	return worker, nil
 }
 
+// GetWorkerByUserID fetches a business worker row by underlying user ID.
+func (r *BusinessRepository) GetWorkerByUserID(ctx context.Context, workerUserID int) (models.BusinessWorker, error) {
+	var worker models.BusinessWorker
+	query := `SELECT id, business_user_id, worker_user_id, login, chat_id, status, created_at, updated_at FROM business_workers WHERE worker_user_id = ?`
+	err := r.DB.QueryRowContext(ctx, query, workerUserID).Scan(
+		&worker.ID, &worker.BusinessUserID, &worker.WorkerUserID, &worker.Login, &worker.ChatID, &worker.Status, &worker.CreatedAt, &worker.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.BusinessWorker{}, nil
+		}
+		return models.BusinessWorker{}, err
+	}
+	return worker, nil
+}
+
 func (r *BusinessRepository) GetWorkersByBusiness(ctx context.Context, businessUserID int) ([]models.BusinessWorker, error) {
 	query := `SELECT bw.id, bw.business_user_id, bw.worker_user_id, bw.login, bw.chat_id, bw.status, bw.created_at, bw.updated_at,
        u.name, u.surname, u.phone

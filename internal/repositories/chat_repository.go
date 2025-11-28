@@ -88,7 +88,12 @@ func (r *ChatRepository) DeleteChat(ctx context.Context, id int) error {
 // GetChatsByUserID retrieves chats grouped by advertisements for a specific author.
 func (r *ChatRepository) GetChatsByUserID(ctx context.Context, userID int) ([]models.AdChats, error) {
 	query := `
-WITH last_messages AS (
+WITH target_users AS (
+    SELECT ? AS id
+    UNION
+    SELECT worker_user_id FROM business_workers WHERE business_user_id = ?
+),
+last_messages AS (
     SELECT m.chat_id, m.text, m.created_at
     FROM messages m
     JOIN (
@@ -108,7 +113,7 @@ JOIN users u ON u.id = ac.performer_id
 JOIN users owner ON owner.id = a.user_id
 JOIN ad_responses ar ON ar.ad_id = a.id AND ar.user_id = ac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = ac.chat_id
-WHERE a.user_id = ?
+WHERE a.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
@@ -122,7 +127,7 @@ JOIN users owner ON owner.id = a.user_id
 JOIN users performer ON performer.id = ac.performer_id
 JOIN ad_responses ar ON ar.ad_id = a.id AND ar.user_id = ac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = ac.chat_id
-WHERE ac.performer_id = ?
+WHERE ac.performer_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
@@ -136,7 +141,7 @@ JOIN users u ON u.id = sc.client_id
 JOIN users owner ON owner.id = s.user_id
 JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.client_id
 LEFT JOIN last_messages lm ON lm.chat_id = sc.chat_id
-WHERE s.user_id = ?
+WHERE s.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
@@ -150,7 +155,7 @@ JOIN users owner ON owner.id = s.user_id
 JOIN users client ON client.id = sc.client_id
 JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.client_id
 LEFT JOIN last_messages lm ON lm.chat_id = sc.chat_id
-WHERE sc.client_id = ?
+WHERE sc.client_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
@@ -164,7 +169,7 @@ JOIN users u ON u.id = rac.performer_id
 JOIN users owner ON owner.id = ra.user_id
 JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id AND rar.user_id = rac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = rac.chat_id
-WHERE ra.user_id = ?
+WHERE ra.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
@@ -178,7 +183,7 @@ JOIN users owner ON owner.id = ra.user_id
 JOIN users performer ON performer.id = rac.performer_id
 JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id AND rar.user_id = rac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = rac.chat_id
-WHERE rac.performer_id = ?
+WHERE rac.performer_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
@@ -192,7 +197,7 @@ JOIN users u ON u.id = wac.performer_id
 JOIN users owner ON owner.id = wa.user_id
 JOIN work_ad_responses war ON war.work_ad_id = wa.id AND war.user_id = wac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = wac.chat_id
-WHERE wa.user_id = ?
+WHERE wa.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
@@ -206,7 +211,7 @@ JOIN users owner ON owner.id = wa.user_id
 JOIN users performer ON performer.id = wac.performer_id
 JOIN work_ad_responses war ON war.work_ad_id = wa.id AND war.user_id = wac.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = wac.chat_id
-WHERE wac.performer_id = ?
+WHERE wac.performer_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
@@ -220,7 +225,7 @@ JOIN users u ON u.id = rc.performer_id
 JOIN users owner ON owner.id = r.user_id
 JOIN rent_responses rr ON rr.rent_id = r.id AND rr.user_id = rc.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = rc.chat_id
-WHERE r.user_id = ?
+WHERE r.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
@@ -234,7 +239,7 @@ JOIN users owner ON owner.id = r.user_id
 JOIN users performer ON performer.id = rc.performer_id
 JOIN rent_responses rr ON rr.rent_id = r.id AND rr.user_id = rc.performer_id
 LEFT JOIN last_messages lm ON lm.chat_id = rc.chat_id
-WHERE rc.performer_id = ?
+WHERE rc.performer_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
@@ -248,7 +253,7 @@ JOIN users u ON u.id = wc.client_id
 JOIN users provider ON provider.id = w.user_id
 JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.client_id
 LEFT JOIN last_messages lm ON lm.chat_id = wc.chat_id
-WHERE w.user_id = ?
+WHERE w.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
@@ -262,20 +267,12 @@ JOIN users owner ON owner.id = w.user_id
 JOIN users client ON client.id = wc.client_id
 JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.client_id
 LEFT JOIN last_messages lm ON lm.chat_id = wc.chat_id
-WHERE wc.client_id = ?
+WHERE wc.client_id IN (SELECT id FROM target_users)
 
 ORDER BY 1
 `
 
-	rows, err := r.Db.QueryContext(
-		ctx, query,
-		userID, userID, // ad
-		userID, userID, // service
-		userID, userID, // rent_ad
-		userID, userID, // work_ad
-		userID, userID, // rent
-		userID, userID, // work
-	)
+	rows, err := r.Db.QueryContext(ctx, query, userID, userID)
 	if err != nil {
 		return nil, err
 	}
