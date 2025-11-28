@@ -19,6 +19,7 @@ type LocationHandler struct {
 // LocationNotifier describes callbacks used to fan out location updates over websockets.
 type LocationNotifier interface {
 	BroadcastLocation(models.Location)
+	NotifyBusinessMarkerUpdate(marker *models.BusinessAggregatedMarker)
 	NotifyBusinessWorkerOffline(workerUserID, businessUserID int, marker *models.BusinessAggregatedMarker)
 }
 
@@ -101,6 +102,10 @@ func (h *LocationHandler) GoOffline(w http.ResponseWriter, r *http.Request) {
 		}
 		if h.Notifier != nil {
 			h.Notifier.NotifyBusinessWorkerOffline(payload.UserID, businessUserID, marker)
+			if marker != nil {
+				h.Notifier.NotifyBusinessMarkerUpdate(marker)
+			}
+			h.Notifier.BroadcastLocation(models.Location{UserID: payload.UserID})
 		}
 	} else {
 		if err := h.Service.GoOffline(r.Context(), payload.UserID); err != nil {
