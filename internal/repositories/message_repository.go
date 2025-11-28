@@ -66,7 +66,6 @@ func (r *MessageRepository) GetMessagesForChat(ctx context.Context, chatID, page
 
 	query := `SELECT id, sender_id, receiver_id, text, created_at, chat_id FROM messages WHERE chat_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?`
 
-
 	rows, err := r.Db.QueryContext(ctx, query, chatID, pageSize, offset)
 	if err != nil {
 		return nil, err
@@ -118,4 +117,14 @@ func (r *MessageRepository) GetMessagesByUserIDs(ctx context.Context, user1ID, u
 		messages = append(messages, msg)
 	}
 	return messages, nil
+}
+
+// GetChatParticipants returns user ids for the chat.
+func (r *MessageRepository) GetChatParticipants(ctx context.Context, chatID int) (int, int, error) {
+	var user1ID, user2ID int
+	err := r.Db.QueryRowContext(ctx, `SELECT user1_id, user2_id FROM chats WHERE id = ?`, chatID).Scan(&user1ID, &user2ID)
+	if err != nil {
+		return 0, 0, err
+	}
+	return user1ID, user2ID, nil
 }

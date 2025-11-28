@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
-	"naimuBack/internal/models"
-	service "naimuBack/internal/services"
+	"errors"
 	"net/http"
 	"strconv"
+
+	"naimuBack/internal/models"
+	service "naimuBack/internal/services"
 )
 
 type MessageHandler struct {
@@ -20,9 +23,41 @@ func (h *MessageHandler) CreateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	senderID, _ := r.Context().Value("user_id").(int)
+	role, _ := r.Context().Value("role").(string)
+	if senderID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if message.SenderID != 0 && message.SenderID != senderID {
+		http.Error(w, "Sender mismatch", http.StatusForbidden)
+		return
+	}
+	message.SenderID = senderID
+	if message.ReceiverID == 0 {
+		http.Error(w, "receiver_id required", http.StatusBadRequest)
+		return
+	}
+
+	if role == "business_worker" {
+		receiverRole, err := h.MessageService.GetUserRole(r.Context(), message.ReceiverID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if receiverRole == "client" {
+			http.Error(w, "business workers cannot message clients", http.StatusForbidden)
+			return
+		}
+	}
+
 	createdMessage, err := h.MessageService.CreateMessage(r.Context(), message)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		status := http.StatusInternalServerError
+		if errors.Is(err, service.ErrWorkerClientCommunication) {
+			status = http.StatusForbidden
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 
@@ -37,6 +72,37 @@ func (h *MessageHandler) GetMessagesForChat(w http.ResponseWriter, r *http.Reque
 	if err != nil || chatID <= 0 {
 		http.Error(w, "Invalid chat ID", http.StatusBadRequest)
 		return
+	}
+
+	requesterID, _ := r.Context().Value("user_id").(int)
+	requesterRole, _ := r.Context().Value("role").(string)
+	if requesterRole == "business_worker" {
+		user1ID, user2ID, err := h.MessageService.GetChatParticipants(r.Context(), chatID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, "Chat not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if requesterID != user1ID && requesterID != user2ID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		otherID := user1ID
+		if otherID == requesterID {
+			otherID = user2ID
+		}
+		role, err := h.MessageService.GetUserRole(r.Context(), otherID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if role == "client" {
+			http.Error(w, "business workers cannot access client chats", http.StatusForbidden)
+			return
+		}
 	}
 
 	pageParam := r.URL.Query().Get("page")
@@ -96,6 +162,28 @@ func (h *MessageHandler) GetMessagesByUserIDs(w http.ResponseWriter, r *http.Req
 	if err != nil || user2ID <= 0 {
 		http.Error(w, "Invalid user2_id", http.StatusBadRequest)
 		return
+	}
+
+	requesterID, _ := r.Context().Value("user_id").(int)
+	requesterRole, _ := r.Context().Value("role").(string)
+	if requesterRole == "business_worker" {
+		if requesterID != user1ID && requesterID != user2ID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		otherID := user1ID
+		if otherID == requesterID {
+			otherID = user2ID
+		}
+		role, err := h.MessageService.GetUserRole(r.Context(), otherID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if role == "client" {
+			http.Error(w, "business workers cannot access client chats", http.StatusForbidden)
+			return
+		}
 	}
 
 	// Преобразование параметров пагинации
