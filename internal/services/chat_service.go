@@ -3,12 +3,14 @@ package services
 import (
 	"context"
 	"errors"
+
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 )
 
 type ChatService struct {
-	ChatRepo *repositories.ChatRepository
+	ChatRepo     *repositories.ChatRepository
+	BusinessRepo *repositories.BusinessRepository
 }
 
 func (s *ChatService) CreateChat(ctx context.Context, chat models.Chat) (models.Chat, error) {
@@ -41,4 +43,12 @@ func (s *ChatService) GetChatsByUserID(ctx context.Context, userID int) ([]model
 
 func (s *ChatService) DeleteChat(ctx context.Context, id int) error {
 	return s.ChatRepo.DeleteChat(ctx, id)
+}
+
+// GetWorkerChats returns base chats between business and its workers.
+func (s *ChatService) GetWorkerChats(ctx context.Context, businessUserID int) ([]models.BusinessWorker, error) {
+	if s.BusinessRepo == nil {
+		return nil, errors.New("business repo not configured")
+	}
+	return s.BusinessRepo.GetWorkersByBusiness(ctx, businessUserID)
 }

@@ -18,6 +18,49 @@ type BusinessRepository struct {
 	DB *sql.DB
 }
 
+// UpsertWorkerListing attaches a listing to a worker within the same business.
+func (r *BusinessRepository) UpsertWorkerListing(ctx context.Context, l models.BusinessWorkerListing) error {
+	_, err := r.DB.ExecContext(ctx, `
+                INSERT INTO business_worker_listings (business_user_id, worker_user_id, listing_type, listing_id)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP
+        `, l.BusinessUserID, l.WorkerUserID, l.ListingType, l.ListingID)
+	return err
+}
+
+// DeleteWorkerListing detaches a listing from a worker.
+func (r *BusinessRepository) DeleteWorkerListing(ctx context.Context, l models.BusinessWorkerListing) error {
+	_, err := r.DB.ExecContext(ctx, `
+                DELETE FROM business_worker_listings
+                WHERE business_user_id = ? AND worker_user_id = ? AND listing_type = ? AND listing_id = ?
+        `, l.BusinessUserID, l.WorkerUserID, l.ListingType, l.ListingID)
+	return err
+}
+
+// ListWorkerListings returns all attachments for workers of a business.
+func (r *BusinessRepository) ListWorkerListings(ctx context.Context, businessUserID int) (map[int][]models.BusinessWorkerListing, error) {
+	rows, err := r.DB.QueryContext(ctx, `
+                SELECT worker_user_id, listing_type, listing_id, created_at, updated_at
+                FROM business_worker_listings
+                WHERE business_user_id = ?
+        `, businessUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[int][]models.BusinessWorkerListing)
+	for rows.Next() {
+		var l models.BusinessWorkerListing
+		if err := rows.Scan(&l.WorkerUserID, &l.ListingType, &l.ListingID, &l.CreatedAt, &l.UpdatedAt); err != nil {
+			return nil, err
+		}
+		l.BusinessUserID = businessUserID
+		result[l.WorkerUserID] = append(result[l.WorkerUserID], l)
+	}
+	return result, rows.Err()
+}
+
 func (r *BusinessRepository) GetAccountByUserID(ctx context.Context, businessUserID int) (models.BusinessAccount, error) {
 	var acc models.BusinessAccount
 	query := `SELECT id, business_user_id, seats_total, seats_used, status, created_at, updated_at FROM business_accounts WHERE business_user_id = ?`
