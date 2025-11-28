@@ -34,6 +34,11 @@ func (s *LocationService) GetExecutors(ctx context.Context, f models.ExecutorLoc
 	return s.Repo.GetExecutors(ctx, f)
 }
 
+// GetBusinessMarkers returns aggregated markers for all businesses with online workers.
+func (s *LocationService) GetBusinessMarkers(ctx context.Context) ([]models.BusinessAggregatedMarker, error) {
+	return s.Repo.GetBusinessMarkers(ctx)
+}
+
 // UpdateBusinessWorkerLocation stores coordinates for a business worker and returns detailed payloads for broadcasting.
 func (s *LocationService) UpdateBusinessWorkerLocation(ctx context.Context, workerUserID int, lat, lon float64) (models.BusinessWorkerLocation, *models.BusinessAggregatedMarker, error) {
 	if s.BusinessRepo == nil {

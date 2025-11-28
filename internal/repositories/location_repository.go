@@ -15,6 +15,40 @@ type LocationRepository struct {
 	DB *sql.DB
 }
 
+// GetBusinessMarkers calculates aggregated markers for all businesses with online workers.
+func (r *LocationRepository) GetBusinessMarkers(ctx context.Context) ([]models.BusinessAggregatedMarker, error) {
+	rows, err := r.DB.QueryContext(ctx, `
+                SELECT bw.business_user_id, AVG(u.latitude) AS latitude, AVG(u.longitude) AS longitude, COUNT(*) AS worker_count
+                FROM business_workers bw
+                JOIN users u ON u.id = bw.worker_user_id
+                WHERE u.is_online = 1 AND u.latitude IS NOT NULL AND u.longitude IS NOT NULL
+                GROUP BY bw.business_user_id
+        `)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var markers []models.BusinessAggregatedMarker
+	for rows.Next() {
+		var (
+			marker    models.BusinessAggregatedMarker
+			lat, long sql.NullFloat64
+		)
+		if err := rows.Scan(&marker.BusinessUserID, &lat, &long, &marker.WorkerCount); err != nil {
+			return nil, err
+		}
+		if lat.Valid {
+			marker.Latitude = &lat.Float64
+		}
+		if long.Valid {
+			marker.Longitude = &long.Float64
+		}
+		markers = append(markers, marker)
+	}
+	return markers, rows.Err()
+}
+
 // SetLocation stores the latest coordinates for a user.
 func (r *LocationRepository) SetLocation(ctx context.Context, loc models.Location) error {
 	query := `UPDATE users SET latitude = ?, longitude = ?, is_online = ?, updated_at = ? WHERE id = ?`
@@ -165,10 +199,26 @@ func (r *LocationRepository) GetExecutors(ctx context.Context, f models.Executor
 
 func buildExecutorQuery(table string, f models.ExecutorLocationFilter) (string, []interface{}) {
 
-	base := fmt.Sprintf(`SELECT COALESCE(bwl.worker_user_id, s.user_id) AS user_id, u.name, u.surname, u.avatar_path, u.latitude, u.longitude, s.id, s.name, s.description, s.price, s.avg_rating FROM %s s LEFT JOIN business_worker_listings bwl ON bwl.business_user_id = s.user_id AND bwl.listing_type = ? AND bwl.listing_id = s.id JOIN users u ON u.id = COALESCE(bwl.worker_user_id, s.user_id)`, table)
+	listingTypes := []string{table}
+	switch table {
+	case "service":
+		listingTypes = append(listingTypes, "services")
+	case "ad":
+		listingTypes = append(listingTypes, "ads")
+	case "work_ad":
+		listingTypes = append(listingTypes, "work_ads")
+	case "work":
+		listingTypes = append(listingTypes, "works")
+	}
+
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(listingTypes)), ",")
+	base := fmt.Sprintf(`SELECT COALESCE(bwl.worker_user_id, s.user_id) AS user_id, u.name, u.surname, u.avatar_path, u.latitude, u.longitude, s.id, s.name, s.description, s.price, s.avg_rating FROM %s s LEFT JOIN business_worker_listings bwl ON bwl.business_user_id = s.user_id AND bwl.listing_type IN (%s) AND bwl.listing_id = s.id JOIN users u ON u.id = COALESCE(bwl.worker_user_id, s.user_id)`, table, placeholders)
 
 	var where []string
-	args := []interface{}{table}
+	var args []interface{}
+	for _, lt := range listingTypes {
+		args = append(args, lt)
+	}
 	where = append(where, "s.status = 'active'")
 	where = append(where, "u.is_online = 1")
 	where = append(where, "u.latitude IS NOT NULL")
