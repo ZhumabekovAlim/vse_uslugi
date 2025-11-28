@@ -12,8 +12,14 @@ import (
 
 // LocationHandler provides HTTP endpoints for user locations.
 type LocationHandler struct {
-	Service   *services.LocationService
-	Broadcast chan<- models.Location
+	Service  *services.LocationService
+	Notifier LocationNotifier
+}
+
+// LocationNotifier describes callbacks used to fan out location updates over websockets.
+type LocationNotifier interface {
+	BroadcastLocation(models.Location)
+	NotifyBusinessWorkerOffline(workerUserID, businessUserID int, marker *models.BusinessAggregatedMarker)
 }
 
 // UpdateLocation stores coordinates and broadcasts to listeners.
@@ -34,8 +40,8 @@ func (h *LocationHandler) UpdateLocation(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Failed to update location", http.StatusInternalServerError)
 		return
 	}
-	if h.Broadcast != nil {
-		h.Broadcast <- loc
+	if h.Notifier != nil {
+		h.Notifier.BroadcastLocation(loc)
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -59,7 +65,9 @@ func (h *LocationHandler) GetLocation(w http.ResponseWriter, r *http.Request) {
 // GoOffline clears location for a user and marks them offline.
 func (h *LocationHandler) GoOffline(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
-		UserID int `json:"user_id"`
+		UserID    int      `json:"user_id"`
+		Latitude  *float64 `json:"latitude"`
+		Longitude *float64 `json:"longitude"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
@@ -72,9 +80,25 @@ func (h *LocationHandler) GoOffline(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "user_id required", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.GoOffline(r.Context(), payload.UserID); err != nil {
-		http.Error(w, "Failed to go offline", http.StatusInternalServerError)
-		return
+	role, _ := r.Context().Value("role").(string)
+
+	if role == "business_worker" {
+		businessUserID, marker, err := h.Service.SetBusinessWorkerOffline(r.Context(), payload.UserID)
+		if err != nil {
+			http.Error(w, "Failed to go offline", http.StatusInternalServerError)
+			return
+		}
+		if h.Notifier != nil {
+			h.Notifier.NotifyBusinessWorkerOffline(payload.UserID, businessUserID, marker)
+		}
+	} else {
+		if err := h.Service.GoOffline(r.Context(), payload.UserID); err != nil {
+			http.Error(w, "Failed to go offline", http.StatusInternalServerError)
+			return
+		}
+		if h.Notifier != nil {
+			h.Notifier.BroadcastLocation(models.Location{UserID: payload.UserID})
+		}
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -136,4 +160,15 @@ func (h *LocationHandler) GetBusinessWorkers(w http.ResponseWriter, r *http.Requ
 	}
 
 	_ = json.NewEncoder(w).Encode(map[string]any{"workers": execs})
+}
+
+// GetBusinessMarkers returns aggregated markers for all businesses with online workers.
+func (h *LocationHandler) GetBusinessMarkers(w http.ResponseWriter, r *http.Request) {
+	markers, err := h.Service.GetBusinessMarkers(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to load business markers", http.StatusInternalServerError)
+		return
+	}
+
+	_ = json.NewEncoder(w).Encode(map[string]any{"markers": markers})
 }

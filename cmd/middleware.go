@@ -136,6 +136,17 @@ func (app *application) JWTMiddleware(next http.Handler, requiredRole string) ht
 	})
 }
 
+// forbidBusinessWorker blocks access for business workers on selected REST endpoints.
+func (app *application) forbidBusinessWorker(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if role, _ := r.Context().Value("role").(string); role == "business_worker" {
+			http.Error(w, "Forbidden for business workers", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Функция для генерации нового access token
 func generateAccessToken(userID int, role string) (string, error) {
 	claims := &models.Claims{

@@ -93,6 +93,31 @@ func NewLocationManager() *LocationManager {
 	}
 }
 
+// BroadcastLocation fan-outs plain location updates to all subscribers.
+func (lm *LocationManager) BroadcastLocation(loc models.Location) {
+	if lm == nil {
+		return
+	}
+	lm.broadcastLocation <- loc
+}
+
+// NotifyBusinessWorkerOffline pushes worker offline notifications and aggregated marker updates.
+func (lm *LocationManager) NotifyBusinessWorkerOffline(workerUserID, businessUserID int, marker *models.BusinessAggregatedMarker) {
+	if lm == nil {
+		return
+	}
+	payload := map[string]any{"worker_user_id": workerUserID}
+	if businessUserID > 0 {
+		payload["business_user_id"] = businessUserID
+		lm.direct <- targetedLocationResponse{userID: businessUserID, resp: locationResponse{Type: "worker_offline", Payload: payload}}
+	}
+	lm.broadcastResponses <- locationResponse{Type: "worker_offline", Payload: payload}
+	if marker != nil {
+		lm.broadcastResponses <- locationResponse{Type: "business_marker_update", Payload: marker}
+	}
+	lm.broadcastLocation <- models.Location{UserID: workerUserID}
+}
+
 func (c *locationClient) writePump() {
 	defer c.close()
 	for resp := range c.send {
