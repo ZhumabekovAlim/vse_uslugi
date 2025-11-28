@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 )
@@ -17,6 +18,7 @@ type ServiceResponseService struct {
 	MessageRepo         *repositories.MessageRepository
 	SubscriptionRepo    *repositories.SubscriptionRepository
 	UserRepo            *repositories.UserRepository
+	BusinessRepo        *repositories.BusinessRepository
 }
 
 func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp models.ServiceResponses) (models.ServiceResponses, error) {
@@ -41,27 +43,39 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 		return models.ServiceResponses{}, err
 	}
 
-	performer, err := s.UserRepo.GetUserByID(ctx, service.UserID)
+	performerID, err := resolveBusinessContact(ctx, s.BusinessRepo, service.UserID)
 	if err != nil {
 		rollback()
 		return models.ServiceResponses{}, err
 	}
 
-	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: service.UserID, User2ID: resp.UserID})
+	clientID, err := resolveBusinessContact(ctx, s.BusinessRepo, resp.UserID)
+	if err != nil {
+		rollback()
+		return models.ServiceResponses{}, err
+	}
+
+	performer, err := s.UserRepo.GetUserByID(ctx, performerID)
+	if err != nil {
+		rollback()
+		return models.ServiceResponses{}, err
+	}
+
+	chatID, err := s.ChatRepo.CreateChat(ctx, models.Chat{User1ID: performerID, User2ID: clientID})
 	if err != nil {
 		rollback()
 		return models.ServiceResponses{}, err
 	}
 	resp.ChatID = chatID
-	resp.ClientID = resp.UserID
-	resp.PerformerID = service.UserID
+	resp.ClientID = clientID
+	resp.PerformerID = performerID
 	resp.Phone = performer.Phone
 
 	_, err = s.ConfirmationRepo.Create(ctx, models.ServiceConfirmation{
 		ServiceID:   resp.ServiceID,
 		ChatID:      chatID,
-		ClientID:    resp.UserID,
-		PerformerID: service.UserID,
+		ClientID:    clientID,
+		PerformerID: performerID,
 	})
 	if err != nil {
 		rollback()
@@ -70,8 +84,8 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 
 	text := fmt.Sprintf("Здравствуйте! Предлагаю цену %v. %s", resp.Price, resp.Description)
 	if _, err = s.MessageRepo.CreateMessage(ctx, models.Message{
-		SenderID:   resp.UserID,
-		ReceiverID: service.UserID,
+		SenderID:   clientID,
+		ReceiverID: performerID,
 		Text:       text,
 
 		ChatID: chatID,
