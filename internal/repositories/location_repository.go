@@ -174,6 +174,11 @@ func buildExecutorQuery(table string, f models.ExecutorLocationFilter) (string, 
 	where = append(where, "u.latitude IS NOT NULL")
 	where = append(where, "u.longitude IS NOT NULL")
 
+	if f.BusinessUserID > 0 {
+		where = append(where, "u.id IN (SELECT worker_user_id FROM business_workers WHERE business_user_id = ?)")
+		args = append(args, f.BusinessUserID)
+	}
+
 	if len(f.CategoryIDs) > 0 {
 		placeholders := strings.TrimRight(strings.Repeat("?,", len(f.CategoryIDs)), ",")
 		where = append(where, fmt.Sprintf("s.category_id IN (%s)", placeholders))

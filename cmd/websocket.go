@@ -187,6 +187,12 @@ func handleWebSocketMessages(conn *websocket.Conn, userID int, wsManager *WebSoc
 
 		msg.CreatedAt = time.Now()
 
+		// Ограничение: бизнес-исполнители не пишут клиентам напрямую.
+		if err := enforceWorkerRestrictions(db, msg.SenderID, msg.ReceiverID); err != nil {
+			log.Println("reject by policy:", err)
+			continue
+		}
+
 		// получить/проверить чат
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -280,8 +286,38 @@ func getOrCreateChat(ctx context.Context, db *sql.DB, user1ID, user2ID int) (int
 
 func saveMessageToDB(ctx context.Context, db *sql.DB, msg models.Message) error {
 	_, err := db.ExecContext(ctx, `
-		INSERT INTO messages (chat_id, sender_id, receiver_id, text, created_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, msg.ChatID, msg.SenderID, msg.ReceiverID, msg.Text, msg.CreatedAt)
+                INSERT INTO messages (chat_id, sender_id, receiver_id, text, created_at)
+                VALUES (?, ?, ?, ?, ?)
+        `, msg.ChatID, msg.SenderID, msg.ReceiverID, msg.Text, msg.CreatedAt)
 	return err
+}
+
+func enforceWorkerRestrictions(db *sql.DB, senderID, receiverID int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	senderRole, err := getUserRole(ctx, db, senderID)
+	if err != nil {
+		return err
+	}
+	if senderRole != "business_worker" {
+		return nil
+	}
+	receiverRole, err := getUserRole(ctx, db, receiverID)
+	if err != nil {
+		return err
+	}
+	if receiverRole == "client" {
+		return fmt.Errorf("business workers cannot message clients")
+	}
+	return nil
+}
+
+func getUserRole(ctx context.Context, db *sql.DB, userID int) (string, error) {
+	var role string
+	err := db.QueryRowContext(ctx, `SELECT role FROM users WHERE id = ?`, userID).Scan(&role)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(role), nil
 }

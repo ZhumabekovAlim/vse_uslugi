@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -117,4 +118,69 @@ func (h *BusinessHandler) DisableWorker(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// AttachListing binds an existing listing to a worker.
+func (h *BusinessHandler) AttachListing(w http.ResponseWriter, r *http.Request) {
+	workerIDStr := r.URL.Query().Get(":id")
+	workerID, err := strconv.Atoi(workerIDStr)
+	if err != nil {
+		http.Error(w, "invalid worker id", http.StatusBadRequest)
+		return
+	}
+	var req services.AttachListingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	businessUserID, _ := r.Context().Value("user_id").(int)
+	if err := h.Service.AttachListing(r.Context(), businessUserID, workerID, req); err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, repositories.ErrBusinessAccountSuspended) {
+			status = http.StatusForbidden
+		} else if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DetachListing removes listing binding.
+func (h *BusinessHandler) DetachListing(w http.ResponseWriter, r *http.Request) {
+	workerIDStr := r.URL.Query().Get(":id")
+	workerID, err := strconv.Atoi(workerIDStr)
+	if err != nil {
+		http.Error(w, "invalid worker id", http.StatusBadRequest)
+		return
+	}
+	var req services.AttachListingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	businessUserID, _ := r.Context().Value("user_id").(int)
+	if err := h.Service.DetachListing(r.Context(), businessUserID, workerID, req); err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, repositories.ErrBusinessAccountSuspended) {
+			status = http.StatusForbidden
+		} else if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ListWorkerListings returns map of worker user_id to listing attachments.
+func (h *BusinessHandler) ListWorkerListings(w http.ResponseWriter, r *http.Request) {
+	businessUserID, _ := r.Context().Value("user_id").(int)
+	listings, err := h.Service.ListWorkerListings(r.Context(), businessUserID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	h.respondJSON(w, http.StatusOK, map[string]any{"listings": listings})
 }

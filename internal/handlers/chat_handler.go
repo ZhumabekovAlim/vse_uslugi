@@ -133,3 +133,27 @@ func (h *ChatHandler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// GetPerformerChats proxies listing chats for business and its workers.
+func (h *ChatHandler) GetPerformerChats(w http.ResponseWriter, r *http.Request) {
+	businessUserID, _ := r.Context().Value("user_id").(int)
+	chats, err := h.ChatService.GetChatsByUserID(r.Context(), businessUserID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve chats", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"chats": chats})
+}
+
+// GetWorkerChats returns base business-worker chat ids.
+func (h *ChatHandler) GetWorkerChats(w http.ResponseWriter, r *http.Request) {
+	businessUserID, _ := r.Context().Value("user_id").(int)
+	workers, err := h.ChatService.GetWorkerChats(r.Context(), businessUserID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"workers": workers})
+}

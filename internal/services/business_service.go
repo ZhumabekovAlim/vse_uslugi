@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -42,6 +43,12 @@ type UpdateWorkerRequest struct {
 	Phone    string `json:"phone"`
 	Password string `json:"password"`
 	Status   string `json:"status"`
+}
+
+// AttachListingRequest binds an existing listing to a worker.
+type AttachListingRequest struct {
+	ListingType string `json:"listing_type"`
+	ListingID   int    `json:"listing_id"`
 }
 
 func (s *BusinessService) GetOrCreateAccount(ctx context.Context, businessUserID int) (models.BusinessAccount, error) {
@@ -233,4 +240,53 @@ func (s *BusinessService) DisableWorker(ctx context.Context, businessUserID, wor
 		return repositories.ErrBusinessAccountSuspended
 	}
 	return s.BusinessRepo.DisableWorker(ctx, workerID, businessUserID)
+}
+
+// AttachListing links a listing to a worker under the given business account.
+func (s *BusinessService) AttachListing(ctx context.Context, businessUserID, workerID int, req AttachListingRequest) error {
+	if req.ListingID == 0 || strings.TrimSpace(req.ListingType) == "" {
+		return fmt.Errorf("listing_type and listing_id are required")
+	}
+	worker, err := s.BusinessRepo.GetWorkerByID(ctx, workerID)
+	if err != nil {
+		return err
+	}
+	if worker.ID == 0 || worker.BusinessUserID != businessUserID {
+		return sql.ErrNoRows
+	}
+
+	attachment := models.BusinessWorkerListing{ //nolint:exhaustruct
+		BusinessUserID: businessUserID,
+		WorkerUserID:   worker.WorkerUserID,
+		ListingType:    strings.TrimSpace(strings.ToLower(req.ListingType)),
+		ListingID:      req.ListingID,
+	}
+	return s.BusinessRepo.UpsertWorkerListing(ctx, attachment)
+}
+
+// DetachListing removes a listing binding from a worker.
+func (s *BusinessService) DetachListing(ctx context.Context, businessUserID, workerID int, req AttachListingRequest) error {
+	worker, err := s.BusinessRepo.GetWorkerByID(ctx, workerID)
+	if err != nil {
+		return err
+	}
+	if worker.ID == 0 || worker.BusinessUserID != businessUserID {
+		return sql.ErrNoRows
+	}
+
+	attachment := models.BusinessWorkerListing{ //nolint:exhaustruct
+		BusinessUserID: businessUserID,
+		WorkerUserID:   worker.WorkerUserID,
+		ListingType:    strings.TrimSpace(strings.ToLower(req.ListingType)),
+		ListingID:      req.ListingID,
+	}
+	return s.BusinessRepo.DeleteWorkerListing(ctx, attachment)
+}
+
+// ListWorkerListings returns workers with attached listings map keyed by worker user ID.
+func (s *BusinessService) ListWorkerListings(ctx context.Context, businessUserID int) (map[int][]models.BusinessWorkerListing, error) {
+	if _, err := s.GetOrCreateAccount(ctx, businessUserID); err != nil {
+		return nil, err
+	}
+	return s.BusinessRepo.ListWorkerListings(ctx, businessUserID)
 }
