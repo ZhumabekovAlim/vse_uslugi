@@ -82,7 +82,18 @@ func (h *LocationHandler) GoOffline(w http.ResponseWriter, r *http.Request) {
 	}
 	role, _ := r.Context().Value("role").(string)
 
-	if role == "business_worker" {
+	isBusinessWorker := strings.EqualFold(role, "business_worker")
+
+	if !isBusinessWorker && h.Service.BusinessRepo != nil {
+		worker, err := h.Service.BusinessRepo.GetWorkerByUserID(r.Context(), payload.UserID)
+		if err != nil {
+			http.Error(w, "Failed to go offline", http.StatusInternalServerError)
+			return
+		}
+		isBusinessWorker = worker.ID > 0
+	}
+
+	if isBusinessWorker {
 		businessUserID, marker, err := h.Service.SetBusinessWorkerOffline(r.Context(), payload.UserID)
 		if err != nil {
 			http.Error(w, "Failed to go offline", http.StatusInternalServerError)
@@ -171,4 +182,21 @@ func (h *LocationHandler) GetBusinessMarkers(w http.ResponseWriter, r *http.Requ
 	}
 
 	_ = json.NewEncoder(w).Encode(map[string]any{"markers": markers})
+}
+
+// GetBusinessMarker returns aggregated marker for the authenticated business account.
+func (h *LocationHandler) GetBusinessMarker(w http.ResponseWriter, r *http.Request) {
+	businessUserID, _ := r.Context().Value("user_id").(int)
+	if businessUserID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	marker, err := h.Service.GetBusinessMarker(r.Context(), businessUserID)
+	if err != nil {
+		http.Error(w, "Failed to load business marker", http.StatusInternalServerError)
+		return
+	}
+
+	_ = json.NewEncoder(w).Encode(map[string]any{"marker": marker})
 }
