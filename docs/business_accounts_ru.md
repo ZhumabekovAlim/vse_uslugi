@@ -243,3 +243,159 @@ Content-Type: application/json
 | PUT | `/business/workers/:id` | business | Обновить данные/статус исполнителя |
 | DELETE | `/business/workers/:id` | business | Логически отключить исполнителя |
 | POST | `/user/sign_in` | public | Вход по телефону или бизнес-логину для `business_worker` |
+
+## Привязка объявлений к исполнителям
+
+| Метод | Путь | Роль | Назначение |
+|-------|------|------|------------|
+| POST | `/business/workers/:id/attach` | business | Привязать объявление к исполнителю |
+| DELETE | `/business/workers/:id/detach` | business | Отвязать объявление от исполнителя |
+| GET | `/business/workers/listings` | business | Получить карту `worker_user_id -> [listing]` |
+
+### Логика (`BusinessService.AttachListing` / `DetachListing` / `ListWorkerListings`)
+
+1. Проверяется, что `listing_type` (service/work/rent/ad/work_ad/rent_ad) и `listing_id` заданы.
+2. Хендлер валидирует, что `:id` принадлежит текущему бизнесу (`GetWorkerByID`). При несоответствии → `404`.
+3. На привязке вызывается `UpsertWorkerListing`, на отвязке — `DeleteWorkerListing`.
+4. Список привязок возвращается картой, где ключ — `worker_user_id` исполнителя.
+
+### Тела запросов
+
+```json
+{
+  "listing_type": "service",
+  "listing_id": 123
+}
+```
+
+### Ответы
+
+- `POST /attach` и `DELETE /detach` → `204 No Content`.
+- `GET /business/workers/listings` →
+
+```json
+{
+  "listings": {
+    "115": [
+      {
+        "listing_type": "service",
+        "listing_id": 123,
+        "business_user_id": 42,
+        "worker_user_id": 115
+      }
+    ]
+  }
+}
+```
+
+## Чаты бизнеса
+
+| Метод | Путь | Роль | Назначение |
+|-------|------|------|------------|
+| GET | `/business/workers/chats` | business | Базовые чаты "бизнес ↔ исполнитель" с `chat_id` |
+| GET | `/business/workers/listing_chats` | business | Все чаты по откликам/подтверждениям исполнителей |
+
+### Важные правила
+
+- При создании исполнителя чат создаётся автоматически (`ChatRepository.CreateChat`).
+- Бизнес-исполнители не могут переписываться с клиентами (`MessageHandler` запрещает, если роль получателя `client`).
+- При запросе истории сообщений бизнес-исполнитель проверяется на участие в чате и блокируется, если второй участник — клиент.
+
+### Формат ответов
+
+`GET /business/workers/chats`:
+
+```json
+{
+  "workers": [
+    {
+      "id": 7,
+      "business_user_id": 42,
+      "worker_user_id": 115,
+      "login": "driver001",
+      "chat_id": 501,
+      "status": "active"
+    }
+  ]
+}
+```
+
+`GET /business/workers/listing_chats` возвращает агрегированный список чатов по объявлениям исполнителей.
+
+## Карта и геометки бизнеса
+
+| Метод | Путь | Роль | Назначение |
+|-------|------|------|------------|
+| GET | `/business/map/workers` | business | Координаты и активные объявления исполнителей бизнеса |
+| GET | `/business/map/marker` | business | Аггрегированный маркер только текущего бизнеса |
+| GET | `/map/business_markers` | public | Маркеры всех бизнесов с активными исполнителями |
+
+### Логика (`LocationService`)
+
+- `GetBusinessWorkers` передаёт `business_user_id` в фильтр и возвращает `workers: [ExecutorLocationGroup]`.
+- `GetBusinessMarker` собирает средние координаты и количество онлайн-исполнителей для текущего бизнеса.
+- `GetBusinessMarkers` отдаёт такие же маркеры для всех бизнесов.
+
+Пример ответа `GET /business/map/marker`:
+
+```json
+{
+  "marker": {
+    "business_user_id": 42,
+    "latitude": 51.12345,
+    "longitude": 71.56789,
+    "worker_count": 3
+  }
+}
+```
+
+Пример ответа `GET /business/map/workers` (усечённый):
+
+```json
+{
+  "workers": [
+    {
+      "user_id": 115,
+      "name": "Иван",
+      "latitude": 51.12,
+      "longitude": 71.56,
+      "services": [
+        {"id": 123, "name": "Ремонт"}
+      ]
+    }
+  ]
+}
+```
+
+## Пошаговые сценарии
+
+### 1) Запуск бизнеса
+
+1. Авторизоваться и вызвать `POST /business/purchase` с количеством мест.
+2. Проверить лимиты через `GET /business/account`.
+3. Создавать исполнителей (`POST /business/workers`) до исчерпания `seats_left`.
+
+### 2) Управление исполнителем
+
+1. Создать или найти исполнителя в списке `GET /business/workers`.
+2. Обновить данные или статус через `PUT /business/workers/:id`.
+3. Деактивировать, если нужно, `DELETE /business/workers/:id` (оставляет чат и историю).
+
+### 3) Назначение объявлений
+
+1. Выбрать исполнителя и объявление.
+2. Привязать через `POST /business/workers/:id/attach`.
+3. Проверить карту привязок `GET /business/workers/listings`.
+4. При необходимости отвязать `DELETE /business/workers/:id/detach`.
+
+### 4) Работа с чатами
+
+1. Базовые чаты исполнителей доступны в `GET /business/workers/chats`.
+2. Чаты по откликам/подтверждениям — `GET /business/workers/listing_chats`.
+3. Отправлять сообщения через общий `POST /api/messages` (исполнители не могут писать клиентам).
+
+### 5) Контроль на карте
+
+1. `GET /business/map/marker` — быстрый статус онлайна.
+2. `GET /business/map/workers` — кто именно онлайн и какие активные объявления привязаны.
+3. Публичная карта всех бизнесов — `GET /map/business_markers`.

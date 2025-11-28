@@ -1,0 +1,203 @@
+{
+  "info": {
+    "name": "Business Accounts",
+    "description": "Полная коллекция ручек бизнес-аккаунта: покупка мест, управление исполнителями, привязки объявлений, чаты и карта.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.example.com",
+      "type": "string"
+    },
+    {
+      "key": "businessToken",
+      "value": "Bearer <business-jwt>",
+      "type": "string"
+    },
+    {
+      "key": "workerId",
+      "value": "7",
+      "type": "string"
+    },
+    {
+      "key": "listingId",
+      "value": "123",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Purchase seats",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "{{businessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": "{{baseUrl}}/business/purchase",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"seats\": 3,\n  \"provider\": \"test\",\n  \"provider_txn_id\": \"abc-123\"\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get account",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "{{businessToken}}"}],
+        "url": "{{baseUrl}}/business/account"
+      },
+      "response": []
+    },
+    {
+      "name": "Create worker",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "{{businessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": "{{baseUrl}}/business/workers",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"driver001\",\n  \"name\": \"Иван\",\n  \"surname\": \"Петров\",\n  \"phone\": \"+79990001122\",\n  \"password\": \"secret123\"\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "List workers",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "{{businessToken}}"}],
+        "url": "{{baseUrl}}/business/workers"
+      },
+      "response": []
+    },
+    {
+      "name": "Update worker",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {"key": "Authorization", "value": "{{businessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": "{{baseUrl}}/business/workers/{{workerId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"driver-main\",\n  \"status\": \"active\",\n  \"phone\": \"+79990002233\"\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Disable worker",
+      "request": {
+        "method": "DELETE",
+        "header": [{"key": "Authorization", "value": "{{businessToken}}"}],
+        "url": "{{baseUrl}}/business/workers/{{workerId}}"
+      },
+      "response": []
+    },
+    {
+      "name": "Attach listing to worker",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "{{businessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": "{{baseUrl}}/business/workers/{{workerId}}/attach",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"listing_type\": \"service\",\n  \"listing_id\": {{listingId}}\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Detach listing from worker",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {"key": "Authorization", "value": "{{businessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": "{{baseUrl}}/business/workers/{{workerId}}/detach",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"listing_type\": \"service\",\n  \"listing_id\": {{listingId}}\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "List worker listings",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "{{businessToken}}"}],
+        "url": "{{baseUrl}}/business/workers/listings"
+      },
+      "response": []
+    },
+    {
+      "name": "Worker base chats",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "{{businessToken}}"}],
+        "url": "{{baseUrl}}/business/workers/chats"
+      },
+      "response": []
+    },
+    {
+      "name": "Listing chats",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "{{businessToken}}"}],
+        "url": "{{baseUrl}}/business/workers/listing_chats"
+      },
+      "response": []
+    },
+    {
+      "name": "Business map marker",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "{{businessToken}}"}],
+        "url": "{{baseUrl}}/business/map/marker"
+      },
+      "response": []
+    },
+    {
+      "name": "Business map workers",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "{{businessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": "{{baseUrl}}/business/map/workers",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"category_id\": [1, 2],\n  \"price_from\": 0,\n  \"price_to\": 100000\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Public business markers",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/map/business_markers"
+      },
+      "response": []
+    }
+  ]
+}
