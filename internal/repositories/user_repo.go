@@ -221,6 +221,25 @@ func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (mode
 	return user, nil
 }
 
+// GetUserByBusinessLogin fetches a user using the business worker login value.
+func (r *UserRepository) GetUserByBusinessLogin(ctx context.Context, login string) (models.User, error) {
+	query := `SELECT u.id, u.name, u.middlename, u.surname, u.phone, u.email, u.password, u.city_id, u.review_rating, u.role, u.banned,
+               u.years_of_exp, u.skills, u.doc_of_proof, u.avatar_path, u.created_at, u.updated_at, drivers.id, couriers.id
+FROM users u
+JOIN business_workers bw ON bw.worker_user_id = u.id
+WHERE bw.login = ?`
+	var user models.User
+	err := r.DB.QueryRowContext(ctx, query, login).Scan(
+		&user.ID, &user.Name, &user.Middlename, &user.Surname, &user.Phone, &user.Email, &user.Password,
+		&user.CityID, &user.ReviewRating, &user.Role, &user.Banned, &user.YearsOfExp, &user.Skills,
+		&user.DocOfProof, &user.AvatarPath, &user.CreatedAt, &user.UpdatedAt, &user.DriverID, &user.CourierID,
+	)
+	if err != nil {
+		return models.User{}, err
+	}
+	return user, nil
+}
+
 func (r *UserRepository) GetUsersByRole(ctx context.Context, role string) ([]models.User, error) {
 	query := `
        SELECT id, name, surname, middlename, phone, email, password, city_id, years_of_exp, doc_of_proof, avatar_path, review_rating, role, banned, latitude, longitude, created_at, updated_at

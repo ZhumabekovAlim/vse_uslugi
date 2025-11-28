@@ -148,6 +148,7 @@ func (app *application) routes() http.Handler {
 	standardMiddleware := alice.New(app.recoverPanic, app.logRequest, secureHeaders, makeResponseJSON)
 	authMiddleware := standardMiddleware.Append(app.JWTMiddlewareWithRole("user"))
 	adminAuthMiddleware := standardMiddleware.Append(app.JWTMiddlewareWithRole("admin"))
+	businessAuthMiddleware := standardMiddleware.Append(app.JWTMiddlewareWithRole("business"))
 
 	wsMiddleware := alice.New(app.recoverPanic, app.logRequest)
 
@@ -195,6 +196,12 @@ func (app *application) routes() http.Handler {
 	mux.Get("/airbapay/history/:user_id", authMiddleware.ThenFunc(app.airbapayHandler.GetHistory))
 	mux.Get("/airbapay/success", standardMiddleware.ThenFunc(app.airbapayHandler.SuccessRedirect))
 	mux.Get("/airbapay/failure", standardMiddleware.ThenFunc(app.airbapayHandler.FailureRedirect))
+	mux.Get("/business/account", businessAuthMiddleware.ThenFunc(app.businessHandler.GetAccount))
+	mux.Post("/business/purchase", businessAuthMiddleware.ThenFunc(app.businessHandler.PurchaseSeats))
+	mux.Get("/business/workers", businessAuthMiddleware.ThenFunc(app.businessHandler.ListWorkers))
+	mux.Post("/business/workers", businessAuthMiddleware.ThenFunc(app.businessHandler.CreateWorker))
+	mux.Put("/business/workers/:id", businessAuthMiddleware.ThenFunc(app.businessHandler.UpdateWorker))
+	mux.Del("/business/workers/:id", businessAuthMiddleware.ThenFunc(app.businessHandler.DisableWorker))
 	mux.Post("/top/activate", authMiddleware.ThenFunc(app.topHandler.Activate))
 	mux.Get("/search/global", standardMiddleware.ThenFunc(app.globalSearchHandler.Search))
 

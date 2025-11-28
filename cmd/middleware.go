@@ -113,8 +113,18 @@ func (app *application) JWTMiddleware(next http.Handler, requiredRole string) ht
 				return
 			}
 		case "worker":
-			if claims.Role != "worker" && claims.Role != "admin" {
+			if claims.Role != "worker" && claims.Role != "admin" && claims.Role != "business_worker" {
 				http.Error(w, "Forbidden: only workers or admins allowed", http.StatusForbidden)
+				return
+			}
+		case "business":
+			if claims.Role != "business" && claims.Role != "admin" {
+				http.Error(w, "Forbidden: only business or admins allowed", http.StatusForbidden)
+				return
+			}
+		case "business_worker":
+			if claims.Role != "business_worker" && claims.Role != "admin" {
+				http.Error(w, "Forbidden: only business workers or admins allowed", http.StatusForbidden)
 				return
 			}
 		}
