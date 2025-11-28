@@ -118,6 +118,15 @@ func (lm *LocationManager) NotifyBusinessWorkerOffline(workerUserID, businessUse
 	lm.broadcastLocation <- models.Location{UserID: workerUserID}
 }
 
+// NotifyBusinessMarkerUpdate pushes aggregated marker changes to subscribers.
+func (lm *LocationManager) NotifyBusinessMarkerUpdate(marker *models.BusinessAggregatedMarker) {
+	if lm == nil || marker == nil {
+		return
+	}
+
+	lm.broadcastResponses <- locationResponse{Type: "business_marker_update", Payload: marker}
+}
+
 func (c *locationClient) writePump() {
 	defer c.close()
 	for resp := range c.send {
