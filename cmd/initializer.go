@@ -266,7 +266,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo, AdRepo: &adRepo, ChatRepo: &chatRepo, ConfirmationRepo: &adConfirmationRepo, MessageRepo: &messageRepo, SubscriptionRepo: &subscriptionRepo, UserRepo: &userRepo, BusinessRepo: &businessRepo}
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
 	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
-	locationService := &services.LocationService{Repo: &locationRepo}
+	locationService := &services.LocationService{Repo: &locationRepo, BusinessRepo: &businessRepo}
 	topService := services.NewTopService(topRepo)
 
 	globalSearchService := &services.GlobalSearchService{
@@ -396,7 +396,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	chatHandler := &handlers.ChatHandler{ChatService: chatService}
 
 	// Создание репозитория, сервиса и обработчика для сообщений
-        messageService := &services.MessageService{MessageRepo: &messageRepo, UserRepo: &userRepo}
+	messageService := &services.MessageService{MessageRepo: &messageRepo, UserRepo: &userRepo}
 	messageHandler := &handlers.MessageHandler{MessageService: messageService}
 
 	return &application{

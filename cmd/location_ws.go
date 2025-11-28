@@ -6,6 +6,7 @@ import (
 	"log"
 	"naimuBack/internal/models"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,10 +21,12 @@ const (
 
 // LocationManager manages websocket connections for location sharing.
 type LocationManager struct {
-	clients    map[int]*locationClient
-	register   chan *locationClient
-	unregister chan *locationClient
-	broadcast  chan models.Location
+	clients            map[int]*locationClient
+	register           chan *locationClient
+	unregister         chan *locationClient
+	broadcastLocation  chan models.Location
+	broadcastResponses chan locationResponse
+	direct             chan targetedLocationResponse
 }
 
 type locationMessage struct {
@@ -37,6 +40,11 @@ type locationResponse struct {
 	RequestID string      `json:"request_id,omitempty"`
 	Payload   interface{} `json:"payload,omitempty"`
 	Error     string      `json:"error,omitempty"`
+}
+
+type targetedLocationResponse struct {
+	userID int
+	resp   locationResponse
 }
 
 type locationClient struct {
@@ -76,10 +84,12 @@ func newLocationClient(id int, conn *websocket.Conn) *locationClient {
 // NewLocationManager creates a new LocationManager instance.
 func NewLocationManager() *LocationManager {
 	return &LocationManager{
-		clients:    make(map[int]*locationClient),
-		register:   make(chan *locationClient),
-		unregister: make(chan *locationClient),
-		broadcast:  make(chan models.Location),
+		clients:            make(map[int]*locationClient),
+		register:           make(chan *locationClient),
+		unregister:         make(chan *locationClient),
+		broadcastLocation:  make(chan models.Location),
+		broadcastResponses: make(chan locationResponse, 16),
+		direct:             make(chan targetedLocationResponse, 16),
 	}
 }
 
@@ -175,14 +185,27 @@ func (lm *LocationManager) Run() {
 				current.close()
 				delete(lm.clients, client.id)
 			}
-		case loc := <-lm.broadcast:
+		case loc := <-lm.broadcastLocation:
 			msg := locationResponse{Type: "location_update", Payload: loc}
-			for id, client := range lm.clients {
-				if !client.enqueue(msg) {
+			lm.fanout(msg)
+		case resp := <-lm.broadcastResponses:
+			lm.fanout(resp)
+		case direct := <-lm.direct:
+			if client, ok := lm.clients[direct.userID]; ok {
+				if !client.enqueue(direct.resp) {
 					client.close()
-					delete(lm.clients, id)
+					delete(lm.clients, direct.userID)
 				}
 			}
+		}
+	}
+}
+
+func (lm *LocationManager) fanout(resp locationResponse) {
+	for id, client := range lm.clients {
+		if !client.enqueue(resp) {
+			client.close()
+			delete(lm.clients, id)
 		}
 	}
 }
@@ -244,14 +267,40 @@ func (app *application) handleLocationMessages(client *locationClient) {
 	conn := client.conn
 	userID := client.id
 
+	roleCtx, roleCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	role, err := app.userRepo.GetUserRole(roleCtx, userID)
+	roleCancel()
+	if err != nil {
+		log.Println("location role lookup error:", err)
+	}
+	isBusinessWorker := strings.EqualFold(role, "business_worker")
+
 	defer func() {
 		app.locationManager.unregister <- client
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		if err := app.locationService.GoOffline(ctx, userID); err != nil {
-			log.Println("go offline error:", err)
+		if isBusinessWorker {
+			businessUserID, marker, err := app.locationService.SetBusinessWorkerOffline(ctx, userID)
+			if err != nil {
+				log.Println("business worker offline error:", err)
+			}
+
+			payload := map[string]any{"worker_user_id": userID}
+			if businessUserID > 0 {
+				payload["business_user_id"] = businessUserID
+				app.locationManager.direct <- targetedLocationResponse{userID: businessUserID, resp: locationResponse{Type: "worker_offline", Payload: payload}}
+			}
+			app.locationManager.broadcastResponses <- locationResponse{Type: "worker_offline", Payload: payload}
+			if marker != nil {
+				app.locationManager.broadcastResponses <- locationResponse{Type: "business_marker_update", Payload: marker}
+			}
+			app.locationManager.broadcastLocation <- models.Location{UserID: userID}
+		} else {
+			if err := app.locationService.GoOffline(ctx, userID); err != nil {
+				log.Println("go offline error:", err)
+			}
+			app.locationManager.broadcastLocation <- models.Location{UserID: userID}
 		}
 		cancel()
-		app.locationManager.broadcast <- models.Location{UserID: userID}
 	}()
 
 	for {
@@ -276,16 +325,35 @@ func (app *application) handleLocationMessages(client *locationClient) {
 			latVal := coords.Latitude
 			lonVal := coords.Longitude
 
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			err := app.locationService.SetLocation(ctx, models.Location{UserID: userID, Latitude: &latVal, Longitude: &lonVal})
-			cancel()
-			if err != nil {
-				log.Println("update location error:", err)
-				client.sendLocationError(msg.RequestID, "failed to update location")
-				continue
-			}
+			if isBusinessWorker {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				workerPayload, marker, err := app.locationService.UpdateBusinessWorkerLocation(ctx, userID, latVal, lonVal)
+				cancel()
+				if err != nil {
+					log.Println("update business location error:", err)
+					client.sendLocationError(msg.RequestID, "failed to update location")
+					continue
+				}
 
-			app.locationManager.broadcast <- models.Location{UserID: userID, Latitude: &latVal, Longitude: &lonVal}
+				if workerPayload.BusinessUserID > 0 {
+					app.locationManager.direct <- targetedLocationResponse{userID: workerPayload.BusinessUserID, resp: locationResponse{Type: "worker_location", Payload: workerPayload}}
+				}
+				if marker != nil {
+					app.locationManager.broadcastResponses <- locationResponse{Type: "business_marker_update", Payload: marker}
+				}
+				app.locationManager.broadcastLocation <- models.Location{UserID: userID, Latitude: &latVal, Longitude: &lonVal}
+			} else {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				err := app.locationService.SetLocation(ctx, models.Location{UserID: userID, Latitude: &latVal, Longitude: &lonVal})
+				cancel()
+				if err != nil {
+					log.Println("update location error:", err)
+					client.sendLocationError(msg.RequestID, "failed to update location")
+					continue
+				}
+
+				app.locationManager.broadcastLocation <- models.Location{UserID: userID, Latitude: &latVal, Longitude: &lonVal}
+			}
 			client.sendLocationResponse(locationResponse{Type: "location_ack", RequestID: msg.RequestID})
 
 		case "request_executors":
@@ -336,14 +404,33 @@ func (app *application) handleLocationMessages(client *locationClient) {
 
 		case "go_offline":
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			if err := app.locationService.GoOffline(ctx, userID); err != nil {
+			if isBusinessWorker {
+				businessUserID, marker, err := app.locationService.SetBusinessWorkerOffline(ctx, userID)
 				cancel()
-				log.Println("go offline error:", err)
-				client.sendLocationError(msg.RequestID, "failed to go offline")
-				continue
+				if err != nil {
+					log.Println("business worker offline error:", err)
+					client.sendLocationError(msg.RequestID, "failed to go offline")
+					continue
+				}
+				payload := map[string]any{"worker_user_id": userID}
+				if businessUserID > 0 {
+					payload["business_user_id"] = businessUserID
+					app.locationManager.direct <- targetedLocationResponse{userID: businessUserID, resp: locationResponse{Type: "worker_offline", Payload: payload}}
+				}
+				app.locationManager.broadcastResponses <- locationResponse{Type: "worker_offline", Payload: payload}
+				if marker != nil {
+					app.locationManager.broadcastResponses <- locationResponse{Type: "business_marker_update", Payload: marker}
+				}
+			} else {
+				if err := app.locationService.GoOffline(ctx, userID); err != nil {
+					cancel()
+					log.Println("go offline error:", err)
+					client.sendLocationError(msg.RequestID, "failed to go offline")
+					continue
+				}
+				cancel()
 			}
-			cancel()
-			app.locationManager.broadcast <- models.Location{UserID: userID}
+			app.locationManager.broadcastLocation <- models.Location{UserID: userID}
 			client.sendLocationResponse(locationResponse{Type: "offline_ack", RequestID: msg.RequestID})
 
 		default:
