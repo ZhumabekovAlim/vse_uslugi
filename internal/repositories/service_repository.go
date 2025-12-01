@@ -594,6 +594,11 @@ WHERE 1=1
 			lonVal := lon.String
 			s.ServiceLongitude = &lonVal
 		}
+
+		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, s.ServiceLatitude, s.ServiceLongitude)
+		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+			continue
+		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)
 		}
@@ -784,6 +789,11 @@ WHERE 1=1
 		if lon.Valid {
 			lonVal := lon.String
 			s.ServiceLongitude = &lonVal
+		}
+
+		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, s.ServiceLatitude, s.ServiceLongitude)
+		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+			continue
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)
