@@ -13,18 +13,22 @@ type GlobalSearchRequest struct {
 	SortOption     int       `json:"sort_option"`
 	OnSite         *bool     `json:"on_site,omitempty"`
 	Negotiable     *bool     `json:"negotiable,omitempty"`
+	Latitude       *float64  `json:"latitude,omitempty"`
+	Longitude      *float64  `json:"longitude,omitempty"`
+	RadiusKm       *float64  `json:"radius_km,omitempty"`
 	UserID         int       `json:"-"`
 }
 
 // GlobalSearchItem represents a single listing returned by the global search.
 type GlobalSearchItem struct {
-	Type    string   `json:"type"`
-	Service *Service `json:"service,omitempty"`
-	Ad      *Ad      `json:"ad,omitempty"`
-	Work    *Work    `json:"work,omitempty"`
-	WorkAd  *WorkAd  `json:"work_ad,omitempty"`
-	Rent    *Rent    `json:"rent,omitempty"`
-	RentAd  *RentAd  `json:"rent_ad,omitempty"`
+	Type     string   `json:"type"`
+	Distance *float64 `json:"distance,omitempty"`
+	Service  *Service `json:"service,omitempty"`
+	Ad       *Ad      `json:"ad,omitempty"`
+	Work     *Work    `json:"work,omitempty"`
+	WorkAd   *WorkAd  `json:"work_ad,omitempty"`
+	Rent     *Rent    `json:"rent,omitempty"`
+	RentAd   *RentAd  `json:"rent_ad,omitempty"`
 }
 
 // GlobalSearchResponse is a paginated response for the global search endpoint.
