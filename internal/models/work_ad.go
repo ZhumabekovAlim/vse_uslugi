@@ -73,14 +73,17 @@ type WorkAdListResponse struct {
 }
 
 type FilterWorkAdRequest struct {
-	CategoryIDs    []int   `json:"category_id"`
-	SubcategoryIDs []int   `json:"subcategory_id"`
-	PriceFrom      float64 `json:"price_from"`
-	PriceTo        float64 `json:"price_to"`
-	AvgRatings     []int   `json:"avg_rating"`
-	Sorting        int     `json:"sorting"` // 1 - by reviews, 2 - price desc, 3 - price asc
-	UserID         int     `json:"user_id,omitempty"`
-	CityID         int     `json:"city_id,omitempty"`
+	CategoryIDs    []int    `json:"category_id"`
+	SubcategoryIDs []int    `json:"subcategory_id"`
+	PriceFrom      float64  `json:"price_from"`
+	PriceTo        float64  `json:"price_to"`
+	AvgRatings     []int    `json:"avg_rating"`
+	Sorting        int      `json:"sorting"` // 1 - by reviews, 2 - price desc, 3 - price asc
+	UserID         int      `json:"user_id,omitempty"`
+	CityID         int      `json:"city_id,omitempty"`
+	Latitude       *float64 `json:"latitude,omitempty"`
+	Longitude      *float64 `json:"longitude,omitempty"`
+	RadiusKm       *float64 `json:"radius_km,omitempty"`
 }
 
 type FilteredWorkAd struct {
@@ -102,6 +105,7 @@ type FilteredWorkAd struct {
 	Videos            []Video       `json:"videos"`
 	WorkAdLatitude    string        `json:"latitude"`
 	WorkAdLongitude   string        `json:"longitude"`
+	Distance          *float64      `json:"distance,omitempty"`
 	Liked             bool          `json:"liked"`
 	Responded         bool          `json:"is_responded"`
 	Top               string        `json:"-"`

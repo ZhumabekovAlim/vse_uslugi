@@ -518,6 +518,17 @@ WHERE 1=1
 		if priceTo.Valid {
 			s.WorkAdPriceTo = &priceTo.Float64
 		}
+		var latPtr, lonPtr *string
+		if s.WorkAdLatitude != "" {
+			latPtr = &s.WorkAdLatitude
+		}
+		if s.WorkAdLongitude != "" {
+			lonPtr = &s.WorkAdLongitude
+		}
+		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, latPtr, lonPtr)
+		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+			continue
+		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)
 		}
@@ -699,6 +710,17 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 		}
 		if priceTo.Valid {
 			s.WorkAdPriceTo = &priceTo.Float64
+		}
+		var latPtr, lonPtr *string
+		if s.WorkAdLatitude != "" {
+			latPtr = &s.WorkAdLatitude
+		}
+		if s.WorkAdLongitude != "" {
+			lonPtr = &s.WorkAdLongitude
+		}
+		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, latPtr, lonPtr)
+		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+			continue
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)

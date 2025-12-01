@@ -547,11 +547,18 @@ WHERE 1=1
 		if priceTo.Valid {
 			s.RentPriceTo = &priceTo.Float64
 		}
+		var latPtr, lonPtr *string
 		if lat.Valid {
 			s.RentLatitude = lat.String
+			latPtr = &s.RentLatitude
 		}
 		if lon.Valid {
 			s.RentLongitude = lon.String
+			lonPtr = &s.RentLongitude
+		}
+		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, latPtr, lonPtr)
+		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+			continue
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)
@@ -743,11 +750,18 @@ WHERE 1=1
 		if priceTo.Valid {
 			s.RentPriceTo = &priceTo.Float64
 		}
+		var latPtr, lonPtr *string
 		if lat.Valid {
 			s.RentLatitude = lat.String
+			latPtr = &s.RentLatitude
 		}
 		if lon.Valid {
 			s.RentLongitude = lon.String
+			lonPtr = &s.RentLongitude
+		}
+		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, latPtr, lonPtr)
+		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+			continue
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)

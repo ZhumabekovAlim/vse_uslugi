@@ -525,11 +525,18 @@ WHERE 1=1
 		s.WorkPriceTo = floatFromNull(priceTo)
 		s.Negotiable = negotiable
 		s.HidePhone = hidePhone
+		var latPtr, lonPtr *string
 		if lat.Valid {
 			s.WorkLatitude = lat.String
+			latPtr = &s.WorkLatitude
 		}
 		if lon.Valid {
 			s.WorkLongitude = lon.String
+			lonPtr = &s.WorkLongitude
+		}
+		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, latPtr, lonPtr)
+		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+			continue
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)
@@ -714,11 +721,18 @@ WHERE 1=1
 		s.WorkPriceTo = floatFromNull(priceTo)
 		s.Negotiable = negotiable
 		s.HidePhone = hidePhone
+		var latPtr, lonPtr *string
 		if lat.Valid {
 			s.WorkLatitude = lat.String
+			latPtr = &s.WorkLatitude
 		}
 		if lon.Valid {
 			s.WorkLongitude = lon.String
+			lonPtr = &s.WorkLongitude
+		}
+		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, latPtr, lonPtr)
+		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+			continue
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
 			return nil, fmt.Errorf("failed to decode images json: %w", err)
