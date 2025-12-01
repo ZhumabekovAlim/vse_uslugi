@@ -86,7 +86,7 @@ func (r *BusinessRepository) CreateAccount(ctx context.Context, businessUserID i
 	if err != nil {
 		return models.BusinessAccount{}, err
 	}
-	return r.GetAccountByUserID(ctx, int(businessUserID))
+	return r.GetAccountByUserID(ctx, int(id))
 }
 
 func (r *BusinessRepository) AddSeats(ctx context.Context, businessUserID, seats int) error {
