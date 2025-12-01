@@ -544,6 +544,11 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 		if priceTo.Valid {
 			s.RentAdPriceTo = &priceTo.Float64
 		}
+
+		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, &s.RentAdLatitude, &s.RentAdLongitude)
+		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+			continue
+		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
 			s.UserReviewsCount = count
@@ -721,6 +726,11 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 		}
 		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
 			return nil, fmt.Errorf("failed to decode videos json: %w", err)
+		}
+
+		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, &s.RentAdLatitude, &s.RentAdLongitude)
+		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+			continue
 		}
 		s.Liked = likedStr == "1"
 		s.Responded = respondedStr == "1"
