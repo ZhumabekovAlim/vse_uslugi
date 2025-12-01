@@ -22,6 +22,8 @@
 | `sortOption`, `sort_option` | неотрицательное целое | нет | `0` | Код сортировки, передаваемый напрямую в репозитории. Неверные значения приводят к 0.【F:internal/handlers/global_search_handler.go†L74-L78】【F:internal/handlers/global_search_handler.go†L157-L165】|
 | `on_site` | `"yes"/"no"`, `"да"/"нет"`, `true/false/1/0` | нет | `null` | Фильтр только для типов `service` и `ad`. Принимает значения «да/yes» или «нет/no» в любом регистре; при пустом значении фильтр не применяется. Неверное значение приводит к 400.【F:internal/handlers/global_search_handler.go†L79-L94】【F:internal/models/global_search.go†L5-L14】【F:internal/services/global_search_service.go†L62-L90】|
 | `negotiable` | `"yes"/"no"`, `"да"/"нет"`, `true/false/1/0` | нет | `null` | Фильтр по признаку «договорная цена». Применяется ко всем типам, но для `service` и `ad` идёт вместе с `on_site`. Неверные значения приводят к 400.【F:internal/handlers/global_search_handler.go†L79-L94】【F:internal/models/global_search.go†L5-L14】【F:internal/services/global_search_service.go†L62-L136】|
+| `latitude` и `longitude` | числа с плавающей точкой | нет | — | Текущее местоположение пользователя. Если указаны оба значения, в ответе появится `distance`, вычисленное по формуле гаверсина. При передаче только одного из параметров вернётся 400.【F:internal/handlers/global_search_handler.go†L98-L136】【F:internal/services/global_search_service.go†L31-L56】【F:internal/services/global_search_service.go†L245-L268】|
+| `radius` | положительное число | нет | — | Радиус поиска в километрах. Работает только вместе с `latitude`/`longitude`: объявления без координат или находящиеся дальше радиуса будут отброшены.【F:internal/handlers/global_search_handler.go†L118-L136】【F:internal/services/global_search_service.go†L37-L56】【F:internal/services/global_search_service.go†L66-L138】|
 
 ## Формат ответа
 
@@ -46,6 +48,7 @@
 ```
 
 Каждый элемент `results` содержит поле `type` и ровно один заполненный объект сущности (`service`, `ad`, `work`, `work_ad`, `rent` или `rent_ad`). Пустые сущности опускаются благодаря `omitempty`. 【F:internal/models/global_search.go†L17-L34】
+При указании координат в запросе (`latitude`, `longitude`) возвращается дополнительное поле `distance` (в километрах), отражающее удалённость объявления от пользователя. Если координаты или координаты объявления недоступны, поле опускается.【F:internal/models/global_search.go†L17-L34】【F:internal/services/global_search_service.go†L31-L56】【F:internal/services/global_search_service.go†L245-L282】
 
 ## Ошибки и коды ответов
 

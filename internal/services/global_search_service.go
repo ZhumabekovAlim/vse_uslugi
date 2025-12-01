@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 	"sort"
@@ -42,6 +43,13 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 		page = 1
 	}
 
+	hasUserLocation := req.Latitude != nil && req.Longitude != nil
+	var userLat, userLon float64
+	if hasUserLocation {
+		userLat = *req.Latitude
+		userLon = *req.Longitude
+	}
+
 	perTypeLimit := limit * page
 	if perTypeLimit <= 0 {
 		perTypeLimit = limit
@@ -71,7 +79,13 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			}
 			for _, svc := range services {
 				svcCopy := svc
-				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Service: &svcCopy}, svc.Top, svc.CreatedAt, now))
+				distance := calculateDistanceKm(userLat, userLon, hasUserLocation, svcCopy.Latitude, svcCopy.Longitude)
+				if req.RadiusKm != nil && hasUserLocation {
+					if distance == nil || *distance > *req.RadiusKm {
+						continue
+					}
+				}
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Distance: distance, Service: &svcCopy}, svc.Top, svc.CreatedAt, now))
 			}
 		case "ad":
 			if s.AdRepo == nil {
@@ -83,7 +97,13 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			}
 			for _, ad := range ads {
 				adCopy := ad
-				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Ad: &adCopy}, ad.Top, ad.CreatedAt, now))
+				distance := calculateDistanceKm(userLat, userLon, hasUserLocation, adCopy.Latitude, adCopy.Longitude)
+				if req.RadiusKm != nil && hasUserLocation {
+					if distance == nil || *distance > *req.RadiusKm {
+						continue
+					}
+				}
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Distance: distance, Ad: &adCopy}, ad.Top, ad.CreatedAt, now))
 			}
 		case "work":
 			if s.WorkRepo == nil {
@@ -95,7 +115,14 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			}
 			for _, work := range works {
 				workCopy := work
-				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Work: &workCopy}, work.Top, work.CreatedAt, now))
+				lat, lon := workCopy.Latitude, workCopy.Longitude
+				distance := calculateDistanceKm(userLat, userLon, hasUserLocation, &lat, &lon)
+				if req.RadiusKm != nil && hasUserLocation {
+					if distance == nil || *distance > *req.RadiusKm {
+						continue
+					}
+				}
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Distance: distance, Work: &workCopy}, work.Top, work.CreatedAt, now))
 			}
 		case "work_ad":
 			if s.WorkAdRepo == nil {
@@ -107,7 +134,14 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			}
 			for _, workAd := range workAds {
 				workAdCopy := workAd
-				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, WorkAd: &workAdCopy}, workAd.Top, workAd.CreatedAt, now))
+				lat, lon := workAdCopy.Latitude, workAdCopy.Longitude
+				distance := calculateDistanceKm(userLat, userLon, hasUserLocation, &lat, &lon)
+				if req.RadiusKm != nil && hasUserLocation {
+					if distance == nil || *distance > *req.RadiusKm {
+						continue
+					}
+				}
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Distance: distance, WorkAd: &workAdCopy}, workAd.Top, workAd.CreatedAt, now))
 			}
 		case "rent":
 			if s.RentRepo == nil {
@@ -119,7 +153,14 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			}
 			for _, rent := range rents {
 				rentCopy := rent
-				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Rent: &rentCopy}, rent.Top, rent.CreatedAt, now))
+				lat, lon := rentCopy.Latitude, rentCopy.Longitude
+				distance := calculateDistanceKm(userLat, userLon, hasUserLocation, &lat, &lon)
+				if req.RadiusKm != nil && hasUserLocation {
+					if distance == nil || *distance > *req.RadiusKm {
+						continue
+					}
+				}
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Distance: distance, Rent: &rentCopy}, rent.Top, rent.CreatedAt, now))
 			}
 		case "rent_ad":
 			if s.RentAdRepo == nil {
@@ -131,7 +172,14 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			}
 			for _, rentAd := range rentAds {
 				rentAdCopy := rentAd
-				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, RentAd: &rentAdCopy}, rentAd.Top, rentAd.CreatedAt, now))
+				lat, lon := rentAdCopy.Latitude, rentAdCopy.Longitude
+				distance := calculateDistanceKm(userLat, userLon, hasUserLocation, &lat, &lon)
+				if req.RadiusKm != nil && hasUserLocation {
+					if distance == nil || *distance > *req.RadiusKm {
+						continue
+					}
+				}
+				entries = append(entries, newGlobalSearchEntry(listingType, models.GlobalSearchItem{Type: listingType, Distance: distance, RentAd: &rentAdCopy}, rentAd.Top, rentAd.CreatedAt, now))
 			}
 		default:
 			return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
@@ -213,4 +261,37 @@ func lessByTopState(a listingTopState, createdAtA time.Time, b listingTopState, 
 		return createdAtA.After(createdAtB)
 	}
 	return createdAtA.After(createdAtB)
+}
+
+func calculateDistanceKm(userLat, userLon float64, hasUserLocation bool, listingLat, listingLon *string) *float64 {
+	if !hasUserLocation || listingLat == nil || listingLon == nil {
+		return nil
+	}
+
+	latValue, err := strconv.ParseFloat(*listingLat, 64)
+	if err != nil {
+		return nil
+	}
+	lonValue, err := strconv.ParseFloat(*listingLon, 64)
+	if err != nil {
+		return nil
+	}
+
+	distance := haversineDistanceKm(userLat, userLon, latValue, lonValue)
+	return &distance
+}
+
+func haversineDistanceKm(lat1, lon1, lat2, lon2 float64) float64 {
+	const earthRadiusKm = 6371.0
+
+	dLat := (lat2 - lat1) * math.Pi / 180
+	dLon := (lon2 - lon1) * math.Pi / 180
+
+	lat1Rad := lat1 * math.Pi / 180
+	lat2Rad := lat2 * math.Pi / 180
+
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) + math.Sin(dLon/2)*math.Sin(dLon/2)*math.Cos(lat1Rad)*math.Cos(lat2Rad)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+	return earthRadiusKm * c
 }

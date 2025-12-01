@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -89,6 +91,18 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	latitude, longitude, err := parseCoordinates(r.URL.Query())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	radius, err := parseRadius(r.URL.Query().Get("radius"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	userID := extractUserIDFromRequest(r)
 
 	req := models.GlobalSearchRequest{
@@ -103,6 +117,9 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		SortOption:     sortOption,
 		OnSite:         onSite,
 		Negotiable:     negotiable,
+		Latitude:       latitude,
+		Longitude:      longitude,
+		RadiusKm:       radius,
 		UserID:         userID,
 	}
 
@@ -207,6 +224,46 @@ func parseBoolChoice(input string) (*bool, bool) {
 	default:
 		return nil, false
 	}
+}
+
+func parseCoordinates(values url.Values) (*float64, *float64, error) {
+	latParam := strings.TrimSpace(values.Get("latitude"))
+	lonParam := strings.TrimSpace(values.Get("longitude"))
+
+	if latParam == "" && lonParam == "" {
+		return nil, nil, nil
+	}
+
+	if latParam == "" || lonParam == "" {
+		return nil, nil, fmt.Errorf("both latitude and longitude must be provided")
+	}
+
+	lat, err := strconv.ParseFloat(latParam, 64)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid latitude")
+	}
+	lon, err := strconv.ParseFloat(lonParam, 64)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid longitude")
+	}
+
+	return &lat, &lon, nil
+}
+
+func parseRadius(input string) (*float64, error) {
+	if strings.TrimSpace(input) == "" {
+		return nil, nil
+	}
+
+	radius, err := strconv.ParseFloat(strings.TrimSpace(input), 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid radius")
+	}
+	if radius <= 0 {
+		return nil, fmt.Errorf("radius must be greater than zero")
+	}
+
+	return &radius, nil
 }
 
 func extractUserIDFromRequest(r *http.Request) int {
