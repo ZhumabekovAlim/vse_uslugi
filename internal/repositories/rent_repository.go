@@ -23,8 +23,8 @@ type RentRepository struct {
 
 func (r *RentRepository) CreateRent(ctx context.Context, rent models.Rent) (models.Rent, error) {
 	query := `
-    INSERT INTO rent (name, address, price, price_to, user_id, images, videos, category_id, subcategory_id, description, avg_rating, top, negotiable, hide_phone, liked, status, rent_type, deposit, latitude, longitude, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO rent (name, address, price, price_to, user_id, images, videos, category_id, subcategory_id, work_time_from, work_time_to, description, avg_rating, top, negotiable, hide_phone, liked, status, rent_type, deposit, latitude, longitude, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 
 	// Сохраняем images как JSON
@@ -61,6 +61,8 @@ func (r *RentRepository) CreateRent(ctx context.Context, rent models.Rent) (mode
 		string(videosJSON),
 		rent.CategoryID,
 		subcategory,
+		rent.WorkTimeFrom,
+		rent.WorkTimeTo,
 		rent.Description,
 		rent.AvgRating,
 		rent.Top,
@@ -88,7 +90,7 @@ func (r *RentRepository) CreateRent(ctx context.Context, rent models.Rent) (mode
 
 func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (models.Rent, error) {
 	query := `
-             SELECT w.id, w.name, w.address, w.price, w.price_to, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, sub.name_kz, w.description, w.avg_rating, w.top, w.negotiable, w.hide_phone, w.liked,
+             SELECT w.id, w.name, w.address, w.price, w.price_to, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, sub.name_kz, w.work_time_from, w.work_time_to, w.description, w.avg_rating, w.top, w.negotiable, w.hide_phone, w.liked,
 
                       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
 
@@ -111,7 +113,7 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
 
 		&s.UpdatedAt,
 	)
@@ -161,11 +163,11 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 
 func (r *RentRepository) UpdateRent(ctx context.Context, work models.Rent) (models.Rent, error) {
 	query := `
-        UPDATE rent
-        SET name = ?, address = ?, price = ?, price_to = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
-            description = ?, avg_rating = ?, top = ?, negotiable = ?, hide_phone = ?, liked = ?, status = ?, rent_type = ?, deposit = ?, latitude = ?, longitude = ?, updated_at = ?
-        WHERE id = ?
-    `
+UPDATE rent
+SET name = ?, address = ?, price = ?, price_to = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
+    work_time_from = ?, work_time_to = ?, description = ?, avg_rating = ?, top = ?, negotiable = ?, hide_phone = ?, liked = ?, status = ?, rent_type = ?, deposit = ?, latitude = ?, longitude = ?, updated_at = ?
+WHERE id = ?
+`
 	imagesJSON, err := json.Marshal(work.Images)
 	if err != nil {
 		return models.Rent{}, fmt.Errorf("failed to marshal images: %w", err)
@@ -185,7 +187,7 @@ func (r *RentRepository) UpdateRent(ctx context.Context, work models.Rent) (mode
 	}
 	result, err := r.DB.ExecContext(ctx, query,
 		work.Name, work.Address, price, priceTo, work.UserID, imagesJSON, videosJSON,
-		work.CategoryID, work.SubcategoryID, work.Description, work.AvgRating, work.Top, work.Negotiable, work.HidePhone, work.Liked, work.Status, work.RentType, work.Deposit, work.Latitude, work.Longitude, work.UpdatedAt, work.ID,
+		work.CategoryID, work.SubcategoryID, work.WorkTimeFrom, work.WorkTimeTo, work.Description, work.AvgRating, work.Top, work.Negotiable, work.HidePhone, work.Liked, work.Status, work.RentType, work.Deposit, work.Latitude, work.Longitude, work.UpdatedAt, work.ID,
 	)
 	if err != nil {
 		return models.Rent{}, err
@@ -245,7 +247,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 
 	baseQuery := `
 
-               SELECT s.id, s.name, s.address, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone, CASE WHEN sf.rent_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+       SELECT s.id, s.name, s.address, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.work_time_from, s.work_time_to, s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone, CASE WHEN sf.rent_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
 
                FROM rent s
                LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
@@ -338,7 +340,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &likedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &likedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
@@ -393,7 +395,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 
 func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]models.Rent, error) {
 	query := `
-               SELECT s.id, s.name, s.address, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+       SELECT s.id, s.name, s.address, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.work_time_from, s.work_time_to, s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM rent s
                 JOIN users u ON s.user_id = u.id
                 WHERE user_id = ?
@@ -414,7 +416,7 @@ func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]mo
 		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
+			&s.CategoryID, &s.SubcategoryID, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -464,7 +466,7 @@ SELECT
 
 u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.latitude, s.longitude,
+s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.work_time_from, s.work_time_to, s.description, s.latitude, s.longitude,
 COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at
 FROM rent s
@@ -537,7 +539,7 @@ WHERE 1=1
 		var imagesJSON, videosJSON []byte
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
-			&s.RentID, &s.RentName, &s.RentAddress, &price, &priceTo, &s.RentNegotiable, &s.RentHidePhone, &s.RentDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
+			&s.RentID, &s.RentName, &s.RentAddress, &price, &priceTo, &s.RentNegotiable, &s.RentHidePhone, &s.WorkTimeFrom, &s.WorkTimeTo, &s.RentDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -579,15 +581,15 @@ WHERE 1=1
 
 func (r *RentRepository) FetchByStatusAndUserID(ctx context.Context, userID int, status string) ([]models.Rent, error) {
 	query := `
-        SELECT
-                s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
-                u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                s.images, s.videos, s.category_id, s.subcategory_id, s.description,
-                s.avg_rating, s.top, s.liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude,
-                s.created_at, s.updated_at
-        FROM rent s
-        JOIN users u ON s.user_id = u.id
-        WHERE s.status = ? AND s.user_id = ?`
+SELECT
+        s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
+        u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+        s.images, s.videos, s.category_id, s.subcategory_id, s.work_time_from, s.work_time_to, s.description,
+        s.avg_rating, s.top, s.liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude,
+        s.created_at, s.updated_at
+FROM rent s
+JOIN users u ON s.user_id = u.id
+WHERE s.status = ? AND s.user_id = ?`
 
 	rows, err := r.DB.QueryContext(ctx, query, status, userID)
 	if err != nil {
@@ -605,7 +607,7 @@ func (r *RentRepository) FetchByStatusAndUserID(ctx context.Context, userID int,
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
-			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.WorkTimeFrom, &s.WorkTimeTo,
 			&s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
 			&s.UpdatedAt,
 		)
@@ -647,7 +649,7 @@ SELECT DISTINCT
 
 u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.latitude, s.longitude,
+s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.work_time_from, s.work_time_to, s.description, s.latitude, s.longitude,
 COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at,
 CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -739,7 +741,7 @@ WHERE 1=1
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.RentID, &s.RentName, &s.RentAddress, &price, &priceTo, &s.RentNegotiable, &s.RentHidePhone, &s.RentDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
+			&s.RentID, &s.RentName, &s.RentAddress, &price, &priceTo, &s.RentNegotiable, &s.RentHidePhone, &s.WorkTimeFrom, &s.WorkTimeTo, &s.RentDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -790,24 +792,24 @@ WHERE 1=1
 
 func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID int, userID int) (models.Rent, error) {
 	query := `
-            SELECT
-                    s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
-                    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                      CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
-                    s.images, s.videos, s.category_id, c.name,
-                       s.subcategory_id, sub.name, sub.name_kz,
-                       s.description, s.avg_rating, s.top,
-                       CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
-                       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-                       s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
-               FROM rent s
-               JOIN users u ON s.user_id = u.id
-               JOIN rent_categories c ON s.category_id = c.id
-               JOIN rent_subcategories sub ON s.subcategory_id = sub.id
-               LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
-               LEFT JOIN rent_responses sr ON sr.rent_id = s.id AND sr.user_id = ?
-               WHERE s.id = ?
-       `
+    SELECT
+    s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
+    u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+      CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
+    s.images, s.videos, s.category_id, c.name,
+       s.subcategory_id, sub.name, sub.name_kz, s.work_time_from, s.work_time_to,
+       s.description, s.avg_rating, s.top,
+       CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
+       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+       s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+       FROM rent s
+       JOIN users u ON s.user_id = u.id
+       JOIN rent_categories c ON s.category_id = c.id
+       JOIN rent_subcategories sub ON s.subcategory_id = sub.id
+       LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
+       LEFT JOIN rent_responses sr ON sr.rent_id = s.id AND sr.user_id = ?
+       WHERE s.id = ?
+`
 
 	var s models.Rent
 	var imagesJSON []byte
@@ -821,7 +823,7 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
 		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
-		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
+		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.WorkTimeFrom, &s.WorkTimeTo,
 		&s.Description, &s.AvgRating, &s.Top,
 		&likedStr, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 	)
