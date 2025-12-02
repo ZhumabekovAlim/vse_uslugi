@@ -42,6 +42,10 @@ type Work struct {
 	Schedule          string      `json:"schedule, omitempty"`
 	DistanceWork      string      `json:"distance_work,omitempty"`
 	PaymentPeriod     string      `json:"payment_period,omitempty"`
+	Languages         []string    `json:"languages"`
+	Education         string      `json:"education"`
+	WorkTimeFrom      string      `json:"work_time_from"`
+	WorkTimeTo        string      `json:"work_time_to"`
 	Latitude          string      `json:"latitude,omitempty"`
 	Longitude         string      `json:"longitude,omitempty"`
 	CreatedAt         time.Time   `json:"created_at"`
@@ -102,6 +106,10 @@ type FilteredWork struct {
 	WorkDescription  string      `json:"work_description"`
 	Images           []ImageWork `json:"images"`
 	Videos           []Video     `json:"videos"`
+	Languages        []string    `json:"languages"`
+	Education        string      `json:"education"`
+	WorkTimeFrom     string      `json:"work_time_from"`
+	WorkTimeTo       string      `json:"work_time_to"`
 	WorkLatitude     string      `json:"latitude"`
 	WorkLongitude    string      `json:"longitude"`
 	Distance         *float64    `json:"distance,omitempty"`

@@ -445,10 +445,27 @@ func (h *WorkHandler) CreateWork(w http.ResponseWriter, r *http.Request) {
 	service.Schedule = r.FormValue("schedule")
 	service.DistanceWork = r.FormValue("distance_work")
 	service.PaymentPeriod = r.FormValue("payment_period")
+	languages := r.Form["languages"]
+	if len(languages) == 0 {
+		languages = r.Form["languages[]"]
+	}
+	if len(languages) == 0 {
+		service.Languages = []string{"Казахский", "Русский"}
+	} else {
+		service.Languages = languages
+	}
+	service.Education = r.FormValue("education")
+	service.WorkTimeFrom = r.FormValue("work_time_from")
+	service.WorkTimeTo = r.FormValue("work_time_to")
 	service.Latitude = r.FormValue("latitude")
 	service.Longitude = r.FormValue("longitude")
 	service.HidePhone = parseBoolFlag(r.FormValue("hide_phone"))
 	service.CreatedAt = time.Now()
+
+	if service.Education == "" || service.WorkTimeFrom == "" || service.WorkTimeTo == "" {
+		http.Error(w, "education, work_time_from and work_time_to are required", http.StatusBadRequest)
+		return
+	}
 
 	// Сохраняем изображения
 	saveDir := "cmd/uploads/works"
@@ -671,6 +688,20 @@ func (h *WorkHandler) UpdateWork(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, ok := r.MultipartForm.Value["payment_period"]; ok {
 		service.PaymentPeriod = r.FormValue("payment_period")
+	}
+	if v, ok := r.MultipartForm.Value["languages"]; ok {
+		service.Languages = v
+	} else if v, ok := r.MultipartForm.Value["languages[]"]; ok {
+		service.Languages = v
+	}
+	if _, ok := r.MultipartForm.Value["education"]; ok {
+		service.Education = r.FormValue("education")
+	}
+	if _, ok := r.MultipartForm.Value["work_time_from"]; ok {
+		service.WorkTimeFrom = r.FormValue("work_time_from")
+	}
+	if _, ok := r.MultipartForm.Value["work_time_to"]; ok {
+		service.WorkTimeTo = r.FormValue("work_time_to")
 	}
 	if _, ok := r.MultipartForm.Value["latitude"]; ok {
 		service.Latitude = r.FormValue("latitude")
