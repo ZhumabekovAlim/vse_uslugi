@@ -422,6 +422,8 @@ func (h *RentAdHandler) CreateRentAd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
+	service.WorkTimeFrom = r.FormValue("work_time_from")
+	service.WorkTimeTo = r.FormValue("work_time_to")
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.RentType = r.FormValue("rent_type")
 	service.Deposit = r.FormValue("deposit")
@@ -648,6 +650,12 @@ func (h *RentAdHandler) UpdateRentAd(w http.ResponseWriter, r *http.Request) {
 	}
 	if v, ok := r.MultipartForm.Value["subcategory_id"]; ok {
 		service.SubcategoryID, _ = strconv.Atoi(v[0])
+	}
+	if _, ok := r.MultipartForm.Value["work_time_from"]; ok {
+		service.WorkTimeFrom = r.FormValue("work_time_from")
+	}
+	if _, ok := r.MultipartForm.Value["work_time_to"]; ok {
+		service.WorkTimeTo = r.FormValue("work_time_to")
 	}
 	if v, ok := r.MultipartForm.Value["avg_rating"]; ok {
 		service.AvgRating, _ = strconv.ParseFloat(v[0], 64)
