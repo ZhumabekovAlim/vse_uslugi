@@ -433,9 +433,11 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing user_id", http.StatusBadRequest)
 		return
 	}
-	service.Description = r.FormValue("description")
-	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
-	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
+        service.Description = r.FormValue("description")
+        service.WorkTimeFrom = r.FormValue("work_time_from")
+        service.WorkTimeTo = r.FormValue("work_time_to")
+        service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
+        service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.Top = r.FormValue("top")
 	service.Status = normalizeListingStatus(r.FormValue("status"))
@@ -677,12 +679,18 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	if v, ok := r.MultipartForm.Value["user_id"]; ok {
 		service.UserID, _ = strconv.Atoi(v[0])
 	}
-	if _, ok := r.MultipartForm.Value["description"]; ok {
-		service.Description = r.FormValue("description")
-	}
-	if v, ok := r.MultipartForm.Value["category_id"]; ok {
-		service.CategoryID, _ = strconv.Atoi(v[0])
-	}
+        if _, ok := r.MultipartForm.Value["description"]; ok {
+                service.Description = r.FormValue("description")
+        }
+        if _, ok := r.MultipartForm.Value["work_time_from"]; ok {
+                service.WorkTimeFrom = r.FormValue("work_time_from")
+        }
+        if _, ok := r.MultipartForm.Value["work_time_to"]; ok {
+                service.WorkTimeTo = r.FormValue("work_time_to")
+        }
+        if v, ok := r.MultipartForm.Value["category_id"]; ok {
+                service.CategoryID, _ = strconv.Atoi(v[0])
+        }
 	if v, ok := r.MultipartForm.Value["subcategory_id"]; ok {
 		service.SubcategoryID, _ = strconv.Atoi(v[0])
 	}
