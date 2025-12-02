@@ -195,6 +195,17 @@ func parseStringArrayWorkAd(input string) []string {
 	return strings.Split(input, ",")
 }
 
+func parseLanguages(input string) []string {
+	if input == "" {
+		return nil
+	}
+	var langs []string
+	if err := json.Unmarshal([]byte(input), &langs); err == nil {
+		return langs
+	}
+	return parseStringArrayWorkAd(input)
+}
+
 func (h *WorkAdHandler) GetWorksAdSorted(w http.ResponseWriter, r *http.Request) {
 	sortStr := r.URL.Query().Get(":type")
 	sortOption, err := strconv.Atoi(sortStr)
@@ -396,6 +407,14 @@ func (h *WorkAdHandler) CreateWorkAd(w http.ResponseWriter, r *http.Request) {
 	var service models.WorkAd
 	service.Name = r.FormValue("name")
 	service.Address = r.FormValue("address")
+	service.Languages = parseLanguages(r.FormValue("languages"))
+	service.Education = r.FormValue("education")
+	service.FirstName = r.FormValue("first_name")
+	service.LastName = r.FormValue("last_name")
+	service.BirthDate = r.FormValue("birth_date")
+	service.ContactNumber = r.FormValue("contact_number")
+	service.WorkTimeFrom = r.FormValue("work_time_from")
+	service.WorkTimeTo = r.FormValue("work_time_to")
 	if priceStr := r.FormValue("price"); priceStr != "" {
 		price, err := strconv.ParseFloat(priceStr, 64)
 		if err != nil {
@@ -467,6 +486,14 @@ func (h *WorkAdHandler) CreateWorkAd(w http.ResponseWriter, r *http.Request) {
 	service.Latitude = r.FormValue("latitude")
 	service.Longitude = r.FormValue("longitude")
 	service.CreatedAt = time.Now()
+
+	if len(service.Languages) == 0 {
+		service.Languages = []string{"Казахский", "Русский"}
+	}
+	if service.Education == "" || service.FirstName == "" || service.LastName == "" || service.BirthDate == "" || service.ContactNumber == "" || service.WorkTimeFrom == "" || service.WorkTimeTo == "" {
+		http.Error(w, "Missing required profile fields", http.StatusBadRequest)
+		return
+	}
 
 	// Сохраняем изображения
 	saveDir := "cmd/uploads/worksad"
@@ -722,6 +749,33 @@ func (h *WorkAdHandler) UpdateWorkAd(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, ok := r.MultipartForm.Value["payment_period"]; ok {
 		service.PaymentPeriod = r.FormValue("payment_period")
+	}
+	if v, ok := r.MultipartForm.Value["languages"]; ok {
+		service.Languages = parseLanguages(v[0])
+		if len(service.Languages) == 0 {
+			service.Languages = []string{"Казахский", "Русский"}
+		}
+	}
+	if _, ok := r.MultipartForm.Value["education"]; ok {
+		service.Education = r.FormValue("education")
+	}
+	if _, ok := r.MultipartForm.Value["first_name"]; ok {
+		service.FirstName = r.FormValue("first_name")
+	}
+	if _, ok := r.MultipartForm.Value["last_name"]; ok {
+		service.LastName = r.FormValue("last_name")
+	}
+	if _, ok := r.MultipartForm.Value["birth_date"]; ok {
+		service.BirthDate = r.FormValue("birth_date")
+	}
+	if _, ok := r.MultipartForm.Value["contact_number"]; ok {
+		service.ContactNumber = r.FormValue("contact_number")
+	}
+	if _, ok := r.MultipartForm.Value["work_time_from"]; ok {
+		service.WorkTimeFrom = r.FormValue("work_time_from")
+	}
+	if _, ok := r.MultipartForm.Value["work_time_to"]; ok {
+		service.WorkTimeTo = r.FormValue("work_time_to")
 	}
 	if _, ok := r.MultipartForm.Value["latitude"]; ok {
 		service.Latitude = r.FormValue("latitude")
