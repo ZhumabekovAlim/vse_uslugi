@@ -36,6 +36,14 @@ type WorkAd struct {
 	SubcategoryName   string        `json:"subcategory_name"`
 	SubcategoryNameKz string        `json:"subcategory_name_kz"`
 	WorkExperience    string        `json:"work_experience,omitempty"`
+	Languages         []string      `json:"languages"`
+	Education         string        `json:"education"`
+	FirstName         string        `json:"first_name"`
+	LastName          string        `json:"last_name"`
+	BirthDate         string        `json:"birth_date"`
+	ContactNumber     string        `json:"contact_number"`
+	WorkTimeFrom      string        `json:"work_time_from"`
+	WorkTimeTo        string        `json:"work_time_to"`
 	CityID            int           `json:"city_id"`
 	CityName          string        `json:"city_name"`
 	CityType          string        `json:"city_type"`
@@ -110,5 +118,13 @@ type FilteredWorkAd struct {
 	Responded         bool          `json:"is_responded"`
 	Top               string        `json:"-"`
 	HidePhone         bool          `json:"hide_phone"`
+	Languages         []string      `json:"languages"`
+	Education         string        `json:"education"`
+	FirstName         string        `json:"first_name"`
+	LastName          string        `json:"last_name"`
+	BirthDate         string        `json:"birth_date"`
+	ContactNumber     string        `json:"contact_number"`
+	WorkTimeFrom      string        `json:"work_time_from"`
+	WorkTimeTo        string        `json:"work_time_to"`
 	CreatedAt         time.Time     `json:"-"`
 }

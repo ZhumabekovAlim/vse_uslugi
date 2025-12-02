@@ -1,0 +1,9 @@
+ALTER TABLE work_ad
+    DROP COLUMN work_time_to,
+    DROP COLUMN work_time_from,
+    DROP COLUMN contact_number,
+    DROP COLUMN birth_date,
+    DROP COLUMN last_name,
+    DROP COLUMN first_name,
+    DROP COLUMN education,
+    DROP COLUMN languages;
