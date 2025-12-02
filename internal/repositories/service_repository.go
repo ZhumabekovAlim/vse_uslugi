@@ -23,8 +23,8 @@ type ServiceRepository struct {
 
 func (r *ServiceRepository) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
-    INSERT INTO service (name, address, on_site, price, price_to, negotiable, hide_phone, user_id, images, videos, category_id, subcategory_id, description, avg_rating, top, liked, status, latitude, longitude, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO service (name, address, on_site, price, price_to, negotiable, hide_phone, user_id, images, videos, category_id, subcategory_id, work_time_from, work_time_to, description, avg_rating, top, liked, status, latitude, longitude, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
 	// Сохраняем images как JSON
 	imagesJSON, err := json.Marshal(service.Images)
@@ -75,6 +75,8 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		string(videosJSON),
 		service.CategoryID,
 		subcategory,
+		service.WorkTimeFrom,
+		service.WorkTimeTo,
 		service.Description,
 		service.AvgRating,
 		service.Top,
@@ -102,7 +104,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
                 u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                   CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                   s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
-                  s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked,
+                  s.work_time_from, s.work_time_to, s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked,
                   CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                   s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                FROM service s
@@ -124,7 +126,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
-		&s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &respondedStr,
+		&s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &respondedStr,
 		&lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
 
@@ -175,7 +177,7 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
 	query := `
     UPDATE service
     SET name = ?, address = ?, on_site = ?, price = ?, price_to = ?, negotiable = ?, hide_phone = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
-        description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, latitude = ?, longitude = ?, updated_at = ?
+        work_time_from = ?, work_time_to = ?, description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, latitude = ?, longitude = ?, updated_at = ?
     WHERE id = ?
 `
 	imagesJSON, err := json.Marshal(service.Images)
@@ -209,7 +211,7 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
 
 	result, err := r.DB.ExecContext(ctx, query,
 		service.Name, service.Address, service.OnSite, price, priceTo, service.Negotiable, service.HidePhone, service.UserID, imagesJSON, videosJSON,
-		service.CategoryID, service.SubcategoryID, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, latitude, longitude, service.UpdatedAt, service.ID,
+		service.CategoryID, service.SubcategoryID, service.WorkTimeFrom, service.WorkTimeTo, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, latitude, longitude, service.UpdatedAt, service.ID,
 	)
 	if err != nil {
 		return models.Service{}, err
@@ -270,7 +272,8 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	baseQuery := `
           SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id,
                  u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-                    s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone,
+                    s.images, s.videos, s.category_id, s.subcategory_id, s.description,
+                    s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.negotiable, s.hide_phone,
                     s.latitude, s.longitude,
 
              CASE WHEN sf.service_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -373,7 +376,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &lat, &lon, &likedStr, &s.Status,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &lat, &lon, &likedStr, &s.Status,
 
 			&s.CreatedAt, &s.UpdatedAt,
 		)
@@ -430,7 +433,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 
 func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
 	query := `
-       SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
+       SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
           FROM service s
           JOIN users u ON s.user_id = u.id
           WHERE user_id = ?
@@ -451,7 +454,7 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &s.Status, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
+			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &s.Status, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -502,7 +505,8 @@ SELECT
 
 u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.latitude, s.longitude,
+s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.description,
+s.work_time_from, s.work_time_to, s.latitude, s.longitude,
 COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at
 FROM service s
@@ -576,7 +580,7 @@ WHERE 1=1
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServiceOnSite, &price, &priceTo, &s.ServiceNegotiable, &s.ServiceHidePhone, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
+			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServiceOnSite, &price, &priceTo, &s.ServiceNegotiable, &s.ServiceHidePhone, &s.ServiceDescription, &s.WorkTimeFrom, &s.WorkTimeTo, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -622,7 +626,7 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
             s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id,
             u.id, u.name, u.surname, u.review_rating, u.avatar_path,
             s.images, s.videos, s.category_id, s.subcategory_id, s.description,
-            s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked, s.status, s.latitude, s.longitude,
+            s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked, s.status, s.latitude, s.longitude,
             s.created_at, s.updated_at
         FROM service s
         JOIN users u ON s.user_id = u.id
@@ -645,7 +649,7 @@ func (r *ServiceRepository) FetchByStatusAndUserID(ctx context.Context, userID i
 			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID,
 			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID,
-			&s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &s.Status, &lat, &lon,
+			&s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &s.Status, &lat, &lon,
 			&s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
@@ -686,7 +690,8 @@ SELECT DISTINCT
 
 u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.latitude, s.longitude,
+s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.description,
+s.work_time_from, s.work_time_to, s.latitude, s.longitude,
 COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at,
 CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -771,7 +776,7 @@ WHERE 1=1
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServiceOnSite, &price, &priceTo, &s.ServiceNegotiable, &s.ServiceHidePhone, &s.ServiceDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
+			&s.ServiceID, &s.ServiceName, &s.ServiceAddress, &s.ServiceOnSite, &price, &priceTo, &s.ServiceNegotiable, &s.ServiceHidePhone, &s.ServiceDescription, &s.WorkTimeFrom, &s.WorkTimeTo, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -828,7 +833,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
                        CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                        s.images, s.videos, s.category_id, c.name,
                        s.subcategory_id, sub.name, sub.name_kz,
-                       s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone,
+                       s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.negotiable, s.hide_phone,
                        CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
                        CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                        s.latitude, s.longitude, s.status, s.created_at, s.updated_at
@@ -854,7 +859,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
-		&s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone,
+		&s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone,
 		&likedStr, &respondedStr, &lat, &lon, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 	)
 

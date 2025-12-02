@@ -27,8 +27,10 @@ type Ad struct {
 	Videos            []Video    `json:"videos"`
 	CategoryID        int        `json:"category_id, omitempty"`
 	SubcategoryID     int        `json:"subcategory_id, omitempty"`
-	Description       string     `json:"description"`
-	AvgRating         float64    `json:"avg_rating"`
+        Description       string     `json:"description"`
+        WorkTimeFrom      string     `json:"work_time_from"`
+        WorkTimeTo        string     `json:"work_time_to"`
+        AvgRating         float64    `json:"avg_rating"`
 	Top               string     `json:"top, omitempty"`
 	Liked             bool       `json:"liked, omitempty"`
 	Responded         bool       `json:"is_responded"`
@@ -95,7 +97,9 @@ type FilteredAd struct {
 	AdPriceTo        *float64  `json:"price_to"`
 	AdNegotiable     bool      `json:"negotiable"`
 	AdHidePhone      bool      `json:"hide_phone"`
-	AdDescription    string    `json:"ad_description"`
+        AdDescription    string    `json:"ad_description"`
+        WorkTimeFrom     string    `json:"work_time_from"`
+        WorkTimeTo       string    `json:"work_time_to"`
 	Images           []ImageAd `json:"images"`
 	Videos           []Video   `json:"videos"`
 	AdLatitude       *string   `json:"latitude"`

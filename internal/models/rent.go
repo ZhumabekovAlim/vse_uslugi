@@ -26,8 +26,10 @@ type Rent struct {
 	Videos            []Video     `json:"videos"`
 	CategoryID        int         `json:"category_id, omitempty"`
 	SubcategoryID     int         `json:"subcategory_id, omitempty"`
-	Description       string      `json:"description"`
-	AvgRating         float64     `json:"avg_rating"`
+        Description       string      `json:"description"`
+        WorkTimeFrom      string      `json:"work_time_from"`
+        WorkTimeTo        string      `json:"work_time_to"`
+        AvgRating         float64     `json:"avg_rating"`
 	Top               string      `json:"top, omitempty"`
 	Liked             bool        `json:"liked, omitempty"`
 	Responded         bool        `json:"is_responded"`
@@ -95,7 +97,9 @@ type FilteredRent struct {
 	RentPriceTo      *float64    `json:"rent_price_to"`
 	RentNegotiable   bool        `json:"negotiable"`
 	RentHidePhone    bool        `json:"hide_phone"`
-	RentDescription  string      `json:"rent_description"`
+        RentDescription  string      `json:"rent_description"`
+        WorkTimeFrom     string      `json:"work_time_from"`
+        WorkTimeTo       string      `json:"work_time_to"`
 	Images           []ImageRent `json:"images"`
 	Videos           []Video     `json:"videos"`
 	RentLatitude     string      `json:"latitude"`

@@ -27,8 +27,10 @@ type Service struct {
 	Videos            []Video    `json:"videos"`
 	CategoryID        int        `json:"category_id, omitempty"`
 	SubcategoryID     int        `json:"subcategory_id, omitempty"`
-	Description       string     `json:"description"`
-	AvgRating         float64    `json:"avg_rating"`
+        Description       string     `json:"description"`
+        WorkTimeFrom      string     `json:"work_time_from"`
+        WorkTimeTo        string     `json:"work_time_to"`
+        AvgRating         float64    `json:"avg_rating"`
 	Top               string     `json:"top, omitempty"`
 	Liked             bool       `json:"liked, omitempty"`
 	Responded         bool       `json:"is_responded"`
@@ -102,7 +104,9 @@ type FilteredService struct {
 	ServiceOnSite      bool      `json:"on_site"`
 	ServiceNegotiable  bool      `json:"negotiable"`
 	ServiceHidePhone   bool      `json:"hide_phone"`
-	ServiceDescription string    `json:"service_description"`
+        ServiceDescription string    `json:"service_description"`
+        WorkTimeFrom       string    `json:"work_time_from"`
+        WorkTimeTo         string    `json:"work_time_to"`
 	Images             []Image   `json:"images"`
 	Videos             []Video   `json:"videos"`
 	ServiceLatitude    *string   `json:"latitude"`
