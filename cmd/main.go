@@ -142,10 +142,13 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	allowedOrigins := map[string]struct{}{
-		"http://localhost:3000": {},
-		"http://localhost:3001": {},
-		"http://localhost:5173": {},
-		"http://localhost:5174": {},
+		"http://localhost:3000":         {},
+		"http://localhost:3001":         {},
+		"http://localhost:5173":         {},
+		"http://localhost:5174":         {},
+		"https://admin.barlyqqyzmet.kz": {},
+		"https://barlyqqyzmet.kz":       {},
+		"https://www.barlyqqyzmet.kz":   {},
 	}
 
 	c := cors.New(cors.Options{
