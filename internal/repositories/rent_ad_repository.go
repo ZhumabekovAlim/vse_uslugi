@@ -330,7 +330,7 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 	// Sorting
 	switch sortOption {
 	case 1:
-		baseQuery += ` ORDER BY ( SELECT COUNT(*) FROM rent_ad_reviews r WHERE r.rent_ad_id = s.id) DESC `
+		baseQuery += ` ORDER BY s.created_at ASC`
 
 	case 2:
 		baseQuery += ` ORDER BY s.price ASC`

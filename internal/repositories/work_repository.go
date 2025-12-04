@@ -363,7 +363,7 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
 	// Sorting
 	switch sortOption {
 	case 1:
-		baseQuery += ` ORDER BY ( SELECT COUNT(*) FROM work_reviews r WHERE r.work_id = s.id) DESC `
+		baseQuery += ` ORDER BY s.created_at ASC`
 
 	case 2:
 		baseQuery += ` ORDER BY s.price ASC`

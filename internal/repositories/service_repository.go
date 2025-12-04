@@ -344,7 +344,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	// Sorting
 	switch sortOption {
 	case 1:
-		baseQuery += ` ORDER BY ( SELECT COUNT(*) FROM reviews r WHERE r.service_id = s.id) DESC `
+		baseQuery += ` ORDER BY s.created_at ASC`
 
 	case 2:
 		baseQuery += ` ORDER BY s.price ASC`

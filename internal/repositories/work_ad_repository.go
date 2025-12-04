@@ -363,8 +363,7 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 	// Sorting
 	switch sortOption {
 	case 1:
-		baseQuery += ` ORDER BY ( SELECT COUNT(*) FROM work_ad_reviews r WHERE r.work_ad_id = s.id) DESC `
-
+		baseQuery += ` ORDER BY s.created_at ASC`
 	case 2:
 		baseQuery += ` ORDER BY s.price ASC`
 	case 3:
