@@ -497,6 +497,11 @@ WHERE 1=1
 		args = append(args, req.PriceFrom, req.PriceTo)
 	}
 
+	if req.Negotiable != nil {
+		query += " AND s.negotiable = ?"
+		args = append(args, *req.Negotiable)
+	}
+
 	if req.CityID > 0 {
 		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
@@ -527,6 +532,32 @@ WHERE 1=1
 		sort.Ints(req.AvgRatings)
 		query += " AND s.avg_rating >= ?"
 		args = append(args, float64(req.AvgRatings[0]))
+	}
+
+	if len(req.RentTypes) > 0 {
+		placeholders := strings.Repeat("?,", len(req.RentTypes))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.rent_type IN (%s)", placeholders)
+		for _, rentType := range req.RentTypes {
+			args = append(args, rentType)
+		}
+	}
+
+	if len(req.Deposits) > 0 {
+		placeholders := strings.Repeat("?,", len(req.Deposits))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.deposit IN (%s)", placeholders)
+		for _, deposit := range req.Deposits {
+			args = append(args, deposit)
+		}
+	}
+
+	if req.TwentyFourSeven {
+		query += " AND ((s.work_time_from = '00:00' AND s.work_time_to = '23:59') OR (s.work_time_from = '00:00:00' AND s.work_time_to = '23:59:59'))"
+	}
+
+	if req.OpenNow {
+		query += " AND TIME(NOW()) BETWEEN TIME(s.work_time_from) AND TIME(s.work_time_to)"
 	}
 
 	// Sorting
@@ -685,6 +716,11 @@ WHERE 1=1
 		args = append(args, req.PriceFrom, req.PriceTo)
 	}
 
+	if req.Negotiable != nil {
+		query += " AND s.negotiable = ?"
+		args = append(args, *req.Negotiable)
+	}
+
 	if req.CityID > 0 {
 		query += " AND u.city_id = ?"
 		args = append(args, req.CityID)
@@ -718,6 +754,32 @@ WHERE 1=1
 		log.Printf("[DEBUG] Filtering by minimum AvgRating: %.2f", float64(req.AvgRatings[0]))
 		query += " AND s.avg_rating >= ?"
 		args = append(args, float64(req.AvgRatings[0]))
+	}
+
+	if len(req.RentTypes) > 0 {
+		placeholders := strings.Repeat("?,", len(req.RentTypes))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.rent_type IN (%s)", placeholders)
+		for _, rentType := range req.RentTypes {
+			args = append(args, rentType)
+		}
+	}
+
+	if len(req.Deposits) > 0 {
+		placeholders := strings.Repeat("?,", len(req.Deposits))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.deposit IN (%s)", placeholders)
+		for _, deposit := range req.Deposits {
+			args = append(args, deposit)
+		}
+	}
+
+	if req.TwentyFourSeven {
+		query += " AND ((s.work_time_from = '00:00' AND s.work_time_to = '23:59') OR (s.work_time_from = '00:00:00' AND s.work_time_to = '23:59:59'))"
+	}
+
+	if req.OpenNow {
+		query += " AND TIME(NOW()) BETWEEN TIME(s.work_time_from) AND TIME(s.work_time_to)"
 	}
 
 	// Sorting

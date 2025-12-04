@@ -26,10 +26,10 @@ type Rent struct {
 	Videos            []Video     `json:"videos"`
 	CategoryID        int         `json:"category_id, omitempty"`
 	SubcategoryID     int         `json:"subcategory_id, omitempty"`
-        Description       string      `json:"description"`
-        WorkTimeFrom      string      `json:"work_time_from"`
-        WorkTimeTo        string      `json:"work_time_to"`
-        AvgRating         float64     `json:"avg_rating"`
+	Description       string      `json:"description"`
+	WorkTimeFrom      string      `json:"work_time_from"`
+	WorkTimeTo        string      `json:"work_time_to"`
+	AvgRating         float64     `json:"avg_rating"`
 	Top               string      `json:"top, omitempty"`
 	Liked             bool        `json:"liked, omitempty"`
 	Responded         bool        `json:"is_responded"`
@@ -69,17 +69,22 @@ type RentListResponse struct {
 }
 
 type FilterRentRequest struct {
-	CategoryIDs    []int    `json:"category_id"`
-	SubcategoryIDs []int    `json:"subcategory_id"`
-	PriceFrom      float64  `json:"price_from"`
-	PriceTo        float64  `json:"price_to"`
-	AvgRatings     []int    `json:"avg_rating"`
-	Sorting        int      `json:"sorting"` // 1 - by reviews, 2 - price desc, 3 - price asc
-	UserID         int      `json:"user_id,omitempty"`
-	CityID         int      `json:"city_id,omitempty"`
-	Latitude       *float64 `json:"latitude,omitempty"`
-	Longitude      *float64 `json:"longitude,omitempty"`
-	RadiusKm       *float64 `json:"radius_km,omitempty"`
+	CategoryIDs     []int    `json:"category_id"`
+	SubcategoryIDs  []int    `json:"subcategory_id"`
+	PriceFrom       float64  `json:"price_from"`
+	PriceTo         float64  `json:"price_to"`
+	AvgRatings      []int    `json:"avg_rating"`
+	Negotiable      *bool    `json:"negotiable,omitempty"`
+	RentTypes       []string `json:"rent_type"`
+	Deposits        []string `json:"deposit"`
+	OpenNow         bool     `json:"open_now"`
+	TwentyFourSeven bool     `json:"twenty_four_seven"`
+	Sorting         int      `json:"sorting"` // 1 - by reviews, 2 - price desc, 3 - price asc
+	UserID          int      `json:"user_id,omitempty"`
+	CityID          int      `json:"city_id,omitempty"`
+	Latitude        *float64 `json:"latitude,omitempty"`
+	Longitude       *float64 `json:"longitude,omitempty"`
+	RadiusKm        *float64 `json:"radius_km,omitempty"`
 }
 
 type FilteredRent struct {
@@ -97,9 +102,9 @@ type FilteredRent struct {
 	RentPriceTo      *float64    `json:"rent_price_to"`
 	RentNegotiable   bool        `json:"negotiable"`
 	RentHidePhone    bool        `json:"hide_phone"`
-        RentDescription  string      `json:"rent_description"`
-        WorkTimeFrom     string      `json:"work_time_from"`
-        WorkTimeTo       string      `json:"work_time_to"`
+	RentDescription  string      `json:"rent_description"`
+	WorkTimeFrom     string      `json:"work_time_from"`
+	WorkTimeTo       string      `json:"work_time_to"`
 	Images           []ImageRent `json:"images"`
 	Videos           []Video     `json:"videos"`
 	RentLatitude     string      `json:"latitude"`
