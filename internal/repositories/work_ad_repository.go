@@ -821,6 +821,7 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 	var s models.WorkAd
 	var imagesJSON []byte
 	var videosJSON []byte
+	var languagesJSON []byte
 
 	var likedStr, respondedStr string
 
@@ -832,7 +833,7 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&likedStr, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.Languages,
+		&likedStr, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &languagesJSON,
 	)
 
 	if err == sql.ErrNoRows {
@@ -851,6 +852,12 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 	if len(videosJSON) > 0 {
 		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
 			return models.WorkAd{}, fmt.Errorf("failed to decode videos json: %w", err)
+		}
+	}
+
+	if len(languagesJSON) > 0 {
+		if err := json.Unmarshal(languagesJSON, &s.Languages); err != nil {
+			return models.WorkAd{}, fmt.Errorf("json decode error: %w", err)
 		}
 	}
 

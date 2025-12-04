@@ -47,7 +47,7 @@ type WorkAd struct {
 	CityID            int           `json:"city_id"`
 	CityName          string        `json:"city_name"`
 	CityType          string        `json:"city_type"`
-	Schedule          string        `json:"schedule, omitempty"`
+	Schedule          string        `json:"schedule,omitempty"`
 	DistanceWork      string        `json:"distance_work,omitempty"`
 	PaymentPeriod     string        `json:"payment_period,omitempty"`
 	Latitude          string        `json:"latitude,omitempty"`
