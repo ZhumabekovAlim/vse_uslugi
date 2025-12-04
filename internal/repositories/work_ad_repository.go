@@ -807,7 +807,7 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
                        s.description, s.avg_rating, s.top,
               CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
               CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-              s.status, s.work_experience, u.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at, s.work_time_from, s.work_time_to, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number
+              s.status, s.work_experience, u.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.latitude, s.longitude, s.created_at, s.updated_at, s.work_time_from, s.work_time_to, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.languages
                 FROM work_ad s
                 JOIN users u ON s.user_id = u.id
                 JOIN work_categories c ON s.category_id = c.id
@@ -832,7 +832,7 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
 		&s.Description, &s.AvgRating, &s.Top,
-		&likedStr, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber,
+		&likedStr, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.Languages,
 	)
 
 	if err == sql.ErrNoRows {
