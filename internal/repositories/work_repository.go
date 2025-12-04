@@ -821,7 +821,7 @@ u.id, u.name, u.surname, u.review_rating, u.avatar_path,
    s.description, s.avg_rating, s.top,
       CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
-      s.status, s.work_experience, u.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.hide_phone, s.created_at, s.updated_at
+      s.status, s.work_experience, u.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.hide_phone, s.created_at, s.updated_at, s.work_time_from, s.work_time_to
      FROM work s
      JOIN users u ON s.user_id = u.id
      JOIN work_categories c ON s.category_id = c.id
@@ -848,7 +848,7 @@ u.id, u.name, u.surname, u.review_rating, u.avatar_path,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
 		&s.Description, &s.AvgRating, &s.Top,
-		&likedStr, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &hidePhone, &s.CreatedAt, &s.UpdatedAt,
+		&likedStr, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &hidePhone, &s.CreatedAt, &s.UpdatedAt, &s.WorkTimeFrom, &s.WorkTimeTo,
 	)
 
 	if err == sql.ErrNoRows {
