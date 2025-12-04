@@ -76,8 +76,7 @@ func gatherStringsFromForm(form *multipart.Form, keys ...string) ([]string, bool
 		return nil, false, nil
 	}
 
-
-	result := parseStringList(rawValues)
+	result := parseStringValues(rawValues)
 	if len(result) == 0 {
 		return nil, false, nil
 	}
@@ -131,7 +130,7 @@ func gatherStringsFromFormFiles(form *multipart.Form, keys ...string) ([]string,
 		return nil, false, nil
 	}
 
-	result := parseStringList(rawValues)
+	result := parseStringValues(rawValues)
 	if len(result) == 0 {
 		return nil, false, nil
 	}
@@ -181,7 +180,7 @@ func isTextualContentType(contentType string) bool {
 	return false
 }
 
-func parseStringList(rawValues []string) []string {
+func parseStringValues(rawValues []string) []string {
 	var result []string
 
 	for _, raw := range rawValues {
