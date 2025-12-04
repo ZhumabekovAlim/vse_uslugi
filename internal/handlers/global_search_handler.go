@@ -79,6 +79,29 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		sortOption = parsePositiveIntAllowZero(r.URL.Query().Get("sort_option"))
 	}
 
+	rentTypes := parseStringList(r.URL.Query().Get("rent_types"))
+	deposits := parseStringList(r.URL.Query().Get("deposits"))
+	workExperience := parseStringList(r.URL.Query().Get("work_experience"))
+	workSchedules := parseStringList(r.URL.Query().Get("work_schedule"))
+	if len(workSchedules) == 0 {
+		workSchedules = parseStringList(r.URL.Query().Get("work_schedules"))
+	}
+	paymentPeriods := parseStringList(r.URL.Query().Get("payment_period"))
+	if len(paymentPeriods) == 0 {
+		paymentPeriods = parseStringList(r.URL.Query().Get("payment_periods"))
+	}
+	languages := parseStringList(r.URL.Query().Get("languages"))
+	educations := parseStringList(r.URL.Query().Get("education"))
+	if len(educations) == 0 {
+		educations = parseStringList(r.URL.Query().Get("educations"))
+	}
+
+	remoteWork, ok := parseBoolChoice(r.URL.Query().Get("remote"))
+	if !ok {
+		http.Error(w, "invalid remote value", http.StatusBadRequest)
+		return
+	}
+
 	onSite, ok := parseBoolChoice(r.URL.Query().Get("on_site"))
 	if !ok {
 		http.Error(w, "invalid on_site value", http.StatusBadRequest)
@@ -117,6 +140,14 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		SortOption:     sortOption,
 		OnSite:         onSite,
 		Negotiable:     negotiable,
+		RentTypes:      rentTypes,
+		Deposits:       deposits,
+		WorkExperience: workExperience,
+		WorkSchedules:  workSchedules,
+		PaymentPeriods: paymentPeriods,
+		RemoteWork:     remoteWork,
+		Languages:      languages,
+		Educations:     educations,
 		Latitude:       latitude,
 		Longitude:      longitude,
 		RadiusKm:       radius,
@@ -203,6 +234,25 @@ func parseFloat(input string) float64 {
 		return value
 	}
 	return 0
+}
+
+func parseStringList(input string) []string {
+	if input == "" {
+		return nil
+	}
+	parts := strings.Split(input, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		result = append(result, trimmed)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 // parseBoolChoice returns a pointer to bool when the input represents a yes/no choice.
