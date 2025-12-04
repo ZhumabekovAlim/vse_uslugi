@@ -553,6 +553,24 @@ WHERE 1=1
 		args = append(args, float64(req.AvgRatings[0]))
 	}
 
+	if req.Negotiable != nil {
+		query += " AND s.negotiable = ?"
+		args = append(args, *req.Negotiable)
+	}
+
+	if req.OnSite != nil {
+		query += " AND s.on_site = ?"
+		args = append(args, *req.OnSite)
+	}
+
+	if req.TwentyFourSeven {
+		query += " AND ((s.work_time_from = '00:00' AND s.work_time_to = '23:59') OR (s.work_time_from = '00:00:00' AND s.work_time_to = '23:59:59'))"
+	}
+
+	if req.OpenNow {
+		query += " AND TIME(NOW()) BETWEEN TIME(s.work_time_from) AND TIME(s.work_time_to)"
+	}
+
 	// Sorting
 	switch req.Sorting {
 	case 1:
@@ -741,6 +759,24 @@ WHERE 1=1
 		sort.Ints(req.AvgRatings)
 		query += " AND s.avg_rating >= ?"
 		args = append(args, float64(req.AvgRatings[0]))
+	}
+
+	if req.Negotiable != nil {
+		query += " AND s.negotiable = ?"
+		args = append(args, *req.Negotiable)
+	}
+
+	if req.OnSite != nil {
+		query += " AND s.on_site = ?"
+		args = append(args, *req.OnSite)
+	}
+
+	if req.TwentyFourSeven {
+		query += " AND ((s.work_time_from = '00:00' AND s.work_time_to = '23:59') OR (s.work_time_from = '00:00:00' AND s.work_time_to = '23:59:59'))"
+	}
+
+	if req.OpenNow {
+		query += " AND TIME(NOW()) BETWEEN TIME(s.work_time_from) AND TIME(s.work_time_to)"
 	}
 
 	// Sorting
