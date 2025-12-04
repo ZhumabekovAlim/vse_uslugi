@@ -521,7 +521,7 @@ SELECT
 
 u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.languages, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.work_time_from, s.work_time_to, s.latitude, s.longitude,
+s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.work_experience, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.work_time_from, s.work_time_to, s.latitude, s.longitude,
 COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at
 FROM work_ad s
@@ -568,6 +568,55 @@ WHERE 1=1
 		args = append(args, float64(req.AvgRatings[0]))
 	}
 
+	if req.NegotiableOnly {
+		query += " AND s.negotiable = 1"
+	}
+
+	if len(req.WorkExperiences) > 0 {
+		placeholders := strings.Repeat("?,", len(req.WorkExperiences))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.work_experience IN (%s)", placeholders)
+		for _, item := range req.WorkExperiences {
+			args = append(args, item)
+		}
+	}
+
+	if len(req.Schedules) > 0 {
+		placeholders := strings.Repeat("?,", len(req.Schedules))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.schedule IN (%s)", placeholders)
+		for _, item := range req.Schedules {
+			args = append(args, item)
+		}
+	}
+
+	if len(req.PaymentPeriods) > 0 {
+		placeholders := strings.Repeat("?,", len(req.PaymentPeriods))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.payment_period IN (%s)", placeholders)
+		for _, item := range req.PaymentPeriods {
+			args = append(args, item)
+		}
+	}
+
+	if len(req.RemoteOptions) > 0 {
+		placeholders := strings.Repeat("?,", len(req.RemoteOptions))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.distance_work IN (%s)", placeholders)
+		for _, item := range req.RemoteOptions {
+			args = append(args, item)
+		}
+	}
+
+	if len(req.Educations) > 0 {
+		placeholders := strings.Repeat("?,", len(req.Educations))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.education IN (%s)", placeholders)
+		for _, item := range req.Educations {
+			args = append(args, item)
+		}
+	}
+
 	// Sorting
 	switch req.Sorting {
 	case 1:
@@ -578,6 +627,12 @@ WHERE 1=1
 		query += " ORDER BY s.price ASC"
 	default:
 		query += " ORDER BY s.created_at DESC"
+	}
+
+	radiusKm := req.RadiusKm
+	if req.Nearby && radiusKm == nil && req.Latitude != nil && req.Longitude != nil {
+		defaultRadius := 5.0
+		radiusKm = &defaultRadius
 	}
 
 	rows, err := r.DB.QueryContext(ctx, query, args...)
@@ -593,7 +648,7 @@ WHERE 1=1
 		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
-			&s.WorkAdID, &s.WorkAdName, &s.WorkAdAddress, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.WorkAdDescription, &languagesJSON, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.WorkTimeFrom, &s.WorkTimeTo, &s.WorkAdLatitude, &s.WorkAdLongitude,
+			&s.WorkAdID, &s.WorkAdName, &s.WorkAdAddress, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.WorkAdDescription, &s.WorkExperience, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.WorkTimeFrom, &s.WorkTimeTo, &s.WorkAdLatitude, &s.WorkAdLongitude,
 			&imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -612,7 +667,7 @@ WHERE 1=1
 			lonPtr = &s.WorkAdLongitude
 		}
 		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, latPtr, lonPtr)
-		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+		if radiusKm != nil && (s.Distance == nil || *s.Distance > *radiusKm) {
 			continue
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
@@ -625,6 +680,15 @@ WHERE 1=1
 			if err := json.Unmarshal(languagesJSON, &s.Languages); err != nil {
 				return nil, fmt.Errorf("failed to decode languages json: %w", err)
 			}
+		}
+		if len(req.Languages) > 0 && !matchesLanguageFilter(req.Languages, s.Languages) {
+			continue
+		}
+		if req.TwentyFourSeven && !isRoundTheClock(s.WorkTimeFrom, s.WorkTimeTo) {
+			continue
+		}
+		if req.OpenNow && !isCurrentlyOpen(s.WorkTimeFrom, s.WorkTimeTo, time.Now()) {
+			continue
 		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
@@ -706,7 +770,7 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 
            u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-           s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.latitude, s.longitude,
+           s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.description, s.work_experience, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.work_time_from, s.work_time_to, s.latitude, s.longitude,
        COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
        s.top, s.created_at,
            CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -761,6 +825,55 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 		args = append(args, float64(req.AvgRatings[0]))
 	}
 
+	if req.NegotiableOnly {
+		query += " AND s.negotiable = 1"
+	}
+
+	if len(req.WorkExperiences) > 0 {
+		placeholders := strings.Repeat("?,", len(req.WorkExperiences))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.work_experience IN (%s)", placeholders)
+		for _, item := range req.WorkExperiences {
+			args = append(args, item)
+		}
+	}
+
+	if len(req.Schedules) > 0 {
+		placeholders := strings.Repeat("?,", len(req.Schedules))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.schedule IN (%s)", placeholders)
+		for _, item := range req.Schedules {
+			args = append(args, item)
+		}
+	}
+
+	if len(req.PaymentPeriods) > 0 {
+		placeholders := strings.Repeat("?,", len(req.PaymentPeriods))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.payment_period IN (%s)", placeholders)
+		for _, item := range req.PaymentPeriods {
+			args = append(args, item)
+		}
+	}
+
+	if len(req.RemoteOptions) > 0 {
+		placeholders := strings.Repeat("?,", len(req.RemoteOptions))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.distance_work IN (%s)", placeholders)
+		for _, item := range req.RemoteOptions {
+			args = append(args, item)
+		}
+	}
+
+	if len(req.Educations) > 0 {
+		placeholders := strings.Repeat("?,", len(req.Educations))
+		placeholders = placeholders[:len(placeholders)-1]
+		query += fmt.Sprintf(" AND s.education IN (%s)", placeholders)
+		for _, item := range req.Educations {
+			args = append(args, item)
+		}
+	}
+
 	// Sorting
 	switch req.Sorting {
 	case 1:
@@ -775,6 +888,12 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 	default:
 		query += " ORDER BY s.created_at DESC"
 		log.Println("[DEBUG] Sorting by created_at DESC (default)")
+	}
+
+	radiusKm := req.RadiusKm
+	if req.Nearby && radiusKm == nil && req.Latitude != nil && req.Longitude != nil {
+		defaultRadius := 5.0
+		radiusKm = &defaultRadius
 	}
 
 	rows, err := r.DB.QueryContext(ctx, query, args...)
@@ -794,10 +913,11 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 		var imagesJSON, videosJSON []byte
 		var likedStr, respondedStr string
 		var price, priceTo sql.NullFloat64
+		var languagesJSON []byte
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.WorkAdID, &s.WorkAdName, &s.WorkAdAddress, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.WorkAdDescription, &s.WorkAdLatitude, &s.WorkAdLongitude, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
+			&s.WorkAdID, &s.WorkAdName, &s.WorkAdAddress, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.WorkAdDescription, &s.WorkExperience, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.WorkTimeFrom, &s.WorkTimeTo, &s.WorkAdLatitude, &s.WorkAdLongitude, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -816,7 +936,7 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 			lonPtr = &s.WorkAdLongitude
 		}
 		s.Distance = calculateDistanceKm(req.Latitude, req.Longitude, latPtr, lonPtr)
-		if req.RadiusKm != nil && (s.Distance == nil || *s.Distance > *req.RadiusKm) {
+		if radiusKm != nil && (s.Distance == nil || *s.Distance > *radiusKm) {
 			continue
 		}
 		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
@@ -825,8 +945,22 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
 			return nil, fmt.Errorf("failed to decode videos json: %w", err)
 		}
+		if len(languagesJSON) > 0 {
+			if err := json.Unmarshal(languagesJSON, &s.Languages); err != nil {
+				return nil, fmt.Errorf("failed to decode languages json: %w", err)
+			}
+		}
 		s.Liked = likedStr == "1"
 		s.Responded = respondedStr == "1"
+		if len(req.Languages) > 0 && !matchesLanguageFilter(req.Languages, s.Languages) {
+			continue
+		}
+		if req.TwentyFourSeven && !isRoundTheClock(s.WorkTimeFrom, s.WorkTimeTo) {
+			continue
+		}
+		if req.OpenNow && !isCurrentlyOpen(s.WorkTimeFrom, s.WorkTimeTo, time.Now()) {
+			continue
+		}
 		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
 		if err == nil {
 			s.UserReviewsCount = count

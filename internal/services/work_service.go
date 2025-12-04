@@ -95,6 +95,7 @@ func (s *WorkService) GetFilteredWorks(ctx context.Context, filter models.WorkFi
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		return models.WorkListResponse{}, err
