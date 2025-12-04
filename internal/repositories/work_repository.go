@@ -24,7 +24,7 @@ type WorkRepository struct {
 func (r *WorkRepository) CreateWork(ctx context.Context, work models.Work) (models.Work, error) {
 	query := `
 INSERT INTO work (name, address, price, price_to, negotiable, user_id, images, videos, category_id, subcategory_id, description, avg_rating, top, liked, status, work_experience, city_id, schedule, distance_work, payment_period, languages, education, work_time_from, work_time_to, latitude, longitude, hide_phone, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	imagesJSON, err := json.Marshal(work.Images)
