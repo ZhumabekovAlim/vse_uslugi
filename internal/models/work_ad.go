@@ -81,17 +81,27 @@ type WorkAdListResponse struct {
 }
 
 type FilterWorkAdRequest struct {
-	CategoryIDs    []int    `json:"category_id"`
-	SubcategoryIDs []int    `json:"subcategory_id"`
-	PriceFrom      float64  `json:"price_from"`
-	PriceTo        float64  `json:"price_to"`
-	AvgRatings     []int    `json:"avg_rating"`
-	Sorting        int      `json:"sorting"` // 1 - by reviews, 2 - price desc, 3 - price asc
-	UserID         int      `json:"user_id,omitempty"`
-	CityID         int      `json:"city_id,omitempty"`
-	Latitude       *float64 `json:"latitude,omitempty"`
-	Longitude      *float64 `json:"longitude,omitempty"`
-	RadiusKm       *float64 `json:"radius_km,omitempty"`
+	CategoryIDs     []int    `json:"category_id"`
+	SubcategoryIDs  []int    `json:"subcategory_id"`
+	PriceFrom       float64  `json:"price_from"`
+	PriceTo         float64  `json:"price_to"`
+	AvgRatings      []int    `json:"avg_rating"`
+	NegotiableOnly  bool     `json:"negotiable_only"`
+	TwentyFourSeven bool     `json:"twenty_four_seven"`
+	Nearby          bool     `json:"nearby"`
+	OpenNow         bool     `json:"open_now"`
+	WorkExperiences []string `json:"work_experience"`
+	Schedules       []string `json:"schedule"`
+	PaymentPeriods  []string `json:"payment_period"`
+	RemoteOptions   []string `json:"distance_work"`
+	Languages       []string `json:"languages"`
+	Educations      []string `json:"education"`
+	Sorting         int      `json:"sorting"` // 1 - by reviews, 2 - price desc, 3 - price asc
+	UserID          int      `json:"user_id,omitempty"`
+	CityID          int      `json:"city_id,omitempty"`
+	Latitude        *float64 `json:"latitude,omitempty"`
+	Longitude       *float64 `json:"longitude,omitempty"`
+	RadiusKm        *float64 `json:"radius_km,omitempty"`
 }
 
 type FilteredWorkAd struct {
@@ -111,6 +121,10 @@ type FilteredWorkAd struct {
 	WorkAdDescription string        `json:"workad_description"`
 	Images            []ImageWorkAd `json:"images"`
 	Videos            []Video       `json:"videos"`
+	WorkExperience    string        `json:"work_experience,omitempty"`
+	Schedule          string        `json:"schedule,omitempty"`
+	DistanceWork      string        `json:"distance_work,omitempty"`
+	PaymentPeriod     string        `json:"payment_period,omitempty"`
 	WorkAdLatitude    string        `json:"latitude"`
 	WorkAdLongitude   string        `json:"longitude"`
 	Distance          *float64      `json:"distance,omitempty"`
