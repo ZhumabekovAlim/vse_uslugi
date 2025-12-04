@@ -13,6 +13,14 @@ type GlobalSearchRequest struct {
 	SortOption     int       `json:"sort_option"`
 	OnSite         *bool     `json:"on_site,omitempty"`
 	Negotiable     *bool     `json:"negotiable,omitempty"`
+	RentTypes      []string  `json:"rent_types,omitempty"`
+	Deposits       []string  `json:"deposits,omitempty"`
+	WorkExperience []string  `json:"work_experience,omitempty"`
+	WorkSchedules  []string  `json:"work_schedules,omitempty"`
+	PaymentPeriods []string  `json:"payment_periods,omitempty"`
+	RemoteWork     *bool     `json:"remote_work,omitempty"`
+	Languages      []string  `json:"languages,omitempty"`
+	Educations     []string  `json:"educations,omitempty"`
 	Latitude       *float64  `json:"latitude,omitempty"`
 	Longitude      *float64  `json:"longitude,omitempty"`
 	RadiusKm       *float64  `json:"radius_km,omitempty"`

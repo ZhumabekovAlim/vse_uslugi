@@ -243,7 +243,7 @@ func (r *WorkAdRepository) ArchiveByUserID(ctx context.Context, userID int) erro
 	_, err := r.DB.ExecContext(ctx, `UPDATE work_ad SET status = 'archive', updated_at = ? WHERE user_id = ?`, time.Now(), userID)
 	return err
 }
-func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool) ([]models.WorkAd, float64, float64, error) {
+func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool, experience []string, schedules []string, paymentPeriods []string, remoteWork *bool, languages []string, educations []string) ([]models.WorkAd, float64, float64, error) {
 	var (
 		works_ad   []models.WorkAd
 		params     []interface{}
@@ -287,6 +287,55 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 	if negotiable != nil {
 		conditions = append(conditions, "s.negotiable = ?")
 		params = append(params, *negotiable)
+	}
+
+	if len(experience) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(experience)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.work_experience IN (%s)", placeholders))
+		for _, value := range experience {
+			params = append(params, value)
+		}
+	}
+
+	if len(schedules) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(schedules)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.schedule IN (%s)", placeholders))
+		for _, value := range schedules {
+			params = append(params, value)
+		}
+	}
+
+	if len(paymentPeriods) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(paymentPeriods)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.payment_period IN (%s)", placeholders))
+		for _, value := range paymentPeriods {
+			params = append(params, value)
+		}
+	}
+
+	if remoteWork != nil {
+		if *remoteWork {
+			conditions = append(conditions, "s.distance_work = ?")
+			params = append(params, "Удаленно")
+		} else {
+			conditions = append(conditions, "(s.distance_work IS NULL OR s.distance_work <> ?)")
+			params = append(params, "Удаленно")
+		}
+	}
+
+	if len(languages) > 0 {
+		for _, lang := range languages {
+			conditions = append(conditions, "s.languages LIKE ?")
+			params = append(params, "%"+lang+"%")
+		}
+	}
+
+	if len(educations) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(educations)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.education IN (%s)", placeholders))
+		for _, value := range educations {
+			params = append(params, value)
+		}
 	}
 
 	if priceFrom > 0 {

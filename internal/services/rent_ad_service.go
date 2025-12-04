@@ -72,6 +72,8 @@ func (s *RentAdService) GetFilteredRentsAd(ctx context.Context, filter models.Re
 		filter.Limit,
 		offset,
 		nil,
+		nil,
+		nil,
 	)
 	if err != nil {
 		return models.RentAdListResponse{}, err

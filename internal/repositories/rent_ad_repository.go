@@ -243,7 +243,7 @@ func (r *RentAdRepository) ArchiveByUserID(ctx context.Context, userID int) erro
 	_, err := r.DB.ExecContext(ctx, `UPDATE rent_ad SET status = 'archive', updated_at = ? WHERE user_id = ?`, time.Now(), userID)
 	return err
 }
-func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool) ([]models.RentAd, float64, float64, error) {
+func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool, rentTypes []string, deposits []string) ([]models.RentAd, float64, float64, error) {
 	var (
 		rents      []models.RentAd
 		params     []interface{}
@@ -287,6 +287,22 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 	if negotiable != nil {
 		conditions = append(conditions, "s.negotiable = ?")
 		params = append(params, *negotiable)
+	}
+
+	if len(rentTypes) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(rentTypes)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.rent_type IN (%s)", placeholders))
+		for _, rentType := range rentTypes {
+			params = append(params, rentType)
+		}
+	}
+
+	if len(deposits) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(deposits)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.deposit IN (%s)", placeholders))
+		for _, deposit := range deposits {
+			params = append(params, deposit)
+		}
 	}
 
 	if priceFrom > 0 {
