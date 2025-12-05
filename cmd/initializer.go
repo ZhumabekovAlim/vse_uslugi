@@ -328,7 +328,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	workAdConfirmationService := &services.WorkAdConfirmationService{ConfirmationRepo: &workAdConfirmationRepo}
 	rentConfirmationService := &services.RentConfirmationService{ConfirmationRepo: &rentConfirmationRepo}
 	rentAdConfirmationService := &services.RentAdConfirmationService{ConfirmationRepo: &rentAdConfirmationRepo}
-chatService := &services.ChatService{ChatRepo: &chatRepo, BusinessRepo: &businessRepo}
+	chatService := &services.ChatService{ChatRepo: &chatRepo, BusinessRepo: &businessRepo}
 	// authService := &services.AuthService{DB: db}
 
 	// Handlers
@@ -371,6 +371,7 @@ chatService := &services.ChatService{ChatRepo: &chatRepo, BusinessRepo: &busines
 	subscriptionHandler := &handlers.SubscriptionHandler{Service: subscriptionService}
 	airbapayHandler := handlers.NewAirbapayHandler(airbapayService, invoiceRepo, &subscriptionRepo)
 	airbapayHandler.TopService = topService
+	airbapayHandler.BusinessService = businessService
 	locationHandler := &handlers.LocationHandler{Service: locationService}
 	assistantHandler := handlers.NewAssistantHandler(assistantService)
 	topHandler := &handlers.TopHandler{Service: topService, InvoiceRepo: invoiceRepo, PaymentService: airbapayService}
