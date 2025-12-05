@@ -30,6 +30,7 @@ type NotificationRequest struct {
 	Link     string `json:"link"`
 	Param1   string `json:"param1"`
 	Param2   string `json:"param2"`
+	Stack    string `json:"stack"`
 }
 
 type Token struct {
@@ -41,7 +42,7 @@ func NewFCMHandler(client *messaging.Client, db *sql.DB) *FCMHandler {
 	return &FCMHandler{Client: client, DB: db}
 }
 
-func (h *FCMHandler) SendMessage(ctx context.Context, token string, UserId, sender, receiver int, title, body, link, param1, param2 string) error {
+func (h *FCMHandler) SendMessage(ctx context.Context, token string, UserId, sender, receiver int, title, body, link, param1, param2, stack string) error {
 	message := &messaging.Message{
 		Token: token,
 		Notification: &messaging.Notification{
@@ -52,6 +53,7 @@ func (h *FCMHandler) SendMessage(ctx context.Context, token string, UserId, send
 			"link":   link,
 			"param1": param1,
 			"param2": param2,
+			"stack":  stack,
 		},
 		Android: &messaging.AndroidConfig{
 			Priority: "high",
@@ -105,7 +107,7 @@ func (h *FCMHandler) NotifyChange(w http.ResponseWriter, r *http.Request) {
 
 	// Send notifications to each token
 	for _, token := range tokens {
-		err = h.SendMessage(ctx, token, req.UserId, req.Sender, req.Receiver, req.Title, req.Body, req.Link, req.Param1, req.Param2)
+		err = h.SendMessage(ctx, token, req.UserId, req.Sender, req.Receiver, req.Title, req.Body, req.Link, req.Param1, req.Param2, req.Stack)
 		if err != nil {
 			log.Printf("Error sending notification to token %s: %v", token, err)
 		}
@@ -235,7 +237,7 @@ func (h *FCMHandler) NotifyChangeForAll(w http.ResponseWriter, r *http.Request) 
 
 	// Send notification to each token
 	for _, token := range tokens {
-		err := h.SendMessage(ctx, token, req.UserId, req.Sender, req.Receiver, req.Title, req.Body, req.Link, req.Param1, req.Param2)
+		err := h.SendMessage(ctx, token, req.UserId, req.Sender, req.Receiver, req.Title, req.Body, req.Link, req.Param1, req.Param2, req.Stack)
 		if err != nil {
 			log.Printf("Error sending notification to token %s: %v", token, err)
 		}
