@@ -26,6 +26,7 @@ const (
 	invoiceTargetCourierFunds  = "courier_balance"
 	invoiceTargetSubscription  = "subscription_purchase"
 	invoiceTargetTopActivation = "top_activation"
+	invoiceTargetBusiness      = "business_purchase"
 )
 
 type AirbapayHandler struct {
@@ -33,6 +34,7 @@ type AirbapayHandler struct {
 	InvoiceRepo      *repositories.InvoiceRepo
 	SubscriptionRepo *repositories.SubscriptionRepository
 	TopService       *services.TopService
+	BusinessService  *services.BusinessService
 	TaxiMux          http.Handler
 	TaxiDeps         *taxi.TaxiDeps
 	CourierDeps      *courier.Deps
@@ -76,6 +78,9 @@ func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) 
 			Type   string `json:"type"`
 			Months int    `json:"months"`
 		} `json:"subscription,omitempty"`
+		Business *struct {
+			Seats int `json:"seats"`
+		} `json:"business,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -117,6 +122,20 @@ func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	if req.Business != nil {
+		if req.Business.Seats <= 0 {
+			http.Error(w, "business seats must be positive", http.StatusBadRequest)
+			return
+		}
+		if req.Amount <= 0 {
+			http.Error(w, "amount must be positive", http.StatusBadRequest)
+			return
+		}
+		if strings.TrimSpace(req.Description) == "" {
+			req.Description = "Бизнес аккаунт"
+		}
+	}
+
 	invID, err := h.InvoiceRepo.CreateInvoice(r.Context(), req.UserID, req.Amount, req.Description)
 	if err != nil {
 		http.Error(w, "create invoice: "+err.Error(), http.StatusInternalServerError)
@@ -136,6 +155,15 @@ func (h *AirbapayHandler) CreatePayment(w http.ResponseWriter, r *http.Request) 
 	}
 	if subscriptionTarget != nil {
 		if _, err := h.InvoiceRepo.AddTarget(r.Context(), invID, invoiceTargetSubscription, int64(req.UserID), subscriptionTarget); err != nil {
+			http.Error(w, "store invoice target: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	if req.Business != nil {
+		businessPayload, _ := json.Marshal(map[string]any{
+			"seats": req.Business.Seats,
+		})
+		if _, err := h.InvoiceRepo.AddTarget(r.Context(), invID, invoiceTargetBusiness, int64(req.UserID), businessPayload); err != nil {
 			http.Error(w, "store invoice target: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -230,7 +258,7 @@ func (h *AirbapayHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		if err := h.applyInvoiceReward(r.Context(), invoice); err != nil {
 			fmt.Println("airbapay: apply reward failed:", err)
 		}
-		if err := h.processInvoiceTargets(r.Context(), invoice); err != nil {
+		if err := h.processInvoiceTargets(r.Context(), invoice, payload); err != nil {
 			fmt.Println("airbapay: process invoice targets failed:", err)
 		}
 	case "failure", "failed", "cancelled", "rejected", "error":
@@ -269,7 +297,7 @@ func (h *AirbapayHandler) applyInvoiceReward(ctx context.Context, invoice models
 	}
 }
 
-func (h *AirbapayHandler) processInvoiceTargets(ctx context.Context, invoice models.Invoice) error {
+func (h *AirbapayHandler) processInvoiceTargets(ctx context.Context, invoice models.Invoice, payload *services.WebhookPayload) error {
 	targets, err := h.InvoiceRepo.ListTargets(ctx, invoice.ID)
 	if err != nil {
 		return err
@@ -281,7 +309,7 @@ func (h *AirbapayHandler) processInvoiceTargets(ctx context.Context, invoice mod
 			continue
 		}
 
-		if err := h.executeInvoiceTarget(ctx, invoice, target); err != nil {
+		if err := h.executeInvoiceTarget(ctx, invoice, target, payload); err != nil {
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -300,7 +328,7 @@ func (h *AirbapayHandler) processInvoiceTargets(ctx context.Context, invoice mod
 	return firstErr
 }
 
-func (h *AirbapayHandler) executeInvoiceTarget(ctx context.Context, invoice models.Invoice, target models.InvoiceTarget) error {
+func (h *AirbapayHandler) executeInvoiceTarget(ctx context.Context, invoice models.Invoice, target models.InvoiceTarget, payload *services.WebhookPayload) error {
 	amount := invoiceTargetAmount(invoice.Amount, target.Payload)
 	if amount <= 0 {
 		return fmt.Errorf("invalid target amount")
@@ -352,6 +380,36 @@ func (h *AirbapayHandler) executeInvoiceTarget(ctx context.Context, invoice mode
 		}
 		if _, err := h.TopService.ActivateTop(ctx, invoice.UserID, data); err != nil {
 			return fmt.Errorf("activate top: %w", err)
+		}
+	case invoiceTargetBusiness:
+		if h.BusinessService == nil {
+			return fmt.Errorf("business service not configured")
+		}
+		var data struct {
+			Seats int `json:"seats"`
+		}
+		if err := json.Unmarshal(target.Payload, &data); err != nil {
+			return fmt.Errorf("business payload: %w", err)
+		}
+		if data.Seats <= 0 {
+			return fmt.Errorf("business payload: seats must be positive")
+		}
+		provider := "airbapay"
+		state := "paid"
+		req := services.PurchaseRequest{ //nolint:exhaustruct
+			Seats:         data.Seats,
+			Provider:      &provider,
+			ProviderTxnID: nil,
+			State:         &state,
+			Amount:        &invoice.Amount,
+		}
+		if payload != nil {
+			req.ProviderTxnID = &payload.ID
+			req.State = &payload.Status
+			req.Payload = payload.Raw
+		}
+		if _, err := h.BusinessService.PurchaseSeats(ctx, invoice.UserID, req); err != nil {
+			return fmt.Errorf("activate business: %w", err)
 		}
 	default:
 		// Unknown target types are ignored to keep backward compatibility.
