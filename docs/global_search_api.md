@@ -1,6 +1,6 @@
 # Глобальный поиск объявлений `/search/global`
 
-Маршрут `GET /search/global` агрегирует результаты из всех доменных сущностей платформы (услуги, объявления, работа, аренда и т.д.) и возвращает единый список, отсортированный по активности «топ»-продвижения и дате создания. Маршрут зарегистрирован в `cmd/routes.go` и оборачивается стандартным middleware-стеком: `mux.Get("/search/global", standardMiddleware.ThenFunc(app.globalSearchHandler.Search))`.【F:cmd/routes.go†L197-L197】
+Маршрут `GET /search/global` агрегирует результаты из всех доменных сущностей платформы (услуги, объявления, работа, аренда и т.д.) и возвращает единый список, отсортированный по активности «топ»-продвижения и дате создания. Если в запросе одновременно переданы `latitude`, `longitude` и `radius`, результаты сортируются по возрастанию дистанции до пользователя (чем ближе — тем выше в списке) с последующим упорядочиванием по «топу» и дате при равном расстоянии. Маршрут зарегистрирован в `cmd/routes.go` и оборачивается стандартным middleware-стеком: `mux.Get("/search/global", standardMiddleware.ThenFunc(app.globalSearchHandler.Search))`.【F:cmd/routes.go†L197-L197】【F:internal/services/global_search_service.go†L141-L160】
 
 ## Требования к авторизации и заголовкам
 
@@ -22,8 +22,8 @@
 | `sortOption`, `sort_option` | неотрицательное целое | нет | `0` | Код сортировки, передаваемый напрямую в репозитории. Неверные значения приводят к 0.【F:internal/handlers/global_search_handler.go†L74-L78】【F:internal/handlers/global_search_handler.go†L157-L165】|
 | `on_site` | `"yes"/"no"`, `"да"/"нет"`, `true/false/1/0` | нет | `null` | Фильтр только для типов `service` и `ad`. Принимает значения «да/yes» или «нет/no» в любом регистре; при пустом значении фильтр не применяется. Неверное значение приводит к 400.【F:internal/handlers/global_search_handler.go†L79-L94】【F:internal/models/global_search.go†L5-L14】【F:internal/services/global_search_service.go†L62-L90】|
 | `negotiable` | `"yes"/"no"`, `"да"/"нет"`, `true/false/1/0` | нет | `null` | Фильтр по признаку «договорная цена». Применяется ко всем типам, но для `service` и `ad` идёт вместе с `on_site`. Неверные значения приводят к 400.【F:internal/handlers/global_search_handler.go†L79-L94】【F:internal/models/global_search.go†L5-L14】【F:internal/services/global_search_service.go†L62-L136】|
-| `latitude` и `longitude` | числа с плавающей точкой | нет | — | Текущее местоположение пользователя. Если указаны оба значения, в ответе появится `distance`, вычисленное по формуле гаверсина. При передаче только одного из параметров вернётся 400.【F:internal/handlers/global_search_handler.go†L98-L136】【F:internal/services/global_search_service.go†L31-L56】【F:internal/services/global_search_service.go†L245-L268】|
-| `radius` | положительное число | нет | — | Радиус поиска в километрах. Работает только вместе с `latitude`/`longitude`: объявления без координат или находящиеся дальше радиуса будут отброшены.【F:internal/handlers/global_search_handler.go†L118-L136】【F:internal/services/global_search_service.go†L37-L56】【F:internal/services/global_search_service.go†L66-L138】|
+| `latitude` и `longitude` | числа с плавающей точкой | нет | — | Текущее местоположение пользователя. Если указаны оба значения, в ответе появится `distance`, вычисленное по формуле гаверсина. При передаче только одного из параметров вернётся 400. При совместной передаче с `radius` включает сортировку по дистанции по возрастанию.【F:internal/handlers/global_search_handler.go†L98-L136】【F:internal/services/global_search_service.go†L31-L56】【F:internal/services/global_search_service.go†L141-L160】【F:internal/services/global_search_service.go†L245-L268】|
+| `radius` | положительное число | нет | — | Радиус поиска в километрах. Работает только вместе с `latitude`/`longitude`: объявления без координат или находящиеся дальше радиуса будут отброшены. Также включает сортировку результатов по расстоянию от пользователя (ближайшие первыми).【F:internal/handlers/global_search_handler.go†L118-L136】【F:internal/services/global_search_service.go†L37-L56】【F:internal/services/global_search_service.go†L66-L160】|
 
 ## Формат ответа
 
@@ -49,6 +49,11 @@
 
 Каждый элемент `results` содержит поле `type` и ровно один заполненный объект сущности (`service`, `ad`, `work`, `work_ad`, `rent` или `rent_ad`). Пустые сущности опускаются благодаря `omitempty`. 【F:internal/models/global_search.go†L17-L34】
 При указании координат в запросе (`latitude`, `longitude`) возвращается дополнительное поле `distance` (в километрах), отражающее удалённость объявления от пользователя. Если координаты или координаты объявления недоступны, поле опускается.【F:internal/models/global_search.go†L17-L34】【F:internal/services/global_search_service.go†L31-L56】【F:internal/services/global_search_service.go†L245-L282】
+
+### Правила сортировки
+
+* Без координат результаты отсортированы по активности «топ»-продвижения и дате создания: активный «топ» → время активации «топа» → дата публикации.【F:internal/services/global_search_service.go†L141-L160】
+* При наличии `latitude`, `longitude` и `radius` сортировка переключается на расстояние до пользователя: объявления с меньшим `distance` идут первыми; при равной дистанции сохраняется приоритет по «топу» и дате. Таким образом, фронт получает ближайшие предложения в рамках указанного радиуса, но при одинаковом расстоянии первыми будут активные «топы».【F:internal/services/global_search_service.go†L37-L160】【F:internal/services/global_search_service.go†L245-L282】
 
 ## Ошибки и коды ответов
 
@@ -95,6 +100,68 @@ Authorization: Bearer <token>
 ```
 
 В этом примере клиент просит первую страницу из трёх типов объявлений. Категории 10 и 11 будут применены ко всем источникам, будет возвращено до 10 элементов. Если у части записей активирован «топ», они окажутся в начале списка.
+
+### Пример запроса с геофильтром и сортировкой по дистанции
+
+```
+GET /search/global?types=service,ad&limit=15&page=1&latitude=55.7522&longitude=37.6156&radius=10 HTTP/1.1
+Host: api.example.com
+```
+
+* `latitude`/`longitude` задают точку в Москве; `radius=10` ограничивает выборку 10 км и включает сортировку по расстоянию.
+* В ответе каждое объявление будет содержать поле `distance` (например, `1.3`), а ближайшие записи окажутся первыми.
+
+### Полные примеры запросов по каждому типу
+
+Ниже приведены готовые строки запросов с максимальным набором параметров для каждого поддерживаемого типа. Необязательные поля можно опускать — обработчик корректно обработает их отсутствие или пустые значения.
+
+* **`service`** — услуги с фильтрами по категориям, цене, рейтингу, «договорной цене», «выезд на объект» и географией:
+
+  ```
+  GET /search/global?types=service&categories=10,11&subcategories=101,102&limit=20&page=1&price_from=500&price_to=50000&ratings=4,5&sort_option=0&on_site=yes&negotiable=no&latitude=55.75&longitude=37.62&radius=15 HTTP/1.1
+  Authorization: Bearer <token>
+  ```
+
+* **`ad`** — объявления о товарах/услугах с теми же базовыми фильтрами, включая «выезд на объект»:
+
+  ```
+  GET /search/global?types=ad&categories=20,21&subcategories=201,202&limit=15&page=2&price_from=1000&price_to=250000&ratings=3,4,5&sort_option=1&on_site=no&negotiable=yes&latitude=59.93&longitude=30.33&radius=8 HTTP/1.1
+  ```
+
+* **`work`** — вакансии/резюме с фильтрами по опыту, графику, периоду оплаты, формату работы и языкам:
+
+  ```
+  GET /search/global?types=work&categories=30&subcategories=301,302&limit=25&page=1&price_from=80000&price_to=200000&ratings=4,5&sort_option=2&negotiable=yes&work_experience=middle,senior&work_schedules=full_time,part_time&payment_periods=month,week&remote=yes&languages=ru,en&educations=bachelor,master&latitude=55.04&longitude=82.93&radius=20 HTTP/1.1
+  ```
+
+* **`work_ad`** — объявления о поиске сотрудников с теми же кадровыми фильтрами, что и `work`:
+
+  ```
+  GET /search/global?types=work_ad&categories=31&subcategories=311&limit=10&page=1&price_from=60000&price_to=180000&ratings=4&sort_option=0&negotiable=no&work_experience=junior,senior&work_schedules=shift,remote&payment_periods=month&remote=no&languages=en,de&educations=college,bachelor&latitude=55.75&longitude=37.62&radius=12 HTTP/1.1
+  ```
+
+* **`rent`** — предложения аренды с фильтром по типам аренды и условиям залога:
+
+  ```
+  GET /search/global?types=rent&categories=40&subcategories=401,402&limit=30&page=1&price_from=15000&price_to=90000&ratings=4,5&sort_option=3&negotiable=yes&rent_types=apartment,room&deposits=deposit_free,one_month&latitude=43.12&longitude=131.89&radius=6 HTTP/1.1
+  ```
+
+* **`rent_ad`** — заявки на поиск аренды с аналогичными параметрами `rent`:
+
+  ```
+  GET /search/global?types=rent_ad&categories=41&subcategories=411&limit=20&page=2&price_from=20000&price_to=70000&ratings=3,4&sort_option=1&negotiable=no&rent_types=studio,apartment&deposits=deposit_free&latitude=56.84&longitude=35.89&radius=5 HTTP/1.1
+  ```
+
+### Подробные примеры полей и форматов
+
+* **Массивы (CSV)**: `types=service,ad,work_ad`, `categories=1,2,3`, `ratings=4.5,5`.
+* **Булевые**: `on_site=yes`, `negotiable=no`, `remote=1` (любое из значений `yes/no/да/нет/true/false/1/0`).
+* **Цены**: `price_from=500` и `price_to=1500` (дробные допускаются: `price_to=199.99`).
+* **Работа**: `work_experience=junior,senior`, `work_schedules=full_time,part_time`, `payment_periods=month,week`, `languages=en,ru`, `educations=bachelor,master`.
+* **Аренда**: `rent_types=apartment,room`, `deposits=deposit_free,one_month`.
+* **География**: передавайте оба параметра `latitude` и `longitude` в формате десятичных градусов (`55.75`, `37.61`). Радиус (`radius`) — положительное число в километрах.
+
+Используйте `limit` и `page` для пагинации; безопасные значения по умолчанию — `20` и `1`. При необходимости комбинируйте фильтры: например, `types=rent&rent_types=apartment&price_to=50000&latitude=59.93&longitude=30.33&radius=5` вернёт ближайшие квартиры до 5 км от указанной точки с сортировкой по расстоянию.
 
 ## Пример успешного ответа
 

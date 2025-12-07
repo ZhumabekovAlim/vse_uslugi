@@ -190,7 +190,8 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 		return models.GlobalSearchResponse{Results: nil, Total: 0, Page: page, Limit: limit}, nil
 	}
 
-	sortGlobalSearchEntries(entries)
+	useDistanceSort := hasUserLocation && req.RadiusKm != nil
+	sortGlobalSearchEntries(entries, useDistanceSort)
 
 	total := len(entries)
 	start := (page - 1) * limit
@@ -217,11 +218,20 @@ type globalSearchEntry struct {
 	createdAt time.Time
 }
 
-func sortGlobalSearchEntries(entries []globalSearchEntry) {
+func sortGlobalSearchEntries(entries []globalSearchEntry, prioritizeDistance bool) {
 	if len(entries) < 2 {
 		return
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
+		if prioritizeDistance {
+			distA := entries[i].item.Distance
+			distB := entries[j].item.Distance
+
+			if distA != nil && distB != nil && *distA != *distB {
+				return *distA < *distB
+			}
+		}
+
 		return lessByTopState(entries[i].state, entries[i].createdAt, entries[j].state, entries[j].createdAt)
 	})
 }
