@@ -111,6 +111,47 @@ Host: api.example.com
 * `latitude`/`longitude` задают точку в Москве; `radius=10` ограничивает выборку 10 км и включает сортировку по расстоянию.
 * В ответе каждое объявление будет содержать поле `distance` (например, `1.3`), а ближайшие записи окажутся первыми.
 
+### Полные примеры запросов по каждому типу
+
+Ниже приведены готовые строки запросов с максимальным набором параметров для каждого поддерживаемого типа. Необязательные поля можно опускать — обработчик корректно обработает их отсутствие или пустые значения.
+
+* **`service`** — услуги с фильтрами по категориям, цене, рейтингу, «договорной цене», «выезд на объект» и географией:
+
+  ```
+  GET /search/global?types=service&categories=10,11&subcategories=101,102&limit=20&page=1&price_from=500&price_to=50000&ratings=4,5&sort_option=0&on_site=yes&negotiable=no&latitude=55.75&longitude=37.62&radius=15 HTTP/1.1
+  Authorization: Bearer <token>
+  ```
+
+* **`ad`** — объявления о товарах/услугах с теми же базовыми фильтрами, включая «выезд на объект»:
+
+  ```
+  GET /search/global?types=ad&categories=20,21&subcategories=201,202&limit=15&page=2&price_from=1000&price_to=250000&ratings=3,4,5&sort_option=1&on_site=no&negotiable=yes&latitude=59.93&longitude=30.33&radius=8 HTTP/1.1
+  ```
+
+* **`work`** — вакансии/резюме с фильтрами по опыту, графику, периоду оплаты, формату работы и языкам:
+
+  ```
+  GET /search/global?types=work&categories=30&subcategories=301,302&limit=25&page=1&price_from=80000&price_to=200000&ratings=4,5&sort_option=2&negotiable=yes&work_experience=middle,senior&work_schedules=full_time,part_time&payment_periods=month,week&remote=yes&languages=ru,en&educations=bachelor,master&latitude=55.04&longitude=82.93&radius=20 HTTP/1.1
+  ```
+
+* **`work_ad`** — объявления о поиске сотрудников с теми же кадровыми фильтрами, что и `work`:
+
+  ```
+  GET /search/global?types=work_ad&categories=31&subcategories=311&limit=10&page=1&price_from=60000&price_to=180000&ratings=4&sort_option=0&negotiable=no&work_experience=junior,senior&work_schedules=shift,remote&payment_periods=month&remote=no&languages=en,de&educations=college,bachelor&latitude=55.75&longitude=37.62&radius=12 HTTP/1.1
+  ```
+
+* **`rent`** — предложения аренды с фильтром по типам аренды и условиям залога:
+
+  ```
+  GET /search/global?types=rent&categories=40&subcategories=401,402&limit=30&page=1&price_from=15000&price_to=90000&ratings=4,5&sort_option=3&negotiable=yes&rent_types=apartment,room&deposits=deposit_free,one_month&latitude=43.12&longitude=131.89&radius=6 HTTP/1.1
+  ```
+
+* **`rent_ad`** — заявки на поиск аренды с аналогичными параметрами `rent`:
+
+  ```
+  GET /search/global?types=rent_ad&categories=41&subcategories=411&limit=20&page=2&price_from=20000&price_to=70000&ratings=3,4&sort_option=1&negotiable=no&rent_types=studio,apartment&deposits=deposit_free&latitude=56.84&longitude=35.89&radius=5 HTTP/1.1
+  ```
+
 ### Подробные примеры полей и форматов
 
 * **Массивы (CSV)**: `types=service,ad,work_ad`, `categories=1,2,3`, `ratings=4.5,5`.
