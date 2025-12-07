@@ -9,6 +9,7 @@ import (
 	"log"
 	"naimuBack/internal/models"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -293,9 +294,30 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 	}
 
 	if len(deposits) > 0 {
-		conditions = append(conditions, "COALESCE(s.deposit, 0) > 0")
-		for _, deposit := range deposits {
-			params = append(params, deposit)
+		hasZero := false
+		hasPositive := false
+
+		for _, ds := range deposits {
+			// если у тебя депозит может быть дробным — оставь ParseFloat
+			// если только целым — можно Atoi
+			d, err := strconv.ParseFloat(ds, 64)
+			if err != nil {
+				continue // или return ошибку, как тебе надо
+			}
+			if d <= 0 {
+				hasZero = true
+			} else {
+				hasPositive = true
+			}
+		}
+
+		switch {
+		case hasZero && hasPositive:
+			// выбрали и 0, и >0 => фильтр не ставим (показываем всё)
+		case hasPositive:
+			conditions = append(conditions, "COALESCE(s.deposit, 0) > 0")
+		case hasZero:
+			conditions = append(conditions, "COALESCE(s.deposit, 0) = 0")
 		}
 	}
 
