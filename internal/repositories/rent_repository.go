@@ -293,8 +293,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 	}
 
 	if len(deposits) > 0 {
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(deposits)), ",")
-		conditions = append(conditions, fmt.Sprintf("s.deposit IN (%s)", placeholders))
+		conditions = append(conditions, "COALESCE(s.deposit, 0) > 0")
 		for _, deposit := range deposits {
 			params = append(params, deposit)
 		}
