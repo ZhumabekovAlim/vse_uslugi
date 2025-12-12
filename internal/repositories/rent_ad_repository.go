@@ -554,7 +554,7 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 	// Sorting
 	switch req.Sorting {
 	case 1:
-		query += " ORDER BY (SELECT COUNT(*) FROM rent_ad_reviews r WHERE r.rent_ad_id = s.id) DESC"
+		query += " ORDER BY s.created_at ASC"
 	case 2:
 		query += " ORDER BY s.price DESC"
 	case 3:
@@ -763,7 +763,7 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 	// Sorting
 	switch req.Sorting {
 	case 1:
-		query += " ORDER BY (SELECT COUNT(*) FROM rent_ad_reviews r WHERE r.rent_ad_id = s.id) DESC"
+		query += " ORDER BY s.created_at ASC"
 		log.Println("[DEBUG] Sorting by most reviewed")
 	case 2:
 		query += " ORDER BY s.price DESC"

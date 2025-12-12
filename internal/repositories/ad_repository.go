@@ -569,7 +569,7 @@ WHERE 1=1
 	// Sorting
 	switch req.Sorting {
 	case 1:
-		query += " ORDER BY (SELECT COUNT(*) FROM ad_reviews r WHERE r.ad_id = s.id) DESC"
+		query += " ORDER BY s.created_at ASC"
 	case 2:
 		query += " ORDER BY s.price DESC"
 	case 3:
@@ -773,7 +773,7 @@ CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
 	// Sorting
 	switch req.Sorting {
 	case 1:
-		query += " ORDER BY (SELECT COUNT(*) FROM ad_reviews r WHERE r.ad_id = s.id) DESC"
+		query += " ORDER BY s.created_at ASC"
 		log.Println("[DEBUG] Sorting by most reviewed")
 	case 2:
 		query += " ORDER BY s.price DESC"

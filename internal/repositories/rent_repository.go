@@ -584,7 +584,7 @@ WHERE 1=1
 	// Sorting
 	switch req.Sorting {
 	case 1:
-		query += " ORDER BY (SELECT COUNT(*) FROM rent_reviews r WHERE r.rent_id = s.id) DESC"
+		query += " ORDER BY s.created_at ASC"
 	case 2:
 		query += " ORDER BY s.price DESC"
 	case 3:
@@ -806,7 +806,7 @@ WHERE 1=1
 	// Sorting
 	switch req.Sorting {
 	case 1:
-		query += " ORDER BY (SELECT COUNT(*) FROM rent_reviews r WHERE r.rent_id = s.id) DESC"
+		query += " ORDER BY s.created_at ASC"
 		log.Println("[DEBUG] Sorting by most reviewed")
 	case 2:
 		query += " ORDER BY s.price DESC"
