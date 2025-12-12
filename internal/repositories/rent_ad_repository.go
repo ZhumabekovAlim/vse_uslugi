@@ -262,6 +262,8 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
        `
 	params = append(params, userID)
 
+	conditions = append(conditions, "s.status != 'archive'")
+
 	if cityID > 0 {
 		conditions = append(conditions, "u.city_id = ?")
 		params = append(params, cityID)
