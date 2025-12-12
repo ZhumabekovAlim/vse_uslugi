@@ -287,6 +287,8 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
       `
 	params = append(params, userID)
 
+	conditions = append(conditions, "s.status != 'archive'")
+
 	if cityID > 0 {
 		conditions = append(conditions, "u.city_id = ?")
 		params = append(params, cityID)
