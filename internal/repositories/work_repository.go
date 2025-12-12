@@ -529,7 +529,7 @@ COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.hide_phone, s.created_at
 FROM work s
 JOIN users u ON s.user_id = u.id
-WHERE 1=1
+WHERE 1=1 AND s.status != 'archive'
 `
 	args := []interface{}{}
 
@@ -785,7 +785,7 @@ FROM work s
 JOIN users u ON s.user_id = u.id
 LEFT JOIN work_favorites sf ON sf.work_id = s.id AND sf.user_id = ?
 LEFT JOIN work_responses sr ON sr.work_id = s.id AND sr.user_id = ?
-WHERE 1=1
+WHERE 1=1 AND s.status != 'archive'
 `
 
 	args := []interface{}{userID, userID}

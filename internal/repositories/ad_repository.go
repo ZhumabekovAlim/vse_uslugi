@@ -506,7 +506,7 @@ s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_ph
  s.top, s.created_at
 FROM ad s
 JOIN users u ON s.user_id = u.id
-WHERE 1=1
+WHERE 1=1 AND s.status != 'archive'
 `
 	args := []interface{}{}
 
@@ -706,7 +706,7 @@ CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
    JOIN users u ON s.user_id = u.id
    LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
    LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
-   WHERE 1=1
+   WHERE 1=1 AND s.status != 'archive'
 `
 
 	args := []interface{}{userID, userID}

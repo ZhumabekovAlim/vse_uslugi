@@ -283,7 +283,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
               LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
               JOIN users u ON s.user_id = u.id
               INNER JOIN categories c ON s.category_id = c.id
-
+				
       `
 	params = append(params, userID)
 
@@ -511,7 +511,7 @@ COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at
 FROM service s
 JOIN users u ON s.user_id = u.id
-WHERE 1=1
+WHERE 1=1 AND s.status != 'archive'
 `
 	args := []interface{}{}
 
@@ -718,7 +718,7 @@ FROM service s
 JOIN users u ON s.user_id = u.id
 LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
 LEFT JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = ?
-WHERE 1=1
+WHERE 1=1 AND s.status != 'archive'
 `
 
 	args := []interface{}{userID, userID}

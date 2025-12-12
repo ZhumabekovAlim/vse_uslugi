@@ -478,7 +478,7 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
              s.top, s.created_at
       FROM rent_ad s
       JOIN users u ON s.user_id = u.id
-      WHERE 1=1
+      WHERE 1=1 AND s.status != 'archive'
 `
 	args := []interface{}{}
 
@@ -683,7 +683,7 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
    JOIN users u ON s.user_id = u.id
    LEFT JOIN rent_ad_favorites sf ON sf.rent_ad_id = s.id AND sf.user_id = ?
    LEFT JOIN rent_ad_responses sr ON sr.rent_ad_id = s.id AND sr.user_id = ?
-   WHERE 1=1
+   WHERE 1=1 AND s.status != 'archive'
 `
 
 	args := []interface{}{userID, userID}

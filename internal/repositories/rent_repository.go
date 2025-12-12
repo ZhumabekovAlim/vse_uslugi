@@ -508,7 +508,7 @@ COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at
 FROM rent s
 JOIN users u ON s.user_id = u.id
-WHERE 1=1
+WHERE 1=1 AND s.status != 'archive'
 `
 	args := []interface{}{}
 
@@ -726,7 +726,7 @@ FROM rent s
 JOIN users u ON s.user_id = u.id
 LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
 LEFT JOIN rent_responses sr ON sr.rent_id = s.id AND sr.user_id = ?
-WHERE 1=1
+WHERE 1=1 AND s.status != 'archive'
 `
 
 	args := []interface{}{userID, userID}
