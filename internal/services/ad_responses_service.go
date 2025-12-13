@@ -32,7 +32,7 @@ func (s *AdResponseService) CreateAdResponse(ctx context.Context, resp models.Ad
 		return models.AdResponses{}, err
 	}
 
-	resp, err := s.AdResponseRepo.CreateAdResponse(ctx, resp)
+	resp, err = s.AdResponseRepo.CreateAdResponse(ctx, resp)
 	if err != nil {
 		return resp, err
 	}

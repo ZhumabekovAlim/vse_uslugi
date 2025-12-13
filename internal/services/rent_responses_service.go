@@ -28,7 +28,7 @@ func (s *RentResponseService) CreateRentResponse(ctx context.Context, resp model
 	}
 	resp.UserID = responderID
 
-	resp, err := s.RentResponseRepo.CreateRentResponse(ctx, resp)
+	resp, err = s.RentResponseRepo.CreateRentResponse(ctx, resp)
 	if err != nil {
 		return resp, err
 	}

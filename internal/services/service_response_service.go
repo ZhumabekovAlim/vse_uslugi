@@ -28,7 +28,7 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 	}
 	resp.UserID = responderID
 
-	resp, err := s.ServiceResponseRepo.CreateResponse(ctx, resp)
+	resp, err = s.ServiceResponseRepo.CreateResponse(ctx, resp)
 	if err != nil {
 		return resp, err
 	}
