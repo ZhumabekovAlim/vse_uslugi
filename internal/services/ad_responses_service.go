@@ -22,6 +22,12 @@ type AdResponseService struct {
 }
 
 func (s *AdResponseService) CreateAdResponse(ctx context.Context, resp models.AdResponses) (models.AdResponses, error) {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, resp.UserID, true)
+	if err != nil {
+		return models.AdResponses{}, err
+	}
+	resp.UserID = responderID
+
 	if err := ensureExecutorCanRespond(ctx, s.SubscriptionRepo, resp.UserID, models.SubscriptionTypeService); err != nil {
 		return models.AdResponses{}, err
 	}
@@ -103,6 +109,12 @@ func (s *AdResponseService) CreateAdResponse(ctx context.Context, resp models.Ad
 }
 
 func (s *AdResponseService) CancelAdResponse(ctx context.Context, responseID, userID int) error {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, userID, false)
+	if err != nil {
+		return err
+	}
+	userID = responderID
+
 	resp, err := s.AdResponseRepo.GetByID(ctx, responseID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

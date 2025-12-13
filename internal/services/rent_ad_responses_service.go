@@ -22,6 +22,12 @@ type RentAdResponseService struct {
 }
 
 func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp models.RentAdResponses) (models.RentAdResponses, error) {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, resp.UserID, true)
+	if err != nil {
+		return models.RentAdResponses{}, err
+	}
+	resp.UserID = responderID
+
 	if err := ensureExecutorCanRespond(ctx, s.SubscriptionRepo, resp.UserID, models.SubscriptionTypeService); err != nil {
 		return models.RentAdResponses{}, err
 	}
@@ -103,6 +109,12 @@ func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp m
 }
 
 func (s *RentAdResponseService) CancelRentAdResponse(ctx context.Context, responseID, userID int) error {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, userID, false)
+	if err != nil {
+		return err
+	}
+	userID = responderID
+
 	resp, err := s.RentAdResponseRepo.GetByID(ctx, responseID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

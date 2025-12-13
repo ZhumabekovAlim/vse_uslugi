@@ -29,20 +29,22 @@ type PurchaseRequest struct {
 }
 
 type CreateWorkerRequest struct {
-	Login    string `json:"login"`
-	Name     string `json:"name"`
-	Surname  string `json:"surname"`
-	Phone    string `json:"phone"`
-	Password string `json:"password"`
+	Login      string `json:"login"`
+	Name       string `json:"name"`
+	Surname    string `json:"surname"`
+	Phone      string `json:"phone"`
+	Password   string `json:"password"`
+	CanRespond *bool  `json:"can_respond,omitempty"`
 }
 
 type UpdateWorkerRequest struct {
-	Login    string `json:"login"`
-	Name     string `json:"name"`
-	Surname  string `json:"surname"`
-	Phone    string `json:"phone"`
-	Password string `json:"password"`
-	Status   string `json:"status"`
+	Login      string `json:"login"`
+	Name       string `json:"name"`
+	Surname    string `json:"surname"`
+	Phone      string `json:"phone"`
+	Password   string `json:"password"`
+	Status     string `json:"status"`
+	CanRespond *bool  `json:"can_respond,omitempty"`
 }
 
 // AttachListingRequest binds an existing listing to a worker.
@@ -128,6 +130,11 @@ func (s *BusinessService) CreateWorker(ctx context.Context, businessUserID int, 
 		return models.BusinessWorker{}, fmt.Errorf("login already taken")
 	}
 
+	canRespond := false
+	if req.CanRespond != nil {
+		canRespond = *req.CanRespond
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return models.BusinessWorker{}, err
@@ -156,6 +163,7 @@ func (s *BusinessService) CreateWorker(ctx context.Context, businessUserID int, 
 		Login:          req.Login,
 		ChatID:         chatID,
 		Status:         "active",
+		CanRespond:     canRespond,
 	})
 	if err != nil {
 		return models.BusinessWorker{}, err
@@ -195,12 +203,15 @@ func (s *BusinessService) UpdateWorker(ctx context.Context, businessUserID, work
 		}
 	}
 
-	worker := models.BusinessWorker{ID: workerID, BusinessUserID: businessUserID, Login: req.Login, Status: req.Status}
+	worker := models.BusinessWorker{ID: workerID, BusinessUserID: businessUserID, Login: req.Login, Status: req.Status, CanRespond: existing.CanRespond}
 	if worker.Login == "" {
 		worker.Login = existing.Login
 	}
 	if worker.Status == "" {
 		worker.Status = "active"
+	}
+	if req.CanRespond != nil {
+		worker.CanRespond = *req.CanRespond
 	}
 	if err := s.BusinessRepo.UpdateWorker(ctx, worker); err != nil {
 		return models.BusinessWorker{}, err

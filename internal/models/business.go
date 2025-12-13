@@ -21,6 +21,7 @@ type BusinessWorker struct {
 	Login          string     `json:"login"`
 	ChatID         int        `json:"chat_id"`
 	Status         string     `json:"status"`
+	CanRespond     bool       `json:"can_respond"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      *time.Time `json:"updated_at"`
 

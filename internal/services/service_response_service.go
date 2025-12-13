@@ -22,6 +22,12 @@ type ServiceResponseService struct {
 }
 
 func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp models.ServiceResponses) (models.ServiceResponses, error) {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, resp.UserID, true)
+	if err != nil {
+		return models.ServiceResponses{}, err
+	}
+	resp.UserID = responderID
+
 	resp, err := s.ServiceResponseRepo.CreateResponse(ctx, resp)
 	if err != nil {
 		return resp, err
@@ -98,6 +104,12 @@ func (s *ServiceResponseService) CreateServiceResponse(ctx context.Context, resp
 }
 
 func (s *ServiceResponseService) CancelServiceResponse(ctx context.Context, responseID, userID int) error {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, userID, false)
+	if err != nil {
+		return err
+	}
+	userID = responderID
+
 	resp, err := s.ServiceResponseRepo.GetByID(ctx, responseID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

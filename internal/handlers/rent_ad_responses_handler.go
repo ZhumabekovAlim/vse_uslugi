@@ -23,10 +23,21 @@ func (h *RentAdResponseHandler) CreateRentAdResponse(w http.ResponseWriter, r *h
 		return
 	}
 
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	input.UserID = userID
+
 	resp, err := h.Service.CreateRentAdResponse(r.Context(), input)
 	if err != nil {
 		if errors.Is(err, models.ErrAlreadyResponded) {
 			http.Error(w, "already responded", http.StatusOK)
+			return
+		}
+		if errors.Is(err, models.ErrForbidden) {
+			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
 		if errors.Is(err, models.ErrNoRemainingResponses) {

@@ -23,12 +23,23 @@ func (h *ServiceResponseHandler) CreateServiceResponse(w http.ResponseWriter, r 
 		return
 	}
 
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	input.UserID = userID
+
 	resp, err := h.Service.CreateServiceResponse(r.Context(), input)
 	if err != nil {
 		if errors.Is(err, models.ErrAlreadyResponded) {
 
 			http.Error(w, "already responded", http.StatusOK)
 
+			return
+		}
+		if errors.Is(err, models.ErrForbidden) {
+			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
 		if errors.Is(err, models.ErrNoRemainingResponses) || errors.Is(err, models.ErrNoActiveListings) {
