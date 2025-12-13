@@ -231,6 +231,25 @@ func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (mode
 	return user, nil
 }
 
+func (r *UserRepository) GetUserByPhoneAndRole(ctx context.Context, phone, role string) (models.User, error) {
+	var user models.User
+	query := `
+       SELECT id, name, surname, phone, email, password, city_id, role, banned
+        FROM users
+        WHERE phone = ? AND role = ?
+    `
+	err := r.DB.QueryRowContext(ctx, query, phone, role).Scan(
+		&user.ID, &user.Name, &user.Surname, &user.Phone, &user.Email, &user.Password, &user.CityID, &user.Role, &user.Banned,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return models.User{}, ErrUserNotFound
+	}
+	if err != nil {
+		return models.User{}, err
+	}
+	return user, nil
+}
+
 // GetUserByBusinessLogin fetches a user using the business worker login value.
 func (r *UserRepository) GetUserByBusinessLogin(ctx context.Context, login string) (models.User, error) {
 	query := `SELECT u.id, u.name, u.middlename, u.surname, u.phone, u.email, u.password, u.city_id, u.review_rating, u.role, u.banned,
@@ -513,7 +532,7 @@ func (r *UserRepository) UpdateWorkerProfile(ctx context.Context, user models.Us
 	return r.GetUserByID(ctx, user.ID)
 }
 
-func (r *UserRepository) IsPhoneOrEmailTaken(ctx context.Context, phone, email string) (bool, error) {
+func (r *UserRepository) IsPhoneOrEmailTaken(ctx context.Context, phone, email, role string) (bool, error) {
 	var count int
 
 	// Проверка email
@@ -526,7 +545,14 @@ func (r *UserRepository) IsPhoneOrEmailTaken(ctx context.Context, phone, email s
 	}
 
 	// Проверка телефона
-	err = r.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE phone = ?`, phone).Scan(&count)
+	query := `SELECT COUNT(*) FROM users WHERE phone = ?`
+	args := []interface{}{phone}
+	if strings.TrimSpace(role) != "" {
+		query += " AND role = ?"
+		args = append(args, role)
+	}
+
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
 	if err != nil {
 		return false, err
 	}

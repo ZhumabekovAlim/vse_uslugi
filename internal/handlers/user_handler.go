@@ -358,7 +358,7 @@ func (h *UserHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.Service.SignIn(r.Context(), req.Login, req.Phone, req.Email, req.Password)
+	resp, err := h.Service.SignIn(r.Context(), req.Login, req.Phone, req.Email, req.Password, req.Role)
 	if err != nil {
 		log.Printf("error: %v", err)
 		if errors.Is(err, services.ErrUserBanned) {
@@ -431,6 +431,7 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) ChangeNumber(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Phone string `json:"phone"`
+		Role  string `json:"role"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -439,7 +440,7 @@ func (h *UserHandler) ChangeNumber(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.Service.ChangeNumber(r.Context(), req.Phone)
+	resp, err := h.Service.ChangeNumber(r.Context(), req.Phone, req.Role)
 	if err != nil {
 		if errors.Is(err, models.ErrDuplicatePhone) {
 			http.Error(w, err.Error(), http.StatusConflict)

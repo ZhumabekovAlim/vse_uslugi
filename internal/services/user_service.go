@@ -171,14 +171,17 @@ func (s *UserService) CheckVerificationCode(ctx context.Context, email, inputCod
 	return nil
 }
 
-func (s *UserService) SignIn(ctx context.Context, name, phone, email, password string) (models.Tokens, error) {
+func (s *UserService) SignIn(ctx context.Context, name, phone, email, password, role string) (models.Tokens, error) {
 	var (
 		user models.User
 		err  error
 	)
 
 	if phone != "" {
-		user, err = s.UserRepo.GetUserByPhone(ctx, phone)
+		if strings.TrimSpace(role) == "" {
+			return models.Tokens{}, errors.New("role is required for phone sign-in")
+		}
+		user, err = s.UserRepo.GetUserByPhoneAndRole(ctx, phone, role)
 	}
 	if (err != nil || user.ID == 0) && name != "" {
 		user, err = s.UserRepo.GetUserByBusinessLogin(ctx, name)
@@ -340,12 +343,19 @@ func (s *UserService) UpdateUser(ctx context.Context, user models.User) (models.
 		return models.User{}, errors.New("user with this email already exists")
 	}
 
-	existingUser2, err := s.UserRepo.GetUserByPhone1(ctx, user.Phone)
-	if err != nil {
-		return models.User{}, err
-	}
-	if existingUser2.Phone != "" && existingUser2.ID != user.ID {
-		return models.User{}, errors.New("user with this phone already exists")
+	if user.Phone != "" {
+		var existingUser2 models.User
+		if strings.TrimSpace(user.Role) == "" {
+			existingUser2, err = s.UserRepo.GetUserByPhone1(ctx, user.Phone)
+		} else {
+			existingUser2, err = s.UserRepo.GetUserByPhoneAndRole(ctx, user.Phone, user.Role)
+		}
+		if err != nil && !errors.Is(err, repositories.ErrUserNotFound) {
+			return models.User{}, err
+		}
+		if existingUser2.Phone != "" && existingUser2.ID != user.ID {
+			return models.User{}, errors.New("user with this phone already exists")
+		}
 	}
 
 	return s.UserRepo.UpdateUser(ctx, user)
@@ -465,9 +475,18 @@ func (s *UserService) UserLogOut(ctx context.Context, UserID int) error {
 	return s.UserRepo.UserLogOut(ctx, UserID)
 }
 
-func (s *UserService) ChangeNumber(ctx context.Context, number string) (models.SignUpResponse, error) {
-	existingUser, err := s.UserRepo.GetUserByPhone1(ctx, number)
-	if err != nil {
+func (s *UserService) ChangeNumber(ctx context.Context, number, role string) (models.SignUpResponse, error) {
+	var (
+		existingUser models.User
+		err          error
+	)
+
+	if strings.TrimSpace(role) == "" {
+		existingUser, err = s.UserRepo.GetUserByPhone1(ctx, number)
+	} else {
+		existingUser, err = s.UserRepo.GetUserByPhoneAndRole(ctx, number, role)
+	}
+	if err != nil && !errors.Is(err, repositories.ErrUserNotFound) {
 		return models.SignUpResponse{}, err
 	}
 	if existingUser.Phone != "" {
@@ -645,7 +664,7 @@ func (s *UserService) CheckUserDuplicate(ctx context.Context, req models.User) (
 		return false, fmt.Errorf("email is required for verification")
 	}
 
-	taken, err := s.UserRepo.IsPhoneOrEmailTaken(ctx, req.Phone, req.Email)
+	taken, err := s.UserRepo.IsPhoneOrEmailTaken(ctx, req.Phone, req.Email, req.Role)
 	if err != nil {
 		return false, err
 	}
