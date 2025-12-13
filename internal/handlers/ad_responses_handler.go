@@ -23,10 +23,21 @@ func (h *AdResponseHandler) CreateAdResponse(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	input.UserID = userID
+
 	resp, err := h.Service.CreateAdResponse(r.Context(), input)
 	if err != nil {
 		if errors.Is(err, models.ErrAlreadyResponded) {
 			http.Error(w, "already responded", http.StatusOK)
+			return
+		}
+		if errors.Is(err, models.ErrForbidden) {
+			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
 		if errors.Is(err, models.ErrNoRemainingResponses) {

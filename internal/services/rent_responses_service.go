@@ -22,6 +22,11 @@ type RentResponseService struct {
 }
 
 func (s *RentResponseService) CreateRentResponse(ctx context.Context, resp models.RentResponses) (models.RentResponses, error) {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, resp.UserID, true)
+	if err != nil {
+		return models.RentResponses{}, err
+	}
+	resp.UserID = responderID
 
 	resp, err := s.RentResponseRepo.CreateRentResponse(ctx, resp)
 	if err != nil {
@@ -100,6 +105,12 @@ func (s *RentResponseService) CreateRentResponse(ctx context.Context, resp model
 }
 
 func (s *RentResponseService) CancelRentResponse(ctx context.Context, responseID, userID int) error {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, userID, false)
+	if err != nil {
+		return err
+	}
+	userID = responderID
+
 	resp, err := s.RentResponseRepo.GetByID(ctx, responseID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

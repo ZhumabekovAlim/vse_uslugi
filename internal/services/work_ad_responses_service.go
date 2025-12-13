@@ -22,6 +22,12 @@ type WorkAdResponseService struct {
 }
 
 func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp models.WorkAdResponses) (models.WorkAdResponses, error) {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, resp.UserID, true)
+	if err != nil {
+		return models.WorkAdResponses{}, err
+	}
+	resp.UserID = responderID
+
 	if err := ensureExecutorCanRespond(ctx, s.SubscriptionRepo, resp.UserID, models.SubscriptionTypeService); err != nil {
 		return models.WorkAdResponses{}, err
 	}
@@ -102,6 +108,12 @@ func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp m
 }
 
 func (s *WorkAdResponseService) CancelWorkAdResponse(ctx context.Context, responseID, userID int) error {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, userID, false)
+	if err != nil {
+		return err
+	}
+	userID = responderID
+
 	resp, err := s.WorkAdResponseRepo.GetByID(ctx, responseID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

@@ -22,6 +22,11 @@ type WorkResponseService struct {
 }
 
 func (s *WorkResponseService) CreateWorkResponse(ctx context.Context, resp models.WorkResponses) (models.WorkResponses, error) {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, resp.UserID, true)
+	if err != nil {
+		return models.WorkResponses{}, err
+	}
+	resp.UserID = responderID
 
 	resp, err := s.WorkResponseRepo.CreateWorkResponse(ctx, resp)
 	if err != nil {
@@ -100,6 +105,12 @@ func (s *WorkResponseService) CreateWorkResponse(ctx context.Context, resp model
 }
 
 func (s *WorkResponseService) CancelWorkResponse(ctx context.Context, responseID, userID int) error {
+	responderID, err := resolveResponderID(ctx, s.BusinessRepo, userID, false)
+	if err != nil {
+		return err
+	}
+	userID = responderID
+
 	resp, err := s.WorkResponseRepo.GetByID(ctx, responseID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

@@ -121,8 +121,8 @@ func (r *BusinessRepository) SaveSeatPurchase(ctx context.Context, purchase mode
 }
 
 func (r *BusinessRepository) CreateWorker(ctx context.Context, worker models.BusinessWorker) (models.BusinessWorker, error) {
-	query := `INSERT INTO business_workers (business_user_id, worker_user_id, login, chat_id, status) VALUES (?, ?, ?, ?, ?)`
-	res, err := r.DB.ExecContext(ctx, query, worker.BusinessUserID, worker.WorkerUserID, worker.Login, worker.ChatID, worker.Status)
+	query := `INSERT INTO business_workers (business_user_id, worker_user_id, login, chat_id, status, can_respond) VALUES (?, ?, ?, ?, ?, ?)`
+	res, err := r.DB.ExecContext(ctx, query, worker.BusinessUserID, worker.WorkerUserID, worker.Login, worker.ChatID, worker.Status, worker.CanRespond)
 	if err != nil {
 		return models.BusinessWorker{}, err
 	}
@@ -136,9 +136,9 @@ func (r *BusinessRepository) CreateWorker(ctx context.Context, worker models.Bus
 
 func (r *BusinessRepository) GetWorkerByLogin(ctx context.Context, login string) (models.BusinessWorker, error) {
 	var worker models.BusinessWorker
-	query := `SELECT id, business_user_id, worker_user_id, login, chat_id, status, created_at, updated_at FROM business_workers WHERE login = ?`
+	query := `SELECT id, business_user_id, worker_user_id, login, chat_id, status, can_respond, created_at, updated_at FROM business_workers WHERE login = ?`
 	err := r.DB.QueryRowContext(ctx, query, login).Scan(
-		&worker.ID, &worker.BusinessUserID, &worker.WorkerUserID, &worker.Login, &worker.ChatID, &worker.Status, &worker.CreatedAt, &worker.UpdatedAt,
+		&worker.ID, &worker.BusinessUserID, &worker.WorkerUserID, &worker.Login, &worker.ChatID, &worker.Status, &worker.CanRespond, &worker.CreatedAt, &worker.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -151,9 +151,9 @@ func (r *BusinessRepository) GetWorkerByLogin(ctx context.Context, login string)
 
 func (r *BusinessRepository) GetWorkerByID(ctx context.Context, workerID int) (models.BusinessWorker, error) {
 	var worker models.BusinessWorker
-	query := `SELECT id, business_user_id, worker_user_id, login, chat_id, status, created_at, updated_at FROM business_workers WHERE id = ?`
+	query := `SELECT id, business_user_id, worker_user_id, login, chat_id, status, can_respond, created_at, updated_at FROM business_workers WHERE id = ?`
 	err := r.DB.QueryRowContext(ctx, query, workerID).Scan(
-		&worker.ID, &worker.BusinessUserID, &worker.WorkerUserID, &worker.Login, &worker.ChatID, &worker.Status, &worker.CreatedAt, &worker.UpdatedAt,
+		&worker.ID, &worker.BusinessUserID, &worker.WorkerUserID, &worker.Login, &worker.ChatID, &worker.Status, &worker.CanRespond, &worker.CreatedAt, &worker.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -167,9 +167,9 @@ func (r *BusinessRepository) GetWorkerByID(ctx context.Context, workerID int) (m
 // GetWorkerByUserID fetches a business worker row by underlying user ID.
 func (r *BusinessRepository) GetWorkerByUserID(ctx context.Context, workerUserID int) (models.BusinessWorker, error) {
 	var worker models.BusinessWorker
-	query := `SELECT id, business_user_id, worker_user_id, login, chat_id, status, created_at, updated_at FROM business_workers WHERE worker_user_id = ?`
+	query := `SELECT id, business_user_id, worker_user_id, login, chat_id, status, can_respond, created_at, updated_at FROM business_workers WHERE worker_user_id = ?`
 	err := r.DB.QueryRowContext(ctx, query, workerUserID).Scan(
-		&worker.ID, &worker.BusinessUserID, &worker.WorkerUserID, &worker.Login, &worker.ChatID, &worker.Status, &worker.CreatedAt, &worker.UpdatedAt,
+		&worker.ID, &worker.BusinessUserID, &worker.WorkerUserID, &worker.Login, &worker.ChatID, &worker.Status, &worker.CanRespond, &worker.CreatedAt, &worker.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -181,7 +181,7 @@ func (r *BusinessRepository) GetWorkerByUserID(ctx context.Context, workerUserID
 }
 
 func (r *BusinessRepository) GetWorkersByBusiness(ctx context.Context, businessUserID int) ([]models.BusinessWorker, error) {
-	query := `SELECT bw.id, bw.business_user_id, bw.worker_user_id, bw.login, bw.chat_id, bw.status, bw.created_at, bw.updated_at,
+	query := `SELECT bw.id, bw.business_user_id, bw.worker_user_id, bw.login, bw.chat_id, bw.status, bw.can_respond, bw.created_at, bw.updated_at,
        u.name, u.surname, u.phone
 FROM business_workers bw
 JOIN users u ON u.id = bw.worker_user_id
@@ -196,7 +196,7 @@ WHERE bw.business_user_id = ?`
 	for rows.Next() {
 		var worker models.BusinessWorker
 		var user models.User
-		if err := rows.Scan(&worker.ID, &worker.BusinessUserID, &worker.WorkerUserID, &worker.Login, &worker.ChatID, &worker.Status, &worker.CreatedAt, &worker.UpdatedAt, &user.Name, &user.Surname, &user.Phone); err != nil {
+		if err := rows.Scan(&worker.ID, &worker.BusinessUserID, &worker.WorkerUserID, &worker.Login, &worker.ChatID, &worker.Status, &worker.CanRespond, &worker.CreatedAt, &worker.UpdatedAt, &user.Name, &user.Surname, &user.Phone); err != nil {
 			return nil, err
 		}
 		user.ID = worker.WorkerUserID
@@ -207,7 +207,7 @@ WHERE bw.business_user_id = ?`
 }
 
 func (r *BusinessRepository) UpdateWorker(ctx context.Context, worker models.BusinessWorker) error {
-	_, err := r.DB.ExecContext(ctx, `UPDATE business_workers SET login = ?, status = ? WHERE id = ? AND business_user_id = ?`, worker.Login, worker.Status, worker.ID, worker.BusinessUserID)
+	_, err := r.DB.ExecContext(ctx, `UPDATE business_workers SET login = ?, status = ?, can_respond = ? WHERE id = ? AND business_user_id = ?`, worker.Login, worker.Status, worker.CanRespond, worker.ID, worker.BusinessUserID)
 	return err
 }
 
