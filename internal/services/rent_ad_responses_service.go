@@ -32,7 +32,7 @@ func (s *RentAdResponseService) CreateRentAdResponse(ctx context.Context, resp m
 		return models.RentAdResponses{}, err
 	}
 
-	resp, err := s.RentAdResponseRepo.CreateRentAdResponse(ctx, resp)
+	resp, err = s.RentAdResponseRepo.CreateRentAdResponse(ctx, resp)
 	if err != nil {
 		return resp, err
 	}

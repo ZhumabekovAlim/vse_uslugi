@@ -32,7 +32,7 @@ func (s *WorkAdResponseService) CreateWorkAdResponse(ctx context.Context, resp m
 		return models.WorkAdResponses{}, err
 	}
 
-	resp, err := s.WorkAdResponseRepo.CreateWorkAdResponse(ctx, resp)
+	resp, err = s.WorkAdResponseRepo.CreateWorkAdResponse(ctx, resp)
 	if err != nil {
 		return resp, err
 	}

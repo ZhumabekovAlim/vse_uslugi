@@ -28,7 +28,7 @@ func (s *WorkResponseService) CreateWorkResponse(ctx context.Context, resp model
 	}
 	resp.UserID = responderID
 
-	resp, err := s.WorkResponseRepo.CreateWorkResponse(ctx, resp)
+	resp, err = s.WorkResponseRepo.CreateWorkResponse(ctx, resp)
 	if err != nil {
 		return resp, err
 	}
