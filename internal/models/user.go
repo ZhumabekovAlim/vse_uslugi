@@ -6,6 +6,8 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
+const RoleBusinessWorker = "business_worker"
+
 type User struct {
 	ID           int        `json:"id"`
 	Name         string     `json:"name"`
