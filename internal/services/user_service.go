@@ -178,10 +178,15 @@ func (s *UserService) SignIn(ctx context.Context, name, phone, email, password, 
 	)
 
 	if phone != "" {
-		if strings.TrimSpace(role) == "" {
-			return models.Tokens{}, errors.New("role is required for phone sign-in")
+		trimmedRole := strings.TrimSpace(role)
+		if trimmedRole == models.RoleBusinessWorker {
+			user, err = s.UserRepo.GetUserByPhoneAndRole(ctx, phone, trimmedRole)
+		} else {
+			user, err = s.UserRepo.GetUserByPhone(ctx, phone)
+			if err == nil && strings.TrimSpace(user.Role) == models.RoleBusinessWorker {
+				return models.Tokens{}, errors.New("role is required for business_worker sign-in")
+			}
 		}
-		user, err = s.UserRepo.GetUserByPhoneAndRole(ctx, phone, role)
 	}
 	if (err != nil || user.ID == 0) && name != "" {
 		user, err = s.UserRepo.GetUserByBusinessLogin(ctx, name)
