@@ -705,7 +705,7 @@ WHERE 1=1 AND s.status != 'archive'
 		works = append(works, s)
 	}
 
-	sortFilteredWorksByTop(works)
+	liftListingsTopOnly(works, func(w models.FilteredWork) string { return w.Top })
 	return works, nil
 }
 
@@ -984,7 +984,7 @@ WHERE 1=1 AND s.status != 'archive'
 		return nil, fmt.Errorf("error reading rows: %w", err)
 	}
 
-	sortFilteredWorksByTop(works)
+	liftListingsTopOnly(works, func(w models.FilteredWork) string { return w.Top })
 	log.Printf("[INFO] Successfully fetched %d services", len(works))
 	return works, nil
 }

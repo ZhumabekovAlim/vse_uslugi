@@ -697,7 +697,7 @@ WHERE 1=1 AND s.status != 'archive'
 		works = append(works, s)
 	}
 
-	sortFilteredWorkAdsByTop(works)
+	liftListingsTopOnly(works, func(w models.FilteredWorkAd) string { return w.Top })
 	return works, nil
 }
 
@@ -973,7 +973,7 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 		return nil, fmt.Errorf("error reading rows: %w", err)
 	}
 
-	sortFilteredWorkAdsByTop(works)
+	liftListingsTopOnly(works, func(w models.FilteredWorkAd) string { return w.Top })
 	log.Printf("[INFO] Successfully fetched %d services", len(works))
 	return works, nil
 }
