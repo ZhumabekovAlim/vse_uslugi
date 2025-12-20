@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"log"
 	"naimuBack/internal/models"
 )
 
@@ -30,7 +32,7 @@ func (r *WorkFavoriteRepository) IsWorkFavorite(ctx context.Context, userID, wor
 }
 
 func (r *WorkFavoriteRepository) GetWorkFavoritesByUser(ctx context.Context, userID int) ([]models.WorkFavorite, error) {
-	query := `SELECT wf.id, wf.user_id, wf.work_id, w.name, w.price, w.price_to, w.negotiable, w.hide_phone, w.status, w.created_at
+	query := `SELECT wf.id, wf.user_id, wf.work_id, w.name, w.price, w.price_to, w.negotiable, w.hide_phone, w.status, w.created_at, w.images
                  FROM work_favorites wf
                  JOIN work w ON wf.work_id = w.id
                  WHERE wf.user_id = ?`
@@ -44,14 +46,25 @@ func (r *WorkFavoriteRepository) GetWorkFavoritesByUser(ctx context.Context, use
 	for rows.Next() {
 		var fav models.WorkFavorite
 		var price, priceTo sql.NullFloat64
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkID, &fav.Name, &price, &priceTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt)
+		var imagesJSON sql.NullString
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkID, &fav.Name, &price, &priceTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
 		if err != nil {
 			return nil, err
 		}
 
 		fav.Price = floatFromNull(price)
 		fav.PriceTo = floatFromNull(priceTo)
+
+		imgPath, err := extractFirstImagePath(imagesJSON)
+		if err != nil {
+			log.Printf("failed to decode work images for favorite %d: %v", fav.ID, err)
+		}
+		fav.ImagePath = imgPath
 		favs = append(favs, fav)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("work favorites rows error: %w", err)
 	}
 	return favs, nil
 }

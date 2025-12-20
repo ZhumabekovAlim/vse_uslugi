@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"log"
 	"naimuBack/internal/models"
 )
 
@@ -30,7 +32,7 @@ func (r *ServiceFavoriteRepository) IsFavorite(ctx context.Context, userID, serv
 }
 
 func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, userID int) ([]models.ServiceFavorite, error) {
-	query := `SELECT sf.id, sf.user_id, sf.service_id, s.name, s.price, s.price_to, s.on_site, s.negotiable, s.hide_phone, s.status, s.created_at
+	query := `SELECT sf.id, sf.user_id, sf.service_id, s.name, s.price, s.price_to, s.on_site, s.negotiable, s.hide_phone, s.status, s.created_at, s.images
              FROM service_favorites sf
              JOIN service s ON sf.service_id = s.id
              WHERE sf.user_id = ?`
@@ -44,7 +46,8 @@ func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, user
 	for rows.Next() {
 		var fav models.ServiceFavorite
 		var price, priceTo sql.NullFloat64
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.ServiceID, &fav.Name, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt)
+		var imagesJSON sql.NullString
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.ServiceID, &fav.Name, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +57,17 @@ func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, user
 		if priceTo.Valid {
 			fav.PriceTo = &priceTo.Float64
 		}
+
+		imgPath, err := extractFirstImagePath(imagesJSON)
+		if err != nil {
+			log.Printf("failed to decode service images for favorite %d: %v", fav.ID, err)
+		}
+		fav.ImagePath = imgPath
 		favs = append(favs, fav)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("service favorites rows error: %w", err)
 	}
 	return favs, nil
 }
