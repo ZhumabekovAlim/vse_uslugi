@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"log"
 	"naimuBack/internal/models"
 )
 
@@ -30,7 +32,7 @@ func (r *AdFavoriteRepository) IsAdFavorite(ctx context.Context, userID, adID in
 }
 
 func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID int) ([]models.AdFavorite, error) {
-	query := `SELECT af.id, af.user_id, af.ad_id, a.name, a.price, a.price_to, a.on_site, a.negotiable, a.hide_phone, a.status, a.created_at
+	query := `SELECT af.id, af.user_id, af.ad_id, a.name, a.price, a.price_to, a.on_site, a.negotiable, a.hide_phone, a.status, a.created_at, a.images
                  FROM ad_favorites af
                  JOIN ad a ON af.ad_id = a.id
                  WHERE af.user_id = ?`
@@ -44,7 +46,8 @@ func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID 
 	for rows.Next() {
 		var fav models.AdFavorite
 		var price, priceTo sql.NullFloat64
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.AdID, &fav.Name, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt)
+		var imagesJSON sql.NullString
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.AdID, &fav.Name, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +57,17 @@ func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID 
 		if priceTo.Valid {
 			fav.PriceTo = &priceTo.Float64
 		}
+
+		imgPath, err := extractFirstImagePath(imagesJSON)
+		if err != nil {
+			log.Printf("failed to decode ad images for favorite %d: %v", fav.ID, err)
+		}
+		fav.ImagePath = imgPath
 		favs = append(favs, fav)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("ad favorites rows error: %w", err)
 	}
 	return favs, nil
 }

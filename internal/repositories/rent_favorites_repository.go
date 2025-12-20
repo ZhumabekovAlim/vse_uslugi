@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"log"
 	"naimuBack/internal/models"
 )
 
@@ -30,7 +32,7 @@ func (r *RentFavoriteRepository) IsRentFavorite(ctx context.Context, userID, ren
 }
 
 func (r *RentFavoriteRepository) GetRentFavoritesByUser(ctx context.Context, userID int) ([]models.RentFavorite, error) {
-	query := `SELECT rf.id, rf.user_id, rf.rent_id, r.name, r.price, r.price_to, r.work_time_from, r.work_time_to, r.negotiable, r.hide_phone, r.status, r.created_at
+	query := `SELECT rf.id, rf.user_id, rf.rent_id, r.name, r.price, r.price_to, r.work_time_from, r.work_time_to, r.negotiable, r.hide_phone, r.status, r.created_at, r.images
                  FROM rent_favorites rf
                  JOIN rent r ON rf.rent_id = r.id
                  WHERE rf.user_id = ?`
@@ -44,7 +46,8 @@ func (r *RentFavoriteRepository) GetRentFavoritesByUser(ctx context.Context, use
 	for rows.Next() {
 		var fav models.RentFavorite
 		var price, priceTo sql.NullFloat64
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.RentID, &fav.Name, &price, &priceTo, &fav.WorkTimeFrom, &fav.WorkTimeTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt)
+		var imagesJSON sql.NullString
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.RentID, &fav.Name, &price, &priceTo, &fav.WorkTimeFrom, &fav.WorkTimeTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +57,17 @@ func (r *RentFavoriteRepository) GetRentFavoritesByUser(ctx context.Context, use
 		if priceTo.Valid {
 			fav.PriceTo = &priceTo.Float64
 		}
+
+		imgPath, err := extractFirstImagePath(imagesJSON)
+		if err != nil {
+			log.Printf("failed to decode rent images for favorite %d: %v", fav.ID, err)
+		}
+		fav.ImagePath = imgPath
 		favs = append(favs, fav)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rent favorites rows error: %w", err)
 	}
 	return favs, nil
 }

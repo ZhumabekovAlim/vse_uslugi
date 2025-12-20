@@ -13,6 +13,7 @@ type WorkFavorite struct {
 	PriceTo    *float64  `json:"price_to"`
 	Negotiable bool      `json:"negotiable"`
 	HidePhone  bool      `json:"hide_phone"`
+	ImagePath  *string   `json:"image_path,omitempty"`
 	Status     string    `json:"status"`
 	CreatedAt  time.Time `json:"created_at"`
 }

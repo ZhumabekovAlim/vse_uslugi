@@ -14,6 +14,7 @@ type AdFavorite struct {
 	OnSite     bool      `json:"on_site"`
 	Negotiable bool      `json:"negotiable"`
 	HidePhone  bool      `json:"hide_phone"`
+	ImagePath  *string   `json:"image_path,omitempty"`
 	Status     string    `json:"status"`
 	CreatedAt  time.Time `json:"created_at"`
 }

@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"log"
 	"naimuBack/internal/models"
 )
 
@@ -30,7 +32,7 @@ func (r *RentAdFavoriteRepository) IsRentAdFavorite(ctx context.Context, userID,
 }
 
 func (r *RentAdFavoriteRepository) GetRentAdFavoritesByUser(ctx context.Context, userID int) ([]models.RentAdFavorite, error) {
-	query := `SELECT rf.id, rf.user_id, rf.rent_ad_id, ra.name, ra.price, ra.price_to, ra.work_time_from, ra.work_time_to, ra.negotiable, ra.hide_phone, ra.status, ra.created_at
+	query := `SELECT rf.id, rf.user_id, rf.rent_ad_id, ra.name, ra.price, ra.price_to, ra.work_time_from, ra.work_time_to, ra.negotiable, ra.hide_phone, ra.status, ra.created_at, ra.images
                  FROM rent_ad_favorites rf
                  JOIN rent_ad ra ON rf.rent_ad_id = ra.id
                  WHERE rf.user_id = ?`
@@ -44,7 +46,8 @@ func (r *RentAdFavoriteRepository) GetRentAdFavoritesByUser(ctx context.Context,
 	for rows.Next() {
 		var fav models.RentAdFavorite
 		var price, priceTo sql.NullFloat64
-		if err := rows.Scan(&fav.ID, &fav.UserID, &fav.RentAdID, &fav.Name, &price, &priceTo, &fav.WorkTimeFrom, &fav.WorkTimeTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt); err != nil {
+		var imagesJSON sql.NullString
+		if err := rows.Scan(&fav.ID, &fav.UserID, &fav.RentAdID, &fav.Name, &price, &priceTo, &fav.WorkTimeFrom, &fav.WorkTimeTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON); err != nil {
 			return nil, err
 		}
 		if price.Valid {
@@ -53,7 +56,17 @@ func (r *RentAdFavoriteRepository) GetRentAdFavoritesByUser(ctx context.Context,
 		if priceTo.Valid {
 			fav.PriceTo = &priceTo.Float64
 		}
+
+		imgPath, err := extractFirstImagePath(imagesJSON)
+		if err != nil {
+			log.Printf("failed to decode rent ad images for favorite %d: %v", fav.ID, err)
+		}
+		fav.ImagePath = imgPath
 		favs = append(favs, fav)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rent ad favorites rows error: %w", err)
 	}
 	return favs, nil
 }
