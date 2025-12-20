@@ -645,7 +645,7 @@ WHERE 1=1 AND s.status != 'archive'
 		rents = append(rents, s)
 	}
 
-	sortFilteredRentsByTop(rents)
+	liftListingsTopOnly(rents, func(r models.FilteredRent) string { return r.Top })
 	return rents, nil
 }
 
@@ -886,7 +886,7 @@ WHERE 1=1 AND s.status != 'archive'
 		return nil, fmt.Errorf("error reading rows: %w", err)
 	}
 
-	sortFilteredRentsByTop(rents)
+	liftListingsTopOnly(rents, func(r models.FilteredRent) string { return r.Top })
 	log.Printf("[INFO] Successfully fetched %d services", len(rents))
 	return rents, nil
 }

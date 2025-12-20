@@ -607,7 +607,7 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 		rents = append(rents, s)
 	}
 
-	sortFilteredRentAdsByTop(rents)
+	liftListingsTopOnly(rents, func(r models.FilteredRentAd) string { return r.Top })
 	return rents, nil
 }
 
@@ -834,7 +834,7 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 		return nil, fmt.Errorf("error reading rows: %w", err)
 	}
 
-	sortFilteredRentAdsByTop(rents)
+	liftListingsTopOnly(rents, func(r models.FilteredRentAd) string { return r.Top })
 	log.Printf("[INFO] Successfully fetched %d services", len(rents))
 	return rents, nil
 }
