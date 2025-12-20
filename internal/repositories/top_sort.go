@@ -84,6 +84,27 @@ func computeTopState(raw string, now time.Time) listingTopState {
 	}
 }
 
+func liftListingsTopOnly[T any](items []T, getTop func(item T) string) {
+	if len(items) < 2 {
+		return
+	}
+
+	now := time.Now().UTC()
+
+	sort.SliceStable(items, func(i, j int) bool {
+		si := computeTopState(getTop(items[i]), now)
+		sj := computeTopState(getTop(items[j]), now)
+
+		// Единственное правило: активный TOP должен быть выше неактивного
+		if si.active != sj.active {
+			return si.active && !sj.active
+		}
+
+		// Всё остальное НЕ трогаем — сохраняем исходный порядок из SQL
+		return false
+	})
+}
+
 func lessByTopState(a listingTopState, createdAtA time.Time, b listingTopState, createdAtB time.Time) bool {
 	if a.active != b.active {
 		return a.active
