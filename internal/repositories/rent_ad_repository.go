@@ -398,7 +398,7 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 		rents = append(rents, s)
 	}
 
-	sortRentAdsByTop(rents)
+	liftListingsTopOnly(rents, func(a models.RentAd) string { return a.Top })
 
 	// Get min/max prices
 	var minPrice, maxPrice float64
