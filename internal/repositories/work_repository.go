@@ -440,7 +440,7 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
 		works = append(works, s)
 	}
 
-	sortWorksByTop(works)
+	liftListingsTopOnly(works, func(w models.Work) string { return w.Top })
 
 	// Get min/max prices
 	var minPrice, maxPrice sql.NullFloat64

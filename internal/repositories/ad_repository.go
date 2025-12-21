@@ -420,7 +420,7 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		ads = append(ads, s)
 	}
 
-	sortAdsByTop(ads)
+	liftListingsTopOnly(ads, func(a models.Ad) string { return a.Top })
 
 	// Get min/max prices
 	var minPrice, maxPrice float64
