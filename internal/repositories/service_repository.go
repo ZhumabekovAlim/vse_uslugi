@@ -421,7 +421,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 		services = append(services, s)
 	}
 
-	liftListingsTopOnly(services, func(a models.Service) string { return a.Top })
+	liftListingsTopOnly(services, func(s models.Service) string { return s.Top })
 
 	// Get min/max prices
 	var minPrice, maxPrice sql.NullFloat64

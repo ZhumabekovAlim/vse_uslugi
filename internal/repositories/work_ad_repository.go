@@ -435,7 +435,7 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 		works_ad = append(works_ad, s)
 	}
 
-	liftListingsTopOnly(works_ad, func(a models.WorkAd) string { return a.Top })
+	liftListingsTopOnly(works_ad, func(w models.WorkAd) string { return w.Top })
 
 	// Get min/max prices
 	var minPrice, maxPrice float64

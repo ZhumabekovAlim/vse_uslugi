@@ -420,7 +420,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 		rents = append(rents, s)
 	}
 
-	liftListingsTopOnly(rents, func(a models.Rent) string { return a.Top })
+	liftListingsTopOnly(rents, func(r models.Rent) string { return r.Top })
 
 	// Get min/max prices
 	var minPrice, maxPrice float64

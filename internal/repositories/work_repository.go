@@ -260,196 +260,196 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
       JOIN cities city ON u.city_id = city.id
 
 `
-    params = append(params, userID)
+	params = append(params, userID)
 
-    conditions = append(conditions, "s.status != 'archive'")
+	conditions = append(conditions, "s.status != 'archive'")
 
-    if cityID > 0 {
-        conditions = append(conditions, "u.city_id = ?")
-        params = append(params, cityID)
-    }
+	if cityID > 0 {
+		conditions = append(conditions, "u.city_id = ?")
+		params = append(params, cityID)
+	}
 
-    // Filters
-    if len(categories) > 0 {
-        placeholders := strings.TrimSuffix(strings.Repeat("?,", len(categories)), ",")
-        conditions = append(conditions, fmt.Sprintf("s.category_id IN (%s)", placeholders))
-        for _, cat := range categories {
-            params = append(params, cat)
-        }
-    }
+	// Filters
+	if len(categories) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(categories)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.category_id IN (%s)", placeholders))
+		for _, cat := range categories {
+			params = append(params, cat)
+		}
+	}
 
-    if len(subcategories) > 0 {
-        placeholders := strings.TrimSuffix(strings.Repeat("?,", len(subcategories)), ",")
-        conditions = append(conditions, fmt.Sprintf("s.subcategory_id IN (%s)", placeholders))
-        for _, sub := range subcategories {
-            params = append(params, sub)
-        }
-    }
+	if len(subcategories) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(subcategories)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.subcategory_id IN (%s)", placeholders))
+		for _, sub := range subcategories {
+			params = append(params, sub)
+		}
+	}
 
-    if negotiable != nil {
-        conditions = append(conditions, "s.negotiable = ?")
-        params = append(params, *negotiable)
-    }
+	if negotiable != nil {
+		conditions = append(conditions, "s.negotiable = ?")
+		params = append(params, *negotiable)
+	}
 
-    if len(experience) > 0 {
-        placeholders := strings.TrimSuffix(strings.Repeat("?,", len(experience)), ",")
-        conditions = append(conditions, fmt.Sprintf("s.work_experience IN (%s)", placeholders))
-        for _, value := range experience {
-            params = append(params, value)
-        }
-    }
+	if len(experience) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(experience)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.work_experience IN (%s)", placeholders))
+		for _, value := range experience {
+			params = append(params, value)
+		}
+	}
 
-    if len(schedules) > 0 {
-        placeholders := strings.TrimSuffix(strings.Repeat("?,", len(schedules)), ",")
-        conditions = append(conditions, fmt.Sprintf("s.schedule IN (%s)", placeholders))
-        for _, value := range schedules {
-            params = append(params, value)
-        }
-    }
+	if len(schedules) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(schedules)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.schedule IN (%s)", placeholders))
+		for _, value := range schedules {
+			params = append(params, value)
+		}
+	}
 
-    if len(paymentPeriods) > 0 {
-        placeholders := strings.TrimSuffix(strings.Repeat("?,", len(paymentPeriods)), ",")
-        conditions = append(conditions, fmt.Sprintf("s.payment_period IN (%s)", placeholders))
-        for _, value := range paymentPeriods {
-            params = append(params, value)
-        }
-    }
+	if len(paymentPeriods) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(paymentPeriods)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.payment_period IN (%s)", placeholders))
+		for _, value := range paymentPeriods {
+			params = append(params, value)
+		}
+	}
 
-    if remoteWork != nil {
-        if *remoteWork {
-            conditions = append(conditions, "s.distance_work = ?")
-            params = append(params, "Удаленно")
-        } else {
-            conditions = append(conditions, "(s.distance_work IS NULL OR s.distance_work <> ?)")
-            params = append(params, "Удаленно")
-        }
-    }
+	if remoteWork != nil {
+		if *remoteWork {
+			conditions = append(conditions, "s.distance_work = ?")
+			params = append(params, "Удаленно")
+		} else {
+			conditions = append(conditions, "(s.distance_work IS NULL OR s.distance_work <> ?)")
+			params = append(params, "Удаленно")
+		}
+	}
 
-    if len(languages) > 0 {
-        for _, lang := range languages {
-            conditions = append(conditions, "s.languages LIKE ?")
-            params = append(params, "%"+lang+"%")
-        }
-    }
+	if len(languages) > 0 {
+		for _, lang := range languages {
+			conditions = append(conditions, "s.languages LIKE ?")
+			params = append(params, "%"+lang+"%")
+		}
+	}
 
-    if len(educations) > 0 {
-        placeholders := strings.TrimSuffix(strings.Repeat("?,", len(educations)), ",")
-        conditions = append(conditions, fmt.Sprintf("s.education IN (%s)", placeholders))
-        for _, value := range educations {
-            params = append(params, value)
-        }
-    }
+	if len(educations) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(educations)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.education IN (%s)", placeholders))
+		for _, value := range educations {
+			params = append(params, value)
+		}
+	}
 
-    if priceFrom > 0 {
-        conditions = append(conditions, "s.price >= ?")
-        params = append(params, priceFrom)
-    }
-    if priceTo > 0 {
-        conditions = append(conditions, "s.price <= ?")
-        params = append(params, priceTo)
-    }
+	if priceFrom > 0 {
+		conditions = append(conditions, "s.price >= ?")
+		params = append(params, priceFrom)
+	}
+	if priceTo > 0 {
+		conditions = append(conditions, "s.price <= ?")
+		params = append(params, priceTo)
+	}
 
-    if len(ratings) > 0 {
-        placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ratings)), ",")
-        conditions = append(conditions, fmt.Sprintf("s.avg_rating IN (%s)", placeholders))
-        for _, r := range ratings {
-            params = append(params, r)
-        }
-    }
+	if len(ratings) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ratings)), ",")
+		conditions = append(conditions, fmt.Sprintf("s.avg_rating IN (%s)", placeholders))
+		for _, r := range ratings {
+			params = append(params, r)
+		}
+	}
 
-    // Final WHERE clause
-    if len(conditions) > 0 {
-        baseQuery += " WHERE " + strings.Join(conditions, " AND ")
-    }
+	// Final WHERE clause
+	if len(conditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(conditions, " AND ")
+	}
 
-    // Sorting
-    switch sortOption {
-    case 1:
-        baseQuery += ` ORDER BY s.created_at ASC`
+	// Sorting
+	switch sortOption {
+	case 1:
+		baseQuery += ` ORDER BY s.created_at ASC`
 
-    case 2:
-        baseQuery += ` ORDER BY s.price ASC`
-    case 3:
-        baseQuery += ` ORDER BY s.price DESC`
-    default:
-        baseQuery += ` ORDER BY s.created_at DESC`
-    }
+	case 2:
+		baseQuery += ` ORDER BY s.price ASC`
+	case 3:
+		baseQuery += ` ORDER BY s.price DESC`
+	default:
+		baseQuery += ` ORDER BY s.created_at DESC`
+	}
 
-    // Pagination
-    baseQuery += " LIMIT ? OFFSET ?"
-    params = append(params, limit, offset)
+	// Pagination
+	baseQuery += " LIMIT ? OFFSET ?"
+	params = append(params, limit, offset)
 
-    // Query
-    rows, err := r.DB.QueryContext(ctx, baseQuery, params...)
-    if err != nil {
-        return nil, 0, 0, err
-    }
-    defer rows.Close()
+	// Query
+	rows, err := r.DB.QueryContext(ctx, baseQuery, params...)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	defer rows.Close()
 
-    for rows.Next() {
-        var s models.Work
-        var imagesJSON []byte
-        var videosJSON []byte
-        var languagesJSON []byte
-        var likedStr string
-        var price, priceTo sql.NullFloat64
-        var negotiable bool
-        var hidePhone bool
-        err := rows.Scan(
-            &s.ID, &s.Name, &s.Address, &price, &priceTo, &negotiable, &s.UserID,
-            &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
+	for rows.Next() {
+		var s models.Work
+		var imagesJSON []byte
+		var videosJSON []byte
+		var languagesJSON []byte
+		var likedStr string
+		var price, priceTo sql.NullFloat64
+		var negotiable bool
+		var hidePhone bool
+		err := rows.Scan(
+			&s.ID, &s.Name, &s.Address, &price, &priceTo, &negotiable, &s.UserID,
+			&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-            &imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &hidePhone, &s.CreatedAt,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &hidePhone, &s.CreatedAt,
 
-            &s.UpdatedAt,
-        )
-        if err != nil {
-            return nil, 0, 0, fmt.Errorf("scan error: %w", err)
-        }
+			&s.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, 0, fmt.Errorf("scan error: %w", err)
+		}
 
-        s.Price = floatFromNull(price)
-        s.PriceTo = floatFromNull(priceTo)
-        s.Negotiable = negotiable
-        s.HidePhone = hidePhone
+		s.Price = floatFromNull(price)
+		s.PriceTo = floatFromNull(priceTo)
+		s.Negotiable = negotiable
+		s.HidePhone = hidePhone
 
-        if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
-            return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
-        }
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return nil, 0, 0, fmt.Errorf("json decode error: %w", err)
+		}
 
-        if len(videosJSON) > 0 {
-            if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
-                return nil, 0, 0, fmt.Errorf("json decode videos error: %w", err)
-            }
-        }
+		if len(videosJSON) > 0 {
+			if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+				return nil, 0, 0, fmt.Errorf("json decode videos error: %w", err)
+			}
+		}
 
-        if len(languagesJSON) > 0 {
-            if err := json.Unmarshal(languagesJSON, &s.Languages); err != nil {
-                return nil, 0, 0, fmt.Errorf("json decode languages error: %w", err)
-            }
-        }
+		if len(languagesJSON) > 0 {
+			if err := json.Unmarshal(languagesJSON, &s.Languages); err != nil {
+				return nil, 0, 0, fmt.Errorf("json decode languages error: %w", err)
+			}
+		}
 
-        s.Liked = likedStr == "1"
+		s.Liked = likedStr == "1"
 
-        s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
+		s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
 
-        count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
-        if err == nil {
-            s.User.ReviewsCount = count
-        }
+		count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+		if err == nil {
+			s.User.ReviewsCount = count
+		}
 
-        works = append(works, s)
-    }
+		works = append(works, s)
+	}
 
-    liftListingsTopOnly(works, func(a models.Work) string { return a.Top })
+	liftListingsTopOnly(works, func(w models.Work) string { return w.Top })
 
-    // Get min/max prices
-    var minPrice, maxPrice sql.NullFloat64
-    err = r.DB.QueryRowContext(ctx, `SELECT MIN(price), MAX(price) FROM work`).Scan(&minPrice, &maxPrice)
-    if err != nil {
-        return works, 0, 0, nil // fallback
-    }
+	// Get min/max prices
+	var minPrice, maxPrice sql.NullFloat64
+	err = r.DB.QueryRowContext(ctx, `SELECT MIN(price), MAX(price) FROM work`).Scan(&minPrice, &maxPrice)
+	if err != nil {
+		return works, 0, 0, nil // fallback
+	}
 
-    return works, minPrice.Float64, maxPrice.Float64, nil
+	return works, minPrice.Float64, maxPrice.Float64, nil
 }
 
 func (r *WorkRepository) GetWorksByUserID(ctx context.Context, userID int) ([]models.Work, error) {
