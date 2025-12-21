@@ -283,7 +283,7 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
               LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
               JOIN users u ON s.user_id = u.id
               INNER JOIN categories c ON s.category_id = c.id
-				
+
       `
 	params = append(params, userID)
 
