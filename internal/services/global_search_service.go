@@ -191,7 +191,7 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 	}
 
 	useDistanceSort := hasUserLocation && req.RadiusKm != nil
-	sortGlobalSearchEntries(entries, useDistanceSort)
+	sortGlobalSearchEntries(entries, useDistanceSort, sortOption)
 
 	total := len(entries)
 	start := (page - 1) * limit
@@ -218,7 +218,7 @@ type globalSearchEntry struct {
 	createdAt time.Time
 }
 
-func sortGlobalSearchEntries(entries []globalSearchEntry, prioritizeDistance bool) {
+func sortGlobalSearchEntries(entries []globalSearchEntry, prioritizeDistance bool, sortOption int) {
 	if len(entries) < 2 {
 		return
 	}
@@ -227,13 +227,95 @@ func sortGlobalSearchEntries(entries []globalSearchEntry, prioritizeDistance boo
 			distA := entries[i].item.Distance
 			distB := entries[j].item.Distance
 
-			if distA != nil && distB != nil && *distA != *distB {
+			switch {
+			case distA != nil && distB != nil && *distA != *distB:
 				return *distA < *distB
+			case distA != nil && distB == nil:
+				return true
+			case distA == nil && distB != nil:
+				return false
 			}
+		}
+
+		if entries[i].state.active != entries[j].state.active {
+			return entries[i].state.active
+		}
+
+		if result, decided := lessBySortOption(entries[i], entries[j], sortOption); decided {
+			return result
 		}
 
 		return lessByTopState(entries[i].state, entries[i].createdAt, entries[j].state, entries[j].createdAt)
 	})
+}
+
+func lessBySortOption(a, b globalSearchEntry, sortOption int) (bool, bool) {
+	switch sortOption {
+	case 1:
+		if !a.createdAt.Equal(b.createdAt) {
+			return a.createdAt.Before(b.createdAt), true
+		}
+	case 2:
+		switch comparePrices(a, b) {
+		case -1:
+			return true, true
+		case 1:
+			return false, true
+		}
+	case 3:
+		switch comparePrices(a, b) {
+		case -1:
+			return false, true
+		case 1:
+			return true, true
+		}
+	default:
+		if !a.createdAt.Equal(b.createdAt) {
+			return a.createdAt.After(b.createdAt), true
+		}
+	}
+
+	return false, false
+}
+
+func comparePrices(a, b globalSearchEntry) int {
+	priceA, okA := priceFromEntry(a)
+	priceB, okB := priceFromEntry(b)
+
+	switch {
+	case okA && okB:
+		switch {
+		case priceA < priceB:
+			return -1
+		case priceA > priceB:
+			return 1
+		}
+	case okA:
+		return -1
+	case okB:
+		return 1
+	}
+
+	return 0
+}
+
+func priceFromEntry(entry globalSearchEntry) (float64, bool) {
+	switch {
+	case entry.item.Service != nil && entry.item.Service.Price != nil:
+		return *entry.item.Service.Price, true
+	case entry.item.Ad != nil && entry.item.Ad.Price != nil:
+		return *entry.item.Ad.Price, true
+	case entry.item.Work != nil && entry.item.Work.Price != nil:
+		return *entry.item.Work.Price, true
+	case entry.item.WorkAd != nil && entry.item.WorkAd.Price != nil:
+		return *entry.item.WorkAd.Price, true
+	case entry.item.Rent != nil && entry.item.Rent.Price != nil:
+		return *entry.item.Rent.Price, true
+	case entry.item.RentAd != nil && entry.item.RentAd.Price != nil:
+		return *entry.item.RentAd.Price, true
+	default:
+		return 0, false
+	}
 }
 
 func newGlobalSearchEntry(listingType string, item models.GlobalSearchItem, top string, createdAt, now time.Time) globalSearchEntry {
