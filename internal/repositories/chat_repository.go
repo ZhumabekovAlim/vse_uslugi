@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -104,6 +105,9 @@ last_messages AS (
 )
 
 SELECT a.id, 'ad' AS ad_type, a.name, a.hide_phone, ac.status, CASE WHEN ac.confirmed THEN ac.performer_id END AS performer_id, 1 AS is_author,
+       a.address, a.price, a.price_to, a.negotiable, a.on_site, a.description, a.work_time_from, a.work_time_to, a.latitude, a.longitude,
+       '' AS rent_type, '' AS deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
+       a.images, a.videos, a.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        ar.price, ac.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'customer' AS my_role,
        u.phone AS provider_phone, owner.phone AS client_phone
@@ -119,6 +123,9 @@ WHERE a.user_id IN (SELECT id FROM target_users)
 UNION ALL
 
 SELECT a.id, 'ad' AS ad_type, a.name, a.hide_phone, ac.status, CASE WHEN ac.confirmed THEN ac.performer_id END AS performer_id, 0 AS is_author,
+       a.address, a.price, a.price_to, a.negotiable, a.on_site, a.description, a.work_time_from, a.work_time_to, a.latitude, a.longitude,
+       '' AS rent_type, '' AS deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
+       a.images, a.videos, a.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        ar.price, ac.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'performer' AS my_role,
        performer.phone AS provider_phone, owner.phone AS client_phone
@@ -134,6 +141,9 @@ WHERE ac.performer_id IN (SELECT id FROM target_users)
 UNION ALL
 
 SELECT s.id, 'service' AS ad_type, s.name, s.hide_phone, sc.status, CASE WHEN sc.confirmed THEN sc.performer_id END AS performer_id, 1 AS is_author,
+       s.address, s.price, s.price_to, s.negotiable, s.on_site, s.description, s.work_time_from, s.work_time_to, s.latitude, s.longitude,
+       '' AS rent_type, '' AS deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
+       s.images, s.videos, s.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'performer' AS my_role,
        owner.phone AS provider_phone, u.phone AS client_phone
@@ -149,6 +159,9 @@ WHERE s.user_id IN (SELECT id FROM target_users)
 UNION ALL
 
 SELECT s.id, 'service' AS ad_type, s.name, s.hide_phone, sc.status, CASE WHEN sc.confirmed THEN sc.performer_id END AS performer_id, 0 AS is_author,
+       s.address, s.price, s.price_to, s.negotiable, s.on_site, s.description, s.work_time_from, s.work_time_to, s.latitude, s.longitude,
+       '' AS rent_type, '' AS deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
+       s.images, s.videos, s.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        sr.price, sc.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'customer' AS my_role,
        owner.phone AS provider_phone, client.phone AS client_phone
@@ -164,6 +177,9 @@ WHERE sc.client_id IN (SELECT id FROM target_users)
 UNION ALL
 
 SELECT ra.id, 'rent_ad' AS ad_type, ra.name, ra.hide_phone, rac.status, CASE WHEN rac.confirmed THEN rac.performer_id END AS performer_id, 1 AS is_author,
+       ra.address, ra.price, ra.price_to, ra.negotiable, NULL AS on_site, ra.description, ra.work_time_from, ra.work_time_to, ra.latitude, ra.longitude,
+       ra.rent_type, ra.deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
+       ra.images, ra.videos, ra.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        rar.price, rac.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'customer' AS my_role,
        u.phone AS provider_phone, owner.phone AS client_phone
@@ -179,6 +195,9 @@ WHERE ra.user_id IN (SELECT id FROM target_users)
 UNION ALL
 
 SELECT ra.id, 'rent_ad' AS ad_type, ra.name, ra.hide_phone, rac.status, CASE WHEN rac.confirmed THEN rac.performer_id END AS performer_id, 0 AS is_author,
+       ra.address, ra.price, ra.price_to, ra.negotiable, NULL AS on_site, ra.description, ra.work_time_from, ra.work_time_to, ra.latitude, ra.longitude,
+       ra.rent_type, ra.deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
+       ra.images, ra.videos, ra.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        rar.price, rac.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'performer' AS my_role,
        performer.phone AS provider_phone, owner.phone AS client_phone
@@ -194,6 +213,9 @@ WHERE rac.performer_id IN (SELECT id FROM target_users)
 UNION ALL
 
 SELECT wa.id, 'work_ad' AS ad_type, wa.name, wa.hide_phone, wac.status, CASE WHEN wac.confirmed THEN wac.performer_id END AS performer_id, 1 AS is_author,
+       wa.address, wa.price, wa.price_to, wa.negotiable, NULL AS on_site, wa.description, wa.work_time_from, wa.work_time_to, wa.latitude, wa.longitude,
+       '' AS rent_type, '' AS deposit, wa.work_experience, wa.schedule, wa.distance_work, wa.payment_period,
+       wa.images, wa.videos, wa.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        war.price, wac.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'customer' AS my_role,
        u.phone AS provider_phone, owner.phone AS client_phone
@@ -209,6 +231,9 @@ WHERE wa.user_id IN (SELECT id FROM target_users)
 UNION ALL
 
 SELECT wa.id, 'work_ad' AS ad_type, wa.name, wa.hide_phone, wac.status, CASE WHEN wac.confirmed THEN wac.performer_id END AS performer_id, 0 AS is_author,
+       wa.address, wa.price, wa.price_to, wa.negotiable, NULL AS on_site, wa.description, wa.work_time_from, wa.work_time_to, wa.latitude, wa.longitude,
+       '' AS rent_type, '' AS deposit, wa.work_experience, wa.schedule, wa.distance_work, wa.payment_period,
+       wa.images, wa.videos, wa.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        war.price, wac.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'performer' AS my_role,
        performer.phone AS provider_phone, owner.phone AS client_phone
@@ -224,6 +249,9 @@ WHERE wac.performer_id IN (SELECT id FROM target_users)
 UNION ALL
 
 SELECT r.id, 'rent' AS ad_type, r.name, r.hide_phone, rc.status, CASE WHEN rc.confirmed THEN rc.performer_id END AS performer_id, 1 AS is_author,
+       r.address, r.price, r.price_to, r.negotiable, NULL AS on_site, r.description, r.work_time_from, r.work_time_to, r.latitude, r.longitude,
+       r.rent_type, r.deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
+       r.images, r.videos, r.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        rr.price, rc.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'customer' AS my_role,
        u.phone AS provider_phone, owner.phone AS client_phone
@@ -239,6 +267,9 @@ WHERE r.user_id IN (SELECT id FROM target_users)
 UNION ALL
 
 SELECT r.id, 'rent' AS ad_type, r.name, r.hide_phone, rc.status, CASE WHEN rc.confirmed THEN rc.performer_id END AS performer_id, 0 AS is_author,
+       r.address, r.price, r.price_to, r.negotiable, NULL AS on_site, r.description, r.work_time_from, r.work_time_to, r.latitude, r.longitude,
+       r.rent_type, r.deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
+       r.images, r.videos, r.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        rr.price, rc.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'performer' AS my_role,
        performer.phone AS provider_phone, owner.phone AS client_phone
@@ -254,6 +285,9 @@ WHERE rc.performer_id IN (SELECT id FROM target_users)
 UNION ALL
 
 SELECT w.id, 'work' AS ad_type, w.name, w.hide_phone, wc.status, CASE WHEN wc.confirmed THEN wc.performer_id END AS performer_id, 1 AS is_author,
+       w.address, w.price, w.price_to, w.negotiable, NULL AS on_site, w.description, w.work_time_from, w.work_time_to, w.latitude, w.longitude,
+       '' AS rent_type, '' AS deposit, w.work_experience, w.schedule, w.distance_work, w.payment_period,
+       w.images, w.videos, w.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'performer' AS my_role,
        provider.phone AS provider_phone, u.phone AS client_phone
@@ -269,6 +303,9 @@ WHERE w.user_id IN (SELECT id FROM target_users)
 UNION ALL
 
 SELECT w.id, 'work' AS ad_type, w.name, w.hide_phone, wc.status, CASE WHEN wc.confirmed THEN wc.performer_id END AS performer_id, 0 AS is_author,
+       w.address, w.price, w.price_to, w.negotiable, NULL AS on_site, w.description, w.work_time_from, w.work_time_to, w.latitude, w.longitude,
+       '' AS rent_type, '' AS deposit, w.work_experience, w.schedule, w.distance_work, w.payment_period,
+       w.images, w.videos, w.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
        wr.price, wc.chat_id, COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at, 'customer' AS my_role,
        owner.phone AS provider_phone, client.phone AS client_phone
@@ -296,6 +333,12 @@ ORDER BY last_message_at DESC
 	for rows.Next() {
 		var adID int
 		var adType, adName, status string
+		var address, description, workTimeFrom, workTimeTo, rentType, deposit, workExperience, schedule, distanceWork, paymentPeriod sql.NullString
+		var latitude, longitude sql.NullString
+		var price, priceTo sql.NullFloat64
+		var negotiable, onSite sql.NullBool
+		var imagesJSON, videosJSON []byte
+		var createdAt sql.NullTime
 		var hidePhone bool
 		var confirmedPerformer sql.NullInt64
 		var isAuthor bool
@@ -304,6 +347,9 @@ ORDER BY last_message_at DESC
 
 		if err := rows.Scan(
 			&adID, &adType, &adName, &hidePhone, &status, &confirmedPerformer, &isAuthor,
+			&address, &price, &priceTo, &negotiable, &onSite, &description, &workTimeFrom, &workTimeTo, &latitude, &longitude,
+			&rentType, &deposit, &workExperience, &schedule, &distanceWork, &paymentPeriod,
+			&imagesJSON, &videosJSON, &createdAt,
 			&user.ID, &user.Name, &user.Surname, &user.AvatarPath, &user.Phone,
 			&user.Price, &user.ChatID, &user.LastMessage, &lastMessageAt, &user.MyRole,
 			&user.ProviderPhone, &user.ClientPhone,
@@ -338,6 +384,7 @@ ORDER BY last_message_at DESC
 			result[idx].Users = append(result[idx].Users, user)
 		} else {
 			chatGroup := models.AdChats{
+				AdType:      adType,
 				AdName:      adName,
 				HidePhone:   hidePhone,
 				Status:      status,
@@ -345,6 +392,72 @@ ORDER BY last_message_at DESC
 				PerformerID: performerID,
 				Users:       []models.ChatUser{user},
 			}
+
+			if address.Valid {
+				chatGroup.Address = address.String
+			}
+			if description.Valid {
+				chatGroup.Description = description.String
+			}
+			if workTimeFrom.Valid {
+				chatGroup.WorkTimeFrom = workTimeFrom.String
+			}
+			if workTimeTo.Valid {
+				chatGroup.WorkTimeTo = workTimeTo.String
+			}
+			if rentType.Valid {
+				chatGroup.RentType = rentType.String
+			}
+			if deposit.Valid {
+				chatGroup.Deposit = deposit.String
+			}
+			if workExperience.Valid {
+				chatGroup.WorkExperience = workExperience.String
+			}
+			if schedule.Valid {
+				chatGroup.Schedule = schedule.String
+			}
+			if distanceWork.Valid {
+				chatGroup.DistanceWork = distanceWork.String
+			}
+			if paymentPeriod.Valid {
+				chatGroup.PaymentPeriod = paymentPeriod.String
+			}
+
+			if len(imagesJSON) > 0 {
+				if err := json.Unmarshal(imagesJSON, &chatGroup.Images); err != nil {
+					return nil, fmt.Errorf("decode images: %w", err)
+				}
+			}
+			if len(videosJSON) > 0 {
+				if err := json.Unmarshal(videosJSON, &chatGroup.Videos); err != nil {
+					return nil, fmt.Errorf("decode videos: %w", err)
+				}
+			}
+			if createdAt.Valid {
+				t := createdAt.Time
+				chatGroup.CreatedAt = &t
+			}
+
+			if price.Valid {
+				chatGroup.Price = floatPtr(price.Float64)
+			}
+			if priceTo.Valid {
+				chatGroup.PriceTo = floatPtr(priceTo.Float64)
+			}
+			if negotiable.Valid {
+				chatGroup.Negotiable = negotiable.Bool
+			}
+			if onSite.Valid {
+				chatGroup.OnSite = onSite.Bool
+			}
+			if latitude.Valid {
+				chatGroup.Latitude = stringPtr(latitude.String)
+			}
+			if longitude.Valid {
+				chatGroup.Longitude = stringPtr(longitude.String)
+			}
+
 			chatGroup.SetIDByType(adType, adID)
 			result = append(result, chatGroup)
 			adIndex[key] = len(result) - 1
@@ -356,6 +469,14 @@ ORDER BY last_message_at DESC
 	}
 	return result, nil
 
+}
+
+func floatPtr(v float64) *float64 {
+	return &v
+}
+
+func stringPtr(v string) *string {
+	return &v
 }
 
 // getUserReviewForAd fetches a review left by a user for a specific advertisement type.
