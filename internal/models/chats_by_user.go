@@ -58,6 +58,9 @@ type AdChats struct {
 	Schedule       string     `json:"schedule,omitempty"`
 	DistanceWork   string     `json:"distance_work,omitempty"`
 	PaymentPeriod  string     `json:"payment_period,omitempty"`
+	Images         []Image    `json:"images,omitempty"`
+	Videos         []Video    `json:"videos,omitempty"`
+	CreatedAt      *time.Time `json:"created_at,omitempty"`
 	Users          []ChatUser `json:"users"`
 }
 

@@ -107,6 +107,16 @@ func buildChatResponseItem(chat models.AdChats) map[string]interface{} {
 		"ad_type":      chat.AdType,
 	}
 
+	if len(chat.Images) > 0 {
+		item["images"] = chat.Images
+	}
+	if len(chat.Videos) > 0 {
+		item["videos"] = chat.Videos
+	}
+	if chat.CreatedAt != nil {
+		item["created_at"] = chat.CreatedAt
+	}
+
 	if chat.AdID != nil {
 		item["ad_id"] = *chat.AdID
 	}
