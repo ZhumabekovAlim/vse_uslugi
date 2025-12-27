@@ -10,9 +10,9 @@ import (
 	// _ "naimuBack/docs"
 )
 
-func (app *application) JWTMiddlewareWithRole(requiredRole string) func(http.Handler) http.Handler {
+func (app *application) JWTMiddlewareWithRole(requiredRoles ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return app.JWTMiddleware(next, requiredRole)
+		return app.JWTMiddleware(next, requiredRoles...)
 	}
 }
 
@@ -148,7 +148,7 @@ func (app *application) routes() http.Handler {
 	standardMiddleware := alice.New(app.recoverPanic, app.logRequest, secureHeaders, makeResponseJSON)
 	authMiddleware := standardMiddleware.Append(app.JWTMiddlewareWithRole("user"))
 	adminAuthMiddleware := standardMiddleware.Append(app.JWTMiddlewareWithRole("admin"))
-	businessAuthMiddleware := standardMiddleware.Append(app.JWTMiddlewareWithRole("business"))
+	businessAuthMiddleware := standardMiddleware.Append(app.JWTMiddlewareWithRole("business", "business_worker"))
 	noBusinessWorkerAuth := standardMiddleware.Append(app.JWTMiddlewareWithRole("user"), app.forbidBusinessWorker)
 
 	wsMiddleware := alice.New(app.recoverPanic, app.logRequest)
