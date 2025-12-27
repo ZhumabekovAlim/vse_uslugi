@@ -44,7 +44,7 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 	})
 }
 
-func (app *application) JWTMiddleware(next http.Handler, requiredRole string) http.Handler {
+func (app *application) JWTMiddleware(next http.Handler, requiredRoles ...string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 1) Получаем access token
 		authHeader := r.Header.Get("Authorization")
@@ -101,30 +101,33 @@ func (app *application) JWTMiddleware(next http.Handler, requiredRole string) ht
 		}
 
 		// 6) Проверка ролей
-		switch requiredRole {
-		case "admin":
-			if claims.Role != "admin" {
-				http.Error(w, "Forbidden: only admins allowed", http.StatusForbidden)
-				return
+		roleAllowed := func(requiredRole string) bool {
+			switch requiredRole {
+			case "admin":
+				return claims.Role == "admin"
+			case "client":
+				return claims.Role == "client" || claims.Role == "admin"
+			case "worker":
+				return claims.Role == "worker" || claims.Role == "admin" || claims.Role == "business_worker"
+			case "business":
+				return claims.Role == "business" || claims.Role == "admin"
+			case "business_worker":
+				return claims.Role == "business_worker" || claims.Role == "admin"
+			default:
+				return true
 			}
-		case "client":
-			if claims.Role != "client" && claims.Role != "admin" {
-				http.Error(w, "Forbidden: only clients or admins allowed", http.StatusForbidden)
-				return
+		}
+
+		if len(requiredRoles) > 0 {
+			allowed := false
+			for _, requiredRole := range requiredRoles {
+				if roleAllowed(requiredRole) {
+					allowed = true
+					break
+				}
 			}
-		case "worker":
-			if claims.Role != "worker" && claims.Role != "admin" && claims.Role != "business_worker" {
-				http.Error(w, "Forbidden: only workers or admins allowed", http.StatusForbidden)
-				return
-			}
-		case "business":
-			if claims.Role != "business" && claims.Role != "admin" {
-				http.Error(w, "Forbidden: only business or admins allowed", http.StatusForbidden)
-				return
-			}
-		case "business_worker":
-			if claims.Role != "business_worker" && claims.Role != "admin" {
-				http.Error(w, "Forbidden: only business workers or admins allowed", http.StatusForbidden)
+			if !allowed {
+				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}
 		}
