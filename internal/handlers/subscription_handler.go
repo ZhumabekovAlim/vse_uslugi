@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -22,7 +23,17 @@ func (h *SubscriptionHandler) GetSubscription(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	profile, err := h.Service.GetProfile(r.Context(), userID)
+	resolvedUserID, err := h.Service.ResolveSubscriptionOwnerID(r.Context(), userID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, models.ErrForbidden) {
+			status = http.StatusForbidden
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
+
+	profile, err := h.Service.GetProfile(r.Context(), resolvedUserID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -41,7 +52,17 @@ func (h *SubscriptionHandler) GetSubscriptions(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	profile, err := h.Service.GetProfile(r.Context(), userID)
+	resolvedUserID, err := h.Service.ResolveSubscriptionOwnerID(r.Context(), userID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, models.ErrForbidden) {
+			status = http.StatusForbidden
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
+
+	profile, err := h.Service.GetProfile(r.Context(), resolvedUserID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -265,7 +265,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adReviewService := &services.AdReviewService{AdReviewsRepo: &adReviewRepo, ConfirmationRepo: &adConfirmationRepo}
 	adResponseService := &services.AdResponseService{AdResponseRepo: &adResponseRepo, AdRepo: &adRepo, ChatRepo: &chatRepo, ConfirmationRepo: &adConfirmationRepo, MessageRepo: &messageRepo, SubscriptionRepo: &subscriptionRepo, UserRepo: &userRepo, BusinessRepo: &businessRepo}
 	adFavoriteService := &services.AdFavoriteService{AdFavoriteRepo: &adFavoriteRepo}
-	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo}
+	subscriptionService := &services.SubscriptionService{Repo: &subscriptionRepo, BusinessRepo: &businessRepo}
 	locationService := &services.LocationService{Repo: &locationRepo, BusinessRepo: &businessRepo}
 	topService := services.NewTopService(topRepo)
 
