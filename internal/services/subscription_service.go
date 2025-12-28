@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"naimuBack/internal/models"
@@ -9,7 +10,8 @@ import (
 )
 
 type SubscriptionService struct {
-	Repo *repositories.SubscriptionRepository
+	Repo         *repositories.SubscriptionRepository
+	BusinessRepo *repositories.BusinessRepository
 }
 
 func (s *SubscriptionService) GetProfile(ctx context.Context, userID int) (models.SubscriptionProfile, error) {
@@ -41,6 +43,40 @@ func (s *SubscriptionService) GetProfile(ctx context.Context, userID int) (model
 		profile.Responses.RenewsAt = &responses.RenewsAt
 	}
 	return profile, nil
+}
+
+// ResolveSubscriptionOwnerID determines whose subscription should be fetched based on requester role.
+// - business_worker: find the linked business user and return that user ID.
+// - business: return the caller's own user ID.
+// - everyone else: use the requested user ID unchanged.
+func (s *SubscriptionService) ResolveSubscriptionOwnerID(ctx context.Context, requestedUserID int) (int, error) {
+	role, _ := ctx.Value("role").(string)
+	callerID, _ := ctx.Value("user_id").(int)
+
+	switch role {
+	case models.RoleBusinessWorker:
+		if s.BusinessRepo == nil {
+			return 0, fmt.Errorf("business repository not configured")
+		}
+		if callerID == 0 {
+			return 0, models.ErrForbidden
+		}
+		worker, err := s.BusinessRepo.GetWorkerByUserID(ctx, callerID)
+		if err != nil {
+			return 0, err
+		}
+		if worker.ID == 0 {
+			return 0, models.ErrForbidden
+		}
+		return worker.BusinessUserID, nil
+	case "business":
+		if callerID == 0 {
+			return 0, models.ErrForbidden
+		}
+		return callerID, nil
+	default:
+		return requestedUserID, nil
+	}
 }
 
 func buildSubscriptionInfo(subs []models.ExecutorSubscription, target models.SubscriptionType) models.SubscriptionInfo {
