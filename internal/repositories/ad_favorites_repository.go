@@ -32,7 +32,7 @@ func (r *AdFavoriteRepository) IsAdFavorite(ctx context.Context, userID, adID in
 }
 
 func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID int) ([]models.AdFavorite, error) {
-	query := `SELECT af.id, af.user_id, af.ad_id, a.name, a.price, a.price_to, a.on_site, a.negotiable, a.hide_phone, a.status, a.created_at, a.images
+	query := `SELECT af.id, af.user_id, af.ad_id, a.name, a.price, a.price_to, a.on_site, a.negotiable, a.hide_phone, a.order_date, a.order_time, a.status, a.created_at, a.images
                  FROM ad_favorites af
                  JOIN ad a ON af.ad_id = a.id
                  WHERE af.user_id = ?`
@@ -46,8 +46,9 @@ func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID 
 	for rows.Next() {
 		var fav models.AdFavorite
 		var price, priceTo sql.NullFloat64
+		var orderDate, orderTime sql.NullString
 		var imagesJSON sql.NullString
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.AdID, &fav.Name, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.AdID, &fav.Name, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone, &orderDate, &orderTime, &fav.Status, &fav.CreatedAt, &imagesJSON)
 		if err != nil {
 			return nil, err
 		}
@@ -56,6 +57,12 @@ func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID 
 		}
 		if priceTo.Valid {
 			fav.PriceTo = &priceTo.Float64
+		}
+		if orderDate.Valid {
+			fav.OrderDate = &orderDate.String
+		}
+		if orderTime.Valid {
+			fav.OrderTime = &orderTime.String
 		}
 
 		imgPath, err := extractFirstImagePath(imagesJSON)

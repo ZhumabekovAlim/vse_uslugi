@@ -41,6 +41,8 @@ type RentAd struct {
 	Deposit           string        `json:"deposit"`
 	Latitude          string        `json:"latitude,omitempty"`
 	Longitude         string        `json:"longitude,omitempty"`
+	OrderDate         *string       `json:"order_date,omitempty"`
+	OrderTime         *string       `json:"order_time,omitempty"`
 	CreatedAt         time.Time     `json:"created_at"`
 	UpdatedAt         *time.Time    `json:"updated_at,omitempty"`
 }
@@ -109,6 +111,8 @@ type FilteredRentAd struct {
 	Videos            []Video       `json:"videos"`
 	RentAdLatitude    string        `json:"latitude"`
 	RentAdLongitude   string        `json:"longitude"`
+	OrderDate         *string       `json:"order_date,omitempty"`
+	OrderTime         *string       `json:"order_time,omitempty"`
 	Distance          *float64      `json:"distance,omitempty"`
 	Liked             bool          `json:"liked"`
 	Responded         bool          `json:"is_responded"`

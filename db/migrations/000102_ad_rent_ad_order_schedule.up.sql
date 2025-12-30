@@ -1,0 +1,7 @@
+ALTER TABLE ad
+    ADD COLUMN order_date VARCHAR(255) NULL,
+    ADD COLUMN order_time VARCHAR(255) NULL;
+
+ALTER TABLE rent_ad
+    ADD COLUMN order_date VARCHAR(255) NULL,
+    ADD COLUMN order_time VARCHAR(255) NULL;

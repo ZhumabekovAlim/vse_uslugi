@@ -424,6 +424,12 @@ func (h *RentAdHandler) CreateRentAd(w http.ResponseWriter, r *http.Request) {
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
 	service.WorkTimeFrom = r.FormValue("work_time_from")
 	service.WorkTimeTo = r.FormValue("work_time_to")
+	if orderDate := strings.TrimSpace(r.FormValue("order_date")); orderDate != "" {
+		service.OrderDate = &orderDate
+	}
+	if orderTime := strings.TrimSpace(r.FormValue("order_time")); orderTime != "" {
+		service.OrderTime = &orderTime
+	}
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.RentType = r.FormValue("rent_type")
 	service.Deposit = r.FormValue("deposit")
@@ -656,6 +662,22 @@ func (h *RentAdHandler) UpdateRentAd(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, ok := r.MultipartForm.Value["work_time_to"]; ok {
 		service.WorkTimeTo = r.FormValue("work_time_to")
+	}
+	if v, ok := r.MultipartForm.Value["order_date"]; ok {
+		orderDate := strings.TrimSpace(v[0])
+		if orderDate != "" {
+			service.OrderDate = &orderDate
+		} else {
+			service.OrderDate = nil
+		}
+	}
+	if v, ok := r.MultipartForm.Value["order_time"]; ok {
+		orderTime := strings.TrimSpace(v[0])
+		if orderTime != "" {
+			service.OrderTime = &orderTime
+		} else {
+			service.OrderTime = nil
+		}
 	}
 	if v, ok := r.MultipartForm.Value["avg_rating"]; ok {
 		service.AvgRating, _ = strconv.ParseFloat(v[0], 64)

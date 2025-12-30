@@ -40,6 +40,8 @@ type Ad struct {
 	SubcategoryNameKz string     `json:"subcategory_name_kz"`
 	Latitude          *string    `json:"latitude,omitempty"`
 	Longitude         *string    `json:"longitude,omitempty"`
+	OrderDate         *string    `json:"order_date,omitempty"`
+	OrderTime         *string    `json:"order_time,omitempty"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         *time.Time `json:"updated_at,omitempty"`
 }
@@ -108,6 +110,8 @@ type FilteredAd struct {
 	Videos           []Video   `json:"videos"`
 	AdLatitude       *string   `json:"latitude"`
 	AdLongitude      *string   `json:"longitude"`
+	OrderDate        *string   `json:"order_date,omitempty"`
+	OrderTime        *string   `json:"order_time,omitempty"`
 	Distance         *float64  `json:"distance,omitempty"`
 	Liked            bool      `json:"liked"`
 	Responded        bool      `json:"is_responded"`
