@@ -145,9 +145,7 @@ ORDER BY last_message_at DESC`
 			MyRole:        models.RoleBusinessWorker,
 		}
 
-		if lastMessage != "" {
-			user.LastMessage = lastMessage
-		}
+		user.LastMessage = lastMessage
 		if lastMessageAt.Valid {
 			t := lastMessageAt.Time
 			user.LastMessageAt = &t
