@@ -16,6 +16,8 @@ type RentAdFavorite struct {
 	Negotiable   bool      `json:"negotiable"`
 	HidePhone    bool      `json:"hide_phone"`
 	ImagePath    *string   `json:"image_path,omitempty"`
+	OrderDate    *string   `json:"order_date,omitempty"`
+	OrderTime    *string   `json:"order_time,omitempty"`
 	Status       string    `json:"status"`
 	CreatedAt    time.Time `json:"created_at"`
 }
