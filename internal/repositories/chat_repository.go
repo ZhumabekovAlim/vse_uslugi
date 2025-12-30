@@ -86,6 +86,102 @@ func (r *ChatRepository) DeleteChat(ctx context.Context, id int) error {
 	return err
 }
 
+// GetBusinessWorkerChats returns base chats between a business account and its workers.
+func (r *ChatRepository) GetBusinessWorkerChats(ctx context.Context, businessUserID int) ([]models.AdChats, error) {
+	const query = `
+WITH last_messages AS (
+    SELECT m.chat_id, m.text, m.created_at
+    FROM messages m
+    JOIN (
+        SELECT chat_id, MAX(created_at) AS max_created
+        FROM messages
+        GROUP BY chat_id
+    ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
+)
+
+SELECT bw.worker_user_id, bw.login, bw.status, bw.chat_id,
+       u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
+       COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at,
+       c.created_at
+FROM business_workers bw
+JOIN chats c ON c.id = bw.chat_id
+JOIN users u ON u.id = bw.worker_user_id
+LEFT JOIN last_messages lm ON lm.chat_id = bw.chat_id
+WHERE bw.business_user_id = ? AND (c.user1_id = ? OR c.user2_id = ?)
+ORDER BY last_message_at DESC`
+
+	rows, err := r.Db.QueryContext(ctx, query, businessUserID, businessUserID, businessUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chats []models.AdChats
+
+	for rows.Next() {
+		var workerUserID, chatID int
+		var login, status, name, surname, avatarPath, phone, lastMessage string
+		var lastMessageAt, createdAt sql.NullTime
+
+		if err := rows.Scan(
+			&workerUserID, &login, &status, &chatID,
+			&name, &surname, &avatarPath, &phone,
+			&lastMessage, &lastMessageAt,
+			&createdAt,
+		); err != nil {
+			return nil, err
+		}
+
+		user := models.ChatUser{
+			ID:            workerUserID,
+			Name:          name,
+			Surname:       surname,
+			AvatarPath:    avatarPath,
+			Phone:         phone,
+			ProviderPhone: phone,
+			ClientPhone:   phone,
+			Price:         0,
+			ChatID:        chatID,
+			MyRole:        models.RoleBusinessWorker,
+		}
+
+		if lastMessage != "" {
+			user.LastMessage = lastMessage
+		}
+		if lastMessageAt.Valid {
+			t := lastMessageAt.Time
+			user.LastMessageAt = &t
+		}
+
+		if rating, err := getUserAverageRating(ctx, r.Db, workerUserID); err == nil {
+			user.ReviewRating = rating
+		}
+		if count, err := getUserTotalReviews(ctx, r.Db, workerUserID); err == nil {
+			user.ReviewsCount = count
+		}
+
+		performerID := workerUserID
+		chat := models.AdChats{
+			AdType:      "business_worker",
+			AdName:      login,
+			Status:      status,
+			IsAuthor:    true,
+			HidePhone:   false,
+			PerformerID: &performerID,
+			Users:       []models.ChatUser{user},
+		}
+
+		if createdAt.Valid {
+			t := createdAt.Time
+			chat.CreatedAt = &t
+		}
+
+		chats = append(chats, chat)
+	}
+
+	return chats, rows.Err()
+}
+
 // GetChatsByUserID retrieves chats grouped by advertisements for a specific author.
 func (r *ChatRepository) GetChatsByUserID(ctx context.Context, userID int) ([]models.AdChats, error) {
 	query := `

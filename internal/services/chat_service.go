@@ -46,9 +46,9 @@ func (s *ChatService) DeleteChat(ctx context.Context, id int) error {
 }
 
 // GetWorkerChats returns base chats between business and its workers.
-func (s *ChatService) GetWorkerChats(ctx context.Context, businessUserID int) ([]models.BusinessWorker, error) {
-	if s.BusinessRepo == nil {
-		return nil, errors.New("business repo not configured")
+func (s *ChatService) GetWorkerChats(ctx context.Context, businessUserID int) ([]models.AdChats, error) {
+	if s.ChatRepo == nil {
+		return nil, errors.New("chat repo not configured")
 	}
-	return s.BusinessRepo.GetWorkersByBusiness(ctx, businessUserID)
+	return s.ChatRepo.GetBusinessWorkerChats(ctx, businessUserID)
 }
