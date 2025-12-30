@@ -64,6 +64,14 @@ type AdChats struct {
 	Users          []ChatUser `json:"users"`
 }
 
+// BusinessWorkerChat represents chats between a business and its workers without advertisement metadata.
+type BusinessWorkerChat struct {
+	ChatID       int        `json:"chat_id"`
+	WorkerUserID int        `json:"worker_user_id"`
+	Login        string     `json:"login"`
+	Users        []ChatUser `json:"users"`
+}
+
 // SetIDByType assigns the advertisement identifier based on its type.
 func (a *AdChats) SetIDByType(adType string, id int) {
 	switch adType {

@@ -271,12 +271,18 @@ func (h *ChatHandler) GetPerformerChats(w http.ResponseWriter, r *http.Request) 
 
 // GetWorkerChats returns base business-worker chat ids.
 func (h *ChatHandler) GetWorkerChats(w http.ResponseWriter, r *http.Request) {
-	businessUserID, _ := r.Context().Value("user_id").(int)
-	workers, err := h.ChatService.GetWorkerChats(r.Context(), businessUserID)
+	userID, _ := r.Context().Value("user_id").(int)
+	role, _ := r.Context().Value("role").(string)
+
+	chats, err := h.ChatService.GetWorkerChats(r.Context(), userID, role)
 	if err != nil {
+		if err.Error() == "forbidden" {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"chats": workers})
+	json.NewEncoder(w).Encode(map[string]any{"chats": chats})
 }
