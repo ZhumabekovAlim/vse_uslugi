@@ -99,7 +99,7 @@ WITH last_messages AS (
     ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
 )
 
-SELECT bw.worker_user_id, bw.login, bw.chat_id,
+SELECT bw.business_user_id, bw.worker_user_id, bw.login, bw.chat_id,
        u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at,
        c.created_at
@@ -119,12 +119,12 @@ ORDER BY last_message_at DESC`
 	var chats []models.BusinessWorkerChat
 
 	for rows.Next() {
-		var workerUserID, chatID int
+		var businessUserIDRow, workerUserID, chatID int
 		var login, name, surname, avatarPath, phone, lastMessage string
 		var lastMessageAt, createdAt sql.NullTime
 
 		if err := rows.Scan(
-			&workerUserID, &login, &chatID,
+			&businessUserIDRow, &workerUserID, &login, &chatID,
 			&name, &surname, &avatarPath, &phone,
 			&lastMessage, &lastMessageAt,
 			&createdAt,
@@ -132,13 +132,14 @@ ORDER BY last_message_at DESC`
 			return nil, err
 		}
 
-		user := r.buildBusinessWorkerChatUser(ctx, workerUserID, chatID, name, surname, avatarPath, phone, lastMessage, lastMessageAt)
+		user := r.buildChatUser(ctx, workerUserID, chatID, name, surname, avatarPath, phone, lastMessage, lastMessageAt, models.RoleBusinessWorker, true)
 
 		chat := models.BusinessWorkerChat{
-			ChatID:       chatID,
-			WorkerUserID: workerUserID,
-			Login:        login,
-			Users:        []models.ChatUser{user},
+			ChatID:         chatID,
+			BusinessUserID: businessUserIDRow,
+			WorkerUserID:   workerUserID,
+			Login:          login,
+			Users:          []models.ChatUser{user},
 		}
 
 		if chat.Users[0].LastMessageAt == nil && createdAt.Valid {
@@ -165,23 +166,23 @@ WITH last_messages AS (
     ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
 )
 
-SELECT bw.worker_user_id, bw.login, bw.chat_id,
-       u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
+SELECT bw.business_user_id, bw.worker_user_id, bw.login, bw.chat_id,
+       bu.name, bu.surname, COALESCE(bu.avatar_path, '') AS avatar_path, bu.phone,
        COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at,
        c.created_at
 FROM business_workers bw
 JOIN chats c ON c.id = bw.chat_id
-JOIN users u ON u.id = bw.worker_user_id
+JOIN users bu ON bu.id = bw.business_user_id
 LEFT JOIN last_messages lm ON lm.chat_id = bw.chat_id
 WHERE bw.business_user_id = ? AND bw.worker_user_id = ? AND (c.user1_id = ? OR c.user2_id = ?)
 LIMIT 1`
 
-	var workerID, chatID int
+	var businessID, workerID, chatID int
 	var login, name, surname, avatarPath, phone, lastMessage string
 	var lastMessageAt, createdAt sql.NullTime
 
 	err := r.Db.QueryRowContext(ctx, query, businessUserID, workerUserID, workerUserID, workerUserID).Scan(
-		&workerID, &login, &chatID,
+		&businessID, &workerID, &login, &chatID,
 		&name, &surname, &avatarPath, &phone,
 		&lastMessage, &lastMessageAt,
 		&createdAt,
@@ -193,7 +194,7 @@ LIMIT 1`
 		return nil, err
 	}
 
-	user := r.buildBusinessWorkerChatUser(ctx, workerID, chatID, name, surname, avatarPath, phone, lastMessage, lastMessageAt)
+	user := r.buildChatUser(ctx, businessID, chatID, name, surname, avatarPath, phone, lastMessage, lastMessageAt, "business", false)
 
 	if user.LastMessageAt == nil && createdAt.Valid {
 		t := createdAt.Time
@@ -201,18 +202,19 @@ LIMIT 1`
 	}
 
 	chat := models.BusinessWorkerChat{
-		ChatID:       chatID,
-		WorkerUserID: workerID,
-		Login:        login,
-		Users:        []models.ChatUser{user},
+		ChatID:         chatID,
+		BusinessUserID: businessID,
+		WorkerUserID:   workerID,
+		Login:          login,
+		Users:          []models.ChatUser{user},
 	}
 
 	return &chat, nil
 }
 
-func (r *ChatRepository) buildBusinessWorkerChatUser(ctx context.Context, workerUserID, chatID int, name, surname, avatarPath, phone, lastMessage string, lastMessageAt sql.NullTime) models.ChatUser {
+func (r *ChatRepository) buildChatUser(ctx context.Context, userID, chatID int, name, surname, avatarPath, phone, lastMessage string, lastMessageAt sql.NullTime, myRole string, includeRatings bool) models.ChatUser {
 	user := models.ChatUser{
-		ID:            workerUserID,
+		ID:            userID,
 		Name:          name,
 		Surname:       surname,
 		AvatarPath:    avatarPath,
@@ -221,7 +223,7 @@ func (r *ChatRepository) buildBusinessWorkerChatUser(ctx context.Context, worker
 		ClientPhone:   phone,
 		Price:         0,
 		ChatID:        chatID,
-		MyRole:        models.RoleBusinessWorker,
+		MyRole:        myRole,
 		LastMessage:   lastMessage,
 	}
 
@@ -230,11 +232,13 @@ func (r *ChatRepository) buildBusinessWorkerChatUser(ctx context.Context, worker
 		user.LastMessageAt = &t
 	}
 
-	if rating, err := getUserAverageRating(ctx, r.Db, workerUserID); err == nil {
-		user.ReviewRating = rating
-	}
-	if count, err := getUserTotalReviews(ctx, r.Db, workerUserID); err == nil {
-		user.ReviewsCount = count
+	if includeRatings {
+		if rating, err := getUserAverageRating(ctx, r.Db, userID); err == nil {
+			user.ReviewRating = rating
+		}
+		if count, err := getUserTotalReviews(ctx, r.Db, userID); err == nil {
+			user.ReviewsCount = count
+		}
 	}
 
 	return user

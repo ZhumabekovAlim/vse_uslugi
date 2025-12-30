@@ -66,10 +66,11 @@ type AdChats struct {
 
 // BusinessWorkerChat represents chats between a business and its workers without advertisement metadata.
 type BusinessWorkerChat struct {
-	ChatID       int        `json:"chat_id"`
-	WorkerUserID int        `json:"worker_user_id"`
-	Login        string     `json:"login"`
-	Users        []ChatUser `json:"users"`
+	ChatID         int        `json:"chat_id"`
+	BusinessUserID int        `json:"business_user_id"`
+	WorkerUserID   int        `json:"worker_user_id"`
+	Login          string     `json:"login"`
+	Users          []ChatUser `json:"users"`
 }
 
 // SetIDByType assigns the advertisement identifier based on its type.
