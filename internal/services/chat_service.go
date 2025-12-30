@@ -46,9 +46,34 @@ func (s *ChatService) DeleteChat(ctx context.Context, id int) error {
 }
 
 // GetWorkerChats returns base chats between business and its workers.
-func (s *ChatService) GetWorkerChats(ctx context.Context, businessUserID int) ([]models.AdChats, error) {
+func (s *ChatService) GetWorkerChats(ctx context.Context, userID int, role string) ([]models.BusinessWorkerChat, error) {
 	if s.ChatRepo == nil {
 		return nil, errors.New("chat repo not configured")
 	}
-	return s.ChatRepo.GetBusinessWorkerChats(ctx, businessUserID)
+
+	switch role {
+	case "business":
+		return s.ChatRepo.GetBusinessWorkerChats(ctx, userID)
+	case models.RoleBusinessWorker:
+		if s.BusinessRepo == nil {
+			return nil, errors.New("business repo not configured")
+		}
+		worker, err := s.BusinessRepo.GetWorkerByUserID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if worker.ID == 0 {
+			return nil, errors.New("business worker not found")
+		}
+		chat, err := s.ChatRepo.GetBusinessWorkerChatForWorker(ctx, worker.BusinessUserID, userID)
+		if err != nil {
+			return nil, err
+		}
+		if chat == nil {
+			return nil, errors.New("chat not found")
+		}
+		return []models.BusinessWorkerChat{*chat}, nil
+	default:
+		return nil, errors.New("forbidden")
+	}
 }

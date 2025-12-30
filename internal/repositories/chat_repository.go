@@ -87,7 +87,7 @@ func (r *ChatRepository) DeleteChat(ctx context.Context, id int) error {
 }
 
 // GetBusinessWorkerChats returns base chats between a business account and its workers.
-func (r *ChatRepository) GetBusinessWorkerChats(ctx context.Context, businessUserID int) ([]models.AdChats, error) {
+func (r *ChatRepository) GetBusinessWorkerChats(ctx context.Context, businessUserID int) ([]models.BusinessWorkerChat, error) {
 	const query = `
 WITH last_messages AS (
     SELECT m.chat_id, m.text, m.created_at
@@ -99,7 +99,7 @@ WITH last_messages AS (
     ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
 )
 
-SELECT bw.worker_user_id, bw.login, bw.status, bw.chat_id,
+SELECT bw.business_user_id, bw.worker_user_id, bw.login, bw.chat_id,
        u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
        COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at,
        c.created_at
@@ -116,15 +116,15 @@ ORDER BY last_message_at DESC`
 	}
 	defer rows.Close()
 
-	var chats []models.AdChats
+	var chats []models.BusinessWorkerChat
 
 	for rows.Next() {
-		var workerUserID, chatID int
-		var login, status, name, surname, avatarPath, phone, lastMessage string
+		var businessUserIDRow, workerUserID, chatID int
+		var login, name, surname, avatarPath, phone, lastMessage string
 		var lastMessageAt, createdAt sql.NullTime
 
 		if err := rows.Scan(
-			&workerUserID, &login, &status, &chatID,
+			&businessUserIDRow, &workerUserID, &login, &chatID,
 			&name, &surname, &avatarPath, &phone,
 			&lastMessage, &lastMessageAt,
 			&createdAt,
@@ -132,52 +132,116 @@ ORDER BY last_message_at DESC`
 			return nil, err
 		}
 
-		user := models.ChatUser{
-			ID:            workerUserID,
-			Name:          name,
-			Surname:       surname,
-			AvatarPath:    avatarPath,
-			Phone:         phone,
-			ProviderPhone: phone,
-			ClientPhone:   phone,
-			Price:         0,
-			ChatID:        chatID,
-			MyRole:        models.RoleBusinessWorker,
+		user := r.buildChatUser(ctx, workerUserID, chatID, name, surname, avatarPath, phone, lastMessage, lastMessageAt, models.RoleBusinessWorker, true)
+
+		chat := models.BusinessWorkerChat{
+			ChatID:         chatID,
+			BusinessUserID: businessUserIDRow,
+			WorkerUserID:   workerUserID,
+			Login:          login,
+			Users:          []models.ChatUser{user},
 		}
 
-		user.LastMessage = lastMessage
-		if lastMessageAt.Valid {
-			t := lastMessageAt.Time
-			user.LastMessageAt = &t
-		}
-
-		if rating, err := getUserAverageRating(ctx, r.Db, workerUserID); err == nil {
-			user.ReviewRating = rating
-		}
-		if count, err := getUserTotalReviews(ctx, r.Db, workerUserID); err == nil {
-			user.ReviewsCount = count
-		}
-
-		performerID := workerUserID
-		chat := models.AdChats{
-			AdType:      "business_worker",
-			AdName:      login,
-			Status:      status,
-			IsAuthor:    true,
-			HidePhone:   false,
-			PerformerID: &performerID,
-			Users:       []models.ChatUser{user},
-		}
-
-		if createdAt.Valid {
+		if chat.Users[0].LastMessageAt == nil && createdAt.Valid {
 			t := createdAt.Time
-			chat.CreatedAt = &t
+			chat.Users[0].LastMessageAt = &t
 		}
 
 		chats = append(chats, chat)
 	}
 
 	return chats, rows.Err()
+}
+
+// GetBusinessWorkerChatForWorker returns a worker's chat with their business.
+func (r *ChatRepository) GetBusinessWorkerChatForWorker(ctx context.Context, businessUserID, workerUserID int) (*models.BusinessWorkerChat, error) {
+	const query = `
+WITH last_messages AS (
+    SELECT m.chat_id, m.text, m.created_at
+    FROM messages m
+    JOIN (
+        SELECT chat_id, MAX(created_at) AS max_created
+        FROM messages
+        GROUP BY chat_id
+    ) t ON t.chat_id = m.chat_id AND t.max_created = m.created_at
+)
+
+SELECT bw.business_user_id, bw.worker_user_id, bw.login, bw.chat_id,
+       bu.name, bu.surname, COALESCE(bu.avatar_path, '') AS avatar_path, bu.phone,
+       COALESCE(lm.text, '') AS last_message, COALESCE(lm.created_at, c.created_at) AS last_message_at,
+       c.created_at
+FROM business_workers bw
+JOIN chats c ON c.id = bw.chat_id
+JOIN users bu ON bu.id = bw.business_user_id
+LEFT JOIN last_messages lm ON lm.chat_id = bw.chat_id
+WHERE bw.business_user_id = ? AND bw.worker_user_id = ? AND (c.user1_id = ? OR c.user2_id = ?)
+LIMIT 1`
+
+	var businessID, workerID, chatID int
+	var login, name, surname, avatarPath, phone, lastMessage string
+	var lastMessageAt, createdAt sql.NullTime
+
+	err := r.Db.QueryRowContext(ctx, query, businessUserID, workerUserID, workerUserID, workerUserID).Scan(
+		&businessID, &workerID, &login, &chatID,
+		&name, &surname, &avatarPath, &phone,
+		&lastMessage, &lastMessageAt,
+		&createdAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	user := r.buildChatUser(ctx, businessID, chatID, name, surname, avatarPath, phone, lastMessage, lastMessageAt, "business", false)
+
+	if user.LastMessageAt == nil && createdAt.Valid {
+		t := createdAt.Time
+		user.LastMessageAt = &t
+	}
+
+	chat := models.BusinessWorkerChat{
+		ChatID:         chatID,
+		BusinessUserID: businessID,
+		WorkerUserID:   workerID,
+		Login:          login,
+		Users:          []models.ChatUser{user},
+	}
+
+	return &chat, nil
+}
+
+func (r *ChatRepository) buildChatUser(ctx context.Context, userID, chatID int, name, surname, avatarPath, phone, lastMessage string, lastMessageAt sql.NullTime, myRole string, includeRatings bool) models.ChatUser {
+	user := models.ChatUser{
+		ID:            userID,
+		Name:          name,
+		Surname:       surname,
+		AvatarPath:    avatarPath,
+		Phone:         phone,
+		ProviderPhone: phone,
+		ClientPhone:   phone,
+		Price:         0,
+		ChatID:        chatID,
+		MyRole:        myRole,
+		LastMessage:   lastMessage,
+	}
+
+	if lastMessageAt.Valid {
+		t := lastMessageAt.Time
+		user.LastMessageAt = &t
+	}
+
+	if includeRatings {
+		if rating, err := getUserAverageRating(ctx, r.Db, userID); err == nil {
+			user.ReviewRating = rating
+		}
+		if count, err := getUserTotalReviews(ctx, r.Db, userID); err == nil {
+			user.ReviewsCount = count
+		}
+	}
+
+	return user
 }
 
 // GetChatsByUserID retrieves chats grouped by advertisements for a specific author.
