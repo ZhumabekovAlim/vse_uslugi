@@ -36,7 +36,7 @@ func (r *RentConfirmationRepository) Confirm(ctx context.Context, rentID, Client
 	defer tx.Rollback()
 
 	var actualPerformerID, actualClientID int
-	query := `SELECT performer_id FROM rent_confirmations WHERE rent_id = ? AND (performer_id = ? OR client_id = ?)`
+	query := `SELECT performer_id, client_id FROM rent_confirmations WHERE rent_id = ? AND (performer_id = ? OR client_id = ?)`
 	if err := tx.QueryRowContext(ctx, query, rentID, ClientID, ClientID).Scan(&actualPerformerID, &actualClientID); err != nil {
 		return err
 	}
