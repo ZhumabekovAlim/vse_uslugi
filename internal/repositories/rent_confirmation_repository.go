@@ -42,7 +42,7 @@ func (r *RentConfirmationRepository) Confirm(ctx context.Context, rentID, Client
 	}
 
 	now := time.Now()
-	if _, err = tx.ExecContext(ctx, `UPDATE rent_confirmations SET confirmed = true, status = 'active', updated_at = ? WHERE rent_id = ? AND client_id = ?`, now, rentID, actualClientID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE rent_confirmations SET confirmed = true, status = 'in_progress', updated_at = ? WHERE rent_id = ? AND client_id = ?`, now, rentID, actualClientID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -74,7 +74,7 @@ func (r *RentConfirmationRepository) Done(ctx context.Context, rentID int) error
 	defer tx.Rollback()
 
 	now := time.Now()
-	if _, err := tx.ExecContext(ctx, `UPDATE rent_confirmations SET status = 'archived', updated_at = ? WHERE rent_id = ? AND confirmed = true`, now, rentID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE rent_confirmations SET status = 'done', updated_at = ? WHERE rent_id = ? AND confirmed = true`, now, rentID); err != nil {
 		return err
 	}
 	return tx.Commit()

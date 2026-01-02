@@ -42,7 +42,7 @@ func (r *WorkAdConfirmationRepository) Confirm(ctx context.Context, workAdID, pe
 	}
 
 	now := time.Now()
-	if _, err = tx.ExecContext(ctx, `UPDATE work_ad_confirmations SET confirmed = true, status = 'active', updated_at = ? WHERE work_ad_id = ? AND performer_id = ?`, now, workAdID, actualPerformerID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE work_ad_confirmations SET confirmed = true, status = 'in_progress', updated_at = ? WHERE work_ad_id = ? AND performer_id = ?`, now, workAdID, actualPerformerID); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM work_ad_responses WHERE work_ad_id = ? AND user_id <> ?`, workAdID, actualPerformerID); err != nil {
@@ -77,7 +77,7 @@ func (r *WorkAdConfirmationRepository) Done(ctx context.Context, workAdID int) e
 	defer tx.Rollback()
 
 	now := time.Now()
-	if _, err := tx.ExecContext(ctx, `UPDATE work_ad_confirmations SET status = 'archived', updated_at = ? WHERE work_ad_id = ? AND confirmed = true`, now, workAdID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE work_ad_confirmations SET status = 'done', updated_at = ? WHERE work_ad_id = ? AND confirmed = true`, now, workAdID); err != nil {
 		return err
 	}
 	return tx.Commit()

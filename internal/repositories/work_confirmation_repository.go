@@ -42,7 +42,7 @@ func (r *WorkConfirmationRepository) Confirm(ctx context.Context, workID, client
 	}
 
 	now := time.Now()
-	if _, err = tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = true, status = 'active', updated_at = ? WHERE work_id = ? AND client_id = ?`, now, workID, actualClientID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = true, status = 'in_progress', updated_at = ? WHERE work_id = ? AND client_id = ?`, now, workID, actualClientID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -74,7 +74,7 @@ func (r *WorkConfirmationRepository) Done(ctx context.Context, workID int) error
 	defer tx.Rollback()
 
 	now := time.Now()
-	if _, err := tx.ExecContext(ctx, `UPDATE work_confirmations SET status = 'archived', updated_at = ? WHERE work_id = ? AND confirmed = true`, now, workID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE work_confirmations SET status = 'done', updated_at = ? WHERE work_id = ? AND confirmed = true`, now, workID); err != nil {
 		return err
 	}
 	return tx.Commit()
