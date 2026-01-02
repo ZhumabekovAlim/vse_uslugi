@@ -101,7 +101,7 @@ func (h *BusinessHandler) UpdateWorker(w http.ResponseWriter, r *http.Request) {
 	h.respondJSON(w, http.StatusOK, map[string]any{"worker": worker})
 }
 
-func (h *BusinessHandler) DisableWorker(w http.ResponseWriter, r *http.Request) {
+func (h *BusinessHandler) DeleteWorker(w http.ResponseWriter, r *http.Request) {
 	workerIDStr := r.URL.Query().Get(":id")
 	workerID, err := strconv.Atoi(workerIDStr)
 	if err != nil {
@@ -109,7 +109,7 @@ func (h *BusinessHandler) DisableWorker(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	userID, _ := r.Context().Value("user_id").(int)
-	if err := h.Service.DisableWorker(r.Context(), userID, workerID); err != nil {
+	if err := h.Service.DeleteWorker(r.Context(), userID, workerID); err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, repositories.ErrBusinessAccountSuspended) {
 			status = http.StatusForbidden
