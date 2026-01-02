@@ -7,10 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/google/uuid"
-	_ "github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -27,6 +23,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
+	_ "github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type tokenClaims struct {
@@ -499,7 +500,7 @@ func (s *UserService) ChangeNumber(ctx context.Context, number, role string) (mo
 	}
 
 	code := generateVerificationCode()
-	message := fmt.Sprintf("Ваш код подтверждения: %s. Код отправлен компанией https://nusacorp.com/", code)
+	message := fmt.Sprintf("Ваш код подтверждения: %s. Код отправлен компанией https://barlyqqyzmet.kz/", code)
 	apiKey := "kzfaad0a91a4b498db593b78414dfdaa2c213b8b8996afa325a223543481efeb11dd11"
 
 	if err := s.sendSMS(apiKey, number, message); err != nil {
@@ -579,7 +580,7 @@ func (s *UserService) SendCodeToEmail(ctx context.Context, email string) error {
 
 	code := generateVerificationCode()
 	subject := "Код подтверждения регистрации"
-	body := fmt.Sprintf("Ваш код подтверждения: %s\n\nОт компании https://nusacorp.com/", code)
+	body := fmt.Sprintf("Ваш код подтверждения: %s\n\nОт компании https://barlyqqyzmet.kz/", code)
 
 	if err := s.sendEmailSMTP(email, subject, body); err != nil {
 		return fmt.Errorf("ошибка при отправке email: %v", err)
@@ -642,7 +643,7 @@ func (s *UserService) ChangeEmail(ctx context.Context, email string) (models.Sig
 
 	code := generateVerificationCode()
 	subject := "Код подтверждения почты"
-	body := fmt.Sprintf("Ваш код подтверждения: %s\n\nОт компании https://nusacorp.com/", code)
+	body := fmt.Sprintf("Ваш код подтверждения: %s\n\nОт компании https://barlyqqyzmet.kz", code)
 
 	if err := s.sendEmailMailgun(email, subject, body); err != nil {
 		return models.SignUpResponse{}, fmt.Errorf("ошибка при отправке email: %v", err)
@@ -679,7 +680,7 @@ func (s *UserService) CheckUserDuplicate(ctx context.Context, req models.User) (
 
 	code := generateVerificationCode()
 	subject := "Код подтверждения регистрации"
-	body := fmt.Sprintf("Ваш код подтверждения: %s\n\nОт компании https://nusacorp.com/", code)
+	body := fmt.Sprintf("Ваш код подтверждения: %s\n\nОт компании https://barlyqqyzmet.kz", code)
 
 	if err := s.sendEmailSMTP(req.Email, subject, body); err != nil {
 		return false, fmt.Errorf("не удалось отправить email: %v", err)
@@ -730,7 +731,7 @@ func (s *UserService) sendMailgunEmail(to, subject, body string) error {
 	apiUrl := fmt.Sprintf("https://api.mailgun.net/v3/%s/messages", domain)
 
 	data := url.Values{}
-	data.Set("from", "Nusa Corp <noreply@nusacorp.com>")
+	data.Set("from", "Barlyq Qyzmet <barlyq.qyzmet@gmail.com>")
 	data.Set("to", to)
 	data.Set("subject", subject)
 	data.Set("text", body)
