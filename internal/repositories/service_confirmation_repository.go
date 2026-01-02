@@ -47,7 +47,7 @@ func (r *ServiceConfirmationRepository) Confirm(ctx context.Context, serviceID, 
 	}
 
 	now := time.Now()
-	if _, err = tx.ExecContext(ctx, `UPDATE service_confirmations SET confirmed = true, status = 'active', updated_at = ? WHERE service_id = ? AND client_id = ?`, now, serviceID, actualClientID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE service_confirmations SET confirmed = true, status = 'in_progress', updated_at = ? WHERE service_id = ? AND client_id = ?`, now, serviceID, actualClientID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -82,7 +82,7 @@ func (r *ServiceConfirmationRepository) Done(ctx context.Context, serviceID int)
 	defer tx.Rollback()
 
 	now := time.Now()
-	if _, err := tx.ExecContext(ctx, `UPDATE service_confirmations SET status = 'archived', updated_at = ? WHERE service_id = ? AND confirmed = true`, now, serviceID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE service_confirmations SET status = 'done', updated_at = ? WHERE service_id = ? AND confirmed = true`, now, serviceID); err != nil {
 		return err
 	}
 	return tx.Commit()

@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/bmizerany/pat"
-	"github.com/justinas/alice"
 	"net/http"
 	"strings"
+
+	"github.com/bmizerany/pat"
+	"github.com/justinas/alice"
 	// httpSwagger "github.com/swaggo/http-swagger"
 	// _ "naimuBack/docs"
 )
@@ -197,6 +198,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/airbapay/history/:user_id", authMiddleware.ThenFunc(app.airbapayHandler.GetHistory))
 	mux.Get("/airbapay/success", standardMiddleware.ThenFunc(app.airbapayHandler.SuccessRedirect))
 	mux.Get("/airbapay/failure", standardMiddleware.ThenFunc(app.airbapayHandler.FailureRedirect))
+
 	mux.Get("/business/account", businessAuthMiddleware.ThenFunc(app.businessHandler.GetAccount))
 	mux.Post("/business/purchase", businessAuthMiddleware.ThenFunc(app.businessHandler.PurchaseSeats))
 	mux.Get("/business/workers", businessAuthMiddleware.ThenFunc(app.businessHandler.ListWorkers))
