@@ -211,7 +211,47 @@ func (r *BusinessRepository) UpdateWorker(ctx context.Context, worker models.Bus
 	return err
 }
 
-func (r *BusinessRepository) DisableWorker(ctx context.Context, workerID, businessUserID int) error {
-	_, err := r.DB.ExecContext(ctx, `UPDATE business_workers SET status = 'disabled' WHERE id = ? AND business_user_id = ?`, workerID, businessUserID)
-	return err
+func (r *BusinessRepository) DeleteWorker(ctx context.Context, worker models.BusinessWorker) error {
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	cleanupQueries := []struct {
+		query string
+		args  []any
+	}{
+		{query: `DELETE FROM business_worker_listings WHERE business_user_id = ? AND worker_user_id = ?`, args: []any{worker.BusinessUserID, worker.WorkerUserID}},
+		{query: `DELETE FROM messages WHERE chat_id = ?`, args: []any{worker.ChatID}},
+		{query: `DELETE FROM chats WHERE id = ?`, args: []any{worker.ChatID}},
+		{query: "DELETE FROM courier_offers WHERE courier_id IN (SELECT id FROM couriers WHERE user_id = ?)", args: []any{worker.WorkerUserID}},
+		{query: "DELETE FROM courier_orders WHERE sender_id = ? OR courier_id IN (SELECT id FROM couriers WHERE user_id = ?)", args: []any{worker.WorkerUserID, worker.WorkerUserID}},
+		{query: "DELETE FROM couriers WHERE user_id = ?", args: []any{worker.WorkerUserID}},
+		{query: "DELETE FROM service WHERE user_id = ?", args: []any{worker.WorkerUserID}},
+		{query: "DELETE FROM ad WHERE user_id = ?", args: []any{worker.WorkerUserID}},
+		{query: "DELETE FROM rent WHERE user_id = ?", args: []any{worker.WorkerUserID}},
+		{query: "DELETE FROM rent_ad WHERE user_id = ?", args: []any{worker.WorkerUserID}},
+		{query: "DELETE FROM work WHERE user_id = ?", args: []any{worker.WorkerUserID}},
+		{query: "DELETE FROM work_ad WHERE user_id = ?", args: []any{worker.WorkerUserID}},
+		{query: `DELETE FROM business_workers WHERE id = ? AND business_user_id = ?`, args: []any{worker.ID, worker.BusinessUserID}},
+		{query: `DELETE FROM users WHERE id = ?`, args: []any{worker.WorkerUserID}},
+	}
+
+	for _, cleanup := range cleanupQueries {
+		if _, err = tx.ExecContext(ctx, cleanup.query, cleanup.args...); err != nil {
+			return err
+		}
+	}
+
+	if _, err = tx.ExecContext(ctx, `UPDATE business_accounts SET seats_used = CASE WHEN seats_used > 0 THEN seats_used - 1 ELSE 0 END WHERE business_user_id = ?`, worker.BusinessUserID); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }

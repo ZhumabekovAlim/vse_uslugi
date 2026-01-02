@@ -242,7 +242,7 @@ func (s *BusinessService) UpdateWorker(ctx context.Context, businessUserID, work
 	return models.BusinessWorker{}, sql.ErrNoRows
 }
 
-func (s *BusinessService) DisableWorker(ctx context.Context, businessUserID, workerID int) error {
+func (s *BusinessService) DeleteWorker(ctx context.Context, businessUserID, workerID int) error {
 	acc, err := s.GetOrCreateAccount(ctx, businessUserID)
 	if err != nil {
 		return err
@@ -250,7 +250,16 @@ func (s *BusinessService) DisableWorker(ctx context.Context, businessUserID, wor
 	if acc.Status == "suspended" {
 		return repositories.ErrBusinessAccountSuspended
 	}
-	return s.BusinessRepo.DisableWorker(ctx, workerID, businessUserID)
+
+	worker, err := s.BusinessRepo.GetWorkerByID(ctx, workerID)
+	if err != nil {
+		return err
+	}
+	if worker.ID == 0 || worker.BusinessUserID != businessUserID {
+		return sql.ErrNoRows
+	}
+
+	return s.BusinessRepo.DeleteWorker(ctx, worker)
 }
 
 // AttachListing links a listing to a worker under the given business account.
