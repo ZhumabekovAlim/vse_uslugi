@@ -95,6 +95,8 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	if len(educations) == 0 {
 		educations = parseStringList(r.URL.Query().Get("educations"))
 	}
+	orderDate := parseOptionalString(r.URL.Query().Get("order_date"))
+	orderTime := parseOptionalString(r.URL.Query().Get("order_time"))
 
 	remoteWork, ok := parseBoolChoice(r.URL.Query().Get("remote"))
 	if !ok {
@@ -148,6 +150,8 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		RemoteWork:     remoteWork,
 		Languages:      languages,
 		Educations:     educations,
+		OrderDate:      orderDate,
+		OrderTime:      orderTime,
 		Latitude:       latitude,
 		Longitude:      longitude,
 		RadiusKm:       radius,
@@ -253,6 +257,14 @@ func parseStringList(input string) []string {
 		return nil
 	}
 	return result
+}
+
+func parseOptionalString(input string) *string {
+	value := strings.TrimSpace(input)
+	if value == "" {
+		return nil
+	}
+	return &value
 }
 
 // parseBoolChoice returns a pointer to bool when the input represents a yes/no choice.
