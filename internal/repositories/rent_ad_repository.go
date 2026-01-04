@@ -519,7 +519,7 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 
               u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-             s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.work_time_from, s.work_time_to, s.description, s.latitude, s.longitude, s.order_date, s.order_time,
+             s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.work_time_from, s.work_time_to, s.description, s.condition, s.delivery, s.latitude, s.longitude, s.order_date, s.order_time,
              COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
              s.top, s.created_at
       FROM rent_ad s
@@ -621,9 +621,11 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 		var imagesJSON, videosJSON []byte
 		var price, priceTo sql.NullFloat64
 		var orderDate, orderTime sql.NullString
+		var condition sql.NullString
+		var delivery sql.NullBool
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
-			&s.RentAdID, &s.RentAdName, &s.RentAdAddress, &price, &priceTo, &s.RentAdNegotiable, &s.RentAdHidePhone, &s.WorkTimeFrom, &s.WorkTimeTo, &s.RentAdDescription, &s.RentAdLatitude, &s.RentAdLongitude, &orderDate, &orderTime,
+			&s.RentAdID, &s.RentAdName, &s.RentAdAddress, &price, &priceTo, &s.RentAdNegotiable, &s.RentAdHidePhone, &s.WorkTimeFrom, &s.WorkTimeTo, &s.RentAdDescription, &condition, &delivery, &s.RentAdLatitude, &s.RentAdLongitude, &orderDate, &orderTime,
 			&imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -639,6 +641,12 @@ func (r *RentAdRepository) GetFilteredRentsAdPost(ctx context.Context, req model
 		}
 		if priceTo.Valid {
 			s.RentAdPriceTo = &priceTo.Float64
+		}
+		if condition.Valid {
+			s.RentAdCondition = condition.String
+		}
+		if delivery.Valid {
+			s.RentAdDelivery = delivery.Bool
 		}
 		if orderDate.Valid {
 			val := orderDate.String
@@ -736,7 +744,7 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 
            u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-           s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.work_time_from, s.work_time_to, s.description, s.latitude, s.longitude, s.order_date, s.order_time,
+           s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.work_time_from, s.work_time_to, s.description, s.condition, s.delivery, s.latitude, s.longitude, s.order_date, s.order_time,
        COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
        s.top, s.created_at,
            CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -856,10 +864,12 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 		var likedStr, respondedStr string
 		var price, priceTo sql.NullFloat64
 		var orderDate, orderTime sql.NullString
+		var condition sql.NullString
+		var delivery sql.NullBool
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.RentAdID, &s.RentAdName, &s.RentAdAddress, &price, &priceTo, &s.RentAdNegotiable, &s.RentAdHidePhone, &s.WorkTimeFrom, &s.WorkTimeTo, &s.RentAdDescription, &s.RentAdLatitude, &s.RentAdLongitude, &orderDate, &orderTime, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
+			&s.RentAdID, &s.RentAdName, &s.RentAdAddress, &price, &priceTo, &s.RentAdNegotiable, &s.RentAdHidePhone, &s.WorkTimeFrom, &s.WorkTimeTo, &s.RentAdDescription, &condition, &delivery, &s.RentAdLatitude, &s.RentAdLongitude, &orderDate, &orderTime, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -882,6 +892,12 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 		}
 		if priceTo.Valid {
 			s.RentAdPriceTo = &priceTo.Float64
+		}
+		if condition.Valid {
+			s.RentAdCondition = condition.String
+		}
+		if delivery.Valid {
+			s.RentAdDelivery = delivery.Bool
 		}
 		if orderDate.Valid {
 			val := orderDate.String

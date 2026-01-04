@@ -39,6 +39,8 @@ type Rent struct {
 	SubcategoryNameKz string      `json:"subcategory_name_kz"`
 	RentType          string      `json:"rent_type"`
 	Deposit           string      `json:"deposit"`
+	Condition         string      `json:"condition"`
+	Delivery          bool        `json:"delivery"`
 	Latitude          string      `json:"latitude,omitempty"`
 	Longitude         string      `json:"longitude,omitempty"`
 	CreatedAt         time.Time   `json:"created_at"`
@@ -103,6 +105,8 @@ type FilteredRent struct {
 	RentNegotiable   bool        `json:"negotiable"`
 	RentHidePhone    bool        `json:"hide_phone"`
 	RentDescription  string      `json:"rent_description"`
+	RentCondition    string      `json:"condition"`
+	RentDelivery     bool        `json:"delivery"`
 	WorkTimeFrom     string      `json:"work_time_from"`
 	WorkTimeTo       string      `json:"work_time_to"`
 	Images           []ImageRent `json:"images"`
