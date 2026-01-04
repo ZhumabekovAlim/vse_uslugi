@@ -505,7 +505,7 @@ SELECT
 
 u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.work_time_from, s.work_time_to, s.description, s.latitude, s.longitude,
+s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.work_time_from, s.work_time_to, s.description, s.condition, s.delivery, s.latitude, s.longitude,
 COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at
 FROM rent s
@@ -606,10 +606,12 @@ WHERE 1=1 AND s.status != 'archive'
 		var s models.FilteredRent
 		var lat, lon sql.NullString
 		var price, priceTo sql.NullFloat64
+		var condition sql.NullString
+		var delivery sql.NullBool
 		var imagesJSON, videosJSON []byte
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
-			&s.RentID, &s.RentName, &s.RentAddress, &price, &priceTo, &s.RentNegotiable, &s.RentHidePhone, &s.WorkTimeFrom, &s.WorkTimeTo, &s.RentDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
+			&s.RentID, &s.RentName, &s.RentAddress, &price, &priceTo, &s.RentNegotiable, &s.RentHidePhone, &s.WorkTimeFrom, &s.WorkTimeTo, &s.RentDescription, &condition, &delivery, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -618,6 +620,12 @@ WHERE 1=1 AND s.status != 'archive'
 		}
 		if priceTo.Valid {
 			s.RentPriceTo = &priceTo.Float64
+		}
+		if condition.Valid {
+			s.RentCondition = condition.String
+		}
+		if delivery.Valid {
+			s.RentDelivery = delivery.Bool
 		}
 		var latPtr, lonPtr *string
 		if lat.Valid {
@@ -719,7 +727,7 @@ SELECT DISTINCT
 
 u.id, u.name, u.surname, COALESCE(u.avatar_path, ''), COALESCE(u.review_rating, 0),
 
-s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.work_time_from, s.work_time_to, s.description, s.latitude, s.longitude,
+s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.work_time_from, s.work_time_to, s.description, s.condition, s.delivery, s.latitude, s.longitude,
 COALESCE(s.images, '[]') AS images, COALESCE(s.videos, '[]') AS videos,
 s.top, s.created_at,
 CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked,
@@ -837,12 +845,14 @@ WHERE 1=1 AND s.status != 'archive'
 		var s models.FilteredRent
 		var lat, lon sql.NullString
 		var price, priceTo sql.NullFloat64
+		var condition sql.NullString
+		var delivery sql.NullBool
 		var imagesJSON, videosJSON []byte
 		var likedStr, respondedStr string
 		if err := rows.Scan(
 			&s.UserID, &s.UserName, &s.UserSurname, &s.UserAvatarPath, &s.UserRating,
 
-			&s.RentID, &s.RentName, &s.RentAddress, &price, &priceTo, &s.RentNegotiable, &s.RentHidePhone, &s.WorkTimeFrom, &s.WorkTimeTo, &s.RentDescription, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
+			&s.RentID, &s.RentName, &s.RentAddress, &price, &priceTo, &s.RentNegotiable, &s.RentHidePhone, &s.WorkTimeFrom, &s.WorkTimeTo, &s.RentDescription, &condition, &delivery, &lat, &lon, &imagesJSON, &videosJSON, &s.Top, &s.CreatedAt, &likedStr, &respondedStr,
 		); err != nil {
 			log.Printf("[ERROR] Failed to scan row: %v", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -852,6 +862,12 @@ WHERE 1=1 AND s.status != 'archive'
 		}
 		if priceTo.Valid {
 			s.RentPriceTo = &priceTo.Float64
+		}
+		if condition.Valid {
+			s.RentCondition = condition.String
+		}
+		if delivery.Valid {
+			s.RentDelivery = delivery.Bool
 		}
 		var latPtr, lonPtr *string
 		if lat.Valid {

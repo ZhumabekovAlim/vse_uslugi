@@ -39,6 +39,8 @@ type RentAd struct {
 	SubcategoryNameKz string        `json:"subcategory_name_kz"`
 	RentType          string        `json:"rent_type"`
 	Deposit           string        `json:"deposit"`
+	Condition         string        `json:"condition"`
+	Delivery          bool          `json:"delivery"`
 	Latitude          string        `json:"latitude,omitempty"`
 	Longitude         string        `json:"longitude,omitempty"`
 	OrderDate         *string       `json:"order_date,omitempty"`
@@ -105,6 +107,8 @@ type FilteredRentAd struct {
 	RentAdNegotiable  bool          `json:"negotiable"`
 	RentAdHidePhone   bool          `json:"hide_phone"`
 	RentAdDescription string        `json:"rentad_description"`
+	RentAdCondition   string        `json:"condition"`
+	RentAdDelivery    bool          `json:"delivery"`
 	WorkTimeFrom      string        `json:"work_time_from"`
 	WorkTimeTo        string        `json:"work_time_to"`
 	Images            []ImageRentAd `json:"images"`
