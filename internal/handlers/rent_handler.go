@@ -427,6 +427,8 @@ func (h *RentHandler) CreateRent(w http.ResponseWriter, r *http.Request) {
 	service.SubcategoryID, _ = strconv.Atoi(r.FormValue("subcategory_id"))
 	service.WorkTimeFrom = r.FormValue("work_time_from")
 	service.WorkTimeTo = r.FormValue("work_time_to")
+	service.Condition = r.FormValue("condition")
+	service.Delivery = parseBool(r.FormValue("delivery"))
 	service.AvgRating, _ = strconv.ParseFloat(r.FormValue("avg_rating"), 64)
 	service.RentType = r.FormValue("rent_type")
 	service.Deposit = r.FormValue("deposit")
@@ -651,6 +653,12 @@ func (h *RentHandler) UpdateRent(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, ok := r.MultipartForm.Value["description"]; ok {
 		service.Description = r.FormValue("description")
+	}
+	if _, ok := r.MultipartForm.Value["condition"]; ok {
+		service.Condition = r.FormValue("condition")
+	}
+	if v, ok := r.MultipartForm.Value["delivery"]; ok {
+		service.Delivery = parseBool(v[0])
 	}
 	if _, ok := r.MultipartForm.Value["work_time_from"]; ok {
 		service.WorkTimeFrom = r.FormValue("work_time_from")
