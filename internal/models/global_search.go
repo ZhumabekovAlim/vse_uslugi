@@ -21,6 +21,8 @@ type GlobalSearchRequest struct {
 	RemoteWork     *bool     `json:"remote_work,omitempty"`
 	Languages      []string  `json:"languages,omitempty"`
 	Educations     []string  `json:"educations,omitempty"`
+	OrderDate      *string   `json:"order_date,omitempty"`
+	OrderTime      *string   `json:"order_time,omitempty"`
 	Latitude       *float64  `json:"latitude,omitempty"`
 	Longitude      *float64  `json:"longitude,omitempty"`
 	RadiusKm       *float64  `json:"radius_km,omitempty"`

@@ -91,7 +91,7 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			if s.AdRepo == nil {
 				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
 			}
-			ads, _, _, err := s.AdRepo.GetAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, priceFrom, priceTo, ratings, sortOption, perTypeLimit, 0, req.OnSite, req.Negotiable)
+			ads, _, _, err := s.AdRepo.GetAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, priceFrom, priceTo, ratings, sortOption, perTypeLimit, 0, req.OnSite, req.Negotiable, req.OrderDate, req.OrderTime)
 			if err != nil {
 				return models.GlobalSearchResponse{}, err
 			}
@@ -166,7 +166,7 @@ func (s *GlobalSearchService) Search(ctx context.Context, req models.GlobalSearc
 			if s.RentAdRepo == nil {
 				return models.GlobalSearchResponse{}, fmt.Errorf("%w: %s", ErrUnsupportedListingType, listingType)
 			}
-			rentAds, _, _, err := s.RentAdRepo.GetRentsAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, priceFrom, priceTo, ratings, sortOption, perTypeLimit, 0, req.Negotiable, req.RentTypes, req.Deposits)
+			rentAds, _, _, err := s.RentAdRepo.GetRentsAdWithFilters(ctx, req.UserID, 0, req.CategoryIDs, subcategoryStrings, priceFrom, priceTo, ratings, sortOption, perTypeLimit, 0, req.Negotiable, req.RentTypes, req.Deposits, req.OrderDate, req.OrderTime)
 			if err != nil {
 				return models.GlobalSearchResponse{}, err
 			}

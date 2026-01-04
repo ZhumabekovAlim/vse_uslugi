@@ -31,6 +31,7 @@
 | Типы | Параметры | Описание |
 | --- | --- | --- |
 | `service`, `ad` | `on_site`, `negotiable` | Фильтры по выезду и договорной цене передаются в соответствующие репозитории услуг/объявлений.【F:internal/services/global_search_service.go†L70-L107】 |
+| `ad`, `rent_ad` | `order_date`, `order_time` | Строковые фильтры по слоту записи/показа. При передаче добавляют условия равенства к полям `order_date`/`order_time`; пустые значения игнорируются.【F:internal/handlers/global_search_handler.go†L82-L117】【F:internal/services/global_search_service.go†L70-L187】【F:internal/repositories/ad_repository.go†L295-L377】【F:internal/repositories/rent_ad_repository.go†L275-L364】 |
 | `rent`, `rent_ad` | `rent_types`, `deposits` | CSV строк. Ограничивают тип аренды и условия залога.【F:internal/handlers/global_search_handler.go†L82-L84】【F:internal/services/global_search_service.go†L146-L183】 |
 | `work`, `work_ad` | `work_experience`, `work_schedule`/`work_schedules`, `payment_period`/`payment_periods`, `remote`, `languages`, `education`/`educations` | CSV списки опыта, графиков, периодов оплаты, форматов (дистанционная работа), языков и образований. Все передаются в репозитории вакансий/кандидатов.【F:internal/handlers/global_search_handler.go†L84-L98】【F:internal/services/global_search_service.go†L108-L145】 |
 

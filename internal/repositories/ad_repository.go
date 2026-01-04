@@ -292,7 +292,7 @@ func (r *AdRepository) ArchiveByUserID(ctx context.Context, userID int) error {
 	_, err := r.DB.ExecContext(ctx, `UPDATE ad SET status = 'archive', updated_at = ? WHERE user_id = ?`, time.Now(), userID)
 	return err
 }
-func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, onSite, negotiable *bool) ([]models.Ad, float64, float64, error) {
+func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, onSite, negotiable *bool, orderDate, orderTime *string) ([]models.Ad, float64, float64, error) {
 	var (
 		ads        []models.Ad
 		params     []interface{}
@@ -364,6 +364,16 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 		for _, r := range ratings {
 			params = append(params, r)
 		}
+	}
+
+	if orderDate != nil {
+		conditions = append(conditions, "s.order_date = ?")
+		params = append(params, *orderDate)
+	}
+
+	if orderTime != nil {
+		conditions = append(conditions, "s.order_time = ?")
+		params = append(params, *orderTime)
 	}
 
 	// Final WHERE clause
