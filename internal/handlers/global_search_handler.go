@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -18,6 +17,39 @@ type GlobalSearchHandler struct {
 	Service *services.GlobalSearchService
 }
 
+type globalSearchPayload struct {
+	Types          []string  `json:"types"`
+	Categories     []int     `json:"categories"`
+	Subcategories  []int     `json:"subcategories"`
+	Limit          *int      `json:"limit"`
+	Page           *int      `json:"page"`
+	PriceFrom      *float64  `json:"price_from"`
+	PriceFromAlt   *float64  `json:"priceFrom"`
+	PriceTo        *float64  `json:"price_to"`
+	PriceToAlt     *float64  `json:"priceTo"`
+	Ratings        []float64 `json:"ratings"`
+	SortOption     *int      `json:"sort_option"`
+	SortOptionAlt  *int      `json:"sortOption"`
+	OnSite         *bool     `json:"on_site"`
+	Negotiable     *bool     `json:"negotiable"`
+	RentTypes      []string  `json:"rent_types"`
+	Deposits       []string  `json:"deposits"`
+	WorkExperience []string  `json:"work_experience"`
+	WorkSchedules  []string  `json:"work_schedules"`
+	WorkSchedule   []string  `json:"work_schedule"`
+	PaymentPeriods []string  `json:"payment_periods"`
+	PaymentPeriod  []string  `json:"payment_period"`
+	RemoteWork     *bool     `json:"remote"`
+	Languages      []string  `json:"languages"`
+	Educations     []string  `json:"educations"`
+	Education      []string  `json:"education"`
+	OrderDate      *string   `json:"order_date"`
+	OrderTime      *string   `json:"order_time"`
+	Latitude       *float64  `json:"latitude"`
+	Longitude      *float64  `json:"longitude"`
+	Radius         *float64  `json:"radius"`
+}
+
 // Search executes a mixed listings search across supported domains.
 func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	if h.Service == nil {
@@ -25,17 +57,21 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	typesParam := strings.TrimSpace(r.URL.Query().Get("types"))
-	if typesParam == "" {
+	var payload globalSearchPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+
+	if len(payload.Types) == 0 {
 		http.Error(w, "types parameter is required", http.StatusBadRequest)
 		return
 	}
 
 	allowedTypes := models.AllowedTopTypes()
-	rawTypes := strings.Split(typesParam, ",")
-	seen := make(map[string]struct{}, len(rawTypes))
-	types := make([]string, 0, len(rawTypes))
-	for _, t := range rawTypes {
+	seen := make(map[string]struct{}, len(payload.Types))
+	types := make([]string, 0, len(payload.Types))
+	for _, t := range payload.Types {
 		trimmed := strings.TrimSpace(t)
 		if trimmed == "" {
 			continue
@@ -60,69 +96,46 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categories := parseIntList(r.URL.Query().Get("categories"))
-	subcategories := parseIntList(r.URL.Query().Get("subcategories"))
+	categories := payload.Categories
+	subcategories := payload.Subcategories
 
-	limit := parsePositiveInt(r.URL.Query().Get("limit"), 20)
-	page := parsePositiveInt(r.URL.Query().Get("page"), 1)
-	priceFrom := parseFloat(r.URL.Query().Get("priceFrom"))
-	if priceFrom == 0 {
-		priceFrom = parseFloat(r.URL.Query().Get("price_from"))
-	}
-	priceTo := parseFloat(r.URL.Query().Get("priceTo"))
-	if priceTo == 0 {
-		priceTo = parseFloat(r.URL.Query().Get("price_to"))
-	}
-	ratings := parseFloatList(r.URL.Query().Get("ratings"))
-	sortOption := parsePositiveIntAllowZero(r.URL.Query().Get("sorting"))
-	if sortOption == 0 {
-		sortOption = parsePositiveIntAllowZero(r.URL.Query().Get("sortOption"))
-	}
+	limit := normalizePositiveInt(payload.Limit, 20)
+	page := normalizePositiveInt(payload.Page, 1)
+	priceFrom := coalesceFloat(payload.PriceFrom, payload.PriceFromAlt)
+	priceTo := coalesceFloat(payload.PriceTo, payload.PriceToAlt)
+	ratings := payload.Ratings
+	sortOption := normalizeNonNegativeInt(payload.SortOption, payload.SortOptionAlt)
 
-	rentTypes := parseStringList(r.URL.Query().Get("rent_types"))
-	deposits := parseStringList(r.URL.Query().Get("deposits"))
-	workExperience := parseStringList(r.URL.Query().Get("work_experience"))
-	workSchedules := parseStringList(r.URL.Query().Get("work_schedule"))
+	rentTypes := payload.RentTypes
+	deposits := payload.Deposits
+	workExperience := payload.WorkExperience
+	workSchedules := payload.WorkSchedules
 	if len(workSchedules) == 0 {
-		workSchedules = parseStringList(r.URL.Query().Get("work_schedules"))
+		workSchedules = payload.WorkSchedule
 	}
-	paymentPeriods := parseStringList(r.URL.Query().Get("payment_period"))
+	paymentPeriods := payload.PaymentPeriods
 	if len(paymentPeriods) == 0 {
-		paymentPeriods = parseStringList(r.URL.Query().Get("payment_periods"))
+		paymentPeriods = payload.PaymentPeriod
 	}
-	languages := parseStringList(r.URL.Query().Get("languages"))
-	educations := parseStringList(r.URL.Query().Get("education"))
+	languages := payload.Languages
+	educations := payload.Educations
 	if len(educations) == 0 {
-		educations = parseStringList(r.URL.Query().Get("educations"))
+		educations = payload.Education
 	}
-	orderDate := parseOptionalString(r.URL.Query().Get("order_date"))
-	orderTime := parseOptionalString(r.URL.Query().Get("order_time"))
+	orderDate := payload.OrderDate
+	orderTime := payload.OrderTime
 
-	remoteWork, ok := parseBoolChoice(r.URL.Query().Get("remote"))
-	if !ok {
-		http.Error(w, "invalid remote value", http.StatusBadRequest)
-		return
-	}
+	remoteWork := payload.RemoteWork
+	onSite := payload.OnSite
+	negotiable := payload.Negotiable
 
-	onSite, ok := parseBoolChoice(r.URL.Query().Get("on_site"))
-	if !ok {
-		http.Error(w, "invalid on_site value", http.StatusBadRequest)
-		return
-	}
-
-	negotiable, ok := parseBoolChoice(r.URL.Query().Get("negotiable"))
-	if !ok {
-		http.Error(w, "invalid negotiable value", http.StatusBadRequest)
-		return
-	}
-
-	latitude, longitude, err := parseCoordinates(r.URL.Query())
+	latitude, longitude, err := normalizeCoordinates(payload.Latitude, payload.Longitude)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	radius, err := parseRadius(r.URL.Query().Get("radius"))
+	radius, err := normalizeRadius(payload.Radius)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -168,164 +181,51 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func parseIntList(input string) []int {
-	if input == "" {
-		return nil
-	}
-	parts := strings.Split(input, ",")
-	result := make([]int, 0, len(parts))
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "" {
-			continue
-		}
-		if value, err := strconv.Atoi(trimmed); err == nil {
-			result = append(result, value)
-		}
-	}
-	if len(result) == 0 {
-		return nil
-	}
-	return result
-}
-
-func parseFloatList(input string) []float64 {
-	if input == "" {
-		return nil
-	}
-	parts := strings.Split(input, ",")
-	result := make([]float64, 0, len(parts))
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "" {
-			continue
-		}
-		if value, err := strconv.ParseFloat(trimmed, 64); err == nil {
-			result = append(result, value)
-		}
-	}
-	if len(result) == 0 {
-		return nil
-	}
-	return result
-}
-
-func parsePositiveInt(input string, fallback int) int {
-	if input == "" {
-		return fallback
-	}
-	if value, err := strconv.Atoi(input); err == nil && value > 0 {
-		return value
+func normalizePositiveInt(value *int, fallback int) int {
+	if value != nil && *value > 0 {
+		return *value
 	}
 	return fallback
 }
 
-func parsePositiveIntAllowZero(input string) int {
-	if input == "" {
-		return 0
+func coalesceFloat(first *float64, second *float64) float64 {
+	if first != nil {
+		return *first
 	}
-	if value, err := strconv.Atoi(input); err == nil && value >= 0 {
-		return value
-	}
-	return 0
-}
-
-func parseFloat(input string) float64 {
-	if input == "" {
-		return 0
-	}
-	if value, err := strconv.ParseFloat(input, 64); err == nil {
-		return value
+	if second != nil {
+		return *second
 	}
 	return 0
 }
 
-func parseStringList(input string) []string {
-	if input == "" {
-		return nil
+func normalizeNonNegativeInt(first *int, second *int) int {
+	if first != nil && *first >= 0 {
+		return *first
 	}
-	parts := strings.Split(input, ",")
-	result := make([]string, 0, len(parts))
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "" {
-			continue
-		}
-		result = append(result, trimmed)
+	if second != nil && *second >= 0 {
+		return *second
 	}
-	if len(result) == 0 {
-		return nil
-	}
-	return result
+	return 0
 }
 
-func parseOptionalString(input string) *string {
-	value := strings.TrimSpace(input)
-	if value == "" {
-		return nil
-	}
-	return &value
-}
-
-// parseBoolChoice returns a pointer to bool when the input represents a yes/no choice.
-// Supported truthy values: "yes", "true", "1", "да". False values: "no", "false", "0", "нет".
-// Empty input returns nil. Any other value leads to ok=false.
-func parseBoolChoice(input string) (*bool, bool) {
-	if input == "" {
-		return nil, true
-	}
-
-	normalized := strings.ToLower(strings.TrimSpace(input))
-	switch normalized {
-	case "yes", "true", "1", "да":
-		value := true
-		return &value, true
-	case "no", "false", "0", "нет":
-		value := false
-		return &value, true
-	default:
-		return nil, false
-	}
-}
-
-func parseCoordinates(values url.Values) (*float64, *float64, error) {
-	latParam := strings.TrimSpace(values.Get("latitude"))
-	lonParam := strings.TrimSpace(values.Get("longitude"))
-
-	if latParam == "" && lonParam == "" {
+func normalizeCoordinates(latitude *float64, longitude *float64) (*float64, *float64, error) {
+	if latitude == nil && longitude == nil {
 		return nil, nil, nil
 	}
-
-	if latParam == "" || lonParam == "" {
+	if latitude == nil || longitude == nil {
 		return nil, nil, fmt.Errorf("both latitude and longitude must be provided")
 	}
-
-	lat, err := strconv.ParseFloat(latParam, 64)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid latitude")
-	}
-	lon, err := strconv.ParseFloat(lonParam, 64)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid longitude")
-	}
-
-	return &lat, &lon, nil
+	return latitude, longitude, nil
 }
 
-func parseRadius(input string) (*float64, error) {
-	if strings.TrimSpace(input) == "" {
+func normalizeRadius(radius *float64) (*float64, error) {
+	if radius == nil {
 		return nil, nil
 	}
-
-	radius, err := strconv.ParseFloat(strings.TrimSpace(input), 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid radius")
-	}
-	if radius <= 0 {
+	if *radius <= 0 {
 		return nil, fmt.Errorf("radius must be greater than zero")
 	}
-
-	return &radius, nil
+	return radius, nil
 }
 
 func extractUserIDFromRequest(r *http.Request) int {
