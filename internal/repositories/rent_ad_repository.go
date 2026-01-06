@@ -24,7 +24,7 @@ type RentAdRepository struct {
 func (r *RentAdRepository) CreateRentAd(ctx context.Context, rent models.RentAd) (models.RentAd, error) {
 	query := `
     INSERT INTO rent_ad (name, address, price, price_to, user_id, images, videos, category_id, subcategory_id, work_time_from, work_time_to, description, condition, delivery, avg_rating, top, negotiable, hide_phone, liked, status, rent_type, deposit, latitude, longitude, order_date, order_time, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	// Сохраняем images как JSON
