@@ -1,8 +1,8 @@
 # Сводка сортировок, фильтров и данных по роутам
 
-## GET `/search/global`
-- **Тип запроса:** query-параметры.
-- **Фильтры:** `types` (service, ad, work, work_ad, rent, rent_ad), `categories`, `subcategories`, `price_from` / `priceFrom`, `price_to` / `priceTo`, `ratings`, `on_site`, `negotiable`, `latitude`/`longitude`, `radius`, `page`, `limit`. Параметры приводятся к числам, допускается CSV-формат для списков; координаты обязательны в паре; флаги `on_site` и `negotiable` валидируются на yes/no/1/0.【F:docs/global_search_api.md†L9-L37】【F:docs/global_search_api.md†L42-L83】
+## POST `/search/global`
+- **Тип запроса:** тело JSON.
+- **Фильтры:** `types` (service, ad, work, work_ad, rent, rent_ad), `categories`, `subcategories`, `price_from` / `priceFrom`, `price_to` / `priceTo`, `ratings`, `on_site`, `negotiable`, `latitude`/`longitude`, `radius`, `page`, `limit`. Поля приводятся к числам/булевым; списки передаются массивами; координаты обязательны в паре.【F:docs/global_search_api.md†L9-L37】【F:docs/global_search_api.md†L42-L83】
 - **Сортировка:** сначала активный «топ», затем время его активации, затем дата создания объявления; внутри выборки учитывается переданный `sort_option` для конкретных типов через сервисы репозиториев.【F:docs/global_search_api.md†L1-L7】【F:docs/global_search_api.md†L107-L142】
 - **Возвращаемые данные:** пагинированный список `results` с элементами разных типов (`service`, `ad`, `work`, `work_ad`, `rent`, `rent_ad`), каждый содержит объект сущности и поле `type`, дополнительные поля (`distance`, лайки и т.п.) приходят из соответствующих репозиториев; также возвращаются `total`, `page`, `limit`.【F:docs/global_search_api.md†L85-L104】
 

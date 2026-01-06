@@ -1,30 +1,30 @@
 # Глобальный поиск `/search/global`
 
-Полностью переописанная документация для фронтенда по маршруту `GET /search/global`: запросы, параметры, сортировки, геофильтры, типоспецифические фильтры и примеры. Эндпоинт зарегистрирован как `mux.Get("/search/global", standardMiddleware.ThenFunc(app.globalSearchHandler.Search))`.【F:cmd/routes.go†L214-L214】
+Полностью переописанная документация для фронтенда по маршруту `POST /search/global`: тело запроса, параметры, сортировки, геофильтры, типоспецифические фильтры и примеры. Эндпоинт зарегистрирован как `mux.Post("/search/global", standardMiddleware.ThenFunc(app.globalSearchHandler.Search))`.【F:cmd/routes.go†L214-L214】
 
 ## Авторизация и заголовки
 
 * JWT не обязателен. Если передать `Authorization: Bearer <jwt>`, из токена извлекается `user_id`; он прокидывается во все репозитории и влияет на персональные поля (лайк/избранное, отклики). При ошибке парсинга или отсутствии заголовка `user_id=0`.【F:internal/handlers/global_search_handler.go†L28-L131】【F:internal/handlers/global_search_handler.go†L129-L165】
 * Ответ всегда JSON (`application/json; charset=utf-8`).【F:internal/handlers/global_search_handler.go†L157-L165】
 
-## Базовые query-параметры
+## Базовые поля тела (JSON)
 
 | Параметр | Тип/допустимые значения | Обязателен | Значение по умолчанию | Применение |
 | --- | --- | --- | --- | --- |
-| `types` | CSV из `service`, `ad`, `work`, `work_ad`, `rent`, `rent_ad`; дубликаты удаляются, максимум 6 | да | — | Определяет, какие домены участвуют в поиске. Неверное значение → 400, отсутствие → 400.【F:internal/handlers/global_search_handler.go†L28-L115】 |
-| `categories` | CSV целых | нет | — | Общий фильтр категорий для всех выбранных типов.【F:internal/handlers/global_search_handler.go†L63-L65】 |
-| `subcategories` | CSV целых | нет | — | Общий фильтр подкатегорий; дальше преобразуется в строки для репозиториев.【F:internal/handlers/global_search_handler.go†L63-L65】【F:internal/services/global_search_service.go†L53-L62】 |
-| `limit` | `>0` | нет | `20` | Размер страницы результатов.【F:internal/handlers/global_search_handler.go†L66-L80】【F:internal/services/global_search_service.go†L36-L57】 |
-| `page` | `>0` | нет | `1` | Номер страницы (применяется после объединения и сортировки).【F:internal/handlers/global_search_handler.go†L66-L80】【F:internal/services/global_search_service.go†L36-L57】 |
-| `priceFrom` / `price_from` | число | нет | `0` | Нижняя граница цены. Оба написания равнозначны.【F:internal/handlers/global_search_handler.go†L66-L75】 |
-| `priceTo` / `price_to` | число | нет | `0` | Верхняя граница цены.【F:internal/handlers/global_search_handler.go†L66-L75】 |
-| `ratings` | CSV чисел | нет | — | Набор допустимых рейтингов (используется как множество значений).【F:internal/handlers/global_search_handler.go†L66-L80】【F:internal/services/global_search_service.go†L63-L70】 |
-| `sortOption` / `sorting` | целое ≥0 | нет | `0` | Код сортировки (см. раздел «Сортировка»). При пустом/некорректном значении → `0`.【F:internal/handlers/global_search_handler.go†L76-L80】【F:internal/services/global_search_service.go†L193-L275】 |
-| `latitude`, `longitude` | числа | нет | — | Геоточка пользователя. Должны идти парой, иначе 400. При наличии включают расчёт `distance`.【F:internal/handlers/global_search_handler.go†L117-L126】【F:internal/services/global_search_service.go†L46-L120】【F:internal/services/global_search_service.go†L358-L374】 |
-| `radius` | число > 0 | нет | — | Км-радиус вокруг точки пользователя. Работает только вместе с координатами: записи без координат или за пределами радиуса исключаются; дополнительно сортировка переключается на дистанцию.【F:internal/handlers/global_search_handler.go†L123-L125】【F:internal/services/global_search_service.go†L46-L194】 |
-| `on_site` | `yes/no/да/нет/true/false/1/0` | нет | — | Фильтр «выезд на объект», применяется только к `service` и `ad`. Ошибочное значение → 400.【F:internal/handlers/global_search_handler.go†L99-L108】【F:internal/services/global_search_service.go†L70-L106】 |
-| `negotiable` | `yes/no/да/нет/true/false/1/0` | нет | — | Фильтр «договорная цена» для всех типов. Ошибочное значение → 400.【F:internal/handlers/global_search_handler.go†L109-L115】【F:internal/services/global_search_service.go†L70-L183】 |
-| `remote` | `yes/no/да/нет/true/false/1/0` | нет | — | Применяется к `work`/`work_ad`: `true` — только удалёнка, `false` — только не-удалённые записи; пусто — без фильтра. Ошибочное значение → 400.【F:internal/handlers/global_search_handler.go†L99-L103】【F:internal/services/global_search_service.go†L109-L145】【F:internal/repositories/work_repository.go†L310-L336】 |
+| `types` | Массив строк из `service`, `ad`, `work`, `work_ad`, `rent`, `rent_ad`; дубликаты удаляются, максимум 6 | да | — | Определяет, какие домены участвуют в поиске. Неверное значение → 400, отсутствие → 400.【F:internal/handlers/global_search_handler.go†L39-L132】 |
+| `categories` | Массив целых | нет | — | Общий фильтр категорий для всех выбранных типов.【F:internal/handlers/global_search_handler.go†L86-L88】 |
+| `subcategories` | Массив целых | нет | — | Общий фильтр подкатегорий; дальше преобразуется в строки для репозиториев.【F:internal/handlers/global_search_handler.go†L86-L88】【F:internal/services/global_search_service.go†L53-L62】 |
+| `limit` | `>0` | нет | `20` | Размер страницы результатов.【F:internal/handlers/global_search_handler.go†L90-L92】【F:internal/services/global_search_service.go†L36-L57】 |
+| `page` | `>0` | нет | `1` | Номер страницы (применяется после объединения и сортировки).【F:internal/handlers/global_search_handler.go†L90-L92】【F:internal/services/global_search_service.go†L36-L57】 |
+| `price_from` / `priceFrom` | число | нет | `0` | Нижняя граница цены. Оба написания равнозначны.【F:internal/handlers/global_search_handler.go†L93-L95】 |
+| `price_to` / `priceTo` | число | нет | `0` | Верхняя граница цены.【F:internal/handlers/global_search_handler.go†L93-L95】 |
+| `ratings` | Массив чисел | нет | — | Набор допустимых рейтингов (используется как множество значений).【F:internal/handlers/global_search_handler.go†L95-L97】【F:internal/services/global_search_service.go†L63-L70】 |
+| `sort_option` / `sortOption` | целое ≥0 | нет | `0` | Код сортировки (см. раздел «Сортировка»). При пустом/некорректном значении → `0`.【F:internal/handlers/global_search_handler.go†L95-L100】【F:internal/services/global_search_service.go†L193-L275】 |
+| `latitude`, `longitude` | числа | нет | — | Геоточка пользователя. Должны идти парой, иначе 400. При наличии включают расчёт `distance`.【F:internal/handlers/global_search_handler.go†L114-L122】【F:internal/services/global_search_service.go†L46-L120】【F:internal/services/global_search_service.go†L358-L374】 |
+| `radius` | число > 0 | нет | — | Км-радиус вокруг точки пользователя. Работает только вместе с координатами: записи без координат или за пределами радиуса исключаются; дополнительно сортировка переключается на дистанцию.【F:internal/handlers/global_search_handler.go†L124-L130】【F:internal/services/global_search_service.go†L46-L194】 |
+| `on_site` | `true/false` | нет | — | Фильтр «выезд на объект», применяется только к `service` и `ad`. Ошибочное значение → 400.【F:internal/handlers/global_search_handler.go†L102-L109】【F:internal/services/global_search_service.go†L70-L106】 |
+| `negotiable` | `true/false` | нет | — | Фильтр «договорная цена» для всех типов. Ошибочное значение → 400.【F:internal/handlers/global_search_handler.go†L102-L109】【F:internal/services/global_search_service.go†L70-L183】 |
+| `remote` | `true/false` | нет | — | Применяется к `work`/`work_ad`: `true` — только удалёнка, `false` — только не-удалённые записи; пусто — без фильтра.【F:internal/handlers/global_search_handler.go†L101-L103】【F:internal/services/global_search_service.go†L109-L145】【F:internal/repositories/work_repository.go†L310-L336】 |
 
 ## Типоспецифические фильтры
 
@@ -32,8 +32,8 @@
 | --- | --- | --- |
 | `service`, `ad` | `on_site`, `negotiable` | Фильтры по выезду и договорной цене передаются в соответствующие репозитории услуг/объявлений.【F:internal/services/global_search_service.go†L70-L107】 |
 | `ad`, `rent_ad` | `order_date`, `order_time` | Строковые фильтры по слоту записи/показа. При передаче добавляют условия равенства к полям `order_date`/`order_time`; пустые значения игнорируются.【F:internal/handlers/global_search_handler.go†L82-L117】【F:internal/services/global_search_service.go†L70-L187】【F:internal/repositories/ad_repository.go†L295-L377】【F:internal/repositories/rent_ad_repository.go†L275-L364】 |
-| `rent`, `rent_ad` | `rent_types`, `deposits` | CSV строк. Ограничивают тип аренды и условия залога.【F:internal/handlers/global_search_handler.go†L82-L84】【F:internal/services/global_search_service.go†L146-L183】 |
-| `work`, `work_ad` | `work_experience`, `work_schedule`/`work_schedules`, `payment_period`/`payment_periods`, `remote`, `languages`, `education`/`educations` | CSV списки опыта, графиков, периодов оплаты, форматов (дистанционная работа), языков и образований. Все передаются в репозитории вакансий/кандидатов.【F:internal/handlers/global_search_handler.go†L84-L98】【F:internal/services/global_search_service.go†L108-L145】 |
+| `rent`, `rent_ad` | `rent_types`, `deposits` | Массив строк. Ограничивают тип аренды и условия залога.【F:internal/handlers/global_search_handler.go†L82-L84】【F:internal/services/global_search_service.go†L146-L183】 |
+| `work`, `work_ad` | `work_experience`, `work_schedule`/`work_schedules`, `payment_period`/`payment_periods`, `remote`, `languages`, `education`/`educations` | Массивы строк опыта, графиков, периодов оплаты, форматов (дистанционная работа), языков и образований. Все передаются в репозитории вакансий/кандидатов.【F:internal/handlers/global_search_handler.go†L84-L98】【F:internal/services/global_search_service.go†L108-L145】 |
 
 ## Сортировка
 
@@ -81,14 +81,35 @@
 ### Базовый поиск по нескольким типам
 
 ```
-GET /search/global?types=service,ad,rent&categories=10,11&limit=10&page=1&price_from=0&price_to=50000&ratings=4,5 HTTP/1.1
+POST /search/global HTTP/1.1
 Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "types": ["service", "ad", "rent"],
+  "categories": [10, 11],
+  "limit": 10,
+  "page": 1,
+  "price_from": 0,
+  "price_to": 50000,
+  "ratings": [4, 5]
+}
 ```
 
 ### Геопоиск с сортировкой по дистанции
 
 ```
-GET /search/global?types=service,ad&limit=15&page=1&latitude=55.7522&longitude=37.6156&radius=10
+POST /search/global HTTP/1.1
+Content-Type: application/json
+
+{
+  "types": ["service", "ad"],
+  "limit": 15,
+  "page": 1,
+  "latitude": 55.7522,
+  "longitude": 37.6156,
+  "radius": 10
+}
 ```
 
 * Показывает только объявления с координатами в 10 км от точки; ближайшие — первыми, потом «топ», потом правило `sortOption` (по умолчанию — новые выше).
@@ -96,7 +117,21 @@ GET /search/global?types=service,ad&limit=15&page=1&latitude=55.7522&longitude=3
 ### Пример с фильтрами работы/кадров
 
 ```
-GET /search/global?types=work,work_ad&categories=30&limit=20&work_experience=middle,senior&work_schedules=full_time,part_time&payment_periods=month,week&remote=yes&languages=ru,en&educations=bachelor,master&sortOption=2
+POST /search/global HTTP/1.1
+Content-Type: application/json
+
+{
+  "types": ["work", "work_ad"],
+  "categories": [30],
+  "limit": 20,
+  "work_experience": ["middle", "senior"],
+  "work_schedules": ["full_time", "part_time"],
+  "payment_periods": ["month", "week"],
+  "remote": true,
+  "languages": ["ru", "en"],
+  "educations": ["bachelor", "master"],
+  "sort_option": 2
+}
 ```
 
 * Фильтрует по опыту, графикам, периодам выплат, дистанционному формату, языкам и образованию; сортирует по цене возрастанию, внутри приоритета «топ».
