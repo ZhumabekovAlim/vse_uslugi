@@ -1,6 +1,6 @@
 # Глобальный поиск `/search/global`
 
-Полностью переописанная документация для фронтенда по маршруту `GET /search/global`: запросы, параметры, сортировки, геофильтры, типоспецифические фильтры и примеры. Эндпоинт зарегистрирован как `mux.Get("/search/global", standardMiddleware.ThenFunc(app.globalSearchHandler.Search))`.【F:cmd/routes.go†L214-L214】
+Полностью переописанная документация для фронтенда по маршруту `POST /search/global`: запросы, параметры, сортировки, геофильтры, типоспецифические фильтры и примеры. Эндпоинт зарегистрирован как `mux.Post("/search/global", standardMiddleware.ThenFunc(app.globalSearchHandler.Search))`.【F:cmd/routes.go†L214-L214】
 
 ## Авторизация и заголовки
 
@@ -81,14 +81,14 @@
 ### Базовый поиск по нескольким типам
 
 ```
-GET /search/global?types=service,ad,rent&categories=10,11&limit=10&page=1&price_from=0&price_to=50000&ratings=4,5 HTTP/1.1
+POST /search/global?types=service,ad,rent&categories=10,11&limit=10&page=1&price_from=0&price_to=50000&ratings=4,5 HTTP/1.1
 Authorization: Bearer <token>
 ```
 
 ### Геопоиск с сортировкой по дистанции
 
 ```
-GET /search/global?types=service,ad&limit=15&page=1&latitude=55.7522&longitude=37.6156&radius=10
+POST /search/global?types=service,ad&limit=15&page=1&latitude=55.7522&longitude=37.6156&radius=10
 ```
 
 * Показывает только объявления с координатами в 10 км от точки; ближайшие — первыми, потом «топ», потом правило `sortOption` (по умолчанию — новые выше).
@@ -96,7 +96,7 @@ GET /search/global?types=service,ad&limit=15&page=1&latitude=55.7522&longitude=3
 ### Пример с фильтрами работы/кадров
 
 ```
-GET /search/global?types=work,work_ad&categories=30&limit=20&work_experience=middle,senior&work_schedules=full_time,part_time&payment_periods=month,week&remote=yes&languages=ru,en&educations=bachelor,master&sortOption=2
+POST /search/global?types=work,work_ad&categories=30&limit=20&work_experience=middle,senior&work_schedules=full_time,part_time&payment_periods=month,week&remote=yes&languages=ru,en&educations=bachelor,master&sortOption=2
 ```
 
 * Фильтрует по опыту, графикам, периодам выплат, дистанционному формату, языкам и образованию; сортирует по цене возрастанию, внутри приоритета «топ».

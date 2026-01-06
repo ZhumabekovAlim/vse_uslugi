@@ -216,7 +216,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/business/map/workers", businessAuthMiddleware.ThenFunc(app.locationHandler.GetBusinessWorkers))
 	mux.Get("/business/map/marker", businessAuthMiddleware.ThenFunc(app.locationHandler.GetBusinessMarker))
 	mux.Post("/top/activate", authMiddleware.ThenFunc(app.topHandler.Activate))
-	mux.Get("/search/global", standardMiddleware.ThenFunc(app.globalSearchHandler.Search))
+	mux.Post("/search/global", standardMiddleware.ThenFunc(app.globalSearchHandler.Search))
 
 	mux.Get("/user/posts/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetPostsByUserID))
 	mux.Get("/user/ads/:user_id", authMiddleware.ThenFunc(app.userItemsHandler.GetAdsByUserID))
