@@ -268,21 +268,28 @@ func (s *AppleIAPService) verifyJWS(ctx context.Context, token string) ([]byte, 
 	if strings.TrimSpace(token) == "" {
 		return nil, errors.New("empty signed payload")
 	}
-	jws, err := jose.ParseSigned(token)
+
+	jws, err := jose.ParseSigned(token, []jose.SignatureAlgorithm{
+		jose.ES256,
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	if len(jws.Signatures) == 0 {
 		return nil, errors.New("missing signature")
 	}
 
 	sig := jws.Signatures[0]
+
+	// 1️⃣ Пытаемся проверить через x5c (Apple Server Notifications)
 	if payload, err := s.verifyWithX5C(jws, sig.Header); err == nil {
 		return payload, nil
 	} else if !errors.Is(err, jose.ErrMissingX5cHeader) {
 		return nil, err
 	}
 
+	// 2️⃣ Fallback: проверка через App Store Server API key
 	kid := sig.Header.KeyID
 	key, err := s.lookupKey(ctx, kid)
 	if err != nil {
