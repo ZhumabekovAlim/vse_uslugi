@@ -69,3 +69,27 @@ func (s *TopService) ClearExpiredTop(ctx context.Context, now time.Time) (int, e
 	}
 	return s.Repo.ClearExpiredTop(ctx, now.UTC())
 }
+
+func (s *TopService) ensureOwnership(ctx context.Context, userID int, listingType string, listingID int) (string, error) {
+	listingType = strings.TrimSpace(listingType)
+	if listingType == "" || listingID <= 0 {
+		return "", errors.New("listing_type and id are required")
+	}
+
+	ownerID, err := s.Repo.GetOwnerID(ctx, listingType, listingID)
+	if err != nil {
+		return "", err
+	}
+	if ownerID != userID {
+		return "", ErrTopForbidden
+	}
+	return listingType, nil
+}
+
+func (s *TopService) DeactivateTop(ctx context.Context, userID int, listingType string, listingID int) error {
+	lt, err := s.ensureOwnership(ctx, userID, listingType, listingID)
+	if err != nil {
+		return err
+	}
+	return s.Repo.DeactivateTop(ctx, lt, listingID)
+}

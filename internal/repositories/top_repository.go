@@ -85,7 +85,7 @@ func (r *TopRepository) ClearExpiredTop(ctx context.Context, now time.Time) (int
 }
 
 func (r *TopRepository) clearExpiredTopForTable(ctx context.Context, table string, now time.Time) (int, error) {
-	query := fmt.Sprintf("SELECT id, top FROM %s WHERE top IS NOT NULL AND top <> ''", table)
+	query := fmt.Sprintf("SELECT id, top FROM %s WHERE top IS NOT NULL AND top <> '' AND top <> 'no'", table)
 	rows, err := r.DB.QueryContext(ctx, query)
 	if err != nil {
 		return 0, err
@@ -121,4 +121,24 @@ func (r *TopRepository) clearExpiredTopForTable(ctx context.Context, table strin
 		return cleared, err
 	}
 	return cleared, nil
+}
+
+func (r *TopRepository) DeactivateTop(ctx context.Context, listingType string, listingID int) error {
+	table, ok := models.ResolveTopTable(listingType)
+	if !ok {
+		return fmt.Errorf("unsupported listing type: %s", listingType)
+	}
+	query := fmt.Sprintf("UPDATE %s SET top = 'no', updated_at = NOW() WHERE id = ?", table)
+	result, err := r.DB.ExecContext(ctx, query, listingID)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrListingNotFound
+	}
+	return nil
 }

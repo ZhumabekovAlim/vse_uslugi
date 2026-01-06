@@ -4,12 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	firebase "firebase.google.com/go"
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/google/uuid"
-	_ "github.com/joho/godotenv"
-	"google.golang.org/api/option"
-	_ "google.golang.org/api/option"
+	"fmt"
 	"log"
 	"naimuBack/internal/ai"
 	"naimuBack/internal/courier"
@@ -22,6 +17,13 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	firebase "firebase.google.com/go"
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/google/uuid"
+	_ "github.com/joho/godotenv"
+	"google.golang.org/api/option"
+	_ "google.golang.org/api/option"
 )
 
 type application struct {
@@ -407,6 +409,9 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	// Apple IAP
 	var iapService *services.AppleIAPService
 	iapPrivateKey := strings.TrimSpace(os.Getenv("APPLE_IAP_PRIVATE_KEY"))
+	iapPrivateKey = strings.ReplaceAll(iapPrivateKey, `\n`, "\n")
+	iapPrivateKey = strings.ReplaceAll(iapPrivateKey, "\r\n", "\n")
+	iapPrivateKey = strings.ReplaceAll(iapPrivateKey, "\r", "\n")
 	iapProductTargets, err := parseIAPProductTargets(os.Getenv("APPLE_IAP_PRODUCTS"))
 	if err != nil {
 		errorLog.Printf("apple iap products: %v", err)

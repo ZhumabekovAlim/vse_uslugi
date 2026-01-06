@@ -291,3 +291,15 @@ func (r *SubscriptionRepository) AddResponsesBalance(ctx context.Context, userID
 
 	return err
 }
+func (r *SubscriptionRepository) ForceExpireSubscription(ctx context.Context, userID int, subType models.SubscriptionType) error {
+	_, err := r.DB.ExecContext(ctx,
+		`UPDATE executor_subscriptions 
+         SET expires_at = NOW(), updated_at = CURRENT_TIMESTAMP 
+         WHERE user_id = ? AND subscription_type = ?`,
+		userID, subType,
+	)
+	if err != nil {
+		return err
+	}
+	return r.ArchiveListingsByType(ctx, userID, subType)
+}

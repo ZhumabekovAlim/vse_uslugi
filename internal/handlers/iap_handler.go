@@ -49,8 +49,11 @@ func (h *IAPHandler) VerifyIOSPurchase(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		TransactionID string           `json:"transaction_id"`
-		Target        models.IAPTarget `json:"target"`
+		TransactionID string `json:"transaction_id"`
+		Target        *struct {
+			ListingType string `json:"listing_type,omitempty"` // например: "rent", "work", "service", ...
+			ID          int64  `json:"id,omitempty"`           // listing_id
+		} `json:"target,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid body: "+err.Error(), http.StatusBadRequest)
@@ -62,13 +65,41 @@ func (h *IAPHandler) VerifyIOSPurchase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	target, err := h.resolveTarget(txn.ProductID)
+	serverTarget, err := h.resolveTarget(txn.ProductID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	processed, err := h.processTransaction(r.Context(), userID, target, txn)
+	// ✅ ГИБРИД: клиент может прислать только привязку для TOP
+	finalTarget := serverTarget
+	if serverTarget.Type == models.IAPTargetTypeTop {
+		if req.Target == nil {
+			http.Error(w, "target is required for top purchase", http.StatusBadRequest)
+			return
+		}
+		finalTarget.ListingType = strings.TrimSpace(strings.ToLower(req.Target.ListingType))
+		finalTarget.ID = req.Target.ID
+
+		// Доп. защита: проверим, что listing_type допустим
+		if _, ok := models.AllowedTopTypes()[finalTarget.ListingType]; !ok {
+			http.Error(w, "invalid listing_type", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// ✅ Валидируем уже “финальный” target (durationDays/subType/months/seats берутся с сервера)
+	if err := finalTarget.Validate(); err != nil {
+		http.Error(w, "target validate: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	processed, err := h.processTransaction(r.Context(), userID, finalTarget, txn)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -135,6 +166,15 @@ func (h *IAPHandler) AppleNotificationsV2(w http.ResponseWriter, r *http.Request
 		http.Error(w, "load original transaction: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if strings.TrimSpace(target.Type) == "" {
+		t, rerr := h.resolveTarget(txn.ProductID)
+		if rerr == nil {
+			target = t
+		}
+	}
+	if err := target.Validate(); err != nil {
+		// лучше "ok" и выйти, чем падать на нотификациях
+	}
 	if userID == 0 {
 		http.Error(w, "transaction owner missing", http.StatusInternalServerError)
 		return
@@ -146,10 +186,20 @@ func (h *IAPHandler) AppleNotificationsV2(w http.ResponseWriter, r *http.Request
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ignored"})
 		return
 	case notificationRevoke:
+		// 1) удаляем запись (пока так; лучше потом заменить на revoked_at)
 		if err := h.Repo.DeleteByTransactionID(r.Context(), txn.TransactionID); err != nil {
 			http.Error(w, "revoke transaction: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		// 2) снимаем entitlement минимум для subscription
+		if target.Type == models.IAPTargetTypeSubscription && h.SubscriptionRepo != nil {
+			subType, err := models.ParseSubscriptionType(target.SubscriptionType)
+			if err == nil {
+				_ = h.SubscriptionRepo.ForceExpireSubscription(r.Context(), userID, subType)
+			}
+		}
+
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "revoked"})
 		return
 	}
@@ -250,6 +300,21 @@ func (h *IAPHandler) processTransaction(ctx context.Context, userID int, target 
 	if strings.TrimSpace(txn.TransactionID) == "" {
 		return false, errors.New("transaction id is required")
 	}
+
+	orig := strings.TrimSpace(txn.OriginalTransactionID)
+	if orig == "" {
+		orig = txn.TransactionID
+		txn.OriginalTransactionID = orig
+	}
+
+	if owner, err := h.Repo.GetOwnerByOriginalTransactionID(ctx, orig); err == nil {
+		if owner != 0 && owner != userID {
+			return false, errors.New("transaction belongs to another user")
+		}
+	} else if !errors.Is(err, repositories.ErrNotFound) {
+		return false, fmt.Errorf("check transaction owner: %w", err)
+	}
+
 	processed, err := h.Repo.IsProcessed(ctx, txn.TransactionID)
 	if err != nil {
 		return false, fmt.Errorf("idempotency check: %w", err)

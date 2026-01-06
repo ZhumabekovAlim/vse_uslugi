@@ -112,6 +112,26 @@ func (r *IAPRepository) FindByOriginalTransactionID(ctx context.Context, origina
 	return target, userID, nil
 }
 
+func (r *IAPRepository) GetOwnerByOriginalTransactionID(ctx context.Context, originalID string) (int, error) {
+	if err := r.ensureSchema(ctx); err != nil {
+		return 0, err
+	}
+
+	var userID int
+	err := r.DB.QueryRowContext(ctx,
+		`SELECT user_id FROM apple_iap_transactions WHERE original_transaction_id = ? ORDER BY id DESC LIMIT 1`,
+		originalID,
+	).Scan(&userID)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, err
+	}
+	return userID, nil
+}
+
 // ErrNotFound wraps sql.ErrNoRows for clarity.
 var ErrNotFound = errors.New("not found")
 
