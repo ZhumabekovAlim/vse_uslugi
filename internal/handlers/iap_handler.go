@@ -21,9 +21,10 @@ type IAPHandler struct {
 	SubscriptionService *services.SubscriptionService
 	TopService          *services.TopService
 	BusinessService     *services.BusinessService
+	ProductTargets      map[string]models.IAPTarget
 }
 
-func NewIAPHandler(service *services.AppleIAPService, repo *repositories.IAPRepository, subRepo *repositories.SubscriptionRepository, subService *services.SubscriptionService, topService *services.TopService, businessService *services.BusinessService) *IAPHandler {
+func NewIAPHandler(service *services.AppleIAPService, repo *repositories.IAPRepository, subRepo *repositories.SubscriptionRepository, subService *services.SubscriptionService, topService *services.TopService, businessService *services.BusinessService, productTargets map[string]models.IAPTarget) *IAPHandler {
 	return &IAPHandler{
 		Service:             service,
 		Repo:                repo,
@@ -31,6 +32,7 @@ func NewIAPHandler(service *services.AppleIAPService, repo *repositories.IAPRepo
 		SubscriptionService: subService,
 		TopService:          topService,
 		BusinessService:     businessService,
+		ProductTargets:      productTargets,
 	}
 }
 
@@ -54,18 +56,19 @@ func (h *IAPHandler) VerifyIOSPurchase(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := req.Target.Validate(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
 	txn, err := h.Service.VerifyTransaction(r.Context(), req.TransactionID)
 	if err != nil {
 		http.Error(w, "apple verify: "+err.Error(), http.StatusBadGateway)
 		return
 	}
 
-	processed, err := h.processTransaction(r.Context(), userID, req.Target, txn)
+	target, err := h.resolveTarget(txn.ProductID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	processed, err := h.processTransaction(r.Context(), userID, target, txn)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -134,6 +137,20 @@ func (h *IAPHandler) AppleNotificationsV2(w http.ResponseWriter, r *http.Request
 	}
 	if userID == 0 {
 		http.Error(w, "transaction owner missing", http.StatusInternalServerError)
+		return
+	}
+
+	action := classifyNotification(notif.NotificationType, notif.Subtype)
+	switch action {
+	case notificationIgnore:
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ignored"})
+		return
+	case notificationRevoke:
+		if err := h.Repo.DeleteByTransactionID(r.Context(), txn.TransactionID); err != nil {
+			http.Error(w, "revoke transaction: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "revoked"})
 		return
 	}
 
@@ -266,4 +283,48 @@ func transactionFromRenewal(renewal models.AppleRenewalInfo) models.AppleTransac
 		Environment:           renewal.Environment,
 		Raw:                   renewal.Raw,
 	}
+}
+
+func (h *IAPHandler) resolveTarget(productID string) (models.IAPTarget, error) {
+	productID = strings.TrimSpace(productID)
+	if productID == "" {
+		return models.IAPTarget{}, errors.New("product id is empty")
+	}
+	if len(h.ProductTargets) == 0 {
+		return models.IAPTarget{}, errors.New("iap product targets are not configured")
+	}
+	target, ok := h.ProductTargets[productID]
+	if !ok {
+		return models.IAPTarget{}, fmt.Errorf("unsupported product id: %s", productID)
+	}
+	if err := target.Validate(); err != nil {
+		return models.IAPTarget{}, err
+	}
+	return target, nil
+}
+
+type notificationAction int
+
+const (
+	notificationIgnore notificationAction = iota
+	notificationGrant
+	notificationRevoke
+)
+
+func classifyNotification(notificationType, subtype string) notificationAction {
+	switch strings.ToUpper(strings.TrimSpace(notificationType)) {
+	case "INITIAL_BUY", "DID_RENEW", "DID_RECOVER", "INTERACTIVE_RENEWAL", "REFUND_REVERSED":
+		return notificationGrant
+	case "REVOKE", "REFUND":
+		return notificationRevoke
+	// Ignore state transitions that do not change entitlement (grace, billing retry, etc.).
+	case "DID_FAIL_TO_RENEW", "EXPIRED", "GRACE_PERIOD_EXPIRED", "BILLING_RETRY", "PRICE_INCREASE_CONSENT":
+		return notificationIgnore
+	default:
+		// Subtypes like VOLUNTARY or BILLING_RECOVERY can be informative but not actionable here.
+		if strings.ToUpper(strings.TrimSpace(subtype)) == "VOLUNTARY" {
+			return notificationRevoke
+		}
+	}
+	return notificationIgnore
 }
