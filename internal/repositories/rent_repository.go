@@ -24,9 +24,18 @@ type RentRepository struct {
 
 func (r *RentRepository) CreateRent(ctx context.Context, rent models.Rent) (models.Rent, error) {
 	query := `
-    INSERT INTO rent (name, address, price, price_to, user_id, images, videos, category_id, subcategory_id, work_time_from, work_time_to, description, condition, delivery, avg_rating, top, negotiable, hide_phone, liked, status, rent_type, deposit, latitude, longitude, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
+INSERT INTO rent (
+  name, address, price, price_to, user_id, images, videos,
+  category_id, subcategory_id,
+  work_time_from, work_time_to,
+  description, ` + "`condition`" + `, delivery,
+  avg_rating, top, negotiable, hide_phone, liked, ` + "`status`" + `,
+  rent_type, deposit, latitude, longitude, created_at
+)
+VALUES (
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+);
+`
 
 	// Сохраняем images как JSON
 	imagesJSON, err := json.Marshal(rent.Images)
