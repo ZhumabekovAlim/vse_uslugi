@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
+	_ "strconv"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
