@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -152,6 +153,21 @@ func (s *AppleIAPService) DecodeSignedTransaction(ctx context.Context, signedInf
 	return txn, nil
 }
 
+// DecodeSignedRenewalInfo verifies and decodes Apple's signedRenewalInfo JWS payload.
+func (s *AppleIAPService) DecodeSignedRenewalInfo(ctx context.Context, signedInfo string) (models.AppleRenewalInfo, error) {
+	payload, err := s.verifyJWS(ctx, signedInfo)
+	if err != nil {
+		return models.AppleRenewalInfo{}, err
+	}
+
+	var renewal models.AppleRenewalInfo
+	if err := json.Unmarshal(payload, &renewal); err != nil {
+		return models.AppleRenewalInfo{}, err
+	}
+	renewal.Raw = signedInfo
+	return renewal, nil
+}
+
 func (s *AppleIAPService) fetchSignedTransaction(ctx context.Context, transactionID, env string) (string, error) {
 	token, err := s.signedToken()
 	if err != nil {
@@ -222,7 +238,14 @@ func (s *AppleIAPService) verifyJWS(ctx context.Context, token string) ([]byte, 
 		return nil, errors.New("missing signature")
 	}
 
-	kid := jws.Signatures[0].Header.KeyID
+	sig := jws.Signatures[0]
+	if payload, err := s.verifyWithX5C(jws, sig.Header); err == nil {
+		return payload, nil
+	} else if !errors.Is(err, jose.ErrMissingX5cHeader) {
+		return nil, err
+	}
+
+	kid := sig.Header.KeyID
 	key, err := s.lookupKey(ctx, kid)
 	if err != nil {
 		return nil, err
@@ -233,6 +256,30 @@ func (s *AppleIAPService) verifyJWS(ctx context.Context, token string) ([]byte, 
 		return nil, err
 	}
 	return payload, nil
+}
+
+func (s *AppleIAPService) verifyWithX5C(jws *jose.JSONWebSignature, header jose.Header) ([]byte, error) {
+	roots, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, fmt.Errorf("system roots: %w", err)
+	}
+	opts := x509.VerifyOptions{
+		Roots:       roots,
+		CurrentTime: time.Now(),
+		KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning},
+	}
+	chains, err := header.Certificates(opts)
+	if err != nil {
+		return nil, err
+	}
+	if len(chains) == 0 || len(chains[0]) == 0 {
+		return nil, errors.New("apple jws: empty certificate chain")
+	}
+	leaf := chains[0][0]
+	if leaf.PublicKey == nil {
+		return nil, errors.New("apple jws: certificate missing public key")
+	}
+	return jws.Verify(leaf.PublicKey)
 }
 
 func (s *AppleIAPService) lookupKey(ctx context.Context, kid string) (jose.JSONWebKey, error) {

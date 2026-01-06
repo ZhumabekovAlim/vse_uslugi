@@ -63,6 +63,9 @@ func (r *IAPRepository) Save(ctx context.Context, txn models.AppleTransaction, u
 	if err := r.ensureSchema(ctx); err != nil {
 		return err
 	}
+	if txn.TransactionID == "" {
+		return fmt.Errorf("transaction_id is required")
+	}
 	targetJSON, err := json.Marshal(target)
 	if err != nil {
 		return fmt.Errorf("marshal target: %w", err)
@@ -72,6 +75,15 @@ INSERT INTO apple_iap_transactions (transaction_id, original_transaction_id, use
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE transaction_id = transaction_id
 `, txn.TransactionID, txn.OriginalTransactionID, userID, txn.ProductID, txn.Environment, txn.BundleID, targetJSON, txn.Raw)
+	return err
+}
+
+// DeleteByTransactionID removes a transaction record. Useful when downstream application fails after saving.
+func (r *IAPRepository) DeleteByTransactionID(ctx context.Context, transactionID string) error {
+	if err := r.ensureSchema(ctx); err != nil {
+		return err
+	}
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM apple_iap_transactions WHERE transaction_id = ?`, transactionID)
 	return err
 }
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
@@ -64,20 +65,10 @@ func (h *IAPHandler) VerifyIOSPurchase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	processed, err := h.Repo.IsProcessed(r.Context(), txn.TransactionID)
+	processed, err := h.processTransaction(r.Context(), userID, req.Target, txn)
 	if err != nil {
-		http.Error(w, "idempotency check: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-	if !processed {
-		if err := h.applyTarget(r.Context(), userID, req.Target, txn); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := h.Repo.Save(r.Context(), txn, userID, req.Target); err != nil {
-			http.Error(w, "store transaction: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
 	}
 
 	resp := map[string]any{
@@ -116,7 +107,14 @@ func (h *IAPHandler) AppleNotificationsV2(w http.ResponseWriter, r *http.Request
 	case notif.Data.SignedTransactionInfo != "":
 		txn, err = h.Service.DecodeSignedTransaction(r.Context(), notif.Data.SignedTransactionInfo)
 	case notif.Data.SignedRenewalInfo != "":
-		txn, err = h.Service.DecodeSignedTransaction(r.Context(), notif.Data.SignedRenewalInfo)
+		var renewal models.AppleRenewalInfo
+		renewal, err = h.Service.DecodeSignedRenewalInfo(r.Context(), notif.Data.SignedRenewalInfo)
+		if err == nil {
+			txn = transactionFromRenewal(renewal)
+			if strings.TrimSpace(txn.OriginalTransactionID) == "" {
+				err = errors.New("renewal info missing original transaction id")
+			}
+		}
 	default:
 		err = errors.New("notification missing transaction info")
 	}
@@ -139,20 +137,9 @@ func (h *IAPHandler) AppleNotificationsV2(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	processed, err := h.Repo.IsProcessed(r.Context(), txn.TransactionID)
-	if err != nil {
-		http.Error(w, "idempotency check: "+err.Error(), http.StatusInternalServerError)
+	if _, err := h.processTransaction(r.Context(), userID, target, txn); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-	if !processed {
-		if err := h.applyTarget(r.Context(), userID, target, txn); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := h.Repo.Save(r.Context(), txn, userID, target); err != nil {
-			http.Error(w, "store transaction: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
 	}
 
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
@@ -239,5 +226,44 @@ func (h *IAPHandler) applyTarget(ctx context.Context, userID int, target models.
 		return err
 	default:
 		return fmt.Errorf("unsupported target type: %s", target.Type)
+	}
+}
+
+func (h *IAPHandler) processTransaction(ctx context.Context, userID int, target models.IAPTarget, txn models.AppleTransaction) (bool, error) {
+	if strings.TrimSpace(txn.TransactionID) == "" {
+		return false, errors.New("transaction id is required")
+	}
+	processed, err := h.Repo.IsProcessed(ctx, txn.TransactionID)
+	if err != nil {
+		return false, fmt.Errorf("idempotency check: %w", err)
+	}
+	if processed {
+		return true, nil
+	}
+
+	if err := h.Repo.Save(ctx, txn, userID, target); err != nil {
+		return false, fmt.Errorf("store transaction: %w", err)
+	}
+	if err := h.applyTarget(ctx, userID, target, txn); err != nil {
+		if rollbackErr := h.Repo.DeleteByTransactionID(ctx, txn.TransactionID); rollbackErr != nil {
+			return false, fmt.Errorf("%w; rollback failed: %v", err, rollbackErr)
+		}
+		return false, err
+	}
+	return false, nil
+}
+
+func transactionFromRenewal(renewal models.AppleRenewalInfo) models.AppleTransaction {
+	txnID := renewal.OriginalTransactionID
+	if renewal.SignedDate > 0 {
+		txnID = fmt.Sprintf("renewal:%s:%d", renewal.OriginalTransactionID, renewal.SignedDate)
+	}
+	return models.AppleTransaction{
+		TransactionID:         txnID,
+		OriginalTransactionID: renewal.OriginalTransactionID,
+		ProductID:             renewal.AutoRenewProductID,
+		BundleID:              renewal.BundleID,
+		Environment:           renewal.Environment,
+		Raw:                   renewal.Raw,
 	}
 }
