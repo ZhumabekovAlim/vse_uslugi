@@ -67,6 +67,16 @@ type AppleTransaction struct {
 	Raw                   string `json:"-"`
 }
 
+// AppleRenewalInfo contains decoded renewal fields from Apple's signedRenewalInfo JWS payload.
+type AppleRenewalInfo struct {
+	OriginalTransactionID string `json:"originalTransactionId"`
+	AutoRenewProductID    string `json:"autoRenewProductId,omitempty"`
+	Environment           string `json:"environment"`
+	SignedDate            int64  `json:"signedDate"`
+	BundleID              string `json:"bundleId,omitempty"`
+	Raw                   string `json:"-"`
+}
+
 // AppleNotification wraps the server notification payload (after signature verification).
 type AppleNotification struct {
 	NotificationType string `json:"notificationType"`
