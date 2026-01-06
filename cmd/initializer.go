@@ -145,6 +145,8 @@ type application struct {
 
 	assistantHandler *handlers.AssistantHandler
 
+	iapHandler *handlers.IAPHandler
+
 	// authService *services/*/.AuthService
 	taxiMux     http.Handler
 	taxiDeps    *taxi.TaxiDeps
@@ -173,6 +175,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 
 	// Repositories\
 	invoiceRepo := repositories.NewInvoiceRepo(db)
+	iapRepo := repositories.NewIAPRepository(db)
 	userRepo := repositories.UserRepository{DB: db}
 	serviceRepo := repositories.ServiceRepository{DB: db}
 	categoryRepo := repositories.CategoryRepository{DB: db}
@@ -400,6 +403,27 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	messageService := &services.MessageService{MessageRepo: &messageRepo, UserRepo: &userRepo}
 	messageHandler := &handlers.MessageHandler{MessageService: messageService}
 
+	// Apple IAP
+	var iapService *services.AppleIAPService
+	iapPrivateKey := strings.TrimSpace(os.Getenv("APPLE_IAP_PRIVATE_KEY"))
+	if iapPrivateKey != "" {
+		iapCfg := services.AppleIAPConfig{
+			IssuerID:    getEnv("APPLE_IAP_ISSUER_ID", ""),
+			BundleID:    getEnv("APPLE_IAP_BUNDLE_ID", ""),
+			KeyID:       getEnv("APPLE_IAP_KEY_ID", ""),
+			PrivateKey:  iapPrivateKey,
+			Environment: getEnv("APPLE_IAP_ENVIRONMENT", "production"),
+		}
+		if s, err := services.NewAppleIAPService(iapCfg); err != nil {
+			errorLog.Printf("apple iap init: %v", err)
+		} else {
+			iapService = s
+		}
+	} else {
+		infoLog.Println("Apple IAP: disabled (no APPLE_IAP_PRIVATE_KEY)")
+	}
+	iapHandler := handlers.NewIAPHandler(iapService, iapRepo, &subscriptionRepo, subscriptionService, topService, businessService)
+
 	return &application{
 		errorLog: errorLog,
 		infoLog:  infoLog,
@@ -511,6 +535,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		assistantHandler:           assistantHandler,
 		topHandler:                 topHandler,
 		topService:                 topService,
+		iapHandler:                 iapHandler,
 
 		workAdHandler:             workAdHandler,
 		workAdReviewHandler:       workAdReviewHandler,
