@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -24,6 +25,43 @@ const (
 	appStoreProdBase    = "https://api.storekit.itunes.apple.com"
 	appStoreSandboxBase = "https://api.storekit-sandbox.itunes.apple.com"
 	appleJWKSURL        = "https://apple.com/.well-known/appstoreconnect/keys"
+)
+
+var (
+	appleRootCAG3PEM = []byte(`-----BEGIN CERTIFICATE-----
+MIIFjTCCA3WgAwIBAgIQCN7SVMZx+S/iQWE8wI/2ZjANBgkqhkiG9w0BAQsFADBN
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMQXBwbGUgSW5jLjEbMBkGA1UEAxMSQXBw
+bGUgUm9vdCBDQSAtIEczMB4XDTIzMDcyMTA3MTEwNloXDTMzMDcyMTA3MTEwNlow
+TTELMAkGA1UEBhMCVVMxFTATBgNVBAoTDEFwcGxlIEluYy4xGzAZBgNVBAMTEkFw
+cGxlIFJvb3QgQ0EgLSBHMzCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIB
+AN6VweKxn6GwaR2okKmnQYD5241eW8nmd6amclmzd6bcwMSxsxf+CF0CwnmPSHXu
+u9c9zJTLGSMAqoXzgRtylDxP/0gajst7wYAt8xeEmQbWGz6P06PCkEwNi+AAWokh
+hUP+7wIX5pm5d0s8P1ZXVWbSFz4GUF1UcEMpAaY8nyHgqJTywP4K3Syp/cNvnDxU
+sb9rW11z/EurF+q8l1j0ErkkiKEiSLHwtK0iFRY9g2adHCe9bmJfLy2FJpZJxk0P
+ip2bVlo8K+ijMbWWBLxYp3AZKNJYPt3sC0SldcoOZyt07ixKL9g1YBFJcjzlOgL5
+tkUvEO8kC+ekd5/8Rf7dhiih8zczbZ+CMZSrQTzgMN4oot67BKy85Yptq+PTQ1aN
+PnyBCEhCKemOgIDZkWapQTldKcrrnRo7ehZQYHdjvEXYVtg61t3pwbBBag1nvNZm
+FUpJKyvo4eBWfNrCuzc01+Cfupak6oOCvTTA03HOeoRd+z2Nm7lLKRF+gDdP1yPQ
+JxXR8Bs5ct7QZH7aAfmX1lywtaYWWerWh1im2ck1zPpQY4yfqNcEmaLqiIsgchNq
+pPZKDGPGHK3OLq3CAfKUJ+pQhVE5V82ZvwlzrY7lTEmlobWaKvGFhtgFXerrXGRk
+kbflciriTFkQqBkHbIFd/O8Wcll3AgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBhjAP
+BgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSo6hA7qrvEbZBTu/DX7ORsZqOFDjAN
+BgkqhkiG9w0BAQsFAAOCAgEAWdOMrBfnc2anlgZNc9InOZGCT6UDkcqHv0/O0+Q/
+h/mt8IQtVTmriIyj2A8yCucBSzxKSxtcOtx+KgO/0SwYiBUXNlyQYbO38W1osOfG
+CaLsQikN45AeVLejVirkyiCgp3S6wBxeE0XM7ui9fejGRAZ1Mq0fbXQJu26go61b
+PU6sE71rJVjKiOg3Xr7P43hnhZvnlJVqDlfmIGY2w/c8GSPK2/vwJKdLOAYiRFSt
+ijWddjJGqZiRKUYbOe+YqkHV7N4w3UIiH78bYCKXrD08w4poNa987a5pqRItaYLe
+AsQ0vb/a18X/CMUl+ekp61WTY4N8pQPQUw/9QuQVz9y5j/TF9YqhwzUiW+njdxl9
+O20go1OC56QK6z7Gpx7xfrOfqVL5UtbZyRBsWfaTilh76/Pso0FTQio8s4Zzr7Y0
+R10S74wN0V+nYSLRKdW8eYrqH1e3Xw6XjHXl73ifx3CCNdRNJI7CUx1OxSSuY1/K
+kCp7FDW6fJjCwmp1a6/SxVBP6czCBzz2cs2tYLDazKaYf4XU4mMPJ14xO63AzLXA
+ej931pPl3rQPV4Ka+zRYM8vWsZJF7NbeLksxqmf4wQ/RtAW3fVdbdIjTu7Y9QK+s
+6OZpZcbGLJP6Oi3InX1ks5kt6wkSRPwJ2WitG8/4ZivU9AA2nDU=
+-----END CERTIFICATE-----`)
+
+	appleRootOnce sync.Once
+	appleRootPool *x509.CertPool
+	appleRootErr  error
 )
 
 type AppleIAPConfig struct {
@@ -259,9 +297,9 @@ func (s *AppleIAPService) verifyJWS(ctx context.Context, token string) ([]byte, 
 }
 
 func (s *AppleIAPService) verifyWithX5C(jws *jose.JSONWebSignature, header jose.Header) ([]byte, error) {
-	roots, err := x509.SystemCertPool()
+	roots, err := appleRootCertPool()
 	if err != nil {
-		return nil, fmt.Errorf("system roots: %w", err)
+		return nil, err
 	}
 	opts := x509.VerifyOptions{
 		Roots:       roots,
@@ -335,4 +373,23 @@ func DecodeCompactJWS(token string) ([]byte, error) {
 		return nil, errors.New("invalid jws format")
 	}
 	return base64.RawStdEncoding.DecodeString(parts[1])
+}
+
+func appleRootCertPool() (*x509.CertPool, error) {
+	appleRootOnce.Do(func() {
+		block, _ := pem.Decode(appleRootCAG3PEM)
+		if block == nil {
+			appleRootErr = errors.New("apple root ca: decode failed")
+			return
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			appleRootErr = fmt.Errorf("apple root ca: parse: %w", err)
+			return
+		}
+		pool := x509.NewCertPool()
+		pool.AddCert(cert)
+		appleRootPool = pool
+	})
+	return appleRootPool, appleRootErr
 }

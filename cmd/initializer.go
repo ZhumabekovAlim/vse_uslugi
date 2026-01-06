@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	firebase "firebase.google.com/go"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/google/uuid"
@@ -13,7 +14,7 @@ import (
 	"naimuBack/internal/ai"
 	"naimuBack/internal/courier"
 	"naimuBack/internal/handlers"
-	_ "naimuBack/internal/models"
+	"naimuBack/internal/models"
 	"naimuBack/internal/repositories"
 	services "naimuBack/internal/services"
 	"naimuBack/internal/taxi"
@@ -406,6 +407,10 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	// Apple IAP
 	var iapService *services.AppleIAPService
 	iapPrivateKey := strings.TrimSpace(os.Getenv("APPLE_IAP_PRIVATE_KEY"))
+	iapProductTargets, err := parseIAPProductTargets(os.Getenv("APPLE_IAP_PRODUCTS"))
+	if err != nil {
+		errorLog.Printf("apple iap products: %v", err)
+	}
 	if iapPrivateKey != "" {
 		iapCfg := services.AppleIAPConfig{
 			IssuerID:    getEnv("APPLE_IAP_ISSUER_ID", ""),
@@ -422,7 +427,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	} else {
 		infoLog.Println("Apple IAP: disabled (no APPLE_IAP_PRIVATE_KEY)")
 	}
-	iapHandler := handlers.NewIAPHandler(iapService, iapRepo, &subscriptionRepo, subscriptionService, topService, businessService)
+	iapHandler := handlers.NewIAPHandler(iapService, iapRepo, &subscriptionRepo, subscriptionService, topService, businessService, iapProductTargets)
 
 	return &application{
 		errorLog: errorLog,
@@ -569,6 +574,23 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func parseIAPProductTargets(raw string) (map[string]models.IAPTarget, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	var targets map[string]models.IAPTarget
+	if err := json.Unmarshal([]byte(raw), &targets); err != nil {
+		return nil, fmt.Errorf("parse json: %w", err)
+	}
+	for productID, target := range targets {
+		if err := target.Validate(); err != nil {
+			return nil, fmt.Errorf("product %s: %w", productID, err)
+		}
+	}
+	return targets, nil
 }
 
 func openDB(dsn string) (*sql.DB, error) {
