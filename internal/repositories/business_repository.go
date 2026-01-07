@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"naimuBack/internal/models"
 )
@@ -63,15 +64,20 @@ func (r *BusinessRepository) ListWorkerListings(ctx context.Context, businessUse
 
 func (r *BusinessRepository) GetAccountByUserID(ctx context.Context, businessUserID int) (models.BusinessAccount, error) {
 	var acc models.BusinessAccount
-	query := `SELECT id, business_user_id, seats_total, seats_used, status, created_at, updated_at FROM business_accounts WHERE business_user_id = ?`
+	query := `SELECT id, business_user_id, seats_total, seats_used, status, seats_expires_at, created_at, updated_at FROM business_accounts WHERE business_user_id = ?`
 	err := r.DB.QueryRowContext(ctx, query, businessUserID).Scan(
-		&acc.ID, &acc.BusinessUserID, &acc.SeatsTotal, &acc.SeatsUsed, &acc.Status, &acc.CreatedAt, &acc.UpdatedAt,
+		&acc.ID, &acc.BusinessUserID, &acc.SeatsTotal, &acc.SeatsUsed, &acc.Status, &acc.SeatsExpiresAt, &acc.CreatedAt, &acc.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.BusinessAccount{}, nil
 		}
 		return models.BusinessAccount{}, err
+	}
+	if acc.SeatsExpiresAt != nil && !acc.SeatsExpiresAt.After(time.Now()) {
+		acc.Expired = true
+		acc.SeatsTotal = 0
+		acc.SeatsUsed = 0
 	}
 	return acc, nil
 }
@@ -89,9 +95,14 @@ func (r *BusinessRepository) CreateAccount(ctx context.Context, businessUserID i
 	return r.GetAccountByUserID(ctx, int(id))
 }
 
-func (r *BusinessRepository) AddSeats(ctx context.Context, businessUserID, seats int) error {
-	query := `UPDATE business_accounts SET seats_total = seats_total + ?, status = 'active' WHERE business_user_id = ?`
-	_, err := r.DB.ExecContext(ctx, query, seats, businessUserID)
+func (r *BusinessRepository) SetSeats(ctx context.Context, businessUserID, seats int, expiresAt time.Time) error {
+	query := `UPDATE business_accounts 
+              SET seats_total = ?, 
+                  seats_used = CASE WHEN seats_used > ? THEN ? ELSE seats_used END,
+                  seats_expires_at = ?, 
+                  status = 'active' 
+              WHERE business_user_id = ?`
+	_, err := r.DB.ExecContext(ctx, query, seats, seats, seats, expiresAt, businessUserID)
 	return err
 }
 

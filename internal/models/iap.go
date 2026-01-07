@@ -51,6 +51,9 @@ func (t IAPTarget) Validate() error {
 		if t.Seats <= 0 {
 			return fmt.Errorf("seats must be positive")
 		}
+		if t.DurationDays <= 0 {
+			return fmt.Errorf("duration_days must be positive")
+		}
 	default:
 		return fmt.Errorf("unsupported target type: %s", t.Type)
 	}

@@ -386,7 +386,8 @@ func (h *AirbapayHandler) executeInvoiceTarget(ctx context.Context, invoice mode
 			return fmt.Errorf("business service not configured")
 		}
 		var data struct {
-			Seats int `json:"seats"`
+			Seats        int  `json:"seats"`
+			DurationDays *int `json:"duration_days,omitempty"`
 		}
 		if err := json.Unmarshal(target.Payload, &data); err != nil {
 			return fmt.Errorf("business payload: %w", err)
@@ -394,10 +395,18 @@ func (h *AirbapayHandler) executeInvoiceTarget(ctx context.Context, invoice mode
 		if data.Seats <= 0 {
 			return fmt.Errorf("business payload: seats must be positive")
 		}
+		duration := services.DefaultBusinessSeatDuration()
+		if data.DurationDays != nil {
+			if *data.DurationDays <= 0 {
+				return fmt.Errorf("business payload: duration_days must be positive")
+			}
+			duration = *data.DurationDays
+		}
 		provider := "airbapay"
 		state := "paid"
 		req := services.PurchaseRequest{ //nolint:exhaustruct
 			Seats:         data.Seats,
+			DurationDays:  &duration,
 			Provider:      &provider,
 			ProviderTxnID: nil,
 			State:         &state,

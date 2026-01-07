@@ -9,6 +9,8 @@ type BusinessAccount struct {
 	SeatsTotal     int        `json:"seats_total"`
 	SeatsUsed      int        `json:"seats_used"`
 	Status         string     `json:"status"`
+	SeatsExpiresAt *time.Time `json:"seats_expires_at,omitempty"`
+	Expired        bool       `json:"expired"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      *time.Time `json:"updated_at"`
 }

@@ -285,6 +285,7 @@ func (h *IAPHandler) applyTarget(ctx context.Context, userID int, target models.
 		state := "paid"
 		req := services.PurchaseRequest{
 			Seats:         target.Seats,
+			DurationDays:  &target.DurationDays,
 			Provider:      &provider,
 			ProviderTxnID: &txn.TransactionID,
 			State:         &state,
