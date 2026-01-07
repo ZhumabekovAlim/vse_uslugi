@@ -75,7 +75,7 @@ func (s *BusinessService) PurchaseSeats(ctx context.Context, businessUserID int,
 		return models.BusinessAccount{}, err
 	}
 
-	durationDays := defaultBusinessSeatDurationDays
+	durationDays := *req.DurationDays
 	if req.DurationDays != nil {
 		if *req.DurationDays <= 0 {
 			return models.BusinessAccount{}, fmt.Errorf("duration_days must be greater than zero")
