@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -21,6 +22,7 @@ type BusinessService struct {
 
 type PurchaseRequest struct {
 	Seats         int      `json:"seats"`
+	DurationDays  *int     `json:"duration_days,omitempty"`
 	Provider      *string  `json:"provider,omitempty"`
 	ProviderTxnID *string  `json:"provider_txn_id,omitempty"`
 	State         *string  `json:"state,omitempty"`
@@ -61,7 +63,7 @@ func (s *BusinessService) GetOrCreateAccount(ctx context.Context, businessUserID
 	if acc.ID == 0 {
 		return s.BusinessRepo.CreateAccount(ctx, businessUserID)
 	}
-	return acc, nil
+	return s.normalizeAccount(acc), nil
 }
 
 func (s *BusinessService) PurchaseSeats(ctx context.Context, businessUserID int, req PurchaseRequest) (models.BusinessAccount, error) {
@@ -72,6 +74,15 @@ func (s *BusinessService) PurchaseSeats(ctx context.Context, businessUserID int,
 	if err != nil {
 		return models.BusinessAccount{}, err
 	}
+
+	durationDays := defaultBusinessSeatDurationDays
+	if req.DurationDays != nil {
+		if *req.DurationDays <= 0 {
+			return models.BusinessAccount{}, fmt.Errorf("duration_days must be greater than zero")
+		}
+		durationDays = *req.DurationDays
+	}
+	expiresAt := time.Now().UTC().Add(time.Duration(durationDays) * 24 * time.Hour)
 
 	amount := float64(req.Seats * 1000)
 	if req.Amount != nil {
@@ -91,7 +102,7 @@ func (s *BusinessService) PurchaseSeats(ctx context.Context, businessUserID int,
 		return models.BusinessAccount{}, err
 	}
 
-	if err := s.BusinessRepo.AddSeats(ctx, businessUserID, req.Seats); err != nil {
+	if err := s.BusinessRepo.SetSeats(ctx, businessUserID, req.Seats, expiresAt); err != nil {
 		return models.BusinessAccount{}, err
 	}
 
@@ -100,12 +111,15 @@ func (s *BusinessService) PurchaseSeats(ctx context.Context, businessUserID int,
 		return models.BusinessAccount{}, err
 	}
 
-	return s.BusinessRepo.GetAccountByUserID(ctx, acc.BusinessUserID)
+	return s.GetOrCreateAccount(ctx, acc.BusinessUserID)
 }
 
 func (s *BusinessService) validateSeatAvailability(acc models.BusinessAccount) error {
 	if acc.Status == "suspended" {
 		return repositories.ErrBusinessAccountSuspended
+	}
+	if acc.Expired {
+		return repositories.ErrNoFreeSeats
 	}
 	if acc.SeatsUsed >= acc.SeatsTotal {
 		return repositories.ErrNoFreeSeats
@@ -309,4 +323,24 @@ func (s *BusinessService) ListWorkerListings(ctx context.Context, businessUserID
 		return nil, err
 	}
 	return s.BusinessRepo.ListWorkerListings(ctx, businessUserID)
+}
+
+const defaultBusinessSeatDurationDays = 30
+
+// DefaultBusinessSeatDuration returns the default duration in days for business seats.
+func DefaultBusinessSeatDuration() int {
+	return defaultBusinessSeatDurationDays
+}
+
+func (s *BusinessService) normalizeAccount(acc models.BusinessAccount) models.BusinessAccount {
+	if acc.SeatsExpiresAt == nil {
+		return acc
+	}
+	now := time.Now()
+	if acc.SeatsExpiresAt.Before(now) || acc.SeatsExpiresAt.Equal(now) {
+		acc.Expired = true
+		acc.SeatsTotal = 0
+		acc.SeatsUsed = 0
+	}
+	return acc
 }
