@@ -434,11 +434,11 @@ func (app *application) routes() http.Handler {
 	mux.Get("/api/chats/user/:user_id", noBusinessWorkerAuth.ThenFunc(app.chatHandler.GetChatsByUserID))
 	mux.Del("/api/chats/:id", noBusinessWorkerAuth.ThenFunc(app.chatHandler.DeleteChat))
 
-	mux.Post("/api/messages", noBusinessWorkerAuth.ThenFunc(app.messageHandler.CreateMessage))
-	mux.Get("/api/messages/:chatId", noBusinessWorkerAuth.ThenFunc(app.messageHandler.GetMessagesForChat))
-	mux.Del("/api/messages/:messageId", noBusinessWorkerAuth.ThenFunc(app.messageHandler.DeleteMessage))
+	mux.Post("/api/messages", authMiddleware.ThenFunc(app.messageHandler.CreateMessage))
+	mux.Get("/api/messages/:chatId", authMiddleware.ThenFunc(app.messageHandler.GetMessagesForChat))
+	mux.Del("/api/messages/:messageId", authMiddleware.ThenFunc(app.messageHandler.DeleteMessage))
 
-	mux.Get("/api/users/messages", noBusinessWorkerAuth.ThenFunc(app.messageHandler.GetMessagesByUserIDs))
+	mux.Get("/api/users/messages", authMiddleware.ThenFunc(app.messageHandler.GetMessagesByUserIDs))
 
 	// Complaints
 	mux.Post("/complaints", authMiddleware.ThenFunc(app.complaintHandler.CreateComplaint))
