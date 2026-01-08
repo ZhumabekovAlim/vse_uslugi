@@ -15,6 +15,8 @@ type GlobalSearchRequest struct {
 	Negotiable     *bool     `json:"negotiable,omitempty"`
 	RentTypes      []string  `json:"rent_types,omitempty"`
 	Deposits       []string  `json:"deposits,omitempty"`
+	Condition      *string   `json:"condition,omitempty"`
+	Delivery       *bool     `json:"delivery,omitempty"`
 	WorkExperience []string  `json:"work_experience,omitempty"`
 	WorkSchedules  []string  `json:"work_schedules,omitempty"`
 	PaymentPeriods []string  `json:"payment_periods,omitempty"`

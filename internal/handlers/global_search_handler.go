@@ -34,6 +34,8 @@ type globalSearchPayload struct {
 	Negotiable     *bool     `json:"negotiable"`
 	RentTypes      []string  `json:"rent_types"`
 	Deposits       []string  `json:"deposits"`
+	Condition      *string   `json:"condition"`
+	Delivery       *bool     `json:"delivery"`
 	WorkExperience []string  `json:"work_experience"`
 	WorkSchedules  []string  `json:"work_schedules"`
 	WorkSchedule   []string  `json:"work_schedule"`
@@ -108,6 +110,8 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	rentTypes := payload.RentTypes
 	deposits := payload.Deposits
+	condition := payload.Condition
+	delivery := payload.Delivery
 	workExperience := payload.WorkExperience
 	workSchedules := payload.WorkSchedules
 	if len(workSchedules) == 0 {
@@ -157,6 +161,8 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		Negotiable:     negotiable,
 		RentTypes:      rentTypes,
 		Deposits:       deposits,
+		Condition:      condition,
+		Delivery:       delivery,
 		WorkExperience: workExperience,
 		WorkSchedules:  workSchedules,
 		PaymentPeriods: paymentPeriods,

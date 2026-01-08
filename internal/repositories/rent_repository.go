@@ -258,7 +258,7 @@ func (r *RentRepository) ArchiveByUserID(ctx context.Context, userID int) error 
 	_, err := r.DB.ExecContext(ctx, `UPDATE rent SET status = 'archive', updated_at = ? WHERE user_id = ?`, time.Now(), userID)
 	return err
 }
-func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool, rentTypes []string, deposits []string) ([]models.Rent, float64, float64, error) {
+func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool, rentTypes []string, deposits []string, condition *string, delivery *bool) ([]models.Rent, float64, float64, error) {
 	var (
 		rents      []models.Rent
 		params     []interface{}
@@ -340,6 +340,16 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 		case hasZero:
 			conditions = append(conditions, "COALESCE(s.deposit, 0) = 0")
 		}
+	}
+
+	if condition != nil && strings.TrimSpace(*condition) != "" {
+		conditions = append(conditions, "s.condition = ?")
+		params = append(params, strings.TrimSpace(*condition))
+	}
+
+	if delivery != nil {
+		conditions = append(conditions, "s.delivery = ?")
+		params = append(params, *delivery)
 	}
 
 	if priceFrom > 0 {
