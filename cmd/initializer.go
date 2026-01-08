@@ -148,8 +148,8 @@ type application struct {
 
 	assistantHandler *handlers.AssistantHandler
 
-	iapHandler *handlers.IAPHandler
-
+	iapHandler       *handlers.IAPHandler
+	googleIapHandler *handlers.GoogleIAPHandler
 	// authService *services/*/.AuthService
 	taxiMux     http.Handler
 	taxiDeps    *taxi.TaxiDeps
@@ -434,6 +434,47 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	}
 	iapHandler := handlers.NewIAPHandler(iapService, iapRepo, &subscriptionRepo, subscriptionService, topService, businessService, iapProductTargets)
 
+	// GOOGLE PLAY IAP
+	googleTargets, err := parseIAPProductTargets(os.Getenv("GOOGLE_IAP_PRODUCTS"))
+	if err != nil {
+		errorLog.Printf("google iap products: %v", err)
+	}
+
+	var googleSvc *services.GooglePlayService
+	pkg := strings.TrimSpace(os.Getenv("GOOGLE_PLAY_PACKAGE_NAME"))
+	credsJSON := strings.TrimSpace(os.Getenv("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"))
+
+	// если creds положили как одну строку с \n — восстановим переносы
+	credsJSON = strings.ReplaceAll(credsJSON, `\n`, "\n")
+
+	if pkg != "" && credsJSON != "" {
+		gcfg := services.GooglePlayConfig{
+			PackageName:        pkg,
+			ServiceAccountJSON: credsJSON,
+		}
+		if s, err := services.NewGooglePlayService(gcfg); err != nil {
+			errorLog.Printf("google play init: %v", err)
+		} else {
+			googleSvc = s
+			infoLog.Printf("Google Play IAP: enabled (package=%s, products=%d)", pkg, len(googleTargets))
+		}
+	} else {
+		infoLog.Println("Google Play IAP: disabled (missing GOOGLE_PLAY_PACKAGE_NAME/GOOGLE_PLAY_SERVICE_ACCOUNT_JSON)")
+	}
+
+	googleIapRepo := repositories.NewGoogleIAPRepository(db)
+
+	// важно: если ты дальше роуты вешаешь через app.googleIapHandler — сохрани в app
+	googleIapHandler := handlers.NewGoogleIAPHandler(
+		googleSvc,
+		googleIapRepo,
+		&subscriptionRepo,
+		subscriptionService,
+		topService,
+		businessService,
+		googleTargets,
+	)
+
 	return &application{
 		errorLog: errorLog,
 		infoLog:  infoLog,
@@ -546,12 +587,12 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		topHandler:                 topHandler,
 		topService:                 topService,
 		iapHandler:                 iapHandler,
-
-		workAdHandler:             workAdHandler,
-		workAdReviewHandler:       workAdReviewHandler,
-		workAdResponseHandler:     workAdResponseHandler,
-		workAdFavoriteHandler:     workAdFavoriteHandler,
-		workAdConfirmationHandler: workAdConfirmationHandler,
+		googleIapHandler:           googleIapHandler,
+		workAdHandler:              workAdHandler,
+		workAdReviewHandler:        workAdReviewHandler,
+		workAdResponseHandler:      workAdResponseHandler,
+		workAdFavoriteHandler:      workAdFavoriteHandler,
+		workAdConfirmationHandler:  workAdConfirmationHandler,
 
 		rentAdHandler:             rentAdHandler,
 		rentAdReviewHandler:       rentADReviewHandler,

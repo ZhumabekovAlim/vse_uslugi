@@ -198,8 +198,15 @@ func (app *application) routes() http.Handler {
 	mux.Get("/airbapay/history/:user_id", authMiddleware.ThenFunc(app.airbapayHandler.GetHistory))
 	mux.Get("/airbapay/success", standardMiddleware.ThenFunc(app.airbapayHandler.SuccessRedirect))
 	mux.Get("/airbapay/failure", standardMiddleware.ThenFunc(app.airbapayHandler.FailureRedirect))
+
+	// IOS IAP
 	mux.Post("/api/v1/iap/ios/verify", authMiddleware.ThenFunc(app.iapHandler.VerifyIOSPurchase))
 	mux.Post("/api/v1/iap/apple/notifications", standardMiddleware.ThenFunc(app.iapHandler.AppleNotificationsV2))
+	mux.Get("/api/v1/iap/entitlements", authMiddleware.ThenFunc(app.iapHandler.GetEntitlements))
+
+	// ANDROID IAP
+	mux.Post("/api/v1/iap/android/verify", authMiddleware.ThenFunc(app.googleIapHandler.VerifyAndroidPurchase))
+	mux.Post("/api/v1/iap/google/notifications", standardMiddleware.ThenFunc(app.googleIapHandler.GoogleNotifications))
 	mux.Get("/api/v1/iap/entitlements", authMiddleware.ThenFunc(app.iapHandler.GetEntitlements))
 
 	mux.Get("/business/account", businessAuthMiddleware.ThenFunc(app.businessHandler.GetAccount))
