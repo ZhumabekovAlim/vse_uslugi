@@ -449,13 +449,14 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 
 func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) ([]models.WorkAd, error) {
 	query := `
-                SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, s.liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.created_at, s.updated_at
+                SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM work_ad s
                 JOIN users u ON s.user_id = u.id
-                WHERE user_id = ?
+                LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
+                WHERE s.user_id = ?
        `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -468,9 +469,10 @@ func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) (
 		var videosJSON []byte
 		var languagesJSON []byte
 		var price, priceTo sql.NullFloat64
+		var likedStr string
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &s.CreatedAt,
+			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &s.CreatedAt,
 			&s.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -501,6 +503,7 @@ func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) (
 			}
 		}
 
+		s.Liked = likedStr == "1"
 		s.AvgRating = getAverageRating(ctx, r.DB, "work_ad_reviews", "work_ad_id", s.ID)
 
 		works_ad = append(works_ad, s)

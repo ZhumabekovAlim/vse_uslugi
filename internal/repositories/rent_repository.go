@@ -461,13 +461,14 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 
 func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]models.Rent, error) {
 	query := `
-       SELECT s.id, s.name, s.address, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.work_time_from, s.work_time_to, s.description, s.condition, s.delivery, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+       SELECT s.id, s.name, s.address, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.work_time_from, s.work_time_to, s.description, s.condition, s.delivery, s.avg_rating, s.top, s.negotiable, s.hide_phone, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM rent s
                 JOIN users u ON s.user_id = u.id
-                WHERE user_id = ?
+                LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
+                WHERE s.user_id = ?
        `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -482,9 +483,10 @@ func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]mo
 		var price, priceTo sql.NullFloat64
 		var condition sql.NullString
 		var delivery sql.NullBool
+		var likedStr string
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &condition, &delivery, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
+			&s.CategoryID, &s.SubcategoryID, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &condition, &delivery, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &likedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -520,6 +522,7 @@ func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]mo
 			}
 		}
 
+		s.Liked = likedStr == "1"
 		s.AvgRating = getAverageRating(ctx, r.DB, "rent_reviews", "rent_id", s.ID)
 
 		rents = append(rents, s)

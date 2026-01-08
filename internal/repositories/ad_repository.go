@@ -480,13 +480,14 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 
 func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.Ad, error) {
 	query := `
-SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.liked, s.latitude, s.longitude, s.order_date, s.order_time, s.status, s.created_at, s.updated_at
+SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.latitude, s.longitude, s.order_date, s.order_time, s.status, s.created_at, s.updated_at
 FROM ad s
 JOIN users u ON s.user_id = u.id
-WHERE user_id = ?
+LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
+WHERE s.user_id = ?
 `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -497,12 +498,13 @@ WHERE user_id = ?
 		var s models.Ad
 		var imagesJSON []byte
 		var videosJSON []byte
+		var likedStr string
 		var lat, lon sql.NullString
 		var orderDate, orderTime sql.NullString
 		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &s.Liked, &lat, &lon, &orderDate, &orderTime, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &likedStr, &lat, &lon, &orderDate, &orderTime, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -538,6 +540,7 @@ WHERE user_id = ?
 		if orderTime.Valid {
 			s.OrderTime = &orderTime.String
 		}
+		s.Liked = likedStr == "1"
 		s.AvgRating = getAverageRating(ctx, r.DB, "ad_reviews", "ad_id", s.ID)
 
 		ads = append(ads, s)

@@ -435,13 +435,14 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 
 func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
 	query := `
-       SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
+       SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.negotiable, s.hide_phone, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
           FROM service s
           JOIN users u ON s.user_id = u.id
-          WHERE user_id = ?
+          LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
+          WHERE s.user_id = ?
    `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -452,11 +453,12 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 		var s models.Service
 		var imagesJSON []byte
 		var videosJSON []byte
+		var likedStr string
 		var lat, lon sql.NullString
 		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &s.Status, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
+			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &likedStr, &s.Status, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -487,6 +489,7 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int)
 			s.Longitude = &lon.String
 		}
 
+		s.Liked = likedStr == "1"
 		s.AvgRating = getAverageRating(ctx, r.DB, "reviews", "service_id", s.ID)
 
 		services = append(services, s)
