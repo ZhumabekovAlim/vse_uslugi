@@ -9,6 +9,7 @@ import (
 	"log"
 	"naimuBack/internal/models"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -354,10 +355,27 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 	}
 
 	if len(deposits) > 0 {
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(deposits)), ",")
-		conditions = append(conditions, fmt.Sprintf("s.deposit IN (%s)", placeholders))
-		for _, deposit := range deposits {
-			params = append(params, deposit)
+		hasZero := false
+		hasPositive := false
+
+		for _, ds := range deposits {
+			d, err := strconv.ParseFloat(ds, 64)
+			if err != nil {
+				continue
+			}
+			if d <= 0 {
+				hasZero = true
+			} else {
+				hasPositive = true
+			}
+		}
+
+		switch {
+		case hasZero && hasPositive:
+		case hasPositive:
+			conditions = append(conditions, "COALESCE(s.deposit, 0) > 0")
+		case hasZero:
+			conditions = append(conditions, "COALESCE(s.deposit, 0) = 0")
 		}
 	}
 
