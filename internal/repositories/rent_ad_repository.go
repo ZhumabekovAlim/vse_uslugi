@@ -297,7 +297,7 @@ func (r *RentAdRepository) ArchiveByUserID(ctx context.Context, userID int) erro
 	_, err := r.DB.ExecContext(ctx, `UPDATE rent_ad SET status = 'archive', updated_at = ? WHERE user_id = ?`, time.Now(), userID)
 	return err
 }
-func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool, rentTypes []string, deposits []string, orderDate, orderTime *string) ([]models.RentAd, float64, float64, error) {
+func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int, cityID int, categories []int, subcategories []string, priceFrom, priceTo float64, ratings []float64, sortOption, limit, offset int, negotiable *bool, rentTypes []string, deposits []string, condition *string, delivery *bool, orderDate, orderTime *string) ([]models.RentAd, float64, float64, error) {
 	var (
 		rents      []models.RentAd
 		params     []interface{}
@@ -359,6 +359,16 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 		for _, deposit := range deposits {
 			params = append(params, deposit)
 		}
+	}
+
+	if condition != nil && strings.TrimSpace(*condition) != "" {
+		conditions = append(conditions, "s.condition = ?")
+		params = append(params, strings.TrimSpace(*condition))
+	}
+
+	if delivery != nil {
+		conditions = append(conditions, "s.delivery = ?")
+		params = append(params, *delivery)
 	}
 
 	if priceFrom > 0 {
