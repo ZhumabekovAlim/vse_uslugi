@@ -26,6 +26,10 @@ func (s *RentService) GetRentByID(ctx context.Context, id int, userID int) (mode
 	return s.RentRepo.GetRentByID(ctx, id, userID)
 }
 
+func (s *RentService) GetRentByIDWithCity(ctx context.Context, id int, userID int, cityID int) (models.Rent, error) {
+	return s.RentRepo.GetRentByIDWithCity(ctx, id, userID, cityID)
+}
+
 func (s *RentService) UpdateRent(ctx context.Context, work models.Rent) (models.Rent, error) {
 	if work.Status == "active" {
 		existing, err := s.RentRepo.GetRentByID(ctx, work.ID, 0)
@@ -106,8 +110,8 @@ func (s *RentService) GetFilteredRents(ctx context.Context, filter models.RentFi
 	}, nil
 }
 
-func (s *RentService) GetRentsByUserID(ctx context.Context, userID int) ([]models.Rent, error) {
-	return s.RentRepo.GetRentsByUserID(ctx, userID)
+func (s *RentService) GetRentsByUserID(ctx context.Context, userID int, cityID int) ([]models.Rent, error) {
+	return s.RentRepo.GetRentsByUserID(ctx, userID, cityID)
 }
 
 func (s *RentService) GetFilteredRentsPost(ctx context.Context, req models.FilterRentRequest) ([]models.FilteredRent, error) {
@@ -122,6 +126,6 @@ func (s *RentService) GetFilteredRentsWithLikes(ctx context.Context, req models.
 	return s.RentRepo.GetFilteredRentsWithLikes(ctx, req, userID)
 }
 
-func (s *RentService) GetRentByRentIDAndUserID(ctx context.Context, rentID int, userID int) (models.Rent, error) {
-	return s.RentRepo.GetRentByRentIDAndUserID(ctx, rentID, userID)
+func (s *RentService) GetRentByRentIDAndUserID(ctx context.Context, rentID int, userID int, cityID int) (models.Rent, error) {
+	return s.RentRepo.GetRentByRentIDAndUserID(ctx, rentID, userID, cityID)
 }

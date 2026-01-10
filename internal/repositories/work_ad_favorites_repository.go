@@ -31,12 +31,12 @@ func (r *WorkAdFavoriteRepository) IsWorkAdFavorite(ctx context.Context, userID,
 	return count > 0, err
 }
 
-func (r *WorkAdFavoriteRepository) GetWorkAdFavoritesByUser(ctx context.Context, userID int) ([]models.WorkAdFavorite, error) {
+func (r *WorkAdFavoriteRepository) GetWorkAdFavoritesByUser(ctx context.Context, userID int, cityID int) ([]models.WorkAdFavorite, error) {
 	query := `SELECT wf.id, wf.user_id, wf.work_ad_id, w.name, w.price, w.price_to, w.negotiable, w.hide_phone, w.status, w.created_at, w.images
                  FROM work_ad_favorites wf
                  JOIN work_ad w ON wf.work_ad_id = w.id
-                 WHERE wf.user_id = ?`
-	rows, err := r.DB.QueryContext(ctx, query, userID)
+                 WHERE wf.user_id = ? AND w.city_id = ?`
+	rows, err := r.DB.QueryContext(ctx, query, userID, cityID)
 	if err != nil {
 		return nil, err
 	}

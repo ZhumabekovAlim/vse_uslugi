@@ -26,6 +26,10 @@ func (s *ServiceService) GetServiceByID(ctx context.Context, id int, userID int)
 	return s.ServiceRepo.GetServiceByID(ctx, id, userID)
 }
 
+func (s *ServiceService) GetServiceByIDWithCity(ctx context.Context, id int, userID int, cityID int) (models.Service, error) {
+	return s.ServiceRepo.GetServiceByIDWithCity(ctx, id, userID, cityID)
+}
+
 func (s *ServiceService) UpdateService(ctx context.Context, service models.Service) (models.Service, error) {
 	if service.Status == "active" {
 		existing, err := s.ServiceRepo.GetServiceByID(ctx, service.ID, 0)
@@ -103,8 +107,8 @@ func (s *ServiceService) GetFilteredServices(ctx context.Context, filter models.
 	}, nil
 }
 
-func (s *ServiceService) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
-	return s.ServiceRepo.GetServicesByUserID(ctx, userID)
+func (s *ServiceService) GetServicesByUserID(ctx context.Context, userID int, cityID int) ([]models.Service, error) {
+	return s.ServiceRepo.GetServicesByUserID(ctx, userID, cityID)
 }
 
 func (s *ServiceService) GetFilteredServicesPost(ctx context.Context, req models.FilterServicesRequest) ([]models.FilteredService, error) {
@@ -119,6 +123,6 @@ func (s *ServiceService) GetFilteredServicesWithLikes(ctx context.Context, req m
 	return s.ServiceRepo.GetFilteredServicesWithLikes(ctx, req, userID)
 }
 
-func (s *ServiceService) GetServiceByServiceIDAndUserID(ctx context.Context, serviceID int, userID int) (models.Service, error) {
-	return s.ServiceRepo.GetServiceByServiceIDAndUserID(ctx, serviceID, userID)
+func (s *ServiceService) GetServiceByServiceIDAndUserID(ctx context.Context, serviceID int, userID int, cityID int) (models.Service, error) {
+	return s.ServiceRepo.GetServiceByServiceIDAndUserID(ctx, serviceID, userID, cityID)
 }

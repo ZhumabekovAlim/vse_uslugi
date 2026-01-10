@@ -52,7 +52,13 @@ func (h *WorkHandler) GetWorkByID(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	work, err := h.Service.GetWorkByID(r.Context(), id, userID)
+	cityID, err := decodeCityID(r)
+	if err != nil {
+		http.Error(w, "Invalid city_id", http.StatusBadRequest)
+		return
+	}
+
+	work, err := h.Service.GetWorkByIDWithCity(r.Context(), id, userID, cityID)
 	if err != nil {
 		http.Error(w, "Service not found", http.StatusNotFound)
 		return
@@ -276,7 +282,13 @@ func (h *WorkHandler) GetWorksByUserID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	works, err := h.Service.GetWorksByUserID(r.Context(), userID)
+	cityID, err := decodeCityID(r)
+	if err != nil {
+		http.Error(w, "Invalid city_id", http.StatusBadRequest)
+		return
+	}
+
+	works, err := h.Service.GetWorksByUserID(r.Context(), userID, cityID)
 	if err != nil {
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
 		return
@@ -994,8 +1006,14 @@ func (h *WorkHandler) GetWorkByWorkIDAndUserID(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	cityID, err := decodeCityID(r)
+	if err != nil {
+		http.Error(w, "Invalid city_id", http.StatusBadRequest)
+		return
+	}
+
 	// Получение сервиса
-	work, err := h.Service.GetWorkByWorkIDAndUserID(ctx, workID, userID)
+	work, err := h.Service.GetWorkByWorkIDAndUserID(ctx, workID, userID, cityID)
 	if err != nil {
 		if err.Error() == "service not found" {
 			http.Error(w, "service not found", http.StatusNotFound)

@@ -22,6 +22,6 @@ func (s *RentAdFavoriteService) IsRentAdFavorite(ctx context.Context, userID, re
 	return s.RentAdFavoriteRepo.IsRentAdFavorite(ctx, userID, rentAdID)
 }
 
-func (s *RentAdFavoriteService) GetRentAdFavoritesByUser(ctx context.Context, userID int) ([]models.RentAdFavorite, error) {
-	return s.RentAdFavoriteRepo.GetRentAdFavoritesByUser(ctx, userID)
+func (s *RentAdFavoriteService) GetRentAdFavoritesByUser(ctx context.Context, userID, cityID int) ([]models.RentAdFavorite, error) {
+	return s.RentAdFavoriteRepo.GetRentAdFavoritesByUser(ctx, userID, cityID)
 }

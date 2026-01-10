@@ -52,7 +52,13 @@ func (h *WorkAdHandler) GetWorkAdByID(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	work, err := h.Service.GetWorkAdByID(r.Context(), id, userID)
+	cityID, err := decodeCityID(r)
+	if err != nil {
+		http.Error(w, "Invalid city_id", http.StatusBadRequest)
+		return
+	}
+
+	work, err := h.Service.GetWorkAdByIDWithCity(r.Context(), id, userID, cityID)
 	if err != nil {
 		http.Error(w, "Service not found", http.StatusNotFound)
 		return
@@ -269,7 +275,13 @@ func (h *WorkAdHandler) GetWorksAdByUserID(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	works, err := h.Service.GetWorksAdByUserID(r.Context(), userID)
+	cityID, err := decodeCityID(r)
+	if err != nil {
+		http.Error(w, "Invalid city_id", http.StatusBadRequest)
+		return
+	}
+
+	works, err := h.Service.GetWorksAdByUserID(r.Context(), userID, cityID)
 	if err != nil {
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
 		return
@@ -1015,8 +1027,14 @@ func (h *WorkAdHandler) GetWorkAdByWorkIDAndUserID(w http.ResponseWriter, r *htt
 		return
 	}
 
+	cityID, err := decodeCityID(r)
+	if err != nil {
+		http.Error(w, "Invalid city_id", http.StatusBadRequest)
+		return
+	}
+
 	// Получение сервиса
-	work, err := h.Service.GetWorkAdByWorkIDAndUserID(ctx, workadID, userID)
+	work, err := h.Service.GetWorkAdByWorkIDAndUserID(ctx, workadID, userID, cityID)
 	if err != nil {
 		if err.Error() == "service not found" {
 			http.Error(w, "service not found", http.StatusNotFound)

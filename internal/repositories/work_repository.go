@@ -164,6 +164,81 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
 	return s, nil
 }
 
+func (r *WorkRepository) GetWorkByIDWithCity(ctx context.Context, id int, userID int, cityID int) (models.Work, error) {
+	query := `
+  SELECT w.id, w.name, w.address, w.price, w.price_to, w.negotiable, w.user_id,
+         u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+            w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, sub.name_kz, w.description, w.avg_rating, w.top, w.liked,
+            CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+            w.status, w.work_experience, u.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.languages, w.education, w.work_time_from, w.work_time_to, w.latitude, w.longitude, w.hide_phone, w.created_at, w.updated_at
+      FROM work w
+      JOIN users u ON w.user_id = u.id
+      JOIN work_categories c ON w.category_id = c.id
+      JOIN work_subcategories sub ON w.subcategory_id = sub.id
+      JOIN cities city ON u.city_id = city.id
+      LEFT JOIN work_responses sr ON sr.work_id = w.id AND sr.user_id = ?
+      WHERE w.id = ? AND w.city_id = ?
+`
+
+	var s models.Work
+	var imagesJSON []byte
+	var videosJSON []byte
+	var languagesJSON []byte
+	var respondedStr string
+	var price, priceTo sql.NullFloat64
+	var negotiable bool
+	var hidePhone bool
+
+	err := r.DB.QueryRowContext(ctx, query, userID, id, cityID).Scan(
+		&s.ID, &s.Name, &s.Address, &price, &priceTo, &negotiable, &s.UserID,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
+
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &hidePhone, &s.CreatedAt,
+
+		&s.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return models.Work{}, errors.New("not found")
+	}
+	if err != nil {
+		return models.Work{}, err
+	}
+
+	s.Price = floatFromNull(price)
+	s.PriceTo = floatFromNull(priceTo)
+	s.Negotiable = negotiable
+	s.HidePhone = hidePhone
+
+	if len(imagesJSON) > 0 {
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return models.Work{}, fmt.Errorf("failed to decode images json: %w", err)
+		}
+	}
+
+	if len(videosJSON) > 0 {
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return models.Work{}, fmt.Errorf("failed to decode videos json: %w", err)
+		}
+	}
+
+	if len(languagesJSON) > 0 {
+		if err := json.Unmarshal(languagesJSON, &s.Languages); err != nil {
+			return models.Work{}, fmt.Errorf("failed to decode languages json: %w", err)
+		}
+	}
+
+	s.Responded = respondedStr == "1"
+
+	s.AvgRating = getAverageRating(ctx, r.DB, "work_reviews", "work_id", s.ID)
+
+	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+	if err == nil {
+		s.User.ReviewsCount = count
+	}
+	return s, nil
+}
+
 func (r *WorkRepository) UpdateWork(ctx context.Context, work models.Work) (models.Work, error) {
 	query := `
 UPDATE work
@@ -452,16 +527,16 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
 	return works, minPrice.Float64, maxPrice.Float64, nil
 }
 
-func (r *WorkRepository) GetWorksByUserID(ctx context.Context, userID int) ([]models.Work, error) {
+func (r *WorkRepository) GetWorksByUserID(ctx context.Context, userID int, cityID int) ([]models.Work, error) {
 	query := `
              SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.hide_phone, s.created_at, s.updated_at
 FROM work s
 JOIN users u ON s.user_id = u.id
 LEFT JOIN work_favorites sf ON sf.work_id = s.id AND sf.user_id = ?
-WHERE s.user_id = ?
+WHERE s.user_id = ? AND s.city_id = ?
 `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID, cityID)
 	if err != nil {
 		return nil, err
 	}
@@ -992,7 +1067,7 @@ WHERE 1=1 AND s.status != 'archive'
 	return works, nil
 }
 
-func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID int, userID int) (models.Work, error) {
+func (r *WorkRepository) GetWorkByWorkIDAndUserID(ctx context.Context, workID int, userID int, cityID int) (models.Work, error) {
 	query := `
     SELECT
 s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.user_id,
@@ -1011,7 +1086,7 @@ u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                JOIN cities city ON u.city_id = city.id
                LEFT JOIN work_favorites sf ON sf.work_id = s.id AND sf.user_id = ?
                LEFT JOIN work_responses sr ON sr.work_id = s.id AND sr.user_id = ?
-               WHERE s.id = ?
+               WHERE s.id = ? AND s.city_id = ?
        `
 
 	var s models.Work
@@ -1024,7 +1099,7 @@ u.id, u.name, u.surname, u.review_rating, u.avatar_path,
 	var negotiable bool
 	var hidePhone bool
 
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, workID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, workID, cityID).Scan(
 		&s.ID, &s.Name, &s.Address, &price, &priceTo, &negotiable, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,

@@ -31,12 +31,12 @@ func (r *ServiceFavoriteRepository) IsFavorite(ctx context.Context, userID, serv
 	return count > 0, err
 }
 
-func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, userID int) ([]models.ServiceFavorite, error) {
+func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, userID int, cityID int) ([]models.ServiceFavorite, error) {
 	query := `SELECT sf.id, sf.user_id, sf.service_id, s.name, s.price, s.price_to, s.on_site, s.negotiable, s.hide_phone, s.status, s.created_at, s.images
              FROM service_favorites sf
              JOIN service s ON sf.service_id = s.id
-             WHERE sf.user_id = ?`
-	rows, err := r.DB.QueryContext(ctx, query, userID)
+             WHERE sf.user_id = ? AND s.city_id = ?`
+	rows, err := r.DB.QueryContext(ctx, query, userID, cityID)
 	if err != nil {
 		return nil, err
 	}

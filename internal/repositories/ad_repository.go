@@ -198,6 +198,88 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	return s, nil
 }
 
+func (r *AdRepository) GetAdByIDWithCity(ctx context.Context, id int, userID int, cityID int) (models.Ad, error) {
+	query := `
+ SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, s.city_id,
+        u.id, u.name, u.surname, u.review_rating, u.avatar_path,
+          s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
+          s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.liked,
+          CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+          s.latitude, s.longitude, s.order_date, s.order_time, s.status, s.created_at, s.updated_at
+   FROM ad s
+   JOIN users u ON s.user_id = u.id
+   JOIN categories c ON s.category_id = c.id
+   JOIN subcategories sub ON s.subcategory_id = sub.id
+   LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
+   WHERE s.id = ? AND s.status <> 'archive' AND s.city_id = ?
+`
+
+	var s models.Ad
+	var imagesJSON []byte
+	var videosJSON []byte
+	var lat, lon sql.NullString
+	var orderDate, orderTime sql.NullString
+	var respondedStr string
+	var price, priceTo sql.NullFloat64
+
+	err := r.DB.QueryRowContext(ctx, query, userID, id, cityID).Scan(
+		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.CityID,
+		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
+
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &lat, &lon, &orderDate, &orderTime, &s.Status,
+
+		&s.CreatedAt, &s.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return models.Ad{}, errors.New("not found")
+	}
+	if err != nil {
+		return models.Ad{}, err
+	}
+
+	if len(imagesJSON) > 0 {
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return models.Ad{}, fmt.Errorf("failed to decode images json: %w", err)
+		}
+	}
+
+	if len(videosJSON) > 0 {
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return models.Ad{}, fmt.Errorf("failed to decode videos json: %w", err)
+		}
+	}
+
+	s.Responded = respondedStr == "1"
+
+	if price.Valid {
+		s.Price = &price.Float64
+	}
+	if priceTo.Valid {
+		s.PriceTo = &priceTo.Float64
+	}
+
+	if lat.Valid {
+		s.Latitude = &lat.String
+	}
+	if lon.Valid {
+		s.Longitude = &lon.String
+	}
+	if orderDate.Valid {
+		s.OrderDate = &orderDate.String
+	}
+	if orderTime.Valid {
+		s.OrderTime = &orderTime.String
+	}
+	s.AvgRating = getAverageRating(ctx, r.DB, "ad_reviews", "ad_id", s.ID)
+
+	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+	if err == nil {
+		s.User.ReviewsCount = count
+	}
+	return s, nil
+}
+
 func (r *AdRepository) UpdateAd(ctx context.Context, service models.Ad) (models.Ad, error) {
 	query := `
 UPDATE ad
@@ -489,16 +571,16 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 	return ads, minPrice, maxPrice, nil
 }
 
-func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.Ad, error) {
+func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int, cityID int) ([]models.Ad, error) {
 	query := `
 SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.latitude, s.longitude, s.order_date, s.order_time, s.status, s.created_at, s.updated_at
 FROM ad s
 JOIN users u ON s.user_id = u.id
 LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
-WHERE s.user_id = ?
+WHERE s.user_id = ? AND s.city_id = ?
 `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID, cityID)
 	if err != nil {
 		return nil, err
 	}
@@ -943,7 +1025,7 @@ CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
 	return ads, nil
 }
 
-func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userID int) (models.Ad, error) {
+func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userID int, cityID int) (models.Ad, error) {
 	query := `
     SELECT
             s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
@@ -961,7 +1043,7 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
                JOIN subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
                LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
-               WHERE s.id = ?
+               WHERE s.id = ? AND s.city_id = ?
        `
 
 	var s models.Ad
@@ -973,7 +1055,7 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 
 	var likedStr, respondedStr string
 
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, adID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, adID, cityID).Scan(
 		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,

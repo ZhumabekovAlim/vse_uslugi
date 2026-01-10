@@ -22,6 +22,6 @@ func (s *ServiceFavoriteService) IsFavorite(ctx context.Context, userID, service
 	return s.ServiceFavoriteRepo.IsFavorite(ctx, userID, serviceID)
 }
 
-func (s *ServiceFavoriteService) GetFavoritesByUser(ctx context.Context, userID int) ([]models.ServiceFavorite, error) {
-	return s.ServiceFavoriteRepo.GetFavoritesByUser(ctx, userID)
+func (s *ServiceFavoriteService) GetFavoritesByUser(ctx context.Context, userID, cityID int) ([]models.ServiceFavorite, error) {
+	return s.ServiceFavoriteRepo.GetFavoritesByUser(ctx, userID, cityID)
 }

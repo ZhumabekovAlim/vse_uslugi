@@ -31,12 +31,12 @@ func (r *RentAdFavoriteRepository) IsRentAdFavorite(ctx context.Context, userID,
 	return count > 0, err
 }
 
-func (r *RentAdFavoriteRepository) GetRentAdFavoritesByUser(ctx context.Context, userID int) ([]models.RentAdFavorite, error) {
+func (r *RentAdFavoriteRepository) GetRentAdFavoritesByUser(ctx context.Context, userID int, cityID int) ([]models.RentAdFavorite, error) {
 	query := `SELECT rf.id, rf.user_id, rf.rent_ad_id, ra.name, ra.price, ra.price_to, ra.work_time_from, ra.work_time_to, ra.negotiable, ra.hide_phone, ra.order_date, ra.order_time, ra.status, ra.created_at, ra.images
                  FROM rent_ad_favorites rf
                  JOIN rent_ad ra ON rf.rent_ad_id = ra.id
-                 WHERE rf.user_id = ?`
-	rows, err := r.DB.QueryContext(ctx, query, userID)
+                 WHERE rf.user_id = ? AND ra.city_id = ?`
+	rows, err := r.DB.QueryContext(ctx, query, userID, cityID)
 	if err != nil {
 		return nil, err
 	}

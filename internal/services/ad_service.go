@@ -19,6 +19,10 @@ func (s *AdService) GetAdByID(ctx context.Context, id int, userID int) (models.A
 	return s.AdRepo.GetAdByID(ctx, id, userID)
 }
 
+func (s *AdService) GetAdByIDWithCity(ctx context.Context, id int, userID int, cityID int) (models.Ad, error) {
+	return s.AdRepo.GetAdByIDWithCity(ctx, id, userID, cityID)
+}
+
 func (s *AdService) UpdateAd(ctx context.Context, service models.Ad) (models.Ad, error) {
 	if service.Status == "active" {
 		existing, err := s.AdRepo.GetAdByID(ctx, service.ID, 0)
@@ -87,8 +91,8 @@ func (s *AdService) GetFilteredAd(ctx context.Context, filter models.AdFilterReq
 	}, nil
 }
 
-func (s *AdService) GetAdByUserID(ctx context.Context, userID int) ([]models.Ad, error) {
-	return s.AdRepo.GetAdByUserID(ctx, userID)
+func (s *AdService) GetAdByUserID(ctx context.Context, userID int, cityID int) ([]models.Ad, error) {
+	return s.AdRepo.GetAdByUserID(ctx, userID, cityID)
 }
 
 func (s *AdService) GetFilteredAdPost(ctx context.Context, req models.FilterAdRequest) ([]models.FilteredAd, error) {
@@ -103,8 +107,8 @@ func (s *AdService) GetFilteredAdWithLikes(ctx context.Context, req models.Filte
 	return s.AdRepo.GetFilteredAdWithLikes(ctx, req, userID)
 }
 
-func (s *AdService) GetAdByAdIDAndUserID(ctx context.Context, adID int, userID int) (models.Ad, error) {
-	return s.AdRepo.GetAdByAdIDAndUserID(ctx, adID, userID)
+func (s *AdService) GetAdByAdIDAndUserID(ctx context.Context, adID int, userID int, cityID int) (models.Ad, error) {
+	return s.AdRepo.GetAdByAdIDAndUserID(ctx, adID, userID, cityID)
 }
 
 func (s *AdService) ListAds(ctx context.Context, filter models.AdsFilter) (models.AdsList, error) {

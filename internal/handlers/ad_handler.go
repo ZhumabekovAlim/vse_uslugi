@@ -52,7 +52,13 @@ func (h *AdHandler) GetAdByID(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ad, err := h.Service.GetAdByID(r.Context(), id, userID)
+	cityID, err := decodeCityID(r)
+	if err != nil {
+		http.Error(w, "Invalid city_id", http.StatusBadRequest)
+		return
+	}
+
+	ad, err := h.Service.GetAdByIDWithCity(r.Context(), id, userID, cityID)
 	if err != nil {
 		http.Error(w, "Service not found", http.StatusNotFound)
 		return
@@ -245,7 +251,13 @@ func (h *AdHandler) GetAdByUserID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ads, err := h.Service.GetAdByUserID(r.Context(), userID)
+	cityID, err := decodeCityID(r)
+	if err != nil {
+		http.Error(w, "Invalid city_id", http.StatusBadRequest)
+		return
+	}
+
+	ads, err := h.Service.GetAdByUserID(r.Context(), userID, cityID)
 	if err != nil {
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
 		return
@@ -934,8 +946,14 @@ func (h *AdHandler) GetAdByAdIDAndUserID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	cityID, err := decodeCityID(r)
+	if err != nil {
+		http.Error(w, "Invalid city_id", http.StatusBadRequest)
+		return
+	}
+
 	// Получение сервиса
-	ad, err := h.Service.GetAdByAdIDAndUserID(ctx, adID, userID)
+	ad, err := h.Service.GetAdByAdIDAndUserID(ctx, adID, userID, cityID)
 	if err != nil {
 		if err.Error() == "service not found" {
 			http.Error(w, "service not found", http.StatusNotFound)
