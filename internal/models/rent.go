@@ -13,6 +13,7 @@ type Rent struct {
 	Negotiable bool     `json:"negotiable"`
 	HidePhone  bool     `json:"hide_phone"`
 	UserID     int      `json:"user_id"`
+	CityID     int      `json:"city_id,omitempty"`
 	User       struct {
 		ID           int     `json:"id"`
 		Name         string  `json:"name"`
