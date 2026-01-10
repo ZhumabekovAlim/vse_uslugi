@@ -214,6 +214,96 @@ func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int
 	return s, nil
 }
 
+func (r *RentAdRepository) GetRentAdByIDWithCity(ctx context.Context, id int, userID int, cityID int) (models.RentAd, error) {
+	query := `
+     SELECT w.id, w.name, w.address, w.price, w.price_to, w.user_id, w.city_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.work_time_from, w.work_time_to, w.description, w.condition, w.delivery, w.avg_rating, w.top, w.negotiable, w.hide_phone, w.liked,
+
+              CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+
+              w.order_date, w.order_time, w.status, w.rent_type, w.deposit, w.latitude, w.longitude, w.created_at, w.updated_at
+       FROM rent_ad w
+       JOIN users u ON w.user_id = u.id
+       JOIN rent_categories c ON w.category_id = c.id
+       JOIN rent_subcategories sub ON w.subcategory_id = sub.id
+      LEFT JOIN rent_ad_responses sr ON sr.rent_ad_id = w.id AND sr.user_id = ?
+       WHERE w.id = ? AND w.status <> 'archive' AND w.city_id = ?
+`
+
+	var s models.RentAd
+	var imagesJSON []byte
+	var videosJSON []byte
+	var lat, lon sql.NullString
+	var orderDate, orderTime sql.NullString
+	var price, priceTo sql.NullFloat64
+	var respondedStr string
+	var condition sql.NullString
+	var delivery sql.NullBool
+
+	err := r.DB.QueryRowContext(ctx, query, userID, id, cityID).Scan(
+		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.CityID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
+
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &condition, &delivery, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &respondedStr, &orderDate, &orderTime, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
+
+		&s.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return models.RentAd{}, errors.New("not found")
+	}
+	if err != nil {
+		return models.RentAd{}, err
+	}
+
+	if len(imagesJSON) > 0 {
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return models.RentAd{}, fmt.Errorf("failed to decode images json: %w", err)
+		}
+	}
+
+	if len(videosJSON) > 0 {
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return models.RentAd{}, fmt.Errorf("failed to decode videos json: %w", err)
+		}
+	}
+
+	s.Responded = respondedStr == "1"
+
+	if price.Valid {
+		s.Price = &price.Float64
+	}
+	if priceTo.Valid {
+		s.PriceTo = &priceTo.Float64
+	}
+	if condition.Valid {
+		s.Condition = condition.String
+	}
+	if delivery.Valid {
+		s.Delivery = delivery.Bool
+	}
+
+	if lat.Valid {
+		s.Latitude = lat.String
+	}
+	if lon.Valid {
+		s.Longitude = lon.String
+	}
+
+	if orderDate.Valid {
+		s.OrderDate = &orderDate.String
+	}
+	if orderTime.Valid {
+		s.OrderTime = &orderTime.String
+	}
+
+	s.AvgRating = getAverageRating(ctx, r.DB, "rent_ad_reviews", "rent_ad_id", s.ID)
+
+	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+	if err == nil {
+		s.User.ReviewsCount = count
+	}
+	return s, nil
+}
+
 func (r *RentAdRepository) UpdateRentAd(ctx context.Context, work models.RentAd) (models.RentAd, error) {
 	query := `
     UPDATE rent_ad
@@ -529,16 +619,16 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 	return rents, minPrice, maxPrice, nil
 }
 
-func (r *RentAdRepository) GetRentsAdByUserID(ctx context.Context, userID int) ([]models.RentAd, error) {
+func (r *RentAdRepository) GetRentsAdByUserID(ctx context.Context, userID int, cityID int) ([]models.RentAd, error) {
 	query := `
                 SELECT s.id, s.name, s.address, s.price, s.price_to, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.work_time_from, s.work_time_to, s.description, s.condition, s.delivery, s.avg_rating, s.top, s.negotiable, s.hide_phone, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.order_date, s.order_time, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM rent_ad s
                 JOIN users u ON s.user_id = u.id
                 LEFT JOIN rent_ad_favorites sf ON sf.rent_ad_id = s.id AND sf.user_id = ?
-                WHERE s.user_id = ?
+                WHERE s.user_id = ? AND s.city_id = ?
         `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID, cityID)
 	if err != nil {
 		return nil, err
 	}
@@ -1025,7 +1115,7 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 	return rents, nil
 }
 
-func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentAdID int, userID int) (models.RentAd, error) {
+func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentAdID int, userID int, cityID int) (models.RentAd, error) {
 	query := `
             SELECT
                     s.id, s.name, s.address, s.price, s.price_to, s.user_id,
@@ -1043,7 +1133,7 @@ func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentA
                JOIN rent_subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN rent_ad_favorites sf ON sf.rent_ad_id = s.id AND sf.user_id = ?
                LEFT JOIN rent_ad_responses sr ON sr.rent_ad_id = s.id AND sr.user_id = ?
-               WHERE s.id = ?
+               WHERE s.id = ? AND s.city_id = ?
        `
 
 	var s models.RentAd
@@ -1056,7 +1146,7 @@ func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentA
 
 	var likedStr, respondedStr string
 
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, rentAdID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, rentAdID, cityID).Scan(
 		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,

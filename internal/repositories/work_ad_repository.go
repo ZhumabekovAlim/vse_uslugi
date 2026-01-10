@@ -168,6 +168,81 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int
 	return s, nil
 }
 
+func (r *WorkAdRepository) GetWorkAdByIDWithCity(ctx context.Context, id int, userID int, cityID int) (models.WorkAd, error) {
+	query := `
+     SELECT w.id, w.name, w.address, w.price, w.price_to, w.negotiable, w.hide_phone, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
+
+             CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
+
+             w.status, w.work_experience, u.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.languages, w.education, w.first_name, w.last_name, w.birth_date, w.contact_number, w.work_time_from, w.work_time_to, w.latitude, w.longitude, w.created_at, w.updated_at
+       FROM work_ad w
+       JOIN users u ON w.user_id = u.id
+       JOIN work_categories c ON w.category_id = c.id
+       JOIN work_subcategories sub ON w.subcategory_id = sub.id
+       JOIN cities city ON u.city_id = city.id
+       LEFT JOIN work_ad_responses sr ON sr.work_ad_id = w.id AND sr.user_id = ?
+       WHERE w.id = ? AND w.status <> 'archive' AND w.city_id = ?
+`
+
+	var s models.WorkAd
+	var imagesJSON []byte
+	var videosJSON []byte
+	var languagesJSON []byte
+	var respondedStr string
+
+	var price, priceTo sql.NullFloat64
+
+	err := r.DB.QueryRowContext(ctx, query, userID, id, cityID).Scan(
+		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
+
+		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &s.CreatedAt,
+
+		&s.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return models.WorkAd{}, errors.New("not found")
+	}
+	if err != nil {
+		return models.WorkAd{}, err
+	}
+
+	if len(imagesJSON) > 0 {
+		if err := json.Unmarshal(imagesJSON, &s.Images); err != nil {
+			return models.WorkAd{}, fmt.Errorf("failed to decode images json: %w", err)
+		}
+	}
+
+	if len(videosJSON) > 0 {
+		if err := json.Unmarshal(videosJSON, &s.Videos); err != nil {
+			return models.WorkAd{}, fmt.Errorf("failed to decode videos json: %w", err)
+		}
+	}
+
+	if len(languagesJSON) > 0 {
+		if err := json.Unmarshal(languagesJSON, &s.Languages); err != nil {
+			return models.WorkAd{}, fmt.Errorf("failed to decode languages json: %w", err)
+		}
+	}
+
+	if price.Valid {
+		s.Price = &price.Float64
+	}
+	if priceTo.Valid {
+		s.PriceTo = &priceTo.Float64
+	}
+
+	s.Responded = respondedStr == "1"
+
+	s.AvgRating = getAverageRating(ctx, r.DB, "work_ad_reviews", "work_ad_id", s.ID)
+
+	count, err := getUserTotalReviews(ctx, r.DB, s.UserID)
+	if err == nil {
+		s.User.ReviewsCount = count
+	}
+	return s, nil
+}
+
 func (r *WorkAdRepository) UpdateWorkAd(ctx context.Context, work models.WorkAd) (models.WorkAd, error) {
 	query := `
         UPDATE work_ad
@@ -447,16 +522,16 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 	return works_ad, minPrice, maxPrice, nil
 }
 
-func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) ([]models.WorkAd, error) {
+func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int, cityID int) ([]models.WorkAd, error) {
 	query := `
                 SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM work_ad s
                 JOIN users u ON s.user_id = u.id
                 LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
-                WHERE s.user_id = ?
+                WHERE s.user_id = ? AND s.city_id = ?
        `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID, cityID)
 	if err != nil {
 		return nil, err
 	}
@@ -981,7 +1056,7 @@ func (r *WorkAdRepository) GetFilteredWorksAdWithLikes(ctx context.Context, req 
 	return works, nil
 }
 
-func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, workadID int, userID int) (models.WorkAd, error) {
+func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, workadID int, userID int, cityID int) (models.WorkAd, error) {
 	query := `
             SELECT
                     s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
@@ -1000,7 +1075,7 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
                 JOIN cities city ON u.city_id = city.id
                 LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
                 LEFT JOIN work_ad_responses sr ON sr.work_ad_id = s.id AND sr.user_id = ?
-                WHERE s.id = ?
+                WHERE s.id = ? AND s.city_id = ?
         `
 
 	var s models.WorkAd
@@ -1012,7 +1087,7 @@ func (r *WorkAdRepository) GetWorkAdByWorkIDAndUserID(ctx context.Context, worka
 
 	var price, priceTo sql.NullFloat64
 
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, workadID).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, workadID, cityID).Scan(
 		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,

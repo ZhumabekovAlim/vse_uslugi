@@ -19,6 +19,10 @@ func (s *RentAdService) GetRentAdByID(ctx context.Context, id int, userID int) (
 	return s.RentAdRepo.GetRentAdByID(ctx, id, userID)
 }
 
+func (s *RentAdService) GetRentAdByIDWithCity(ctx context.Context, id int, userID int, cityID int) (models.RentAd, error) {
+	return s.RentAdRepo.GetRentAdByIDWithCity(ctx, id, userID, cityID)
+}
+
 func (s *RentAdService) UpdateRentAd(ctx context.Context, work models.RentAd) (models.RentAd, error) {
 	if work.Status == "active" {
 		existing, err := s.RentAdRepo.GetRentAdByID(ctx, work.ID, 0)
@@ -90,8 +94,8 @@ func (s *RentAdService) GetFilteredRentsAd(ctx context.Context, filter models.Re
 	}, nil
 }
 
-func (s *RentAdService) GetRentsAdByUserID(ctx context.Context, userID int) ([]models.RentAd, error) {
-	return s.RentAdRepo.GetRentsAdByUserID(ctx, userID)
+func (s *RentAdService) GetRentsAdByUserID(ctx context.Context, userID int, cityID int) ([]models.RentAd, error) {
+	return s.RentAdRepo.GetRentsAdByUserID(ctx, userID, cityID)
 }
 
 func (s *RentAdService) GetFilteredRentsAdPost(ctx context.Context, req models.FilterRentAdRequest) ([]models.FilteredRentAd, error) {
@@ -106,6 +110,6 @@ func (s *RentAdService) GetFilteredRentsAdWithLikes(ctx context.Context, req mod
 	return s.RentAdRepo.GetFilteredRentsAdWithLikes(ctx, req, userID)
 }
 
-func (s *RentAdService) GetRentAdByRentIDAndUserID(ctx context.Context, rentAdID int, userID int) (models.RentAd, error) {
-	return s.RentAdRepo.GetRentAdByRentIDAndUserID(ctx, rentAdID, userID)
+func (s *RentAdService) GetRentAdByRentIDAndUserID(ctx context.Context, rentAdID int, userID int, cityID int) (models.RentAd, error) {
+	return s.RentAdRepo.GetRentAdByRentIDAndUserID(ctx, rentAdID, userID, cityID)
 }

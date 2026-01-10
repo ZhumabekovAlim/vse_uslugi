@@ -26,6 +26,10 @@ func (s *WorkService) GetWorkByID(ctx context.Context, id int, userID int) (mode
 	return s.WorkRepo.GetWorkByID(ctx, id, userID)
 }
 
+func (s *WorkService) GetWorkByIDWithCity(ctx context.Context, id int, userID int, cityID int) (models.Work, error) {
+	return s.WorkRepo.GetWorkByIDWithCity(ctx, id, userID, cityID)
+}
+
 func (s *WorkService) UpdateWork(ctx context.Context, work models.Work) (models.Work, error) {
 	if work.Status == "active" {
 		existing, err := s.WorkRepo.GetWorkByID(ctx, work.ID, 0)
@@ -108,8 +112,8 @@ func (s *WorkService) GetFilteredWorks(ctx context.Context, filter models.WorkFi
 	}, nil
 }
 
-func (s *WorkService) GetWorksByUserID(ctx context.Context, userID int) ([]models.Work, error) {
-	return s.WorkRepo.GetWorksByUserID(ctx, userID)
+func (s *WorkService) GetWorksByUserID(ctx context.Context, userID int, cityID int) ([]models.Work, error) {
+	return s.WorkRepo.GetWorksByUserID(ctx, userID, cityID)
 }
 
 func (s *WorkService) GetFilteredWorksPost(ctx context.Context, req models.FilterWorkRequest) ([]models.FilteredWork, error) {
@@ -124,6 +128,6 @@ func (s *WorkService) GetFilteredWorksWithLikes(ctx context.Context, req models.
 	return s.WorkRepo.GetFilteredWorksWithLikes(ctx, req, userID)
 }
 
-func (s *WorkService) GetWorkByWorkIDAndUserID(ctx context.Context, workID int, userID int) (models.Work, error) {
-	return s.WorkRepo.GetWorkByWorkIDAndUserID(ctx, workID, userID)
+func (s *WorkService) GetWorkByWorkIDAndUserID(ctx context.Context, workID int, userID int, cityID int) (models.Work, error) {
+	return s.WorkRepo.GetWorkByWorkIDAndUserID(ctx, workID, userID, cityID)
 }

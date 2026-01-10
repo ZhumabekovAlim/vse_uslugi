@@ -74,7 +74,13 @@ func (h *ServiceFavoriteHandler) GetFavoritesByUser(w http.ResponseWriter, r *ht
 		return
 	}
 
-	favs, err := h.Service.GetFavoritesByUser(r.Context(), userID)
+	cityID, err := decodeCityID(r)
+	if err != nil {
+		http.Error(w, "Invalid city_id", http.StatusBadRequest)
+		return
+	}
+
+	favs, err := h.Service.GetFavoritesByUser(r.Context(), userID, cityID)
 	if err != nil {
 		http.Error(w, "Failed to get favorites", http.StatusInternalServerError)
 		return

@@ -31,12 +31,12 @@ func (r *AdFavoriteRepository) IsAdFavorite(ctx context.Context, userID, adID in
 	return count > 0, err
 }
 
-func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID int) ([]models.AdFavorite, error) {
+func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID int, cityID int) ([]models.AdFavorite, error) {
 	query := `SELECT af.id, af.user_id, af.ad_id, a.name, a.price, a.price_to, a.on_site, a.negotiable, a.hide_phone, a.order_date, a.order_time, a.status, a.created_at, a.images
                  FROM ad_favorites af
                  JOIN ad a ON af.ad_id = a.id
-                 WHERE af.user_id = ?`
-	rows, err := r.DB.QueryContext(ctx, query, userID)
+                 WHERE af.user_id = ? AND a.city_id = ?`
+	rows, err := r.DB.QueryContext(ctx, query, userID, cityID)
 	if err != nil {
 		return nil, err
 	}
