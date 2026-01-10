@@ -11,6 +11,7 @@ type GlobalSearchRequest struct {
 	PriceTo        float64   `json:"price_to"`
 	Ratings        []float64 `json:"ratings"`
 	SortOption     int       `json:"sort_option"`
+	CityID         int       `json:"city_id"`
 	OnSite         *bool     `json:"on_site,omitempty"`
 	Negotiable     *bool     `json:"negotiable,omitempty"`
 	RentTypes      []string  `json:"rent_types,omitempty"`
