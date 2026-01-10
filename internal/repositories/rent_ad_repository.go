@@ -25,7 +25,7 @@ type RentAdRepository struct {
 func (r *RentAdRepository) CreateRentAd(ctx context.Context, rent models.RentAd) (models.RentAd, error) {
 	query := `
 INSERT INTO rent_ad (
-  name, address, price, price_to, user_id, images, videos,
+  name, address, price, price_to, user_id, city_id, images, videos,
   category_id, subcategory_id,
   work_time_from, work_time_to,
   description, ` + "`condition`" + `, delivery,
@@ -34,7 +34,7 @@ INSERT INTO rent_ad (
   order_date, order_time, created_at
 )
 VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?,
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   ?, ?,
   ?, ?, ?,
   ?, ?, ?, ?, ?, ?,
@@ -79,12 +79,18 @@ VALUES (
 		orderTime = *rent.OrderTime
 	}
 
+	var cityID interface{}
+	if rent.CityID != 0 {
+		cityID = rent.CityID
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
 		rent.Name,
 		rent.Address,
 		price,
 		priceTo,
 		rent.UserID,
+		cityID,
 		string(imagesJSON),
 		string(videosJSON),
 		rent.CategoryID,
@@ -122,7 +128,7 @@ VALUES (
 
 func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int) (models.RentAd, error) {
 	query := `
-     SELECT w.id, w.name, w.address, w.price, w.price_to, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.work_time_from, w.work_time_to, w.description, w.condition, w.delivery, w.avg_rating, w.top, w.negotiable, w.hide_phone, w.liked,
+     SELECT w.id, w.name, w.address, w.price, w.price_to, w.user_id, w.city_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.work_time_from, w.work_time_to, w.description, w.condition, w.delivery, w.avg_rating, w.top, w.negotiable, w.hide_phone, w.liked,
 
               CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
 
@@ -146,7 +152,7 @@ func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int
 	var delivery sql.NullBool
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
-		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
+		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.CityID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &condition, &delivery, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &respondedStr, &orderDate, &orderTime, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,
 
@@ -211,7 +217,7 @@ func (r *RentAdRepository) GetRentAdByID(ctx context.Context, id int, userID int
 func (r *RentAdRepository) UpdateRentAd(ctx context.Context, work models.RentAd) (models.RentAd, error) {
 	query := `
     UPDATE rent_ad
-    SET name = ?, address = ?, price = ?, price_to = ?, negotiable = ?, hide_phone = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
+    SET name = ?, address = ?, price = ?, price_to = ?, negotiable = ?, hide_phone = ?, user_id = ?, city_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
         work_time_from = ?, work_time_to = ?, description = ?, condition = ?, delivery = ?, avg_rating = ?, top = ?, liked = ?, status = ?, rent_type = ?, deposit = ?, latitude = ?, longitude = ?, order_date = ?, order_time = ?, updated_at = ?
     WHERE id = ?
 `
@@ -245,8 +251,13 @@ func (r *RentAdRepository) UpdateRentAd(ctx context.Context, work models.RentAd)
 		orderTime = *work.OrderTime
 	}
 
+	var cityID interface{}
+	if work.CityID != 0 {
+		cityID = work.CityID
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
-		work.Name, work.Address, price, priceTo, work.Negotiable, work.HidePhone, work.UserID, imagesJSON, videosJSON,
+		work.Name, work.Address, price, priceTo, work.Negotiable, work.HidePhone, work.UserID, cityID, imagesJSON, videosJSON,
 		work.CategoryID, work.SubcategoryID, work.WorkTimeFrom, work.WorkTimeTo, work.Description, work.Condition, work.Delivery, work.AvgRating, work.Top, work.Liked, work.Status, work.RentType, work.Deposit, work.Latitude, work.Longitude, orderDate, orderTime, work.UpdatedAt, work.ID,
 	)
 	if err != nil {

@@ -23,8 +23,8 @@ type ServiceRepository struct {
 
 func (r *ServiceRepository) CreateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
-    INSERT INTO service (name, address, on_site, price, price_to, negotiable, hide_phone, user_id, images, videos, category_id, subcategory_id, work_time_from, work_time_to, description, avg_rating, top, liked, status, latitude, longitude, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO service (name, address, on_site, price, price_to, negotiable, hide_phone, user_id, city_id, images, videos, category_id, subcategory_id, work_time_from, work_time_to, description, avg_rating, top, liked, status, latitude, longitude, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
 	// Сохраняем images как JSON
 	imagesJSON, err := json.Marshal(service.Images)
@@ -62,6 +62,11 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		priceTo = *service.PriceTo
 	}
 
+	var cityID interface{}
+	if service.CityID != 0 {
+		cityID = service.CityID
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
 		service.Name,
 		service.Address,
@@ -71,6 +76,7 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 		service.Negotiable,
 		service.HidePhone,
 		service.UserID,
+		cityID,
 		string(imagesJSON),
 		string(videosJSON),
 		service.CategoryID,
@@ -100,7 +106,7 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service models.Se
 
 func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID int) (models.Service, error) {
 	query := `
-         SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id,
+         SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id, s.city_id,
                 u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                   CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                   s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
@@ -123,7 +129,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 	var respondedStr string
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
-		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID,
+		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID, &s.CityID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
 		&s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &respondedStr,
@@ -176,7 +182,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Service) (models.Service, error) {
 	query := `
     UPDATE service
-    SET name = ?, address = ?, on_site = ?, price = ?, price_to = ?, negotiable = ?, hide_phone = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
+    SET name = ?, address = ?, on_site = ?, price = ?, price_to = ?, negotiable = ?, hide_phone = ?, user_id = ?, city_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
         work_time_from = ?, work_time_to = ?, description = ?, avg_rating = ?, top = ?, liked = ?, status = ?, latitude = ?, longitude = ?, updated_at = ?
     WHERE id = ?
 `
@@ -209,8 +215,13 @@ func (r *ServiceRepository) UpdateService(ctx context.Context, service models.Se
 		priceTo = *service.PriceTo
 	}
 
+	var cityID interface{}
+	if service.CityID != 0 {
+		cityID = service.CityID
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
-		service.Name, service.Address, service.OnSite, price, priceTo, service.Negotiable, service.HidePhone, service.UserID, imagesJSON, videosJSON,
+		service.Name, service.Address, service.OnSite, price, priceTo, service.Negotiable, service.HidePhone, service.UserID, cityID, imagesJSON, videosJSON,
 		service.CategoryID, service.SubcategoryID, service.WorkTimeFrom, service.WorkTimeTo, service.Description, service.AvgRating, service.Top, service.Liked, service.Status, latitude, longitude, service.UpdatedAt, service.ID,
 	)
 	if err != nil {

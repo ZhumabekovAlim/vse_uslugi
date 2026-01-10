@@ -410,6 +410,11 @@ func (h *AdHandler) CreateAd(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing user_id", http.StatusBadRequest)
 		return
 	}
+	if cityIDStr := strings.TrimSpace(r.FormValue("city_id")); cityIDStr != "" {
+		if cityID, err := strconv.Atoi(cityIDStr); err == nil {
+			service.CityID = cityID
+		}
+	}
 	service.Description = r.FormValue("description")
 	service.WorkTimeFrom = r.FormValue("work_time_from")
 	service.WorkTimeTo = r.FormValue("work_time_to")
@@ -641,6 +646,9 @@ func (h *AdHandler) UpdateAd(w http.ResponseWriter, r *http.Request) {
 	}
 	if v, ok := r.MultipartForm.Value["user_id"]; ok {
 		service.UserID, _ = strconv.Atoi(v[0])
+	}
+	if v, ok := r.MultipartForm.Value["city_id"]; ok {
+		service.CityID, _ = strconv.Atoi(v[0])
 	}
 	if _, ok := r.MultipartForm.Value["description"]; ok {
 		service.Description = r.FormValue("description")
