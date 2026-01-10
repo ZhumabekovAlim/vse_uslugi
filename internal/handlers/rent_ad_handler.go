@@ -415,6 +415,11 @@ func (h *RentAdHandler) CreateRentAd(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing user_id", http.StatusBadRequest)
 		return
 	}
+	if cityIDStr := strings.TrimSpace(r.FormValue("city_id")); cityIDStr != "" {
+		if cityID, err := strconv.Atoi(cityIDStr); err == nil {
+			service.CityID = cityID
+		}
+	}
 	service.Description = r.FormValue("description")
 	service.CategoryID, _ = strconv.Atoi(r.FormValue("category_id"))
 	if service.CategoryID == 0 {
@@ -649,6 +654,9 @@ func (h *RentAdHandler) UpdateRentAd(w http.ResponseWriter, r *http.Request) {
 	}
 	if v, ok := r.MultipartForm.Value["user_id"]; ok {
 		service.UserID, _ = strconv.Atoi(v[0])
+	}
+	if v, ok := r.MultipartForm.Value["city_id"]; ok {
+		service.CityID, _ = strconv.Atoi(v[0])
 	}
 	if _, ok := r.MultipartForm.Value["description"]; ok {
 		service.Description = r.FormValue("description")

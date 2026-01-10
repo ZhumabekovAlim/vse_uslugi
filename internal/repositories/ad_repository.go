@@ -23,8 +23,8 @@ type AdRepository struct {
 
 func (r *AdRepository) CreateAd(ctx context.Context, ad models.Ad) (models.Ad, error) {
 	query := `
-INSERT INTO ad (name, address, on_site, price, price_to, negotiable, hide_phone, user_id, images, videos, category_id, subcategory_id, description, work_time_from, work_time_to, avg_rating, top, liked, status, latitude, longitude, order_date, order_time, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO ad (name, address, on_site, price, price_to, negotiable, hide_phone, user_id, city_id, images, videos, category_id, subcategory_id, description, work_time_from, work_time_to, avg_rating, top, liked, status, latitude, longitude, order_date, order_time, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 	// Сохраняем images как JSON
 	imagesJSON, err := json.Marshal(ad.Images)
@@ -72,6 +72,11 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		orderTime = *ad.OrderTime
 	}
 
+	var cityID interface{}
+	if ad.CityID != 0 {
+		cityID = ad.CityID
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
 		ad.Name,
 		ad.Address,
@@ -81,6 +86,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ad.Negotiable,
 		ad.HidePhone,
 		ad.UserID,
+		cityID,
 		string(imagesJSON),
 		string(videosJSON),
 		ad.CategoryID,
@@ -112,7 +118,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
 func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (models.Ad, error) {
 	query := `
- SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
+ SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, s.city_id,
         u.id, u.name, u.surname, u.review_rating, u.avatar_path,
           s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
           s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.liked,
@@ -135,7 +141,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	var price, priceTo sql.NullFloat64
 
 	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
-		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID,
+		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.CityID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &lat, &lon, &orderDate, &orderTime, &s.Status,
@@ -195,7 +201,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 func (r *AdRepository) UpdateAd(ctx context.Context, service models.Ad) (models.Ad, error) {
 	query := `
 UPDATE ad
-SET name = ?, address = ?, on_site = ?, price = ?, price_to = ?, negotiable = ?, hide_phone = ?, user_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
+SET name = ?, address = ?, on_site = ?, price = ?, price_to = ?, negotiable = ?, hide_phone = ?, user_id = ?, city_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
     description = ?, work_time_from = ?, work_time_to = ?, avg_rating = ?, top = ?, liked = ?, status = ?, latitude = ?, longitude = ?, order_date = ?, order_time = ?, updated_at = ?
 WHERE id = ?
 `
@@ -239,8 +245,13 @@ WHERE id = ?
 		priceTo = sql.NullFloat64{Float64: *service.PriceTo, Valid: true}
 	}
 
+	var cityID interface{}
+	if service.CityID != 0 {
+		cityID = service.CityID
+	}
+
 	result, err := r.DB.ExecContext(ctx, query,
-		service.Name, service.Address, service.OnSite, price, priceTo, service.Negotiable, service.HidePhone, service.UserID, imagesJSON, videosJSON,
+		service.Name, service.Address, service.OnSite, price, priceTo, service.Negotiable, service.HidePhone, service.UserID, cityID, imagesJSON, videosJSON,
 		service.CategoryID, service.SubcategoryID, service.Description, service.WorkTimeFrom, service.WorkTimeTo, service.AvgRating, service.Top, service.Liked, service.Status, latitude, longitude, orderDate, orderTime, service.UpdatedAt, service.ID,
 	)
 	if err != nil {
