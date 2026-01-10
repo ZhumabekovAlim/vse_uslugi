@@ -30,6 +30,8 @@ type globalSearchPayload struct {
 	Ratings        []float64 `json:"ratings"`
 	SortOption     *int      `json:"sort_option"`
 	SortOptionAlt  *int      `json:"sortOption"`
+	CityID         *int      `json:"city_id"`
+	CityIDAlt      *int      `json:"cityId"`
 	OnSite         *bool     `json:"on_site"`
 	Negotiable     *bool     `json:"negotiable"`
 	RentTypes      []string  `json:"rent_types"`
@@ -107,6 +109,7 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	priceTo := coalesceFloat(payload.PriceTo, payload.PriceToAlt)
 	ratings := payload.Ratings
 	sortOption := normalizeNonNegativeInt(payload.SortOption, payload.SortOptionAlt)
+	cityID := normalizePositiveInt(coalesceInt(payload.CityID, payload.CityIDAlt), 0)
 
 	rentTypes := payload.RentTypes
 	deposits := payload.Deposits
@@ -174,6 +177,7 @@ func (h *GlobalSearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		Latitude:       latitude,
 		Longitude:      longitude,
 		RadiusKm:       radius,
+		CityID:         cityID,
 		UserID:         userID,
 	}
 
@@ -202,6 +206,16 @@ func coalesceFloat(first *float64, second *float64) float64 {
 		return *second
 	}
 	return 0
+}
+
+func coalesceInt(first *int, second *int) *int {
+	if first != nil {
+		return first
+	}
+	if second != nil {
+		return second
+	}
+	return nil
 }
 
 func normalizeNonNegativeInt(first *int, second *int) int {
