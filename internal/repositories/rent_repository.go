@@ -372,7 +372,7 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 	conditions = append(conditions, "s.status != 'archive'")
 
 	if cityID > 0 {
-		conditions = append(conditions, "u.city_id = ?")
+		conditions = append(conditions, "s.city_id = ?")
 		params = append(params, cityID)
 	}
 

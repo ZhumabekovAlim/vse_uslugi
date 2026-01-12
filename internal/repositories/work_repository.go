@@ -327,12 +327,12 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
 
              CASE WHEN sf.work_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
 
-             s.status, s.work_experience, u.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.hide_phone, s.created_at, s.updated_at
+             s.status, s.work_experience, s.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.hide_phone, s.created_at, s.updated_at
       FROM work s
       LEFT JOIN work_favorites sf ON sf.work_id = s.id AND sf.user_id = ?
       JOIN users u ON s.user_id = u.id
       INNER JOIN work_categories c ON s.category_id = c.id
-      JOIN cities city ON u.city_id = city.id
+      JOIN cities city ON s.city_id = city.id
 
 `
 	params = append(params, userID)
@@ -340,7 +340,7 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
 	conditions = append(conditions, "s.status != 'archive'")
 
 	if cityID > 0 {
-		conditions = append(conditions, "u.city_id = ?")
+		conditions = append(conditions, "s.city_id = ?")
 		params = append(params, cityID)
 	}
 
