@@ -327,7 +327,7 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 
 	baseQuery := `
 
-       SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.work_ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.created_at, s.updated_at
+       SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.work_ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, s.city_id, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.created_at, s.updated_at
 
                FROM work_ad s
                LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
@@ -338,7 +338,7 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 	params = append(params, userID)
 
 	if cityID > 0 {
-		conditions = append(conditions, "u.city_id = ?")
+		conditions = append(conditions, "s.city_id = ?")
 		params = append(params, cityID)
 	}
 
