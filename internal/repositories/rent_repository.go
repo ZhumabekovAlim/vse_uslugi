@@ -561,16 +561,16 @@ func (r *RentRepository) GetRentsWithFilters(ctx context.Context, userID int, ci
 	return rents, minPrice, maxPrice, nil
 }
 
-func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int, cityID int) ([]models.Rent, error) {
+func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int) ([]models.Rent, error) {
 	query := `
-       SELECT s.id, s.name, s.address, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.work_time_from, s.work_time_to, s.description, s.condition, s.delivery, s.avg_rating, s.top, s.negotiable, s.hide_phone, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+       SELECT s.id, s.name, s.address, s.price, s.price_to, s.user_id, s.city_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.work_time_from, s.work_time_to, s.description, s.condition, s.delivery, s.avg_rating, s.top, s.negotiable, s.hide_phone, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM rent s
                 JOIN users u ON s.user_id = u.id
                 LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
-                WHERE s.user_id = ? AND s.city_id = ?
+                WHERE s.user_id = ?
        `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID, userID, cityID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -587,7 +587,7 @@ func (r *RentRepository) GetRentsByUserID(ctx context.Context, userID int, cityI
 		var delivery sql.NullBool
 		var likedStr string
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
+			&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.CityID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
 			&s.CategoryID, &s.SubcategoryID, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &condition, &delivery, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &likedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -1055,10 +1055,10 @@ WHERE 1=1 AND s.status != 'archive'
 	return rents, nil
 }
 
-func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID int, userID int, cityID int) (models.Rent, error) {
+func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID int, userID int) (models.Rent, error) {
 	query := `
     SELECT
-    s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
+    s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, s.city_id,
     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
       CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
     s.images, s.videos, s.category_id, c.name,
@@ -1073,8 +1073,8 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
        JOIN rent_subcategories sub ON s.subcategory_id = sub.id
        LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
        LEFT JOIN rent_responses sr ON sr.rent_id = s.id AND sr.user_id = ?
-       WHERE s.id = ? AND s.city_id = ?
-`
+                WHERE s.id = ?
+       `
 
 	var s models.Rent
 	var imagesJSON []byte
@@ -1086,8 +1086,8 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
 
 	var likedStr, respondedStr string
 
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, rentID, cityID).Scan(
-		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID,
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, rentID).Scan(
+		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.CityID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.WorkTimeFrom, &s.WorkTimeTo,

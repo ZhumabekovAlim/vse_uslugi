@@ -31,12 +31,12 @@ func (r *ServiceFavoriteRepository) IsFavorite(ctx context.Context, userID, serv
 	return count > 0, err
 }
 
-func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, userID int, cityID int) ([]models.ServiceFavorite, error) {
-	query := `SELECT sf.id, sf.user_id, sf.service_id, s.name, s.price, s.price_to, s.on_site, s.negotiable, s.hide_phone, s.status, s.created_at, s.images
+func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, userID int) ([]models.ServiceFavorite, error) {
+	query := `SELECT sf.id, sf.user_id, sf.service_id, s.city_id, s.name, s.price, s.price_to, s.on_site, s.negotiable, s.hide_phone, s.status, s.created_at, s.images
              FROM service_favorites sf
              JOIN service s ON sf.service_id = s.id
-             WHERE sf.user_id = ? AND s.city_id = ?`
-	rows, err := r.DB.QueryContext(ctx, query, userID, cityID)
+             WHERE sf.user_id = ?`
+	rows, err := r.DB.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, user
 		var fav models.ServiceFavorite
 		var price, priceTo sql.NullFloat64
 		var imagesJSON sql.NullString
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.ServiceID, &fav.Name, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.ServiceID, &fav.CityID, &fav.Name, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
 		if err != nil {
 			return nil, err
 		}

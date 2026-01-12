@@ -22,6 +22,6 @@ func (s *AdFavoriteService) IsAdFavorite(ctx context.Context, userID, adID int) 
 	return s.AdFavoriteRepo.IsAdFavorite(ctx, userID, adID)
 }
 
-func (s *AdFavoriteService) GetAdFavoritesByUser(ctx context.Context, userID, cityID int) ([]models.AdFavorite, error) {
-	return s.AdFavoriteRepo.GetAdFavoritesByUser(ctx, userID, cityID)
+func (s *AdFavoriteService) GetAdFavoritesByUser(ctx context.Context, userID int) ([]models.AdFavorite, error) {
+	return s.AdFavoriteRepo.GetAdFavoritesByUser(ctx, userID)
 }

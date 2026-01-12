@@ -52,13 +52,7 @@ func (h *RentHandler) GetRentByID(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cityID, err := decodeCityID(r)
-	if err != nil {
-		http.Error(w, "Invalid city_id", http.StatusBadRequest)
-		return
-	}
-
-	rent, err := h.Service.GetRentByIDWithCity(r.Context(), id, userID, cityID)
+	rent, err := h.Service.GetRentByID(r.Context(), id, userID)
 	if err != nil {
 		http.Error(w, "Service not found", http.StatusNotFound)
 		return
@@ -255,13 +249,7 @@ func (h *RentHandler) GetRentsByUserID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cityID, err := decodeCityID(r)
-	if err != nil {
-		http.Error(w, "Invalid city_id", http.StatusBadRequest)
-		return
-	}
-
-	rents, err := h.Service.GetRentsByUserID(r.Context(), userID, cityID)
+	rents, err := h.Service.GetRentsByUserID(r.Context(), userID)
 	if err != nil {
 		http.Error(w, "Failed to fetch services", http.StatusInternalServerError)
 		return
@@ -996,14 +984,8 @@ func (h *RentHandler) GetRentByRentIDAndUserID(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	cityID, err := decodeCityID(r)
-	if err != nil {
-		http.Error(w, "Invalid city_id", http.StatusBadRequest)
-		return
-	}
-
 	// Получение сервиса
-	rent, err := h.Service.GetRentByRentIDAndUserID(ctx, rentID, userID, cityID)
+	rent, err := h.Service.GetRentByRentIDAndUserID(ctx, rentID, userID)
 	if err != nil {
 		if err.Error() == "service not found" {
 			http.Error(w, "service not found", http.StatusNotFound)

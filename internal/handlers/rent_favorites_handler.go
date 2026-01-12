@@ -74,13 +74,7 @@ func (h *RentFavoriteHandler) GetRentFavoritesByUser(w http.ResponseWriter, r *h
 		return
 	}
 
-	cityID, err := decodeCityID(r)
-	if err != nil {
-		http.Error(w, "Invalid city_id", http.StatusBadRequest)
-		return
-	}
-
-	favs, err := h.Service.GetRentFavoritesByUser(r.Context(), userID, cityID)
+	favs, err := h.Service.GetRentFavoritesByUser(r.Context(), userID)
 	if err != nil {
 		http.Error(w, "Failed to get favorites", http.StatusInternalServerError)
 		return

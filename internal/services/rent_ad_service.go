@@ -94,8 +94,8 @@ func (s *RentAdService) GetFilteredRentsAd(ctx context.Context, filter models.Re
 	}, nil
 }
 
-func (s *RentAdService) GetRentsAdByUserID(ctx context.Context, userID int, cityID int) ([]models.RentAd, error) {
-	return s.RentAdRepo.GetRentsAdByUserID(ctx, userID, cityID)
+func (s *RentAdService) GetRentsAdByUserID(ctx context.Context, userID int) ([]models.RentAd, error) {
+	return s.RentAdRepo.GetRentsAdByUserID(ctx, userID)
 }
 
 func (s *RentAdService) GetFilteredRentsAdPost(ctx context.Context, req models.FilterRentAdRequest) ([]models.FilteredRentAd, error) {
@@ -110,6 +110,6 @@ func (s *RentAdService) GetFilteredRentsAdWithLikes(ctx context.Context, req mod
 	return s.RentAdRepo.GetFilteredRentsAdWithLikes(ctx, req, userID)
 }
 
-func (s *RentAdService) GetRentAdByRentIDAndUserID(ctx context.Context, rentAdID int, userID int, cityID int) (models.RentAd, error) {
-	return s.RentAdRepo.GetRentAdByRentIDAndUserID(ctx, rentAdID, userID, cityID)
+func (s *RentAdService) GetRentAdByRentIDAndUserID(ctx context.Context, rentAdID int, userID int) (models.RentAd, error) {
+	return s.RentAdRepo.GetRentAdByRentIDAndUserID(ctx, rentAdID, userID)
 }

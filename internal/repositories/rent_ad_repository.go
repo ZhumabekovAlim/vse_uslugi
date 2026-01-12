@@ -619,16 +619,16 @@ func (r *RentAdRepository) GetRentsAdWithFilters(ctx context.Context, userID int
 	return rents, minPrice, maxPrice, nil
 }
 
-func (r *RentAdRepository) GetRentsAdByUserID(ctx context.Context, userID int, cityID int) ([]models.RentAd, error) {
+func (r *RentAdRepository) GetRentsAdByUserID(ctx context.Context, userID int) ([]models.RentAd, error) {
 	query := `
-                SELECT s.id, s.name, s.address, s.price, s.price_to, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.work_time_from, s.work_time_to, s.description, s.condition, s.delivery, s.avg_rating, s.top, s.negotiable, s.hide_phone, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.order_date, s.order_time, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
+                SELECT s.id, s.name, s.address, s.price, s.price_to, s.user_id, s.city_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.work_time_from, s.work_time_to, s.description, s.condition, s.delivery, s.avg_rating, s.top, s.negotiable, s.hide_phone, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.order_date, s.order_time, s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM rent_ad s
                 JOIN users u ON s.user_id = u.id
                 LEFT JOIN rent_ad_favorites sf ON sf.rent_ad_id = s.id AND sf.user_id = ?
-                WHERE s.user_id = ? AND s.city_id = ?
-        `
+                WHERE s.user_id = ?
+       `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID, userID, cityID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -645,7 +645,7 @@ func (r *RentAdRepository) GetRentsAdByUserID(ctx context.Context, userID int, c
 		var delivery sql.NullBool
 		var likedStr string
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
+			&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.CityID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
 			&s.CategoryID, &s.SubcategoryID, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &condition, &delivery, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &likedStr, &orderDate, &orderTime, &s.Status, &s.RentType, &s.Deposit, &s.Latitude, &s.Longitude, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -1115,10 +1115,10 @@ func (r *RentAdRepository) GetFilteredRentsAdWithLikes(ctx context.Context, req 
 	return rents, nil
 }
 
-func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentAdID int, userID int, cityID int) (models.RentAd, error) {
+func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentAdID int, userID int) (models.RentAd, error) {
 	query := `
             SELECT
-                    s.id, s.name, s.address, s.price, s.price_to, s.user_id,
+                    s.id, s.name, s.address, s.price, s.price_to, s.user_id, s.city_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                       CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                        s.images, s.videos, s.category_id, c.name,
@@ -1133,7 +1133,7 @@ func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentA
                JOIN rent_subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN rent_ad_favorites sf ON sf.rent_ad_id = s.id AND sf.user_id = ?
                LEFT JOIN rent_ad_responses sr ON sr.rent_ad_id = s.id AND sr.user_id = ?
-               WHERE s.id = ? AND s.city_id = ?
+               WHERE s.id = ?
        `
 
 	var s models.RentAd
@@ -1146,8 +1146,8 @@ func (r *RentAdRepository) GetRentAdByRentIDAndUserID(ctx context.Context, rentA
 
 	var likedStr, respondedStr string
 
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, rentAdID, cityID).Scan(
-		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID,
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, rentAdID).Scan(
+		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.CityID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,
