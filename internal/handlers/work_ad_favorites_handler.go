@@ -74,13 +74,7 @@ func (h *WorkAdFavoriteHandler) GetWorkAdFavoritesByUser(w http.ResponseWriter, 
 		return
 	}
 
-	cityID, err := decodeCityID(r)
-	if err != nil {
-		http.Error(w, "Invalid city_id", http.StatusBadRequest)
-		return
-	}
-
-	favs, err := h.Service.GetWorkAdFavoritesByUser(r.Context(), userID, cityID)
+	favs, err := h.Service.GetWorkAdFavoritesByUser(r.Context(), userID)
 	if err != nil {
 		http.Error(w, "Failed to get favorites", http.StatusInternalServerError)
 		return

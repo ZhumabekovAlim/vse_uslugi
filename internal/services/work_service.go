@@ -112,8 +112,8 @@ func (s *WorkService) GetFilteredWorks(ctx context.Context, filter models.WorkFi
 	}, nil
 }
 
-func (s *WorkService) GetWorksByUserID(ctx context.Context, userID int, cityID int) ([]models.Work, error) {
-	return s.WorkRepo.GetWorksByUserID(ctx, userID, cityID)
+func (s *WorkService) GetWorksByUserID(ctx context.Context, userID int) ([]models.Work, error) {
+	return s.WorkRepo.GetWorksByUserID(ctx, userID)
 }
 
 func (s *WorkService) GetFilteredWorksPost(ctx context.Context, req models.FilterWorkRequest) ([]models.FilteredWork, error) {
@@ -128,6 +128,6 @@ func (s *WorkService) GetFilteredWorksWithLikes(ctx context.Context, req models.
 	return s.WorkRepo.GetFilteredWorksWithLikes(ctx, req, userID)
 }
 
-func (s *WorkService) GetWorkByWorkIDAndUserID(ctx context.Context, workID int, userID int, cityID int) (models.Work, error) {
-	return s.WorkRepo.GetWorkByWorkIDAndUserID(ctx, workID, userID, cityID)
+func (s *WorkService) GetWorkByWorkIDAndUserID(ctx context.Context, workID int, userID int) (models.Work, error) {
+	return s.WorkRepo.GetWorkByWorkIDAndUserID(ctx, workID, userID)
 }

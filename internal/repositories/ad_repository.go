@@ -571,16 +571,16 @@ func (r *AdRepository) GetAdWithFilters(ctx context.Context, userID int, cityID 
 	return ads, minPrice, maxPrice, nil
 }
 
-func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int, cityID int) ([]models.Ad, error) {
+func (r *AdRepository) GetAdByUserID(ctx context.Context, userID int) ([]models.Ad, error) {
 	query := `
-SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.latitude, s.longitude, s.order_date, s.order_time, s.status, s.created_at, s.updated_at
+SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, s.city_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.latitude, s.longitude, s.order_date, s.order_time, s.status, s.created_at, s.updated_at
 FROM ad s
 JOIN users u ON s.user_id = u.id
 LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
-WHERE s.user_id = ? AND s.city_id = ?
+WHERE s.user_id = ?
 `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID, userID, cityID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +596,7 @@ WHERE s.user_id = ? AND s.city_id = ?
 		var orderDate, orderTime sql.NullString
 		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
+			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.CityID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
 			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &likedStr, &lat, &lon, &orderDate, &orderTime, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -1025,10 +1025,10 @@ CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded
 	return ads, nil
 }
 
-func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userID int, cityID int) (models.Ad, error) {
+func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userID int) (models.Ad, error) {
 	query := `
     SELECT
-            s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id,
+            s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, s.city_id,
             u.id, u.name, u.surname, u.review_rating, u.avatar_path,
               CASE WHEN sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                s.images, s.videos, s.category_id, c.name,
@@ -1043,7 +1043,7 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
                JOIN subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
                LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
-               WHERE s.id = ? AND s.city_id = ?
+               WHERE s.id = ?
        `
 
 	var s models.Ad
@@ -1055,8 +1055,8 @@ func (r *AdRepository) GetAdByAdIDAndUserID(ctx context.Context, adID int, userI
 
 	var likedStr, respondedStr string
 
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, adID, cityID).Scan(
-		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID,
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, adID).Scan(
+		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.CityID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName,

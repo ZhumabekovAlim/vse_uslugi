@@ -519,16 +519,16 @@ func (r *ServiceRepository) GetServicesWithFilters(ctx context.Context, userID i
 	return services, minPrice.Float64, maxPrice.Float64, nil
 }
 
-func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int, cityID int) ([]models.Service, error) {
+func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int) ([]models.Service, error) {
 	query := `
-       SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.negotiable, s.hide_phone, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
+       SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id, s.city_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.negotiable, s.hide_phone, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.latitude, s.longitude, s.created_at, s.updated_at
           FROM service s
           JOIN users u ON s.user_id = u.id
           LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
-          WHERE s.user_id = ? AND s.city_id = ?
+          WHERE s.user_id = ?
    `
 
-	rows, err := r.DB.QueryContext(ctx, query, userID, userID, cityID)
+	rows, err := r.DB.QueryContext(ctx, query, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -543,7 +543,7 @@ func (r *ServiceRepository) GetServicesByUserID(ctx context.Context, userID int,
 		var lat, lon sql.NullString
 		var price, priceTo sql.NullFloat64
 		if err := rows.Scan(
-			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
+			&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID, &s.CityID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
 			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.WorkTimeFrom, &s.WorkTimeTo, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &likedStr, &s.Status, &lat, &lon, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -952,10 +952,10 @@ WHERE 1=1 AND s.status != 'archive'
 	return services, nil
 }
 
-func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, serviceID int, userID int, cityID int) (models.Service, error) {
+func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, serviceID int, userID int) (models.Service, error) {
 	query := `
             SELECT
-                    s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id,
+                    s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id, s.city_id,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                        CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                        s.images, s.videos, s.category_id, c.name,
@@ -970,7 +970,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
                JOIN subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
                LEFT JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = ?
-               WHERE s.id = ? AND s.city_id = ?
+               WHERE s.id = ?
        `
 
 	var s models.Service
@@ -981,8 +981,8 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 	var likedStr, respondedStr string
 	var price, priceTo sql.NullFloat64
 
-	err := r.DB.QueryRowContext(ctx, query, userID, userID, serviceID, cityID).Scan(
-		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID,
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, serviceID).Scan(
+		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID, &s.CityID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,

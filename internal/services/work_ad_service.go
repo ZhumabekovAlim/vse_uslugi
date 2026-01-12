@@ -94,8 +94,8 @@ func (s *WorkAdService) GetFilteredWorksAd(ctx context.Context, filter models.Wo
 	}, nil
 }
 
-func (s *WorkAdService) GetWorksAdByUserID(ctx context.Context, userID int, cityID int) ([]models.WorkAd, error) {
-	return s.WorkAdRepo.GetWorksAdByUserID(ctx, userID, cityID)
+func (s *WorkAdService) GetWorksAdByUserID(ctx context.Context, userID int) ([]models.WorkAd, error) {
+	return s.WorkAdRepo.GetWorksAdByUserID(ctx, userID)
 }
 
 func (s *WorkAdService) GetFilteredWorksAdPost(ctx context.Context, req models.FilterWorkAdRequest) ([]models.FilteredWorkAd, error) {
@@ -110,6 +110,6 @@ func (s *WorkAdService) GetFilteredWorksAdWithLikes(ctx context.Context, req mod
 	return s.WorkAdRepo.GetFilteredWorksAdWithLikes(ctx, req, userID)
 }
 
-func (s *WorkAdService) GetWorkAdByWorkIDAndUserID(ctx context.Context, workadID int, userID int, cityID int) (models.WorkAd, error) {
-	return s.WorkAdRepo.GetWorkAdByWorkIDAndUserID(ctx, workadID, userID, cityID)
+func (s *WorkAdService) GetWorkAdByWorkIDAndUserID(ctx context.Context, workadID int, userID int) (models.WorkAd, error) {
+	return s.WorkAdRepo.GetWorkAdByWorkIDAndUserID(ctx, workadID, userID)
 }

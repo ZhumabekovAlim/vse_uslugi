@@ -22,6 +22,6 @@ func (s *WorkAdFavoriteService) IsWorkAdFavorite(ctx context.Context, userID, wo
 	return s.WorkAdFavoriteRepo.IsWorkAdFavorite(ctx, userID, workAdID)
 }
 
-func (s *WorkAdFavoriteService) GetWorkAdFavoritesByUser(ctx context.Context, userID, cityID int) ([]models.WorkAdFavorite, error) {
-	return s.WorkAdFavoriteRepo.GetWorkAdFavoritesByUser(ctx, userID, cityID)
+func (s *WorkAdFavoriteService) GetWorkAdFavoritesByUser(ctx context.Context, userID int) ([]models.WorkAdFavorite, error) {
+	return s.WorkAdFavoriteRepo.GetWorkAdFavoritesByUser(ctx, userID)
 }

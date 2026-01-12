@@ -110,8 +110,8 @@ func (s *RentService) GetFilteredRents(ctx context.Context, filter models.RentFi
 	}, nil
 }
 
-func (s *RentService) GetRentsByUserID(ctx context.Context, userID int, cityID int) ([]models.Rent, error) {
-	return s.RentRepo.GetRentsByUserID(ctx, userID, cityID)
+func (s *RentService) GetRentsByUserID(ctx context.Context, userID int) ([]models.Rent, error) {
+	return s.RentRepo.GetRentsByUserID(ctx, userID)
 }
 
 func (s *RentService) GetFilteredRentsPost(ctx context.Context, req models.FilterRentRequest) ([]models.FilteredRent, error) {
@@ -126,6 +126,6 @@ func (s *RentService) GetFilteredRentsWithLikes(ctx context.Context, req models.
 	return s.RentRepo.GetFilteredRentsWithLikes(ctx, req, userID)
 }
 
-func (s *RentService) GetRentByRentIDAndUserID(ctx context.Context, rentID int, userID int, cityID int) (models.Rent, error) {
-	return s.RentRepo.GetRentByRentIDAndUserID(ctx, rentID, userID, cityID)
+func (s *RentService) GetRentByRentIDAndUserID(ctx context.Context, rentID int, userID int) (models.Rent, error) {
+	return s.RentRepo.GetRentByRentIDAndUserID(ctx, rentID, userID)
 }
