@@ -395,6 +395,17 @@ func (r *RentAdRepository) UpdateStatus(ctx context.Context, id int, status stri
 	return nil
 }
 
+func (r *RentAdRepository) GetStatus(ctx context.Context, id int) (string, error) {
+	var status string
+	if err := r.DB.QueryRowContext(ctx, `SELECT status FROM rent_ad WHERE id = ?`, id).Scan(&status); err != nil {
+		if err == sql.ErrNoRows {
+			return "", ErrRentAdNotFound
+		}
+		return "", err
+	}
+	return status, nil
+}
+
 func (r *RentAdRepository) ArchiveByUserID(ctx context.Context, userID int) error {
 	_, err := r.DB.ExecContext(ctx, `UPDATE rent_ad SET status = 'archive', updated_at = ? WHERE user_id = ?`, time.Now(), userID)
 	return err

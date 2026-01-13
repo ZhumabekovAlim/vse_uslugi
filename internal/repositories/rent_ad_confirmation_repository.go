@@ -45,6 +45,9 @@ func (r *RentAdConfirmationRepository) Confirm(ctx context.Context, rentAdID, pe
 	if _, err = tx.ExecContext(ctx, `UPDATE rent_ad_confirmations SET confirmed = true, status = 'in_progress', updated_at = ? WHERE rent_ad_id = ? AND performer_id = ?`, now, rentAdID, actualPerformerID); err != nil {
 		return err
 	}
+	if _, err = tx.ExecContext(ctx, `UPDATE rent_ad SET status = 'in_progress', updated_at = ? WHERE id = ?`, now, rentAdID); err != nil {
+		return err
+	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM rent_ad_responses WHERE rent_ad_id = ? AND user_id <> ?`, rentAdID, actualPerformerID); err != nil {
 		return err
 	}
@@ -86,4 +89,25 @@ func (r *RentAdConfirmationRepository) Done(ctx context.Context, rentAdID int) e
 func (r *RentAdConfirmationRepository) DeletePending(ctx context.Context, rentAdID, performerID int) error {
 	_, err := r.DB.ExecContext(ctx, `DELETE FROM rent_ad_confirmations WHERE rent_ad_id = ? AND performer_id = ? AND confirmed = false`, rentAdID, performerID)
 	return err
+}
+
+func (r *RentAdConfirmationRepository) GetPerformerIDs(ctx context.Context, rentAdID int) ([]int, error) {
+	rows, err := r.DB.QueryContext(ctx, `SELECT DISTINCT performer_id FROM rent_ad_confirmations WHERE rent_ad_id = ?`, rentAdID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var performers []int
+	for rows.Next() {
+		var performerID int
+		if err := rows.Scan(&performerID); err != nil {
+			return nil, err
+		}
+		performers = append(performers, performerID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return performers, nil
 }

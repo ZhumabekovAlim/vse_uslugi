@@ -381,6 +381,17 @@ func (r *AdRepository) UpdateStatus(ctx context.Context, id int, status string) 
 	return nil
 }
 
+func (r *AdRepository) GetStatus(ctx context.Context, id int) (string, error) {
+	var status string
+	if err := r.DB.QueryRowContext(ctx, `SELECT status FROM ad WHERE id = ?`, id).Scan(&status); err != nil {
+		if err == sql.ErrNoRows {
+			return "", ErrAdNotFound
+		}
+		return "", err
+	}
+	return status, nil
+}
+
 func (r *AdRepository) ArchiveByUserID(ctx context.Context, userID int) error {
 	_, err := r.DB.ExecContext(ctx, `UPDATE ad SET status = 'archive', updated_at = ? WHERE user_id = ?`, time.Now(), userID)
 	return err
