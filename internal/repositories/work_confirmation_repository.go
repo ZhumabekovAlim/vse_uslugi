@@ -45,6 +45,9 @@ func (r *WorkConfirmationRepository) Confirm(ctx context.Context, workID, client
 	if _, err = tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = true, status = 'in_progress', updated_at = ? WHERE work_id = ? AND client_id = ?`, now, workID, actualClientID); err != nil {
 		return err
 	}
+	if _, err = tx.ExecContext(ctx, `UPDATE work SET status = 'in_progress', updated_at = ? WHERE id = ?`, now, workID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -61,6 +64,9 @@ func (r *WorkConfirmationRepository) Cancel(ctx context.Context, workID, userID 
 	}
 	now := time.Now()
 	if _, err := tx.ExecContext(ctx, `UPDATE work_confirmations SET confirmed = false, status = 'archived', updated_at = ? WHERE work_id = ? AND client_id = ? AND performer_id = ?`, now, workID, clientID, performerID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE work SET status = 'active', updated_at = ? WHERE id = ?`, now, workID); err != nil {
 		return err
 	}
 	return tx.Commit()

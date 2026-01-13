@@ -45,6 +45,9 @@ func (r *RentConfirmationRepository) Confirm(ctx context.Context, rentID, Client
 	if _, err = tx.ExecContext(ctx, `UPDATE rent_confirmations SET confirmed = true, status = 'in_progress', updated_at = ? WHERE rent_id = ? AND client_id = ?`, now, rentID, actualClientID); err != nil {
 		return err
 	}
+	if _, err = tx.ExecContext(ctx, `UPDATE rent SET status = 'in_progress', updated_at = ? WHERE id = ?`, now, rentID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -61,6 +64,9 @@ func (r *RentConfirmationRepository) Cancel(ctx context.Context, rentID, userID 
 	}
 	now := time.Now()
 	if _, err := tx.ExecContext(ctx, `UPDATE rent_confirmations SET confirmed = false, status = 'archived', updated_at = ? WHERE rent_id = ? AND client_id = ? AND performer_id = ?`, now, rentID, clientID, performerID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE rent SET status = 'active', updated_at = ? WHERE id = ?`, now, rentID); err != nil {
 		return err
 	}
 	return tx.Commit()
