@@ -314,6 +314,17 @@ func (r *WorkAdRepository) UpdateStatus(ctx context.Context, id int, status stri
 	return nil
 }
 
+func (r *WorkAdRepository) GetStatus(ctx context.Context, id int) (string, error) {
+	var status string
+	if err := r.DB.QueryRowContext(ctx, `SELECT status FROM work_ad WHERE id = ?`, id).Scan(&status); err != nil {
+		if err == sql.ErrNoRows {
+			return "", ErrWorkAdNotFound
+		}
+		return "", err
+	}
+	return status, nil
+}
+
 func (r *WorkAdRepository) ArchiveByUserID(ctx context.Context, userID int) error {
 	_, err := r.DB.ExecContext(ctx, `UPDATE work_ad SET status = 'archive', updated_at = ? WHERE user_id = ?`, time.Now(), userID)
 	return err

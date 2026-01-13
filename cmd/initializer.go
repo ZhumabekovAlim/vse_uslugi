@@ -329,11 +329,11 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	rentAdReviewService := &services.RentAdReviewService{RentAdReviewsRepo: &rentAdReviewRepo, ConfirmationRepo: &rentAdConfirmationRepo}
 	rentAdResponseService := &services.RentAdResponseService{RentAdResponseRepo: &rentAdResponseRepo, RentAdRepo: &rentAdRepo, ChatRepo: &chatRepo, ConfirmationRepo: &rentAdConfirmationRepo, MessageRepo: &messageRepo, SubscriptionRepo: &subscriptionRepo, UserRepo: &userRepo, BusinessRepo: &businessRepo}
 	rentAdFavoriteService := &services.RentAdFavoriteService{RentAdFavoriteRepo: &rentAdFavoriteRepo}
-	adConfirmationService := &services.AdConfirmationService{ConfirmationRepo: &adConfirmationRepo}
+	adConfirmationService := &services.AdConfirmationService{ConfirmationRepo: &adConfirmationRepo, AdRepo: &adRepo, SubscriptionRepo: &subscriptionRepo}
 	workConfirmationService := &services.WorkConfirmationService{ConfirmationRepo: &workConfirmationRepo}
-	workAdConfirmationService := &services.WorkAdConfirmationService{ConfirmationRepo: &workAdConfirmationRepo}
+	workAdConfirmationService := &services.WorkAdConfirmationService{ConfirmationRepo: &workAdConfirmationRepo, WorkAdRepo: &workAdRepo, SubscriptionRepo: &subscriptionRepo}
 	rentConfirmationService := &services.RentConfirmationService{ConfirmationRepo: &rentConfirmationRepo}
-	rentAdConfirmationService := &services.RentAdConfirmationService{ConfirmationRepo: &rentAdConfirmationRepo}
+	rentAdConfirmationService := &services.RentAdConfirmationService{ConfirmationRepo: &rentAdConfirmationRepo, RentAdRepo: &rentAdRepo, SubscriptionRepo: &subscriptionRepo}
 	chatService := &services.ChatService{ChatRepo: &chatRepo, BusinessRepo: &businessRepo}
 	// authService := &services.AuthService{DB: db}
 
