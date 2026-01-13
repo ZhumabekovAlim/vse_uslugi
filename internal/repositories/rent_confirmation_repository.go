@@ -45,9 +45,6 @@ func (r *RentConfirmationRepository) Confirm(ctx context.Context, rentID, Client
 	if _, err = tx.ExecContext(ctx, `UPDATE rent_confirmations SET confirmed = true, status = 'in_progress', updated_at = ? WHERE rent_id = ? AND client_id = ?`, now, rentID, actualClientID); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE rent SET status = 'in_progress', updated_at = ? WHERE id = ?`, now, rentID); err != nil {
-		return err
-	}
 	return tx.Commit()
 }
 
