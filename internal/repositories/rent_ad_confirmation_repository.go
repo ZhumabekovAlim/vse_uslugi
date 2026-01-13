@@ -83,6 +83,9 @@ func (r *RentAdConfirmationRepository) Done(ctx context.Context, rentAdID int) e
 	if _, err := tx.ExecContext(ctx, `UPDATE rent_ad_confirmations SET status = 'done', updated_at = ? WHERE rent_ad_id = ? AND confirmed = true`, now, rentAdID); err != nil {
 		return err
 	}
+	if _, err := tx.ExecContext(ctx, `UPDATE rent_ad SET status = 'done', updated_at = ? WHERE id = ?`, now, rentAdID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
