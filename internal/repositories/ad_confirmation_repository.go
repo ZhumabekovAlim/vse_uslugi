@@ -83,6 +83,9 @@ func (r *AdConfirmationRepository) Done(ctx context.Context, adID int) error {
 	if _, err := tx.ExecContext(ctx, `UPDATE ad_confirmations SET status = 'done', updated_at = ? WHERE ad_id = ? AND confirmed = true`, now, adID); err != nil {
 		return err
 	}
+	if _, err := tx.ExecContext(ctx, `UPDATE ad SET status = 'done', updated_at = ? WHERE id = ?`, now, adID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
