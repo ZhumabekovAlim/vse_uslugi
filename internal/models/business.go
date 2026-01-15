@@ -55,3 +55,18 @@ type BusinessWorkerListing struct {
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      *time.Time `json:"updated_at"`
 }
+
+// BusinessWorkerListingDetails provides listing data for attached worker listings.
+type BusinessWorkerListingDetails struct {
+	BusinessUserID int       `json:"business_user_id"`
+	WorkerUserID   int       `json:"worker_user_id"`
+	ListingType    string    `json:"listing_type"`
+	ListingID      int       `json:"listing_id"`
+	Images         any       `json:"images,omitempty"`
+	Videos         any       `json:"videos,omitempty"`
+	Liked          bool      `json:"liked,omitempty"`
+	Negotiable     bool      `json:"negotiable,omitempty"`
+	Price          *float64  `json:"price,omitempty"`
+	PriceTo        *float64  `json:"price_to,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+}

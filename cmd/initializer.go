@@ -257,7 +257,17 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	userResponsesService := &services.UserResponsesService{ResponsesRepo: &userResponsesRepo}
 	userReviewsService := &services.UserReviewsService{ReviewsRepo: &userReviewsRepo}
 	userItemsService := &services.UserItemsService{ItemsRepo: &userItemsRepo}
-	businessService := &services.BusinessService{BusinessRepo: &businessRepo, UserRepo: &userRepo, ChatRepo: &chatRepo}
+	businessService := &services.BusinessService{
+		BusinessRepo: &businessRepo,
+		UserRepo:     &userRepo,
+		ChatRepo:     &chatRepo,
+		ServiceRepo:  &serviceRepo,
+		WorkRepo:     &workRepo,
+		RentRepo:     &rentRepo,
+		AdRepo:       &adRepo,
+		WorkAdRepo:   &workAdRepo,
+		RentAdRepo:   &rentAdRepo,
+	}
 	responseUsersService := &services.ResponseUsersService{Repo: &responseUsersRepo}
 	workService := &services.WorkService{WorkRepo: &workRepo, SubscriptionRepo: &subscriptionRepo}
 	rentService := &services.RentService{RentRepo: &rentRepo, SubscriptionRepo: &subscriptionRepo}

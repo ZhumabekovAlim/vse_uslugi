@@ -281,7 +281,14 @@ Content-Type: application/json
         "listing_type": "service",
         "listing_id": 123,
         "business_user_id": 42,
-        "worker_user_id": 115
+        "worker_user_id": 115,
+        "images": [],
+        "videos": [],
+        "liked": false,
+        "negotiable": false,
+        "price": 10000,
+        "price_to": 15000,
+        "created_at": "2024-01-01T12:00:00Z"
       }
     ]
   }
