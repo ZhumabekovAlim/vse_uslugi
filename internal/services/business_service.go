@@ -18,6 +18,12 @@ type BusinessService struct {
 	BusinessRepo *repositories.BusinessRepository
 	UserRepo     *repositories.UserRepository
 	ChatRepo     *repositories.ChatRepository
+	ServiceRepo  *repositories.ServiceRepository
+	WorkRepo     *repositories.WorkRepository
+	RentRepo     *repositories.RentRepository
+	AdRepo       *repositories.AdRepository
+	WorkAdRepo   *repositories.WorkAdRepository
+	RentAdRepo   *repositories.RentAdRepository
 }
 
 type PurchaseRequest struct {
@@ -318,11 +324,113 @@ func (s *BusinessService) DetachListing(ctx context.Context, businessUserID, wor
 }
 
 // ListWorkerListings returns workers with attached listings map keyed by worker user ID.
-func (s *BusinessService) ListWorkerListings(ctx context.Context, businessUserID int) (map[int][]models.BusinessWorkerListing, error) {
+func (s *BusinessService) ListWorkerListings(ctx context.Context, businessUserID int) (map[int][]models.BusinessWorkerListingDetails, error) {
 	if _, err := s.GetOrCreateAccount(ctx, businessUserID); err != nil {
 		return nil, err
 	}
-	return s.BusinessRepo.ListWorkerListings(ctx, businessUserID)
+	listings, err := s.BusinessRepo.ListWorkerListings(ctx, businessUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[int][]models.BusinessWorkerListingDetails, len(listings))
+	for workerID, items := range listings {
+		for _, listing := range items {
+			details, err := s.buildListingDetails(ctx, businessUserID, listing)
+			if err != nil {
+				return nil, err
+			}
+			result[workerID] = append(result[workerID], details)
+		}
+	}
+	return result, nil
+}
+
+func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserID int, listing models.BusinessWorkerListing) (models.BusinessWorkerListingDetails, error) {
+	details := models.BusinessWorkerListingDetails{
+		BusinessUserID: listing.BusinessUserID,
+		WorkerUserID:   listing.WorkerUserID,
+		ListingType:    listing.ListingType,
+		ListingID:      listing.ListingID,
+	}
+
+	switch listing.ListingType {
+	case "service":
+		service, err := s.ServiceRepo.GetServiceByID(ctx, listing.ListingID, businessUserID)
+		if err != nil {
+			return details, err
+		}
+		details.Images = service.Images
+		details.Videos = service.Videos
+		details.Liked = service.Liked
+		details.Negotiable = service.Negotiable
+		details.Price = service.Price
+		details.PriceTo = service.PriceTo
+		details.CreatedAt = service.CreatedAt
+	case "work":
+		work, err := s.WorkRepo.GetWorkByID(ctx, listing.ListingID, businessUserID)
+		if err != nil {
+			return details, err
+		}
+		details.Images = work.Images
+		details.Videos = work.Videos
+		details.Liked = work.Liked
+		details.Negotiable = work.Negotiable
+		details.Price = work.Price
+		details.PriceTo = work.PriceTo
+		details.CreatedAt = work.CreatedAt
+	case "rent":
+		rent, err := s.RentRepo.GetRentByID(ctx, listing.ListingID, businessUserID)
+		if err != nil {
+			return details, err
+		}
+		details.Images = rent.Images
+		details.Videos = rent.Videos
+		details.Liked = rent.Liked
+		details.Negotiable = rent.Negotiable
+		details.Price = rent.Price
+		details.PriceTo = rent.PriceTo
+		details.CreatedAt = rent.CreatedAt
+	case "ad":
+		ad, err := s.AdRepo.GetAdByID(ctx, listing.ListingID, businessUserID)
+		if err != nil {
+			return details, err
+		}
+		details.Images = ad.Images
+		details.Videos = ad.Videos
+		details.Liked = ad.Liked
+		details.Negotiable = ad.Negotiable
+		details.Price = ad.Price
+		details.PriceTo = ad.PriceTo
+		details.CreatedAt = ad.CreatedAt
+	case "work_ad":
+		workAd, err := s.WorkAdRepo.GetWorkAdByID(ctx, listing.ListingID, businessUserID)
+		if err != nil {
+			return details, err
+		}
+		details.Images = workAd.Images
+		details.Videos = workAd.Videos
+		details.Liked = workAd.Liked
+		details.Negotiable = workAd.Negotiable
+		details.Price = workAd.Price
+		details.PriceTo = workAd.PriceTo
+		details.CreatedAt = workAd.CreatedAt
+	case "rent_ad":
+		rentAd, err := s.RentAdRepo.GetRentAdByID(ctx, listing.ListingID, businessUserID)
+		if err != nil {
+			return details, err
+		}
+		details.Images = rentAd.Images
+		details.Videos = rentAd.Videos
+		details.Liked = rentAd.Liked
+		details.Negotiable = rentAd.Negotiable
+		details.Price = rentAd.Price
+		details.PriceTo = rentAd.PriceTo
+		details.CreatedAt = rentAd.CreatedAt
+	default:
+		details.CreatedAt = listing.CreatedAt
+	}
+	return details, nil
 }
 
 const defaultBusinessSeatDurationDays = 30
