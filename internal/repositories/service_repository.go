@@ -110,7 +110,8 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
                 u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                   CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                   s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
-                  s.work_time_from, s.work_time_to, s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone, s.liked,
+                  s.work_time_from, s.work_time_to, s.description, s.avg_rating, s.top, s.negotiable, s.hide_phone,
+                  CASE WHEN sf.service_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
                   CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
                   s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                FROM service s
@@ -118,6 +119,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
                JOIN categories c ON s.category_id = c.id
                JOIN subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = ?
+               LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
                WHERE s.id = ?
        `
 
@@ -128,7 +130,7 @@ func (r *ServiceRepository) GetServiceByID(ctx context.Context, id int, userID i
 	var price, priceTo sql.NullFloat64
 	var respondedStr string
 
-	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID, &s.CityID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,

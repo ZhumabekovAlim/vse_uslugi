@@ -95,7 +95,8 @@ func (r *WorkAdRepository) CreateWorkAd(ctx context.Context, work models.WorkAd)
 
 func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int) (models.WorkAd, error) {
 	query := `
-     SELECT w.id, w.name, w.address, w.price, w.price_to, w.negotiable, w.hide_phone, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top, w.liked,
+     SELECT w.id, w.name, w.address, w.price, w.price_to, w.negotiable, w.hide_phone, w.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, w.description, w.avg_rating, w.top,
+            CASE WHEN sf.work_ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
 
              CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
 
@@ -106,6 +107,7 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int
        JOIN work_subcategories sub ON w.subcategory_id = sub.id
        JOIN cities city ON u.city_id = city.id
        LEFT JOIN work_ad_responses sr ON sr.work_ad_id = w.id AND sr.user_id = ?
+       LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = w.id AND sf.user_id = ?
        WHERE w.id = ? AND w.status <> 'archive'
 `
 
@@ -117,7 +119,7 @@ func (r *WorkAdRepository) GetWorkAdByID(ctx context.Context, id int, userID int
 
 	var price, priceTo sql.NullFloat64
 
-	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.Description, &s.AvgRating, &s.Top, &s.Liked, &respondedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &s.CreatedAt,
