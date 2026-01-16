@@ -121,7 +121,8 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
  SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, s.city_id,
         u.id, u.name, u.surname, u.review_rating, u.avatar_path,
           s.images, s.videos, s.category_id, c.name, s.subcategory_id, sub.name, sub.name_kz,
-          s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top, s.liked,
+          s.description, s.work_time_from, s.work_time_to, s.avg_rating, s.top,
+          CASE WHEN sf.ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
           CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
           s.latitude, s.longitude, s.order_date, s.order_time, s.status, s.created_at, s.updated_at
    FROM ad s
@@ -129,6 +130,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
    JOIN categories c ON s.category_id = c.id
    JOIN subcategories sub ON s.subcategory_id = sub.id
    LEFT JOIN ad_responses sr ON sr.ad_id = s.id AND sr.user_id = ?
+   LEFT JOIN ad_favorites sf ON sf.ad_id = s.id AND sf.user_id = ?
    WHERE s.id = ? AND s.status <> 'archive'
 `
 
@@ -140,7 +142,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	var respondedStr string
 	var price, priceTo sql.NullFloat64
 
-	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.CityID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 

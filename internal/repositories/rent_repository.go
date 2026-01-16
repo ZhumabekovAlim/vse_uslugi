@@ -108,7 +108,8 @@ VALUES (
 
 func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (models.Rent, error) {
 	query := `
-             SELECT w.id, w.name, w.address, w.price, w.price_to, w.user_id, w.city_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, sub.name_kz, w.work_time_from, w.work_time_to, w.description, w.condition, w.delivery, w.avg_rating, w.top, w.negotiable, w.hide_phone, w.liked,
+             SELECT w.id, w.name, w.address, w.price, w.price_to, w.user_id, w.city_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, sub.name_kz, w.work_time_from, w.work_time_to, w.description, w.condition, w.delivery, w.avg_rating, w.top, w.negotiable, w.hide_phone,
+                    CASE WHEN sf.rent_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
 
                       CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
 
@@ -118,6 +119,7 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
                 JOIN rent_categories c ON w.category_id = c.id
                 JOIN rent_subcategories sub ON w.subcategory_id = sub.id
                 LEFT JOIN rent_responses sr ON sr.rent_id = w.id AND sr.user_id = ?
+                LEFT JOIN rent_favorites sf ON sf.rent_id = w.id AND sf.user_id = ?
                 WHERE w.id = ?
        `
 
@@ -130,7 +132,7 @@ func (r *RentRepository) GetRentByID(ctx context.Context, id int, userID int) (m
 	var condition sql.NullString
 	var delivery sql.NullBool
 
-	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.UserID, &s.CityID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName, &s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Description, &condition, &delivery, &s.AvgRating, &s.Top, &s.Negotiable, &s.HidePhone, &s.Liked, &respondedStr, &s.Status, &s.RentType, &s.Deposit, &lat, &lon, &s.CreatedAt,

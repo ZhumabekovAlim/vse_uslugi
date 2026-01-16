@@ -93,7 +93,8 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
 	query := `
   SELECT w.id, w.name, w.address, w.price, w.price_to, w.negotiable, w.user_id,
          u.id, u.name, u.surname, u.review_rating, u.avatar_path,
-            w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, sub.name_kz, w.description, w.avg_rating, w.top, w.liked,
+            w.images, w.videos, w.category_id, c.name, w.subcategory_id, sub.name, sub.name_kz, w.description, w.avg_rating, w.top,
+            CASE WHEN sf.work_id IS NOT NULL THEN '1' ELSE '0' END AS liked,
             CASE WHEN sr.id IS NOT NULL THEN '1' ELSE '0' END AS responded,
             w.status, w.work_experience, u.city_id, city.name, city.type, w.schedule, w.distance_work, w.payment_period, w.languages, w.education, w.work_time_from, w.work_time_to, w.latitude, w.longitude, w.hide_phone, w.created_at, w.updated_at
       FROM work w
@@ -102,6 +103,7 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
       JOIN work_subcategories sub ON w.subcategory_id = sub.id
       JOIN cities city ON u.city_id = city.id
       LEFT JOIN work_responses sr ON sr.work_id = w.id AND sr.user_id = ?
+      LEFT JOIN work_favorites sf ON sf.work_id = w.id AND sf.user_id = ?
       WHERE w.id = ?
 `
 
@@ -114,7 +116,7 @@ func (r *WorkRepository) GetWorkByID(ctx context.Context, id int, userID int) (m
 	var negotiable bool
 	var hidePhone bool
 
-	err := r.DB.QueryRowContext(ctx, query, userID, id).Scan(
+	err := r.DB.QueryRowContext(ctx, query, userID, userID, id).Scan(
 		&s.ID, &s.Name, &s.Address, &price, &priceTo, &negotiable, &s.UserID,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
