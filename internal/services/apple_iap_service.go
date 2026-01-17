@@ -212,6 +212,7 @@ func (s *AppleIAPService) fetchSignedTransaction(ctx context.Context, transactio
 	if err != nil {
 		return "", err
 	}
+	log.Printf("[APPLE IAP] jwt len=%d head=%.20s", len(token), token)
 
 	base := appStoreProdBase
 	if env == "sandbox" {
