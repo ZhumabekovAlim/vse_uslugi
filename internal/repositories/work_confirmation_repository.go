@@ -66,6 +66,9 @@ func (r *WorkConfirmationRepository) Cancel(ctx context.Context, workID, userID 
 	if _, err := tx.ExecContext(ctx, `UPDATE work SET status = 'active', updated_at = ? WHERE id = ?`, now, workID); err != nil {
 		return err
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM chats WHERE id IN (SELECT chat_id FROM work_confirmations WHERE work_id = ?)`, workID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 

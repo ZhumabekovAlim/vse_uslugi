@@ -75,6 +75,9 @@ func (r *ServiceConfirmationRepository) Cancel(ctx context.Context, serviceID, u
 	if _, err := tx.ExecContext(ctx, `UPDATE service SET status = 'active', updated_at = ? WHERE id = ?`, now, serviceID); err != nil {
 		return err
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM chats WHERE id IN (SELECT chat_id FROM service_confirmations WHERE service_id = ?)`, serviceID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 

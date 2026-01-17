@@ -69,6 +69,9 @@ func (r *AdConfirmationRepository) Cancel(ctx context.Context, adID, userID int)
 	if _, err := tx.ExecContext(ctx, `UPDATE ad_confirmations SET confirmed = false, status = 'archived', updated_at = ? WHERE ad_id = ? AND client_id = ? AND performer_id = ?`, now, adID, clientID, performerID); err != nil {
 		return err
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM chats WHERE id IN (SELECT chat_id FROM ad_confirmations WHERE ad_id = ?)`, adID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
