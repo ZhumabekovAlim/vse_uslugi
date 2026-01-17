@@ -281,26 +281,27 @@ func (s *AppleIAPService) verifyJWS(ctx context.Context, token string) ([]byte, 
 
 	sig := jws.Signatures[0]
 
-	// 1) x5c путь — пробуем, но НЕ фейлим навсегда
-	if payload, err := s.verifyWithX5C(jws, sig.Header); err == nil {
+	// 1) Пытаемся проверить через x5c (это основной путь для signedTransactionInfo)
+	if payload, x5cErr := s.verifyWithX5C(jws, sig.Header); x5cErr == nil {
+		return payload, nil
+	} else {
+		// Если kid пустой — JWKS не применим, возвращаем реальную причину (ошибку x5c)
+		kid := strings.TrimSpace(sig.Header.KeyID)
+		if kid == "" {
+			return nil, fmt.Errorf("apple jws x5c verify failed (kid is missing, jwks fallback not possible): %w", x5cErr)
+		}
+
+		// 2) Если kid есть — пробуем JWKS fallback
+		key, err := s.lookupKey(ctx, kid)
+		if err != nil {
+			return nil, err
+		}
+		payload, err := jws.Verify(&key)
+		if err != nil {
+			return nil, err
+		}
 		return payload, nil
 	}
-
-	// 2) fallback JWKS всегда (если не получилось через x5c)
-	kid := sig.Header.KeyID
-	if strings.TrimSpace(kid) == "" {
-		return nil, errors.New("missing kid")
-	}
-	key, err := s.lookupKey(ctx, kid)
-	if err != nil {
-		return nil, err
-	}
-
-	payload, err := jws.Verify(&key)
-	if err != nil {
-		return nil, err
-	}
-	return payload, nil
 }
 
 func (s *AppleIAPService) verifyWithX5C(jws *jose.JSONWebSignature, header jose.Header) ([]byte, error) {
@@ -309,15 +310,10 @@ func (s *AppleIAPService) verifyWithX5C(jws *jose.JSONWebSignature, header jose.
 		return nil, err
 	}
 
-	// Достаём цепочку сертификатов из x5c
-	certs := header.ExtraHeaders["x5c"]
-	_ = certs // просто чтобы не ругался компилятор если не нужно
-
-	// В go-jose v4 есть header.Certificates(opts), оно само парсит x5c.
-	// Но мы делаем VerifyOptions без KeyUsages.
 	opts := x509.VerifyOptions{
 		Roots:       roots,
 		CurrentTime: time.Now(),
+		// KeyUsages НЕ ставим — это часто ломает цепочку у Apple
 	}
 
 	chains, err := header.Certificates(opts)
@@ -393,14 +389,12 @@ func DecodeCompactJWS(token string) ([]byte, error) {
 }
 
 func appleRootCertPool() (*x509.CertPool, error) {
-	// Берём системные корни (в твоём Ubuntu они есть)
 	pool, err := x509.SystemCertPool()
 	if err != nil || pool == nil {
 		pool = x509.NewCertPool()
 	}
 
-	// На всякий добавляем Apple root (не обязательно, но можно)
-	// ВАЖНО: не парсим вручную, а AppendCertsFromPEM
+	// Опционально можно добавить твой PEM, но НЕ обязательно
 	_ = pool.AppendCertsFromPEM(appleRootCAG3PEM)
 
 	return pool, nil
