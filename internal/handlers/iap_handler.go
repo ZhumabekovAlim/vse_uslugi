@@ -363,9 +363,14 @@ func (h *IAPHandler) resolveTarget(productID string) (models.IAPTarget, error) {
 	if !ok {
 		return models.IAPTarget{}, fmt.Errorf("unsupported product id: %s", productID)
 	}
-	if err := target.Validate(); err != nil {
-		return models.IAPTarget{}, err
+
+	// ✅ ВАЖНО: не валидируем TOP тут, потому что id/listing_type придут от клиента
+	if target.Type != models.IAPTargetTypeTop {
+		if err := target.Validate(); err != nil {
+			return models.IAPTarget{}, err
+		}
 	}
+
 	return target, nil
 }
 
