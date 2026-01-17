@@ -444,7 +444,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 			BundleID:    getEnv("APPLE_IAP_BUNDLE_ID", ""),
 			KeyID:       getEnv("APPLE_IAP_KEY_ID", ""),
 			PrivateKey:  iapPrivateKey,
-			Environment: getEnv("APPLE_IAP_ENVIRONMENT", "production"),
+			Environment: getEnv("APPLE_IAP_ENVIRONMENT", "sandbox"),
 		}
 
 		// 🔎 DEBUG: проверить, что реально загрузилось
