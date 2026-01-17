@@ -123,11 +123,11 @@ func (s *AppleIAPService) VerifyTransaction(ctx context.Context, transactionID s
 		return models.AppleTransaction{}, fmt.Errorf("transaction_id is required")
 	}
 	envs := []string{s.defaultEnv}
-	if s.defaultEnv == "production" {
-		envs = append(envs, "sandbox")
-	} else {
-		envs = append(envs, "production")
-	}
+	//if s.defaultEnv == "production" {
+	//	envs = append(envs, "sandbox")
+	//} else {
+	//	envs = append(envs, "production")
+	//}
 
 	var lastErr error
 	for _, env := range envs {
@@ -138,6 +138,7 @@ func (s *AppleIAPService) VerifyTransaction(ctx context.Context, transactionID s
 		}
 		txn, err := s.DecodeSignedTransaction(ctx, signed)
 		if err != nil {
+			log.Printf("[APPLE IAP] decode failed env=%s err=%v", env, err)
 			lastErr = err
 			continue
 		}
@@ -313,7 +314,7 @@ func (s *AppleIAPService) verifyWithX5C(jws *jose.JSONWebSignature, header jose.
 	opts := x509.VerifyOptions{
 		Roots:       roots,
 		CurrentTime: time.Now(),
-		KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning},
+		KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
 	}
 	chains, err := header.Certificates(opts)
 	if err != nil {
