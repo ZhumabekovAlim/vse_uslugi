@@ -419,6 +419,17 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	// Apple IAP
 	var iapService *services.AppleIAPService
 	iapPrivateKey := strings.TrimSpace(os.Getenv("APPLE_IAP_PRIVATE_KEY"))
+
+	// ✅ НОВОЕ: если задан путь к файлу — читаем ключ из файла
+	if keyPath := strings.TrimSpace(os.Getenv("APPLE_IAP_PRIVATE_KEY_PATH")); keyPath != "" {
+		data, err := os.ReadFile(keyPath)
+		if err != nil {
+			errorLog.Printf("read APPLE_IAP_PRIVATE_KEY_PATH failed: %v", err)
+		} else {
+			iapPrivateKey = string(data)
+		}
+	}
+
 	iapPrivateKey = strings.ReplaceAll(iapPrivateKey, `\n`, "\n")
 	iapPrivateKey = strings.ReplaceAll(iapPrivateKey, "\r\n", "\n")
 	iapPrivateKey = strings.ReplaceAll(iapPrivateKey, "\r", "\n")

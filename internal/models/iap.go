@@ -1,6 +1,10 @@
 package models
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
 
 const (
 	IAPTargetTypeSubscription = "subscription"
@@ -25,39 +29,56 @@ type IAPTarget struct {
 
 // Validate checks required fields for each target type.
 func (t IAPTarget) Validate() error {
-	switch t.Type {
+	tt := strings.TrimSpace(strings.ToLower(t.Type))
+	if tt == "" {
+		return errors.New("type is required")
+	}
+
+	switch tt {
 	case IAPTargetTypeSubscription:
-		if _, err := ParseSubscriptionType(t.SubscriptionType); err != nil {
-			return fmt.Errorf("subscription_type: %w", err)
+		if strings.TrimSpace(t.SubscriptionType) == "" {
+			return errors.New("subscription_type is required")
 		}
 		if t.Months <= 0 {
-			return fmt.Errorf("months must be positive")
+			return errors.New("months must be positive")
 		}
+		return nil
+
 	case IAPTargetTypeResponses:
-		if t.Quantity < 0 {
-			return fmt.Errorf("quantity must be non-negative")
+		if t.Quantity <= 0 {
+			return errors.New("quantity must be positive")
 		}
+		return nil
+
 	case IAPTargetTypeTop:
-		if t.ID <= 0 {
-			return fmt.Errorf("id must be positive")
-		}
+		// ВНИМАНИЕ:
+		// duration_days — обязателен ВСЕГДА (сервер)
+		// listing_type + id — могут прийти позже (клиент), поэтому делаем “мягко”:
 		if t.DurationDays <= 0 {
-			return fmt.Errorf("duration_days must be positive")
+			return errors.New("duration_days must be positive")
 		}
-		if _, ok := AllowedTopTypes()[t.ListingType]; !ok {
-			return fmt.Errorf("invalid listing_type: %s", t.ListingType)
+		// listing_type/id валидируем только если они уже заданы
+		if strings.TrimSpace(t.ListingType) != "" || t.ID != 0 {
+			if strings.TrimSpace(t.ListingType) == "" {
+				return errors.New("listing_type is required")
+			}
+			if t.ID <= 0 {
+				return errors.New("id must be positive")
+			}
 		}
+		return nil
+
 	case IAPTargetTypeBusiness:
 		if t.Seats <= 0 {
-			return fmt.Errorf("seats must be positive")
+			return errors.New("seats must be positive")
 		}
-		if t.DurationDays <= 0 {
-			return fmt.Errorf("duration_days must be positive")
-		}
+		// ❗ duration_days тут НЕ нужен
+		// months тут НЕ нужен (если ты его не используешь)
+		return nil
+
 	default:
-		return fmt.Errorf("unsupported target type: %s", t.Type)
+		return fmt.Errorf("unsupported type: %s", tt)
 	}
-	return nil
 }
 
 // AppleTransaction contains decoded transaction fields from Apple's JWS payload.
