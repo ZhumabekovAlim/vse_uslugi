@@ -62,7 +62,7 @@ func (r *AdConfirmationRepository) Cancel(ctx context.Context, adID, userID int)
 	defer tx.Rollback()
 
 	var clientID, performerID int
-	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM ad_confirmations WHERE ad_id = ? AND confirmed = true`, adID).Scan(&clientID, &performerID); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM ad_confirmations WHERE ad_id = ?`, adID).Scan(&clientID, &performerID); err != nil {
 		return err
 	}
 	now := time.Now()
