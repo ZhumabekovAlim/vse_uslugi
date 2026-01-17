@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"naimuBack/internal/repositories"
 )
 
@@ -17,6 +18,7 @@ func (s *AdConfirmationService) ConfirmAd(ctx context.Context, adID, performerID
 
 func (s *AdConfirmationService) CancelAd(ctx context.Context, adID, userID int) error {
 	status, err := s.AdRepo.GetStatus(ctx, adID)
+	fmt.Println("status: ", status)
 	if err != nil {
 		return err
 	}
@@ -25,6 +27,7 @@ func (s *AdConfirmationService) CancelAd(ctx context.Context, adID, userID int) 
 	}
 	if status == "active" && s.SubscriptionRepo != nil {
 		performerIDs, err := s.ConfirmationRepo.GetPerformerIDs(ctx, adID)
+		fmt.Println("performerids: ", performerIDs)
 		if err != nil {
 			return err
 		}
