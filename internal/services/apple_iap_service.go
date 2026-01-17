@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -376,8 +377,9 @@ func (s *AppleIAPService) fetchJWKS(ctx context.Context) (*jose.JSONWebKeySet, e
 // It is unused in production logic but handy when troubleshooting.
 func DecodeCompactJWS(token string) ([]byte, error) {
 	parts := strings.Split(token, ".")
-	if len(parts) < 3 {
-		return nil, errors.New("invalid jws format")
+	if len(parts) == 3 {
+		log.Println("[APPLE IAP] jwt header b64:", parts[0])
+		log.Println("[APPLE IAP] jwt payload b64:", parts[1])
 	}
 	return base64.RawStdEncoding.DecodeString(parts[1])
 }
