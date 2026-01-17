@@ -66,6 +66,9 @@ func (r *RentConfirmationRepository) Cancel(ctx context.Context, rentID, userID 
 	if _, err := tx.ExecContext(ctx, `UPDATE rent SET status = 'active', updated_at = ? WHERE id = ?`, now, rentID); err != nil {
 		return err
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM chats WHERE id IN (SELECT chat_id FROM rent_confirmations WHERE rent_id = ?)`, rentID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
