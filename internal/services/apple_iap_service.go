@@ -304,21 +304,55 @@ func (s *AppleIAPService) verifyJWS(ctx context.Context, token string) ([]byte, 
 	}
 }
 
+// 1) лучше всегда пытаться брать системные корни + добавить Apple Root CA - G3
+func appleTrustPool() (*x509.CertPool, error) {
+	pool, err := x509.SystemCertPool()
+	if pool == nil {
+		pool = x509.NewCertPool()
+	}
+
+	// Опционально (но удобно для надежности):
+	// Добавляем Apple Root CA - G3 явно.
+	// ВАЖНО: PEM должен быть корректный, иначе будет malformed certificate.
+	//
+	// Если ты уже добавил его через update-ca-certificates,
+	// можно вообще НЕ добавлять здесь.
+
+	if ok := pool.AppendCertsFromPEM([]byte(appleRootCAG3PEM)); !ok {
+		// Если здесь false — значит PEM не распарсился (битый формат)
+		return nil, errors.New("apple root ca: append pem failed")
+	}
+
+	return pool, err
+}
+
 func (s *AppleIAPService) verifyWithX5C(jws *jose.JSONWebSignature, header jose.Header) ([]byte, error) {
-	roots, err := appleRootCertPool()
+	roots, err := appleTrustPool()
 	if err != nil {
 		return nil, err
 	}
+
+	// ВАЖНО:
+	// Certificates(opts) в твоей версии:
+	// - парсит x5c
+	// - строит Verify цепочки используя Roots/Intermediates
+	// - вернет chains [][]*x509.Certificate
+	//
+	// Если Roots пустые/не те -> "unknown authority"
+	// Если PEM битый -> "malformed certificate"
 
 	opts := x509.VerifyOptions{
 		Roots:       roots,
 		CurrentTime: time.Now(),
-		// KeyUsages НЕ ставим — это часто ломает цепочку у Apple
+		// Для Apple signedTransactionInfo обычно подходит CodeSigning.
+		// Если будет ругаться на EKU — можно временно убрать KeyUsages.
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning},
 	}
 
 	chains, err := header.Certificates(opts)
 	if err != nil {
-		return nil, err
+		// В твоих логах было: kid missing => fallback невозможен
+		return nil, fmt.Errorf("apple jws x5c verify failed (kid is missing, jwks fallback not possible): %w", err)
 	}
 	if len(chains) == 0 || len(chains[0]) == 0 {
 		return nil, errors.New("apple jws: empty certificate chain")
