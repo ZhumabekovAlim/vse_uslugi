@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -314,7 +313,6 @@ func (s *AppleIAPService) verifyWithX5C(jws *jose.JSONWebSignature, header jose.
 	opts := x509.VerifyOptions{
 		Roots:       roots,
 		CurrentTime: time.Now(),
-		KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
 	}
 	chains, err := header.Certificates(opts)
 	if err != nil {
@@ -387,20 +385,10 @@ func DecodeCompactJWS(token string) ([]byte, error) {
 }
 
 func appleRootCertPool() (*x509.CertPool, error) {
-	appleRootOnce.Do(func() {
-		block, _ := pem.Decode(appleRootCAG3PEM)
-		if block == nil {
-			appleRootErr = errors.New("apple root ca: decode failed")
-			return
-		}
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			appleRootErr = fmt.Errorf("apple root ca: parse: %w", err)
-			return
-		}
-		pool := x509.NewCertPool()
-		pool.AddCert(cert)
-		appleRootPool = pool
-	})
-	return appleRootPool, appleRootErr
+	pool, err := x509.SystemCertPool()
+	if err != nil || pool == nil {
+		// fallback если SystemCertPool недоступен
+		pool = x509.NewCertPool()
+	}
+	return pool, nil
 }
