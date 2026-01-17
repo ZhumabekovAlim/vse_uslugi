@@ -17,6 +17,7 @@ func (s *AdConfirmationService) ConfirmAd(ctx context.Context, adID, performerID
 }
 
 func (s *AdConfirmationService) CancelAd(ctx context.Context, adID, userID int) error {
+	fmt.Println(adID, userID)
 	status, err := s.AdRepo.GetStatus(ctx, adID)
 	fmt.Println("status: ", status)
 	if err != nil {
