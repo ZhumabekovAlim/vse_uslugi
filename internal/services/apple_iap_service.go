@@ -271,28 +271,26 @@ func (s *AppleIAPService) verifyJWS(ctx context.Context, token string) ([]byte, 
 		return nil, errors.New("empty signed payload")
 	}
 
-	jws, err := jose.ParseSigned(token, []jose.SignatureAlgorithm{
-		jose.ES256,
-	})
+	jws, err := jose.ParseSigned(token, []jose.SignatureAlgorithm{jose.ES256})
 	if err != nil {
 		return nil, err
 	}
-
 	if len(jws.Signatures) == 0 {
 		return nil, errors.New("missing signature")
 	}
 
 	sig := jws.Signatures[0]
 
-	// 1️⃣ Пытаемся проверить через x5c (Apple Server Notifications)
+	// 1) x5c путь — пробуем, но НЕ фейлим навсегда
 	if payload, err := s.verifyWithX5C(jws, sig.Header); err == nil {
 		return payload, nil
-	} else if !errors.Is(err, jose.ErrMissingX5cHeader) {
-		return nil, err
 	}
 
-	// 2️⃣ Fallback: проверка через App Store Server API key
+	// 2) fallback JWKS всегда (если не получилось через x5c)
 	kid := sig.Header.KeyID
+	if strings.TrimSpace(kid) == "" {
+		return nil, errors.New("missing kid")
+	}
 	key, err := s.lookupKey(ctx, kid)
 	if err != nil {
 		return nil, err
@@ -310,10 +308,18 @@ func (s *AppleIAPService) verifyWithX5C(jws *jose.JSONWebSignature, header jose.
 	if err != nil {
 		return nil, err
 	}
+
+	// Достаём цепочку сертификатов из x5c
+	certs := header.ExtraHeaders["x5c"]
+	_ = certs // просто чтобы не ругался компилятор если не нужно
+
+	// В go-jose v4 есть header.Certificates(opts), оно само парсит x5c.
+	// Но мы делаем VerifyOptions без KeyUsages.
 	opts := x509.VerifyOptions{
 		Roots:       roots,
 		CurrentTime: time.Now(),
 	}
+
 	chains, err := header.Certificates(opts)
 	if err != nil {
 		return nil, err
@@ -321,10 +327,12 @@ func (s *AppleIAPService) verifyWithX5C(jws *jose.JSONWebSignature, header jose.
 	if len(chains) == 0 || len(chains[0]) == 0 {
 		return nil, errors.New("apple jws: empty certificate chain")
 	}
+
 	leaf := chains[0][0]
 	if leaf.PublicKey == nil {
 		return nil, errors.New("apple jws: certificate missing public key")
 	}
+
 	return jws.Verify(leaf.PublicKey)
 }
 
@@ -385,10 +393,15 @@ func DecodeCompactJWS(token string) ([]byte, error) {
 }
 
 func appleRootCertPool() (*x509.CertPool, error) {
+	// Берём системные корни (в твоём Ubuntu они есть)
 	pool, err := x509.SystemCertPool()
 	if err != nil || pool == nil {
-		// fallback если SystemCertPool недоступен
 		pool = x509.NewCertPool()
 	}
+
+	// На всякий добавляем Apple root (не обязательно, но можно)
+	// ВАЖНО: не парсим вручную, а AppendCertsFromPEM
+	_ = pool.AppendCertsFromPEM(appleRootCAG3PEM)
+
 	return pool, nil
 }
