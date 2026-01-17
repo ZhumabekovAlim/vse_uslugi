@@ -24,6 +24,7 @@ func (s *AdConfirmationService) CancelAd(ctx context.Context, adID, userID int) 
 		return err
 	}
 	if err := s.ConfirmationRepo.Cancel(ctx, adID, userID); err != nil {
+		fmt.Println("1 ", err)
 		return err
 	}
 	if status == "active" && s.SubscriptionRepo != nil {
@@ -34,6 +35,7 @@ func (s *AdConfirmationService) CancelAd(ctx context.Context, adID, userID int) 
 		}
 		for _, performerID := range performerIDs {
 			if err := s.SubscriptionRepo.RestoreResponse(ctx, performerID); err != nil {
+				fmt.Println("2 ", err)
 				return err
 			}
 		}
