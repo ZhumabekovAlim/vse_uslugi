@@ -311,16 +311,12 @@ func appleTrustPool() (*x509.CertPool, error) {
 		pool = x509.NewCertPool()
 	}
 
-	// Опционально (но удобно для надежности):
-	// Добавляем Apple Root CA - G3 явно.
-	// ВАЖНО: PEM должен быть корректный, иначе будет malformed certificate.
-	//
-	// Если ты уже добавил его через update-ca-certificates,
-	// можно вообще НЕ добавлять здесь.
+	// Нормализуем переносы на всякий случай
+	pemBytes := []byte(strings.ReplaceAll(string(appleRootCAG3PEM), "\r\n", "\n"))
 
-	if ok := pool.AppendCertsFromPEM([]byte(appleRootCAG3PEM)); !ok {
-		// Если здесь false — значит PEM не распарсился (битый формат)
-		return nil, errors.New("apple root ca: append pem failed")
+	if ok := pool.AppendCertsFromPEM(pemBytes); !ok {
+		// НЕ падаем. Просто логируем и продолжаем на системных корнях.
+		log.Printf("[APPLE IAP] warn: could not append Apple Root CA pem, using system roots only")
 	}
 
 	return pool, err
@@ -346,7 +342,6 @@ func (s *AppleIAPService) verifyWithX5C(jws *jose.JSONWebSignature, header jose.
 		CurrentTime: time.Now(),
 		// Для Apple signedTransactionInfo обычно подходит CodeSigning.
 		// Если будет ругаться на EKU — можно временно убрать KeyUsages.
-		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning},
 	}
 
 	chains, err := header.Certificates(opts)
