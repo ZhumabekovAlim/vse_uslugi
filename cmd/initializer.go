@@ -651,10 +651,20 @@ func parseIAPProductTargets(raw string) (map[string]models.IAPTarget, error) {
 		return nil, fmt.Errorf("parse json: %w", err)
 	}
 	for productID, target := range targets {
+		// TOP пропускаем — listing_type/id добавит клиент
+		if target.Type == models.IAPTargetTypeTop {
+			// но duration_days должен быть > 0 — это можно проверить вручную
+			if target.DurationDays <= 0 {
+				return nil, fmt.Errorf("product %s: duration_days must be positive", productID)
+			}
+			continue
+		}
+
 		if err := target.Validate(); err != nil {
 			return nil, fmt.Errorf("product %s: %w", productID, err)
 		}
 	}
+
 	return targets, nil
 }
 
