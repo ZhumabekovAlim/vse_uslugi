@@ -62,7 +62,7 @@ func (r *ServiceConfirmationRepository) Cancel(ctx context.Context, serviceID, u
 	defer tx.Rollback()
 
 	var clientID, performerID int
-	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM service_confirmations WHERE service_id = ? AND confirmed = true`, serviceID).Scan(&clientID, &performerID); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM service_confirmations WHERE service_id = ?`, serviceID).Scan(&clientID, &performerID); err != nil {
 		if err == sql.ErrNoRows {
 			return ErrServiceConfirmationNotFound
 		}

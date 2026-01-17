@@ -79,32 +79,32 @@ SELECT id, name, price, description, created_at, status, type FROM (
 SELECT s.id, s.name, s.price, s.description, sc.created_at, sc.status, 'service' AS type
 FROM service_confirmations sc
 JOIN service s ON s.id = sc.service_id
-WHERE (sc.performer_id = ? OR sc.client_id = ?) AND sc.status IN ('active', 'archived')
+WHERE (sc.performer_id = ? OR sc.client_id = ?) AND sc.status IN ('in_progress', 'archived', 'done')
         UNION ALL
 SELECT w.id, w.name, w.price, w.description, wc.created_at, wc.status, 'work' AS type
 FROM work_confirmations wc
 JOIN work w ON w.id = wc.work_id
-WHERE (wc.performer_id = ? OR wc.client_id = ?) AND wc.status IN ('active', 'archived')
+WHERE (wc.performer_id = ? OR wc.client_id = ?) AND wc.status IN ('in_progress', 'archived', 'done')
         UNION ALL
 SELECT r.id, r.name, r.price, r.description, rc.created_at, rc.status, 'rent' AS type
 FROM rent_confirmations rc
 JOIN rent r ON r.id = rc.rent_id
-WHERE (rc.performer_id = ? OR rc.client_id = ?) AND rc.status IN ('active', 'archived')
+WHERE (rc.performer_id = ? OR rc.client_id = ?) AND rc.status IN ('in_progress', 'archived', 'done')
         UNION ALL
 SELECT a.id, a.name, a.price, a.description, ac.created_at, ac.status, 'ad' AS type
 FROM ad_confirmations ac
 JOIN ad a ON a.id = ac.ad_id
-WHERE (ac.performer_id = ? OR ac.client_id = ?) AND ac.status IN ('active', 'archived')
+WHERE (ac.performer_id = ? OR ac.client_id = ?) AND ac.status IN ('in_progress', 'archived', 'done')
         UNION ALL
 SELECT wa.id, wa.name, wa.price, wa.description, wac.created_at, wac.status, 'work_ad' AS type
 FROM work_ad_confirmations wac
 JOIN work_ad wa ON wa.id = wac.work_ad_id
-WHERE (wac.performer_id = ? OR wac.client_id = ?) AND wac.status IN ('active', 'archived')
+WHERE (wac.performer_id = ? OR wac.client_id = ?) AND wac.status IN ('in_progress', 'archived', 'done')
         UNION ALL
 SELECT ra.id, ra.name, ra.price, ra.description, rac.created_at, rac.status, 'rent_ad' AS type
 FROM rent_ad_confirmations rac
 JOIN rent_ad ra ON ra.id = rac.rent_ad_id
-WHERE (rac.performer_id = ? OR rac.client_id = ?) AND rac.status IN ('active', 'archived')
+WHERE (rac.performer_id = ? OR rac.client_id = ?) AND rac.status IN ('in_progress', 'archived', 'done')
     ) AS combined
     ORDER BY created_at DESC`
 	rows, err := r.DB.QueryContext(ctx, query,

@@ -56,7 +56,7 @@ func (r *RentConfirmationRepository) Cancel(ctx context.Context, rentID, userID 
 	defer tx.Rollback()
 
 	var clientID, performerID int
-	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM rent_confirmations WHERE rent_id = ? AND confirmed = true`, rentID).Scan(&clientID, &performerID); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT client_id, performer_id FROM rent_confirmations WHERE rent_id = ?`, rentID).Scan(&clientID, &performerID); err != nil {
 		return err
 	}
 	now := time.Now()
