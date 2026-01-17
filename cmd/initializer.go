@@ -424,7 +424,8 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	iapPrivateKey = strings.ReplaceAll(iapPrivateKey, "\r", "\n")
 	iapProductTargets, err := parseIAPProductTargets(os.Getenv("APPLE_IAP_PRODUCTS"))
 	if err != nil {
-		errorLog.Printf("apple iap products: %v", err)
+		errorLog.Printf("apple iap "+
+			"products: %v", err)
 	}
 	if iapPrivateKey != "" {
 		iapCfg := services.AppleIAPConfig{
@@ -434,6 +435,14 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 			PrivateKey:  iapPrivateKey,
 			Environment: getEnv("APPLE_IAP_ENVIRONMENT", "production"),
 		}
+
+		// 🔎 DEBUG: проверить, что реально загрузилось
+		log.Println("[APPLE IAP] issuer:", iapCfg.IssuerID)
+		log.Println("[APPLE IAP] keyID:", iapCfg.KeyID)
+		log.Println("[APPLE IAP] bundle:", iapCfg.BundleID)
+		log.Println("[APPLE IAP] env:", iapCfg.Environment)
+		log.Println("[APPLE IAP] privateKey len:", len(iapCfg.PrivateKey))
+
 		if s, err := services.NewAppleIAPService(iapCfg); err != nil {
 			errorLog.Printf("apple iap init: %v", err)
 		} else {
