@@ -97,7 +97,8 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 		userID, req.ProductID, serverTarget.Type, isSub, len(req.PurchaseToken))
 
 	if isSub {
-		purchase, err = h.Service.VerifySubscriptionPurchase(ctx, req.ProductID, req.PurchaseToken)
+		purchase, err = h.Service.VerifySubscriptionPurchaseV2(ctx, req.PurchaseToken)
+		purchase.ProductID = req.ProductID // чтобы сохранить sku в записи
 	} else {
 		purchase, err = h.Service.VerifyProductPurchase(ctx, req.ProductID, req.PurchaseToken)
 	}
