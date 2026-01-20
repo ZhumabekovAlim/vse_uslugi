@@ -86,18 +86,18 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 	// 2) verify в Google
 	ctx := r.Context()
 	var purchase models.GooglePurchase
-	if serverTarget.Type == models.IAPTargetTypeSubscription {
+
+	isSub := serverTarget.Type == models.IAPTargetTypeSubscription ||
+		serverTarget.Type == models.IAPTargetTypeBusiness // <-- ВАЖНО
+
+	if isSub {
 		purchase, err = h.Service.VerifySubscriptionPurchase(ctx, req.ProductID, req.PurchaseToken)
 	} else {
 		purchase, err = h.Service.VerifyProductPurchase(ctx, req.ProductID, req.PurchaseToken)
 	}
-	if err != nil {
-		http.Error(w, "google verify: "+err.Error(), http.StatusBadGateway)
-		return
-	}
 
 	// 0 = purchased
-	if serverTarget.Type == models.IAPTargetTypeSubscription {
+	if isSub {
 		// разрешаем ACTIVE и CANCELED (если период еще не истек => PurchaseState == 0)
 		if purchase.PurchaseState != 0 {
 			http.Error(w, "subscription is not active", http.StatusBadRequest)
@@ -149,12 +149,21 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 	// subscriptions => acknowledge
 	// responses (consumable) => consume
 	// other products => acknowledge
-	if serverTarget.Type == models.IAPTargetTypeSubscription {
-		swallowIapErr(h.Service.AcknowledgeSubscription(ctx, req.ProductID, req.PurchaseToken))
-	} else if serverTarget.Type == models.IAPTargetTypeResponses {
-		swallowIapErr(h.Service.ConsumeProduct(ctx, req.ProductID, req.PurchaseToken))
+	if isSub {
+		// разрешаем ACTIVE и CANCELED (если период еще не истек => PurchaseState == 0)
+		if purchase.PurchaseState != 0 {
+			http.Error(w, "subscription is not active", http.StatusBadRequest)
+			return
+		}
+		if purchase.Status == "PENDING" {
+			http.Error(w, "subscription payment is pending", http.StatusBadRequest)
+			return
+		}
 	} else {
-		swallowIapErr(h.Service.AcknowledgeProduct(ctx, req.ProductID, req.PurchaseToken))
+		if purchase.PurchaseState != 0 {
+			http.Error(w, "purchase is not completed", http.StatusBadRequest)
+			return
+		}
 	}
 
 	resp := map[string]any{
