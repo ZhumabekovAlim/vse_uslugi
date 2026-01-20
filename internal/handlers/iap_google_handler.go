@@ -97,9 +97,21 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 	}
 
 	// 0 = purchased
-	if purchase.PurchaseState != 0 {
-		http.Error(w, "purchase is not completed", http.StatusBadRequest)
-		return
+	if serverTarget.Type == models.IAPTargetTypeSubscription {
+		// разрешаем ACTIVE и CANCELED (если период еще не истек => PurchaseState == 0)
+		if purchase.PurchaseState != 0 {
+			http.Error(w, "subscription is not active", http.StatusBadRequest)
+			return
+		}
+		if purchase.Status == "PENDING" {
+			http.Error(w, "subscription payment is pending", http.StatusBadRequest)
+			return
+		}
+	} else {
+		if purchase.PurchaseState != 0 {
+			http.Error(w, "purchase is not completed", http.StatusBadRequest)
+			return
+		}
 	}
 
 	// 3) гибрид TOP: клиент присылает только привязку listing_type + id
@@ -138,11 +150,11 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 	// responses (consumable) => consume
 	// other products => acknowledge
 	if serverTarget.Type == models.IAPTargetTypeSubscription {
-		_ = h.Service.AcknowledgeSubscription(ctx, req.ProductID, req.PurchaseToken)
+		swallowIapErr(h.Service.AcknowledgeSubscription(ctx, req.ProductID, req.PurchaseToken))
 	} else if serverTarget.Type == models.IAPTargetTypeResponses {
-		_ = h.Service.ConsumeProduct(ctx, req.ProductID, req.PurchaseToken)
+		swallowIapErr(h.Service.ConsumeProduct(ctx, req.ProductID, req.PurchaseToken))
 	} else {
-		_ = h.Service.AcknowledgeProduct(ctx, req.ProductID, req.PurchaseToken)
+		swallowIapErr(h.Service.AcknowledgeProduct(ctx, req.ProductID, req.PurchaseToken))
 	}
 
 	resp := map[string]any{
@@ -429,4 +441,10 @@ func isSubscriptionRevokeType(t int) bool {
 	default:
 		return false
 	}
+}
+
+func swallowIapErr(err error) {
+	// тут можно распарсить googleapi.Error и игнорить конкретные коды,
+	// а пока просто игнор / лог
+	_ = err
 }

@@ -94,19 +94,21 @@ func (s *GooglePlayService) VerifySubscriptionPurchase(ctx context.Context, subs
 
 	nowMillis := time.Now().UnixMilli()
 
-	// Google SubscriptionPurchase НЕ имеет PurchaseState.
-	// Делаем "derived" состояние:
-	// 0 = ok/active, 1 = expired/canceled, 2 = pending/unknown
 	derivedState := int64(2)
 	status := "UNKNOWN"
 
 	// PaymentState: 0 pending, 1 received, 2 free trial, 3 deferred
-	if resp.PaymentState != nil && *resp.PaymentState == 0 {
+	if int64PtrEq(resp.PaymentState, 0) {
 		status = "PENDING"
 		derivedState = 2
 	} else if resp.ExpiryTimeMillis > 0 && resp.ExpiryTimeMillis > nowMillis {
-		status = "ACTIVE"
 		derivedState = 0
+		status = "ACTIVE"
+
+		// Автопродление выключено => "canceled", но период может быть еще активен
+		if !resp.AutoRenewing {
+			status = "CANCELED"
+		}
 	} else if resp.ExpiryTimeMillis > 0 && resp.ExpiryTimeMillis <= nowMillis {
 		status = "EXPIRED"
 		derivedState = 1
@@ -120,17 +122,14 @@ func (s *GooglePlayService) VerifySubscriptionPurchase(ctx context.Context, subs
 		PackageName:   s.cfg.PackageName,
 
 		ExpiryTimeMillis: resp.ExpiryTimeMillis,
-		PaymentState:     resp.PaymentState,
+		PaymentState:     resp.PaymentState, // <-- теперь тип совпадает
 		CancelReason:     resp.CancelReason,
 		AutoRenewing:     resp.AutoRenewing,
 
-		// ВАЖНО: это НЕ от Google, это наше derived-поле
 		PurchaseState: derivedState,
-
-		Acknowledged: resp.AcknowledgementState == 1,
-		Status:       status,
-
-		Raw: string(raw),
+		Acknowledged:  resp.AcknowledgementState == 1,
+		Status:        status,
+		Raw:           string(raw),
 	}
 
 	return p, nil
@@ -181,4 +180,8 @@ func (s *GooglePlayService) AcknowledgeSubscription(ctx context.Context, subscri
 		return fmt.Errorf("google subscriptions.acknowledge: %w", err)
 	}
 	return nil
+}
+
+func int64PtrEq(v *int64, want int64) bool {
+	return v != nil && *v == want
 }

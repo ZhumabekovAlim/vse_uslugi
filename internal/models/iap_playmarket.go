@@ -1,7 +1,7 @@
 package models
 
 type GooglePurchase struct {
-	Kind          string // "product" | "subscription"
+	Kind          string
 	ProductID     string
 	PurchaseToken string
 	OrderID       string
@@ -9,19 +9,16 @@ type GooglePurchase struct {
 
 	// Subscription-only
 	ExpiryTimeMillis int64
-	PaymentState     *int64 // из SubscriptionPurchase.PaymentState
-	CancelReason     int64  // из SubscriptionPurchase.CancelReason
-	AutoRenewing     bool   // из SubscriptionPurchase.AutoRenewing
+	PaymentState     *int64 // <-- ВАЖНО: pointer (как в v0.247.0)
+	CancelReason     int64
+	AutoRenewing     bool
 
-	// Product-only (и “виртуально” для subscription, если ты хочешь)
-	// 0 = Purchased, 1 = Canceled, 2 = Pending
+	// 0 = OK/ACTIVE, 1 = EXPIRED, 2 = PENDING/UNKNOWN
 	PurchaseState int64
 
 	Acknowledged bool
 	Consumed     bool
 
-	// Нормальный единый статус
-	Status string // "ACTIVE" | "EXPIRED" | "PENDING" | "CANCELED" | "UNKNOWN"
-
-	Raw string
+	Status string
+	Raw    string
 }
