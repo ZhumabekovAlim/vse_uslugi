@@ -76,7 +76,7 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 		http.Error(w, "product_id and purchase_token are required", http.StatusBadRequest)
 		return
 	}
-	log.Printf("[IAP] incoming user=%d product_id=%q token_len=%d", userID, req.ProductID, len(req.PurchaseToken))
+	log.Printf("[IAP] incoming user=%d product_id=%q token_len=%d", userID, req.ProductID, req.PurchaseToken)
 
 	// 1) target по product_id (как у Apple: resolveTarget(txn.ProductID))
 	serverTarget, err := h.resolveTarget(req.ProductID)
