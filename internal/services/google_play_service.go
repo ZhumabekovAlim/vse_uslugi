@@ -90,7 +90,7 @@ func (s *GooglePlayService) VerifySubscriptionPurchaseV2(ctx context.Context, to
 	}
 
 	raw, _ := json.Marshal(resp)
-
+	fmt.Printf("[IAP] subsV2 raw=%s\n", string(raw))
 	// Парсим только нужные json-поля (через raw, чтобы не зависеть от SDK-структур)
 	type v2LineItem struct {
 		ProductID               string `json:"productId"`
