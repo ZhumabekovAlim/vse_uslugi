@@ -81,13 +81,15 @@ func (s *BusinessService) PurchaseSeats(ctx context.Context, businessUserID int,
 		return models.BusinessAccount{}, err
 	}
 
-	durationDays := *req.DurationDays
+	durationDays := DefaultBusinessSeatDuration() // 30 дней по умолчанию
+
 	if req.DurationDays != nil {
 		if *req.DurationDays <= 0 {
 			return models.BusinessAccount{}, fmt.Errorf("duration_days must be greater than zero")
 		}
 		durationDays = *req.DurationDays
 	}
+
 	expiresAt := time.Now().UTC().Add(time.Duration(durationDays) * 24 * time.Hour)
 
 	amount := float64(req.Seats * 1000)
