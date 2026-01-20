@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -75,6 +76,7 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 		http.Error(w, "product_id and purchase_token are required", http.StatusBadRequest)
 		return
 	}
+	log.Printf("[IAP] incoming user=%d product_id=%q token_len=%d", userID, req.ProductID, len(req.PurchaseToken))
 
 	// 1) target по product_id (как у Apple: resolveTarget(txn.ProductID))
 	serverTarget, err := h.resolveTarget(req.ProductID)
@@ -84,16 +86,47 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 	}
 
 	// 2) verify в Google
+	// 2) verify в Google
 	ctx := r.Context()
 	var purchase models.GooglePurchase
 
 	isSub := serverTarget.Type == models.IAPTargetTypeSubscription ||
-		serverTarget.Type == models.IAPTargetTypeBusiness // <-- ВАЖНО
+		serverTarget.Type == models.IAPTargetTypeBusiness
+
+	log.Printf("[IAP] verify start user=%d product_id=%q type=%q isSub=%v token_len=%d",
+		userID, req.ProductID, serverTarget.Type, isSub, len(req.PurchaseToken))
 
 	if isSub {
 		purchase, err = h.Service.VerifySubscriptionPurchase(ctx, req.ProductID, req.PurchaseToken)
 	} else {
 		purchase, err = h.Service.VerifyProductPurchase(ctx, req.ProductID, req.PurchaseToken)
+	}
+
+	if err != nil {
+		log.Printf("[IAP] verify failed user=%d product_id=%q isSub=%v token_len=%d err=%v",
+			userID, req.ProductID, isSub, len(req.PurchaseToken), err)
+		http.Error(w, "google verify: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	log.Printf("[IAP] verify ok kind=%q product_id=%q order_id=%q purchase_state=%d status=%q",
+		purchase.Kind, purchase.ProductID, purchase.OrderID, purchase.PurchaseState, purchase.Status)
+
+	// 0 = purchased
+	if isSub {
+		if purchase.PurchaseState != 0 {
+			http.Error(w, "subscription is not active", http.StatusBadRequest)
+			return
+		}
+		if purchase.Status == "PENDING" {
+			http.Error(w, "subscription payment is pending", http.StatusBadRequest)
+			return
+		}
+	} else {
+		if purchase.PurchaseState != 0 {
+			http.Error(w, "purchase is not completed", http.StatusBadRequest)
+			return
+		}
 	}
 
 	if err != nil {
