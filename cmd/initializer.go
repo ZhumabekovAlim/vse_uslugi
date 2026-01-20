@@ -468,13 +468,27 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	googleTargets, err := parseIAPProductTargets(os.Getenv("GOOGLE_IAP_PRODUCTS"))
 	if err != nil {
 		errorLog.Printf("google iap products: %v", err)
+		googleTargets = nil
+	}
+	if len(googleTargets) == 0 {
+		infoLog.Println("Google Play IAP: product targets are empty (GOOGLE_IAP_PRODUCTS)")
 	}
 
 	var googleSvc *services.GooglePlayService
 	pkg := strings.TrimSpace(os.Getenv("GOOGLE_PLAY_PACKAGE_NAME"))
-	credsJSON := strings.TrimSpace(os.Getenv("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"))
 
-	// если creds положили как одну строку с \n — восстановим переносы
+	credsJSON := strings.TrimSpace(os.Getenv("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"))
+	credsFile := strings.TrimSpace(os.Getenv("GOOGLE_PLAY_SERVICE_ACCOUNT_FILE"))
+
+	if credsJSON == "" && credsFile != "" {
+		b, err := os.ReadFile(credsFile)
+		if err != nil {
+			errorLog.Printf("google play creds file read: %v", err)
+		} else {
+			credsJSON = strings.TrimSpace(string(b))
+		}
+	}
+
 	credsJSON = strings.ReplaceAll(credsJSON, `\n`, "\n")
 
 	if pkg != "" && credsJSON != "" {
@@ -489,12 +503,11 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 			infoLog.Printf("Google Play IAP: enabled (package=%s, products=%d)", pkg, len(googleTargets))
 		}
 	} else {
-		infoLog.Println("Google Play IAP: disabled (missing GOOGLE_PLAY_PACKAGE_NAME/GOOGLE_PLAY_SERVICE_ACCOUNT_JSON)")
+		infoLog.Println("Google Play IAP: disabled (missing GOOGLE_PLAY_PACKAGE_NAME and/or GOOGLE_PLAY_SERVICE_ACCOUNT_JSON/GOOGLE_PLAY_SERVICE_ACCOUNT_FILE)")
 	}
 
 	googleIapRepo := repositories.NewGoogleIAPRepository(db)
 
-	// важно: если ты дальше роуты вешаешь через app.googleIapHandler — сохрани в app
 	googleIapHandler := handlers.NewGoogleIAPHandler(
 		googleSvc,
 		googleIapRepo,
