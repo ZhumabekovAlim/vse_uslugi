@@ -489,8 +489,6 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 		}
 	}
 
-	credsJSON = strings.ReplaceAll(credsJSON, `\n`, "\n")
-
 	if pkg != "" && credsJSON != "" {
 		gcfg := services.GooglePlayConfig{
 			PackageName:        pkg,
