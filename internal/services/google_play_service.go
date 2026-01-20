@@ -82,7 +82,6 @@ func (s *GooglePlayService) VerifySubscriptionPurchaseV2(ctx context.Context, to
 		return models.GooglePurchase{}, errors.New("purchase_token is required")
 	}
 
-	// ВАЖНО: subscriptionsv2.get НЕ принимает subscriptionID (sku), только token
 	resp, err := s.svc.Purchases.Subscriptionsv2.Get(s.cfg.PackageName, token).
 		Context(ctx).
 		Do()
@@ -92,45 +91,63 @@ func (s *GooglePlayService) VerifySubscriptionPurchaseV2(ctx context.Context, to
 
 	raw, _ := json.Marshal(resp)
 
-	// Определим "active" максимально безопасно
-	// В v2 структура сложнее (lineItems), но минимально:
-	// если есть lineItems и у него expiryTime > now => ACTIVE
-	nowMillis := time.Now().UnixMilli()
+	// Парсим только нужные json-поля (через raw, чтобы не зависеть от SDK-структур)
+	type v2LineItem struct {
+		ProductID               string `json:"productId"`
+		ExpiryTime              string `json:"expiryTime"`
+		LatestSuccessfulOrderID string `json:"latestSuccessfulOrderId"`
+	}
+	type v2Payload struct {
+		SubscriptionState    string       `json:"subscriptionState"`
+		AcknowledgementState int64        `json:"acknowledgementState"`
+		LineItems            []v2LineItem `json:"lineItems"`
+	}
 
-	derivedState := int64(2)
-	status := "UNKNOWN"
+	var p v2Payload
+	_ = json.Unmarshal(raw, &p)
+
+	now := time.Now()
+	active := false
 	orderID := ""
+	productID := ""
 
-	// resp.LineItems может быть nil/empty
-	if len(resp.LineItems) > 0 {
-		li := resp.LineItems[0]
-		// OrderId может быть в разных местах, но часто есть latestOrderId
-		if li.LatestPurchaseId != nil {
-			orderID = *li.LatestPurchaseId
+	for _, li := range p.LineItems {
+		if productID == "" && strings.TrimSpace(li.ProductID) != "" {
+			productID = strings.TrimSpace(li.ProductID)
 		}
-		if li.ExpiryTime != "" {
-			// expiryTime приходит как RFC3339 (примерно), попробуем распарсить
+		if orderID == "" && strings.TrimSpace(li.LatestSuccessfulOrderID) != "" {
+			orderID = strings.TrimSpace(li.LatestSuccessfulOrderID)
+		}
+		if strings.TrimSpace(li.ExpiryTime) != "" {
 			if t, perr := time.Parse(time.RFC3339Nano, li.ExpiryTime); perr == nil {
-				exp := t.UnixMilli()
-				if exp > nowMillis {
-					derivedState = 0
-					status = "ACTIVE"
-				} else {
-					derivedState = 1
-					status = "EXPIRED"
+				if t.After(now) {
+					active = true
 				}
 			}
 		}
 	}
 
+	purchaseState := int64(1) // 1 = not active/expired
+	status := strings.TrimSpace(p.SubscriptionState)
+
+	if active {
+		purchaseState = 0 // 0 = active
+		if status == "" {
+			status = "ACTIVE"
+		}
+	}
+
+	ack := p.AcknowledgementState == 1
+
 	return models.GooglePurchase{
 		Kind:          "subscription",
-		ProductID:     "", // в v2 sku может быть в li.OfferDetails/BasePlanId, можно допарсить позже
+		ProductID:     productID, // может быть пустым — это ок, хендлер подставит
 		PurchaseToken: token,
 		OrderID:       orderID,
 		PackageName:   s.cfg.PackageName,
-		PurchaseState: derivedState,
+		PurchaseState: purchaseState,
 		Status:        status,
+		Acknowledged:  ack,
 		Raw:           string(raw),
 	}, nil
 }

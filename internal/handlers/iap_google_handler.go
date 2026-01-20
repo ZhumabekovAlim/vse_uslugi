@@ -98,9 +98,26 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 
 	if isSub {
 		purchase, err = h.Service.VerifySubscriptionPurchaseV2(ctx, req.PurchaseToken)
-		purchase.ProductID = req.ProductID // чтобы сохранить sku в записи
+
+		// если v2 вернул productId — обязательно сверяем
+		if strings.TrimSpace(purchase.ProductID) != "" && purchase.ProductID != req.ProductID {
+			http.Error(w, "token does not match product_id", http.StatusBadRequest)
+			return
+		}
+
+		// чтобы дальше везде был sku
+		if strings.TrimSpace(purchase.ProductID) == "" {
+			purchase.ProductID = req.ProductID
+		}
 	} else {
 		purchase, err = h.Service.VerifyProductPurchase(ctx, req.ProductID, req.PurchaseToken)
+	}
+
+	if err != nil {
+		log.Printf("[IAP] verify failed user=%d product_id=%q isSub=%v token_len=%d err=%v",
+			userID, req.ProductID, isSub, len(req.PurchaseToken), err)
+		http.Error(w, "google verify: "+err.Error(), http.StatusBadGateway)
+		return
 	}
 
 	if err != nil {
@@ -189,7 +206,7 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 	// responses (consumable) => consume
 	// other products => acknowledge
 	if isSub {
-		swallowIapErr(h.Service.AcknowledgeSubscription(ctx, req.ProductID, req.PurchaseToken))
+		swallowIapErr(h.Service.AcknowledgeSubscription(ctx, req.ProductID, req.PurchaseToken)) // v1 acknowledge
 	} else if serverTarget.Type == models.IAPTargetTypeResponses {
 		swallowIapErr(h.Service.ConsumeProduct(ctx, req.ProductID, req.PurchaseToken))
 	} else {
@@ -411,11 +428,12 @@ func (h *GoogleIAPHandler) GoogleNotifications(w http.ResponseWriter, r *http.Re
 			}
 		}
 
-		purchase, verr := h.Service.VerifySubscriptionPurchase(ctx, sku, token)
+		purchase, verr := h.Service.VerifySubscriptionPurchaseV2(ctx, token)
 		if verr != nil {
 			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 			return
 		}
+		purchase.ProductID = sku // чтобы сохранить sku в записи (необязательно, но удобно)
 
 		if isSubscriptionRevokeType(notif.SubscriptionNotification.NotificationType) {
 			if target.Type == models.IAPTargetTypeSubscription && h.SubscriptionRepo != nil {
