@@ -96,6 +96,11 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 		purchase, err = h.Service.VerifyProductPurchase(ctx, req.ProductID, req.PurchaseToken)
 	}
 
+	if err != nil {
+		http.Error(w, "google verify: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+
 	// 0 = purchased
 	if isSub {
 		// разрешаем ACTIVE и CANCELED (если период еще не истек => PurchaseState == 0)
@@ -150,20 +155,11 @@ func (h *GoogleIAPHandler) VerifyAndroidPurchase(w http.ResponseWriter, r *http.
 	// responses (consumable) => consume
 	// other products => acknowledge
 	if isSub {
-		// разрешаем ACTIVE и CANCELED (если период еще не истек => PurchaseState == 0)
-		if purchase.PurchaseState != 0 {
-			http.Error(w, "subscription is not active", http.StatusBadRequest)
-			return
-		}
-		if purchase.Status == "PENDING" {
-			http.Error(w, "subscription payment is pending", http.StatusBadRequest)
-			return
-		}
+		swallowIapErr(h.Service.AcknowledgeSubscription(ctx, req.ProductID, req.PurchaseToken))
+	} else if serverTarget.Type == models.IAPTargetTypeResponses {
+		swallowIapErr(h.Service.ConsumeProduct(ctx, req.ProductID, req.PurchaseToken))
 	} else {
-		if purchase.PurchaseState != 0 {
-			http.Error(w, "purchase is not completed", http.StatusBadRequest)
-			return
-		}
+		swallowIapErr(h.Service.AcknowledgeProduct(ctx, req.ProductID, req.PurchaseToken))
 	}
 
 	resp := map[string]any{
