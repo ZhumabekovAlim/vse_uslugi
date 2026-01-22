@@ -62,6 +62,8 @@ type BusinessWorkerListingDetails struct {
 	WorkerUserID   int       `json:"worker_user_id"`
 	ListingType    string    `json:"listing_type"`
 	ListingID      int       `json:"listing_id"`
+	Address        string    `json:"address"`
+	CityName       string    `json:"city_name"`
 	Images         any       `json:"images,omitempty"`
 	Videos         any       `json:"videos,omitempty"`
 	Liked          bool      `json:"liked,omitempty"`

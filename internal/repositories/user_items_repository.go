@@ -75,35 +75,41 @@ func (r *UserItemsRepository) GetAdWorkAdRentAdByUserID(ctx context.Context, use
 // GetOrderHistoryByUserID returns completed service, work, rent, ad, work_ad and rent_ad items for the user ordered by creation time.
 func (r *UserItemsRepository) GetOrderHistoryByUserID(ctx context.Context, userID int) ([]models.UserItem, error) {
 	query := `
-SELECT id, name, price, description, created_at, status, type FROM (
-SELECT s.id, s.name, s.price, s.description, sc.created_at, sc.status, 'service' AS type
+SELECT id, name, address, city_name, price, description, created_at, status, type FROM (
+SELECT s.id, s.name, s.address, city.name AS city_name, s.price, s.description, sc.created_at, sc.status, 'service' AS type
 FROM service_confirmations sc
 JOIN service s ON s.id = sc.service_id
+LEFT JOIN cities city ON s.city_id = city.id
 WHERE (sc.performer_id = ? OR sc.client_id = ?) AND sc.status IN ('in_progress', 'archived', 'done')
         UNION ALL
-SELECT w.id, w.name, w.price, w.description, wc.created_at, wc.status, 'work' AS type
+SELECT w.id, w.name, w.address, city.name AS city_name, w.price, w.description, wc.created_at, wc.status, 'work' AS type
 FROM work_confirmations wc
 JOIN work w ON w.id = wc.work_id
+LEFT JOIN cities city ON w.city_id = city.id
 WHERE (wc.performer_id = ? OR wc.client_id = ?) AND wc.status IN ('in_progress', 'archived', 'done')
         UNION ALL
-SELECT r.id, r.name, r.price, r.description, rc.created_at, rc.status, 'rent' AS type
+SELECT r.id, r.name, r.address, city.name AS city_name, r.price, r.description, rc.created_at, rc.status, 'rent' AS type
 FROM rent_confirmations rc
 JOIN rent r ON r.id = rc.rent_id
+LEFT JOIN cities city ON r.city_id = city.id
 WHERE (rc.performer_id = ? OR rc.client_id = ?) AND rc.status IN ('in_progress', 'archived', 'done')
         UNION ALL
-SELECT a.id, a.name, a.price, a.description, ac.created_at, ac.status, 'ad' AS type
+SELECT a.id, a.name, a.address, city.name AS city_name, a.price, a.description, ac.created_at, ac.status, 'ad' AS type
 FROM ad_confirmations ac
 JOIN ad a ON a.id = ac.ad_id
+LEFT JOIN cities city ON a.city_id = city.id
 WHERE (ac.performer_id = ? OR ac.client_id = ?) AND ac.status IN ('in_progress', 'archived', 'done')
         UNION ALL
-SELECT wa.id, wa.name, wa.price, wa.description, wac.created_at, wac.status, 'work_ad' AS type
+SELECT wa.id, wa.name, wa.address, city.name AS city_name, wa.price, wa.description, wac.created_at, wac.status, 'work_ad' AS type
 FROM work_ad_confirmations wac
 JOIN work_ad wa ON wa.id = wac.work_ad_id
+LEFT JOIN cities city ON wa.city_id = city.id
 WHERE (wac.performer_id = ? OR wac.client_id = ?) AND wac.status IN ('in_progress', 'archived', 'done')
         UNION ALL
-SELECT ra.id, ra.name, ra.price, ra.description, rac.created_at, rac.status, 'rent_ad' AS type
+SELECT ra.id, ra.name, ra.address, city.name AS city_name, ra.price, ra.description, rac.created_at, rac.status, 'rent_ad' AS type
 FROM rent_ad_confirmations rac
 JOIN rent_ad ra ON ra.id = rac.rent_ad_id
+LEFT JOIN cities city ON ra.city_id = city.id
 WHERE (rac.performer_id = ? OR rac.client_id = ?) AND rac.status IN ('in_progress', 'archived', 'done')
     ) AS combined
     ORDER BY created_at DESC`
@@ -124,7 +130,7 @@ WHERE (rac.performer_id = ? OR rac.client_id = ?) AND rac.status IN ('in_progres
 	for rows.Next() {
 		var item models.UserItem
 		var price sql.NullFloat64
-		if err := rows.Scan(&item.ID, &item.Name, &price, &item.Description, &item.CreatedAt, &item.Status, &item.Type); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.Address, &item.CityName, &price, &item.Description, &item.CreatedAt, &item.Status, &item.Type); err != nil {
 			return nil, err
 		}
 		if price.Valid {

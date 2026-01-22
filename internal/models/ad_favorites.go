@@ -9,7 +9,9 @@ type AdFavorite struct {
 	UserID     int       `json:"user_id"`
 	AdID       int       `json:"ad_id"`
 	CityID     int       `json:"city_id"`
+	CityName   string    `json:"city_name"`
 	Name       string    `json:"name"`
+	Address    string    `json:"address"`
 	Price      *float64  `json:"price"`
 	PriceTo    *float64  `json:"price_to"`
 	OnSite     bool      `json:"on_site"`
