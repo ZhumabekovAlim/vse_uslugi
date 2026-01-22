@@ -43,6 +43,7 @@ type AdChats struct {
 	HidePhone      bool       `json:"hide_phone"`
 	PerformerID    *int       `json:"performer_id,omitempty"`
 	Address        string     `json:"address,omitempty"`
+	CityName       string     `json:"city_name,omitempty"`
 	Price          *float64   `json:"price,omitempty"`
 	PriceTo        *float64   `json:"price_to,omitempty"`
 	Negotiable     bool       `json:"negotiable"`

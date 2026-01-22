@@ -263,7 +263,7 @@ last_messages AS (
 )
 
 SELECT a.id, 'ad' AS ad_type, a.name, a.hide_phone, ac.status, CASE WHEN ac.confirmed THEN ac.performer_id END AS performer_id, 1 AS is_author,
-       a.address, a.price, a.price_to, a.negotiable, a.on_site, a.description, a.work_time_from, a.work_time_to, a.latitude, a.longitude,
+       a.address, city.name, a.price, a.price_to, a.negotiable, a.on_site, a.description, a.work_time_from, a.work_time_to, a.latitude, a.longitude,
        '' AS rent_type, '' AS deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
        a.images, a.videos, a.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
@@ -275,13 +275,14 @@ JOIN users u ON u.id = ac.performer_id
 JOIN users owner ON owner.id = a.user_id
 JOIN chats c ON c.id = ac.chat_id
 JOIN ad_responses ar ON ar.ad_id = a.id AND ar.user_id = ac.performer_id
+LEFT JOIN cities city ON a.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = ac.chat_id
 WHERE a.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
 SELECT a.id, 'ad' AS ad_type, a.name, a.hide_phone, ac.status, CASE WHEN ac.confirmed THEN ac.performer_id END AS performer_id, 0 AS is_author,
-       a.address, a.price, a.price_to, a.negotiable, a.on_site, a.description, a.work_time_from, a.work_time_to, a.latitude, a.longitude,
+       a.address, city.name, a.price, a.price_to, a.negotiable, a.on_site, a.description, a.work_time_from, a.work_time_to, a.latitude, a.longitude,
        '' AS rent_type, '' AS deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
        a.images, a.videos, a.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
@@ -293,13 +294,14 @@ JOIN users owner ON owner.id = a.user_id
 JOIN users performer ON performer.id = ac.performer_id
 JOIN chats c ON c.id = ac.chat_id
 JOIN ad_responses ar ON ar.ad_id = a.id AND ar.user_id = ac.performer_id
+LEFT JOIN cities city ON a.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = ac.chat_id
 WHERE ac.performer_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
 SELECT s.id, 'service' AS ad_type, s.name, s.hide_phone, sc.status, CASE WHEN sc.confirmed THEN sc.performer_id END AS performer_id, 1 AS is_author,
-       s.address, s.price, s.price_to, s.negotiable, s.on_site, s.description, s.work_time_from, s.work_time_to, s.latitude, s.longitude,
+       s.address, city.name, s.price, s.price_to, s.negotiable, s.on_site, s.description, s.work_time_from, s.work_time_to, s.latitude, s.longitude,
        '' AS rent_type, '' AS deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
        s.images, s.videos, s.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
@@ -311,13 +313,14 @@ JOIN users u ON u.id = sc.client_id
 JOIN users owner ON owner.id = s.user_id
 JOIN chats c ON c.id = sc.chat_id
 JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.client_id
+LEFT JOIN cities city ON s.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = sc.chat_id
 WHERE s.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
 SELECT s.id, 'service' AS ad_type, s.name, s.hide_phone, sc.status, CASE WHEN sc.confirmed THEN sc.performer_id END AS performer_id, 0 AS is_author,
-       s.address, s.price, s.price_to, s.negotiable, s.on_site, s.description, s.work_time_from, s.work_time_to, s.latitude, s.longitude,
+       s.address, city.name, s.price, s.price_to, s.negotiable, s.on_site, s.description, s.work_time_from, s.work_time_to, s.latitude, s.longitude,
        '' AS rent_type, '' AS deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
        s.images, s.videos, s.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
@@ -329,13 +332,14 @@ JOIN users owner ON owner.id = s.user_id
 JOIN users client ON client.id = sc.client_id
 JOIN chats c ON c.id = sc.chat_id
 JOIN service_responses sr ON sr.service_id = s.id AND sr.user_id = sc.client_id
+LEFT JOIN cities city ON s.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = sc.chat_id
 WHERE sc.client_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
 SELECT ra.id, 'rent_ad' AS ad_type, ra.name, ra.hide_phone, rac.status, CASE WHEN rac.confirmed THEN rac.performer_id END AS performer_id, 1 AS is_author,
-       ra.address, ra.price, ra.price_to, ra.negotiable, NULL AS on_site, ra.description, ra.work_time_from, ra.work_time_to, ra.latitude, ra.longitude,
+       ra.address, city.name, ra.price, ra.price_to, ra.negotiable, NULL AS on_site, ra.description, ra.work_time_from, ra.work_time_to, ra.latitude, ra.longitude,
        ra.rent_type, ra.deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
        ra.images, ra.videos, ra.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
@@ -347,13 +351,14 @@ JOIN users u ON u.id = rac.performer_id
 JOIN users owner ON owner.id = ra.user_id
 JOIN chats c ON c.id = rac.chat_id
 JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id AND rar.user_id = rac.performer_id
+LEFT JOIN cities city ON ra.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = rac.chat_id
 WHERE ra.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
 SELECT ra.id, 'rent_ad' AS ad_type, ra.name, ra.hide_phone, rac.status, CASE WHEN rac.confirmed THEN rac.performer_id END AS performer_id, 0 AS is_author,
-       ra.address, ra.price, ra.price_to, ra.negotiable, NULL AS on_site, ra.description, ra.work_time_from, ra.work_time_to, ra.latitude, ra.longitude,
+       ra.address, city.name, ra.price, ra.price_to, ra.negotiable, NULL AS on_site, ra.description, ra.work_time_from, ra.work_time_to, ra.latitude, ra.longitude,
        ra.rent_type, ra.deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
        ra.images, ra.videos, ra.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
@@ -365,13 +370,14 @@ JOIN users owner ON owner.id = ra.user_id
 JOIN users performer ON performer.id = rac.performer_id
 JOIN chats c ON c.id = rac.chat_id
 JOIN rent_ad_responses rar ON rar.rent_ad_id = ra.id AND rar.user_id = rac.performer_id
+LEFT JOIN cities city ON ra.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = rac.chat_id
 WHERE rac.performer_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
 SELECT wa.id, 'work_ad' AS ad_type, wa.name, wa.hide_phone, wac.status, CASE WHEN wac.confirmed THEN wac.performer_id END AS performer_id, 1 AS is_author,
-       wa.address, wa.price, wa.price_to, wa.negotiable, NULL AS on_site, wa.description, wa.work_time_from, wa.work_time_to, wa.latitude, wa.longitude,
+       wa.address, city.name, wa.price, wa.price_to, wa.negotiable, NULL AS on_site, wa.description, wa.work_time_from, wa.work_time_to, wa.latitude, wa.longitude,
        '' AS rent_type, '' AS deposit, wa.work_experience, wa.schedule, wa.distance_work, wa.payment_period,
        wa.images, wa.videos, wa.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
@@ -383,13 +389,14 @@ JOIN users u ON u.id = wac.performer_id
 JOIN users owner ON owner.id = wa.user_id
 JOIN chats c ON c.id = wac.chat_id
 JOIN work_ad_responses war ON war.work_ad_id = wa.id AND war.user_id = wac.performer_id
+LEFT JOIN cities city ON wa.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = wac.chat_id
 WHERE wa.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
 SELECT wa.id, 'work_ad' AS ad_type, wa.name, wa.hide_phone, wac.status, CASE WHEN wac.confirmed THEN wac.performer_id END AS performer_id, 0 AS is_author,
-       wa.address, wa.price, wa.price_to, wa.negotiable, NULL AS on_site, wa.description, wa.work_time_from, wa.work_time_to, wa.latitude, wa.longitude,
+       wa.address, city.name, wa.price, wa.price_to, wa.negotiable, NULL AS on_site, wa.description, wa.work_time_from, wa.work_time_to, wa.latitude, wa.longitude,
        '' AS rent_type, '' AS deposit, wa.work_experience, wa.schedule, wa.distance_work, wa.payment_period,
        wa.images, wa.videos, wa.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
@@ -401,13 +408,14 @@ JOIN users owner ON owner.id = wa.user_id
 JOIN users performer ON performer.id = wac.performer_id
 JOIN chats c ON c.id = wac.chat_id
 JOIN work_ad_responses war ON war.work_ad_id = wa.id AND war.user_id = wac.performer_id
+LEFT JOIN cities city ON wa.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = wac.chat_id
 WHERE wac.performer_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
 SELECT r.id, 'rent' AS ad_type, r.name, r.hide_phone, rc.status, CASE WHEN rc.confirmed THEN rc.performer_id END AS performer_id, 1 AS is_author,
-       r.address, r.price, r.price_to, r.negotiable, NULL AS on_site, r.description, r.work_time_from, r.work_time_to, r.latitude, r.longitude,
+       r.address, city.name, r.price, r.price_to, r.negotiable, NULL AS on_site, r.description, r.work_time_from, r.work_time_to, r.latitude, r.longitude,
        r.rent_type, r.deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
        r.images, r.videos, r.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
@@ -419,13 +427,14 @@ JOIN users u ON u.id = rc.performer_id
 JOIN users owner ON owner.id = r.user_id
 JOIN chats c ON c.id = rc.chat_id
 JOIN rent_responses rr ON rr.rent_id = r.id AND rr.user_id = rc.performer_id
+LEFT JOIN cities city ON r.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = rc.chat_id
 WHERE r.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
 SELECT r.id, 'rent' AS ad_type, r.name, r.hide_phone, rc.status, CASE WHEN rc.confirmed THEN rc.performer_id END AS performer_id, 0 AS is_author,
-       r.address, r.price, r.price_to, r.negotiable, NULL AS on_site, r.description, r.work_time_from, r.work_time_to, r.latitude, r.longitude,
+       r.address, city.name, r.price, r.price_to, r.negotiable, NULL AS on_site, r.description, r.work_time_from, r.work_time_to, r.latitude, r.longitude,
        r.rent_type, r.deposit, '' AS work_experience, '' AS schedule, '' AS distance_work, '' AS payment_period,
        r.images, r.videos, r.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
@@ -437,13 +446,14 @@ JOIN users owner ON owner.id = r.user_id
 JOIN users performer ON performer.id = rc.performer_id
 JOIN chats c ON c.id = rc.chat_id
 JOIN rent_responses rr ON rr.rent_id = r.id AND rr.user_id = rc.performer_id
+LEFT JOIN cities city ON r.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = rc.chat_id
 WHERE rc.performer_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
 SELECT w.id, 'work' AS ad_type, w.name, w.hide_phone, wc.status, CASE WHEN wc.confirmed THEN wc.performer_id END AS performer_id, 1 AS is_author,
-       w.address, w.price, w.price_to, w.negotiable, NULL AS on_site, w.description, w.work_time_from, w.work_time_to, w.latitude, w.longitude,
+       w.address, city.name, w.price, w.price_to, w.negotiable, NULL AS on_site, w.description, w.work_time_from, w.work_time_to, w.latitude, w.longitude,
        '' AS rent_type, '' AS deposit, w.work_experience, w.schedule, w.distance_work, w.payment_period,
        w.images, w.videos, w.created_at,
        u.id, u.name, u.surname, COALESCE(u.avatar_path, '') AS avatar_path, u.phone,
@@ -455,13 +465,14 @@ JOIN users u ON u.id = wc.client_id
 JOIN users provider ON provider.id = w.user_id
 JOIN chats c ON c.id = wc.chat_id
 JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.client_id
+LEFT JOIN cities city ON w.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = wc.chat_id
 WHERE w.user_id IN (SELECT id FROM target_users)
 
 UNION ALL
 
 SELECT w.id, 'work' AS ad_type, w.name, w.hide_phone, wc.status, CASE WHEN wc.confirmed THEN wc.performer_id END AS performer_id, 0 AS is_author,
-       w.address, w.price, w.price_to, w.negotiable, NULL AS on_site, w.description, w.work_time_from, w.work_time_to, w.latitude, w.longitude,
+       w.address, city.name, w.price, w.price_to, w.negotiable, NULL AS on_site, w.description, w.work_time_from, w.work_time_to, w.latitude, w.longitude,
        '' AS rent_type, '' AS deposit, w.work_experience, w.schedule, w.distance_work, w.payment_period,
        w.images, w.videos, w.created_at,
        owner.id, owner.name, owner.surname, COALESCE(owner.avatar_path, '') AS avatar_path, owner.phone,
@@ -473,6 +484,7 @@ JOIN users owner ON owner.id = w.user_id
 JOIN users client ON client.id = wc.client_id
 JOIN chats c ON c.id = wc.chat_id
 JOIN work_responses wr ON wr.work_id = w.id AND wr.user_id = wc.client_id
+LEFT JOIN cities city ON w.city_id = city.id
 LEFT JOIN last_messages lm ON lm.chat_id = wc.chat_id
 WHERE wc.client_id IN (SELECT id FROM target_users)
 
@@ -491,7 +503,7 @@ ORDER BY last_message_at DESC
 	for rows.Next() {
 		var adID int
 		var adType, adName, status string
-		var address, description, workTimeFrom, workTimeTo, rentType, deposit, workExperience, schedule, distanceWork, paymentPeriod sql.NullString
+		var address, cityName, description, workTimeFrom, workTimeTo, rentType, deposit, workExperience, schedule, distanceWork, paymentPeriod sql.NullString
 		var latitude, longitude sql.NullString
 		var price, priceTo sql.NullFloat64
 		var negotiable, onSite sql.NullBool
@@ -505,7 +517,7 @@ ORDER BY last_message_at DESC
 
 		if err := rows.Scan(
 			&adID, &adType, &adName, &hidePhone, &status, &confirmedPerformer, &isAuthor,
-			&address, &price, &priceTo, &negotiable, &onSite, &description, &workTimeFrom, &workTimeTo, &latitude, &longitude,
+			&address, &cityName, &price, &priceTo, &negotiable, &onSite, &description, &workTimeFrom, &workTimeTo, &latitude, &longitude,
 			&rentType, &deposit, &workExperience, &schedule, &distanceWork, &paymentPeriod,
 			&imagesJSON, &videosJSON, &createdAt,
 			&user.ID, &user.Name, &user.Surname, &user.AvatarPath, &user.Phone,
@@ -553,6 +565,9 @@ ORDER BY last_message_at DESC
 
 			if address.Valid {
 				chatGroup.Address = address.String
+			}
+			if cityName.Valid {
+				chatGroup.CityName = cityName.String
 			}
 			if description.Valid {
 				chatGroup.Description = description.String

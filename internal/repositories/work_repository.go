@@ -531,9 +531,10 @@ func (r *WorkRepository) GetWorksWithFilters(ctx context.Context, userID int, ci
 
 func (r *WorkRepository) GetWorksByUserID(ctx context.Context, userID int) ([]models.Work, error) {
 	query := `
-             SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.hide_phone, s.created_at, s.updated_at
+             SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, u.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.hide_phone, s.created_at, s.updated_at
 FROM work s
 JOIN users u ON s.user_id = u.id
+JOIN cities city ON u.city_id = city.id
 LEFT JOIN work_favorites sf ON sf.work_id = s.id AND sf.user_id = ?
 WHERE s.user_id = ?
 `
@@ -556,7 +557,7 @@ WHERE s.user_id = ?
 		var hidePhone bool
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &price, &priceTo, &negotiable, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &hidePhone, &s.CreatedAt,
+			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &hidePhone, &s.CreatedAt,
 			&s.UpdatedAt,
 		); err != nil {
 			return nil, err

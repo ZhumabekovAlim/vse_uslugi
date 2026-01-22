@@ -340,11 +340,12 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 
 	baseQuery := `
 
-       SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.work_ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, s.city_id, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.created_at, s.updated_at
+       SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.surname, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.work_ad_id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, s.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.created_at, s.updated_at
 
                FROM work_ad s
                LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
                JOIN users u ON s.user_id = u.id
+               JOIN cities city ON s.city_id = city.id
                INNER JOIN work_categories c ON s.category_id = c.id
 
        `
@@ -481,7 +482,7 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath,
 
-			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &s.CreatedAt,
+			&imagesJSON, &videosJSON, &s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &s.CreatedAt,
 
 			&s.UpdatedAt,
 		)
@@ -537,9 +538,10 @@ func (r *WorkAdRepository) GetWorksAdWithFilters(ctx context.Context, userID int
 
 func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) ([]models.WorkAd, error) {
 	query := `
-                SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, u.city_id, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.created_at, s.updated_at
+                SELECT s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, u.id, u.name, u.review_rating, u.avatar_path, s.images, s.videos, s.category_id, s.subcategory_id, s.description, s.avg_rating, s.top, CASE WHEN sf.id IS NOT NULL THEN '1' ELSE '0' END AS liked, s.status, s.work_experience, u.city_id, city.name, city.type, s.schedule, s.distance_work, s.payment_period, s.languages, s.education, s.first_name, s.last_name, s.birth_date, s.contact_number, s.work_time_from, s.work_time_to, s.latitude, s.longitude, s.created_at, s.updated_at
                 FROM work_ad s
                 JOIN users u ON s.user_id = u.id
+                JOIN cities city ON u.city_id = city.id
                 LEFT JOIN work_ad_favorites sf ON sf.work_ad_id = s.id AND sf.user_id = ?
                 WHERE s.user_id = ?
        `
@@ -560,7 +562,7 @@ func (r *WorkAdRepository) GetWorksAdByUserID(ctx context.Context, userID int) (
 		var likedStr string
 		if err := rows.Scan(
 			&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.User.ID, &s.User.Name, &s.User.ReviewRating, &s.User.AvatarPath, &imagesJSON, &videosJSON,
-			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &s.CreatedAt,
+			&s.CategoryID, &s.SubcategoryID, &s.Description, &s.AvgRating, &s.Top, &likedStr, &s.Status, &s.WorkExperience, &s.CityID, &s.CityName, &s.CityType, &s.Schedule, &s.DistanceWork, &s.PaymentPeriod, &languagesJSON, &s.Education, &s.FirstName, &s.LastName, &s.BirthDate, &s.ContactNumber, &s.WorkTimeFrom, &s.WorkTimeTo, &s.Latitude, &s.Longitude, &s.CreatedAt,
 			&s.UpdatedAt,
 		); err != nil {
 			return nil, err

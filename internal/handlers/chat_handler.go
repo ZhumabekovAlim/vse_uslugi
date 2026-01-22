@@ -107,6 +107,9 @@ func buildChatResponseItem(chat models.AdChats) map[string]interface{} {
 		"ad_type":      chat.AdType,
 	}
 
+	addStringIfNotEmpty(item, "address", chat.Address)
+	addStringIfNotEmpty(item, "city_name", chat.CityName)
+
 	if len(chat.Images) > 0 {
 		item["images"] = chat.Images
 	}

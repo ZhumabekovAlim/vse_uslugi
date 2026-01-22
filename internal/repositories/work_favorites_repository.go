@@ -32,9 +32,10 @@ func (r *WorkFavoriteRepository) IsWorkFavorite(ctx context.Context, userID, wor
 }
 
 func (r *WorkFavoriteRepository) GetWorkFavoritesByUser(ctx context.Context, userID int) ([]models.WorkFavorite, error) {
-	query := `SELECT wf.id, wf.user_id, wf.work_id, w.city_id, w.name, w.price, w.price_to, w.negotiable, w.hide_phone, w.status, w.created_at, w.images
+	query := `SELECT wf.id, wf.user_id, wf.work_id, w.city_id, city.name, w.name, w.address, w.price, w.price_to, w.negotiable, w.hide_phone, w.status, w.created_at, w.images
                  FROM work_favorites wf
                  JOIN work w ON wf.work_id = w.id
+                 LEFT JOIN cities city ON w.city_id = city.id
                  WHERE wf.user_id = ?`
 	rows, err := r.DB.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -47,7 +48,7 @@ func (r *WorkFavoriteRepository) GetWorkFavoritesByUser(ctx context.Context, use
 		var fav models.WorkFavorite
 		var price, priceTo sql.NullFloat64
 		var imagesJSON sql.NullString
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkID, &fav.CityID, &fav.Name, &price, &priceTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkID, &fav.CityID, &fav.CityName, &fav.Name, &fav.Address, &price, &priceTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
 		if err != nil {
 			return nil, err
 		}

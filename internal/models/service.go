@@ -15,6 +15,7 @@ type Service struct {
 	HidePhone  bool     `json:"hide_phone"`
 	UserID     int      `json:"user_id"`
 	CityID     int      `json:"city_id,omitempty"`
+	CityName   string   `json:"city_name"`
 	User       struct {
 		ID           int     `json:"id"`
 		Name         string  `json:"name"`

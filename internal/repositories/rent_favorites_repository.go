@@ -32,9 +32,10 @@ func (r *RentFavoriteRepository) IsRentFavorite(ctx context.Context, userID, ren
 }
 
 func (r *RentFavoriteRepository) GetRentFavoritesByUser(ctx context.Context, userID int) ([]models.RentFavorite, error) {
-	query := `SELECT rf.id, rf.user_id, rf.rent_id, r.city_id, r.name, r.price, r.price_to, r.work_time_from, r.work_time_to, r.negotiable, r.hide_phone, r.status, r.created_at, r.images
+	query := `SELECT rf.id, rf.user_id, rf.rent_id, r.city_id, city.name, r.name, r.address, r.price, r.price_to, r.work_time_from, r.work_time_to, r.negotiable, r.hide_phone, r.status, r.created_at, r.images
                  FROM rent_favorites rf
                  JOIN rent r ON rf.rent_id = r.id
+                 LEFT JOIN cities city ON r.city_id = city.id
                  WHERE rf.user_id = ?`
 	rows, err := r.DB.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -47,7 +48,7 @@ func (r *RentFavoriteRepository) GetRentFavoritesByUser(ctx context.Context, use
 		var fav models.RentFavorite
 		var price, priceTo sql.NullFloat64
 		var imagesJSON sql.NullString
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.RentID, &fav.CityID, &fav.Name, &price, &priceTo, &fav.WorkTimeFrom, &fav.WorkTimeTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.RentID, &fav.CityID, &fav.CityName, &fav.Name, &fav.Address, &price, &priceTo, &fav.WorkTimeFrom, &fav.WorkTimeTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
 		if err != nil {
 			return nil, err
 		}

@@ -362,6 +362,8 @@ func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserI
 		if err != nil {
 			return details, err
 		}
+		details.Address = service.Address
+		details.CityName = service.CityName
 		details.Images = service.Images
 		details.Videos = service.Videos
 		details.Liked = service.Liked
@@ -374,6 +376,8 @@ func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserI
 		if err != nil {
 			return details, err
 		}
+		details.Address = work.Address
+		details.CityName = work.CityName
 		details.Images = work.Images
 		details.Videos = work.Videos
 		details.Liked = work.Liked
@@ -386,6 +390,8 @@ func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserI
 		if err != nil {
 			return details, err
 		}
+		details.Address = rent.Address
+		details.CityName = rent.CityName
 		details.Images = rent.Images
 		details.Videos = rent.Videos
 		details.Liked = rent.Liked
@@ -398,6 +404,8 @@ func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserI
 		if err != nil {
 			return details, err
 		}
+		details.Address = ad.Address
+		details.CityName = ad.CityName
 		details.Images = ad.Images
 		details.Videos = ad.Videos
 		details.Liked = ad.Liked
@@ -410,6 +418,8 @@ func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserI
 		if err != nil {
 			return details, err
 		}
+		details.Address = workAd.Address
+		details.CityName = workAd.CityName
 		details.Images = workAd.Images
 		details.Videos = workAd.Videos
 		details.Liked = workAd.Liked
@@ -422,6 +432,8 @@ func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserI
 		if err != nil {
 			return details, err
 		}
+		details.Address = rentAd.Address
+		details.CityName = rentAd.CityName
 		details.Images = rentAd.Images
 		details.Videos = rentAd.Videos
 		details.Liked = rentAd.Liked
