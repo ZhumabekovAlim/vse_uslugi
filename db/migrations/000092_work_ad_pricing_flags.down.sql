@@ -3,4 +3,4 @@ ALTER TABLE work_ad
     DROP COLUMN hide_phone,
     DROP COLUMN negotiable,
     DROP COLUMN price_to,
-    MODIFY price DECIMAL(10, 2) NOT NULL;
+    MODIFY price BIGINT NOT NULL;

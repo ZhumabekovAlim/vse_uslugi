@@ -1,5 +1,5 @@
 ALTER TABLE service
-    MODIFY price DECIMAL(10, 2) NOT NULL,
+    MODIFY price BIGINT NOT NULL,
     DROP COLUMN price_to,
     DROP COLUMN on_site,
     DROP COLUMN negotiable,

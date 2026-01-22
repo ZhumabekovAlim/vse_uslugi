@@ -3,7 +3,7 @@ CREATE TABLE rent_ad_responses
     id          INT AUTO_INCREMENT PRIMARY KEY,
     user_id     INT          NOT NULL,
     rent_ad_id     INT          NOT NULL,
-    price       DECIMAL(10, 2)        not null,
+    price       BIGINT                not null,
     description TEXT NOT NULL,
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

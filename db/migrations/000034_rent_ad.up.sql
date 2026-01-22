@@ -3,7 +3,7 @@ CREATE TABLE rent_ad
     id             INT AUTO_INCREMENT PRIMARY KEY,
     name           VARCHAR(255)   NOT NULL,
     address        VARCHAR(255)   NOT NULL,
-    price          DECIMAL(10, 2) NOT NULL,
+    price          BIGINT         NOT NULL,
     user_id        INT            NOT NULL,
     images         TEXT,
     category_id    INT            NOT NULL,
