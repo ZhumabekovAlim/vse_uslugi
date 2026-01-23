@@ -283,9 +283,13 @@ func (h *IAPHandler) applyTarget(ctx context.Context, userID int, target models.
 		}
 		provider := "apple_iap"
 		state := "paid"
+		var durationDays *int
+		if target.DurationDays > 0 {
+			durationDays = &target.DurationDays
+		}
 		req := services.PurchaseRequest{
 			Seats:         target.Seats,
-			DurationDays:  &target.DurationDays,
+			DurationDays:  durationDays,
 			Provider:      &provider,
 			ProviderTxnID: &txn.TransactionID,
 			State:         &state,
