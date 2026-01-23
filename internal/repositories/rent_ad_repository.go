@@ -312,7 +312,7 @@ func (r *RentAdRepository) UpdateRentAd(ctx context.Context, work models.RentAd)
 	query := `
     UPDATE rent_ad
     SET name = ?, address = ?, price = ?, price_to = ?, negotiable = ?, hide_phone = ?, user_id = ?, city_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
-        work_time_from = ?, work_time_to = ?, description = ?, condition = ?, delivery = ?, avg_rating = ?, top = ?, liked = ?, status = ?, rent_type = ?, deposit = ?, latitude = ?, longitude = ?, order_date = ?, order_time = ?, updated_at = ?
+        work_time_from = ?, work_time_to = ?, description = ?, `condition` = ?, delivery = ?, avg_rating = ?, `top` = ?, liked = ?, status = ?, rent_type = ?, deposit = ?, latitude = ?, longitude = ?, order_date = ?, order_time = ?, updated_at = ?
     WHERE id = ?
 `
 	imagesJSON, err := json.Marshal(work.Images)
