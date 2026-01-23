@@ -19,8 +19,9 @@
 Источники истины (используются напрямую в репозиториях):
 
 - `business_accounts` — агрегированные поля `seats_total`, `seats_used`,
-  `status` (`active`/`suspended`).
-- `business_seat_purchases` — история покупок мест.
+  `status` (`active`/`suspended`) и максимальный срок действия.
+- `business_seat_purchases` — история покупок мест с собственным сроком действия
+  (`expires_at`); активные записи суммируются в `seats_total`.
 - `business_workers` — исполнители, связаны с `users` и бизнесом;
   содержит `login`, `chat_id`, `status`.
 
@@ -32,8 +33,8 @@
 1. Валидирует, что `seats > 0`.
 2. Получает или создаёт `business_accounts` для пользователя.
 3. Сохраняет покупку в `business_seat_purchases` с суммой `seats*1000`, если
-   `amount` не передан явно.
-4. Увеличивает `seats_total` и активирует аккаунт.
+   `amount` не передан явно, и сроком действия `expires_at`.
+4. Пересчитывает `seats_total` как сумму активных покупок и обновляет агрегаты.
 5. Присваивает пользователю роль `business` (в таблице `users`).
 
 Пример запроса:

@@ -105,12 +105,13 @@ func (s *BusinessService) PurchaseSeats(ctx context.Context, businessUserID int,
 		ProviderTxnID:  req.ProviderTxnID,
 		State:          req.State,
 		PayloadJSON:    req.Payload,
+		ExpiresAt:      &expiresAt,
 	}
 	if err := s.BusinessRepo.SaveSeatPurchase(ctx, purchase); err != nil {
 		return models.BusinessAccount{}, err
 	}
 
-	if err := s.BusinessRepo.SetSeats(ctx, businessUserID, req.Seats, expiresAt); err != nil {
+	if err := s.BusinessRepo.RefreshSeatSummary(ctx, businessUserID, time.Now().UTC()); err != nil {
 		return models.BusinessAccount{}, err
 	}
 
@@ -456,10 +457,13 @@ func DefaultBusinessSeatDuration() int {
 
 func (s *BusinessService) normalizeAccount(acc models.BusinessAccount) models.BusinessAccount {
 	if acc.SeatsExpiresAt == nil {
+		if acc.SeatsTotal == 0 {
+			acc.Expired = true
+		}
 		return acc
 	}
 	now := time.Now()
-	if acc.SeatsExpiresAt.Before(now) || acc.SeatsExpiresAt.Equal(now) {
+	if acc.SeatsTotal == 0 && (acc.SeatsExpiresAt.Before(now) || acc.SeatsExpiresAt.Equal(now)) {
 		acc.Expired = true
 		acc.SeatsTotal = 0
 		acc.SeatsUsed = 0
