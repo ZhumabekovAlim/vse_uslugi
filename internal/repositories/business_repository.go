@@ -74,10 +74,17 @@ func (r *BusinessRepository) GetAccountByUserID(ctx context.Context, businessUse
 		}
 		return models.BusinessAccount{}, err
 	}
-	if acc.SeatsExpiresAt != nil && !acc.SeatsExpiresAt.After(time.Now()) {
+	summary, err := r.getActiveSeatSummary(ctx, businessUserID, time.Now().UTC())
+	if err != nil {
+		return models.BusinessAccount{}, err
+	}
+	acc.SeatsTotal = summary.Total
+	acc.SeatsExpiresAt = summary.ExpiresAt
+	if acc.SeatsTotal == 0 {
 		acc.Expired = true
-		acc.SeatsTotal = 0
 		acc.SeatsUsed = 0
+	} else if acc.SeatsUsed > acc.SeatsTotal {
+		acc.SeatsUsed = acc.SeatsTotal
 	}
 	return acc, nil
 }
@@ -106,6 +113,20 @@ func (r *BusinessRepository) SetSeats(ctx context.Context, businessUserID, seats
 	return err
 }
 
+func (r *BusinessRepository) RefreshSeatSummary(ctx context.Context, businessUserID int, now time.Time) error {
+	summary, err := r.getActiveSeatSummary(ctx, businessUserID, now)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE business_accounts 
+              SET seats_total = ?, 
+                  seats_expires_at = ?, 
+                  status = CASE WHEN ? > 0 THEN 'active' ELSE status END
+              WHERE business_user_id = ?`
+	_, err = r.DB.ExecContext(ctx, query, summary.Total, summary.ExpiresAt, summary.Total, businessUserID)
+	return err
+}
+
 func (r *BusinessRepository) IncrementSeatsUsed(ctx context.Context, businessUserID int) error {
 	query := `UPDATE business_accounts SET seats_used = seats_used + 1 WHERE business_user_id = ?`
 	_, err := r.DB.ExecContext(ctx, query, businessUserID)
@@ -118,7 +139,7 @@ func (r *BusinessRepository) SetStatus(ctx context.Context, businessUserID int, 
 }
 
 func (r *BusinessRepository) SaveSeatPurchase(ctx context.Context, purchase models.BusinessSeatPurchase) error {
-	query := `INSERT INTO business_seat_purchases (business_user_id, seats, amount, provider, state, provider_txn_id, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO business_seat_purchases (business_user_id, seats, amount, provider, state, provider_txn_id, payload_json, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 	var payload any
 	if purchase.PayloadJSON != nil {
 		b, err := json.Marshal(purchase.PayloadJSON)
@@ -127,8 +148,25 @@ func (r *BusinessRepository) SaveSeatPurchase(ctx context.Context, purchase mode
 		}
 		payload = b
 	}
-	_, err := r.DB.ExecContext(ctx, query, purchase.BusinessUserID, purchase.Seats, purchase.Amount, purchase.Provider, purchase.State, purchase.ProviderTxnID, payload)
+	_, err := r.DB.ExecContext(ctx, query, purchase.BusinessUserID, purchase.Seats, purchase.Amount, purchase.Provider, purchase.State, purchase.ProviderTxnID, payload, purchase.ExpiresAt)
 	return err
+}
+
+type businessSeatSummary struct {
+	Total     int
+	ExpiresAt *time.Time
+}
+
+func (r *BusinessRepository) getActiveSeatSummary(ctx context.Context, businessUserID int, now time.Time) (businessSeatSummary, error) {
+	var summary businessSeatSummary
+	query := `SELECT COALESCE(SUM(seats), 0) AS seats_total, MAX(expires_at) AS seats_expires_at
+              FROM business_seat_purchases
+              WHERE business_user_id = ? AND expires_at > ?`
+	err := r.DB.QueryRowContext(ctx, query, businessUserID, now).Scan(&summary.Total, &summary.ExpiresAt)
+	if err != nil {
+		return businessSeatSummary{}, err
+	}
+	return summary, nil
 }
 
 func (r *BusinessRepository) CreateWorker(ctx context.Context, worker models.BusinessWorker) (models.BusinessWorker, error) {
