@@ -273,12 +273,10 @@ func (r *RentRepository) GetRentByIDWithCity(ctx context.Context, id int, userID
 }
 
 func (r *RentRepository) UpdateRent(ctx context.Context, work models.Rent) (models.Rent, error) {
-	query := `
-UPDATE rent
-SET name = ?, address = ?, price = ?, price_to = ?, user_id = ?, city_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?,
-    work_time_from = ?, work_time_to = ?, description = ?, condition = ?, delivery = ?, avg_rating = ?, top = ?, negotiable = ?, hide_phone = ?, liked = ?, status = ?, rent_type = ?, deposit = ?, latitude = ?, longitude = ?, updated_at = ?
-WHERE id = ?
-`
+	query := "UPDATE rent " +
+		"SET name = ?, address = ?, price = ?, price_to = ?, user_id = ?, city_id = ?, images = ?, videos = ?, category_id = ?, subcategory_id = ?, " +
+		"work_time_from = ?, work_time_to = ?, description = ?, `condition` = ?, delivery = ?, avg_rating = ?, `top` = ?, negotiable = ?, hide_phone = ?, liked = ?, status = ?, rent_type = ?, deposit = ?, latitude = ?, longitude = ?, updated_at = ? " +
+		"WHERE id = ?"
 	imagesJSON, err := json.Marshal(work.Images)
 	if err != nil {
 		return models.Rent{}, fmt.Errorf("failed to marshal images: %w", err)
