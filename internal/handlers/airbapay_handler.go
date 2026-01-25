@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -32,6 +33,8 @@ const (
 type AirbapayHandler struct {
 	Service          *services.AirbapayService
 	InvoiceRepo      *repositories.InvoiceRepo
+	IAPRepo          *repositories.IAPRepository
+	GoogleIAPRepo    *repositories.GoogleIAPRepository
 	SubscriptionRepo *repositories.SubscriptionRepository
 	TopService       *services.TopService
 	BusinessService  *services.BusinessService
@@ -40,8 +43,20 @@ type AirbapayHandler struct {
 	CourierDeps      *courier.Deps
 }
 
-func NewAirbapayHandler(s *services.AirbapayService, r *repositories.InvoiceRepo, sub *repositories.SubscriptionRepository) *AirbapayHandler {
-	return &AirbapayHandler{Service: s, InvoiceRepo: r, SubscriptionRepo: sub}
+func NewAirbapayHandler(
+	s *services.AirbapayService,
+	r *repositories.InvoiceRepo,
+	sub *repositories.SubscriptionRepository,
+	iapRepo *repositories.IAPRepository,
+	googleIapRepo *repositories.GoogleIAPRepository,
+) *AirbapayHandler {
+	return &AirbapayHandler{
+		Service:          s,
+		InvoiceRepo:      r,
+		SubscriptionRepo: sub,
+		IAPRepo:          iapRepo,
+		GoogleIAPRepo:    googleIapRepo,
+	}
 }
 
 // SetTaxiWebhookHandler wires taxi webhook handler so that callbacks with HMAC signature are delegated to the taxi module.
@@ -475,12 +490,59 @@ func (h *AirbapayHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invoices, err := h.InvoiceRepo.GetByUser(r.Context(), userID)
+	ctx := r.Context()
+	invoices, err := h.InvoiceRepo.GetByUser(ctx, userID)
 	if err != nil {
 		http.Error(w, "get invoices: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	var history []models.PaymentHistoryItem
+	for _, inv := range invoices {
+		invCopy := inv
+		history = append(history, models.PaymentHistoryItem{
+			Provider:  "airbapay",
+			CreatedAt: inv.CreatedAt,
+			Invoice:   &invCopy,
+		})
+	}
+
+	if h.IAPRepo != nil {
+		appleTxns, err := h.IAPRepo.ListByUser(ctx, userID)
+		if err != nil {
+			http.Error(w, "get apple iap transactions: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		for _, txn := range appleTxns {
+			txnCopy := txn
+			history = append(history, models.PaymentHistoryItem{
+				Provider:         "apple_iap",
+				CreatedAt:        txn.CreatedAt,
+				AppleTransaction: &txnCopy,
+			})
+		}
+	}
+
+	if h.GoogleIAPRepo != nil {
+		googleTxns, err := h.GoogleIAPRepo.ListByUser(ctx, userID)
+		if err != nil {
+			http.Error(w, "get google play transactions: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		for _, txn := range googleTxns {
+			txnCopy := txn
+			history = append(history, models.PaymentHistoryItem{
+				Provider:          "google_play",
+				CreatedAt:         txn.CreatedAt,
+				GoogleTransaction: &txnCopy,
+			})
+		}
+	}
+
+	sort.Slice(history, func(i, j int) bool {
+		return history[i].CreatedAt.After(history[j].CreatedAt)
+	})
+
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(invoices)
+	_ = json.NewEncoder(w).Encode(history)
 }
