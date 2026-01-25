@@ -41,6 +41,22 @@ type DriversRepo struct {
 	db *sql.DB
 }
 
+func (r *DriversRepo) Exists(ctx context.Context, driverID int64) (bool, error) {
+	if driverID <= 0 {
+		return false, nil
+	}
+
+	var x int
+	err := r.db.QueryRowContext(ctx, `SELECT 1 FROM drivers WHERE id = ? LIMIT 1`, driverID).Scan(&x)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // DriversStats aggregates counts for driver availability and moderation states.
 type DriversStats struct {
 	Total   int `json:"total_drivers"`
