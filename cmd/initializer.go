@@ -179,6 +179,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	// Repositories\
 	invoiceRepo := repositories.NewInvoiceRepo(db)
 	iapRepo := repositories.NewIAPRepository(db)
+	googleIapRepo := repositories.NewGoogleIAPRepository(db)
 	userRepo := repositories.UserRepository{DB: db}
 	serviceRepo := repositories.ServiceRepository{DB: db}
 	categoryRepo := repositories.CategoryRepository{DB: db}
@@ -385,7 +386,7 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	adResponseHandler := &handlers.AdResponseHandler{Service: adResponseService}
 	adFavoriteHandler := &handlers.AdFavoriteHandler{Service: adFavoriteService}
 	subscriptionHandler := &handlers.SubscriptionHandler{Service: subscriptionService}
-	airbapayHandler := handlers.NewAirbapayHandler(airbapayService, invoiceRepo, &subscriptionRepo)
+	airbapayHandler := handlers.NewAirbapayHandler(airbapayService, invoiceRepo, &subscriptionRepo, iapRepo, googleIapRepo)
 	airbapayHandler.TopService = topService
 	airbapayHandler.BusinessService = businessService
 	locationHandler := &handlers.LocationHandler{Service: locationService}
@@ -503,8 +504,6 @@ func initializeApp(db *sql.DB, errorLog, infoLog *log.Logger) *application {
 	} else {
 		infoLog.Println("Google Play IAP: disabled (missing GOOGLE_PLAY_PACKAGE_NAME and/or GOOGLE_PLAY_SERVICE_ACCOUNT_JSON/GOOGLE_PLAY_SERVICE_ACCOUNT_FILE)")
 	}
-
-	googleIapRepo := repositories.NewGoogleIAPRepository(db)
 
 	googleIapHandler := handlers.NewGoogleIAPHandler(
 		googleSvc,

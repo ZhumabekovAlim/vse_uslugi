@@ -145,3 +145,31 @@ func (r *GoogleIAPRepository) FindTargetByToken(ctx context.Context, purchaseTok
 	}
 	return target, userID, nil
 }
+
+func (r *GoogleIAPRepository) ListByUser(ctx context.Context, userID int) ([]models.GoogleIAPHistory, error) {
+	if err := r.ensureSchema(ctx); err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, `
+SELECT purchase_token, order_id, product_id, package_name, kind, created_at
+FROM google_iap_transactions
+WHERE user_id = ?
+ORDER BY created_at DESC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []models.GoogleIAPHistory
+	for rows.Next() {
+		var item models.GoogleIAPHistory
+		if err := rows.Scan(&item.PurchaseToken, &item.OrderID, &item.ProductID, &item.PackageName, &item.Kind, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
