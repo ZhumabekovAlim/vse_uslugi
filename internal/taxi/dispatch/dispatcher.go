@@ -66,10 +66,15 @@ type driverLocator interface {
 	Nearby(ctx context.Context, lon, lat float64, radiusMeters float64, limit int, city string) ([]geo.NearbyDriver, error)
 }
 
+type DriversRepository interface {
+	Exists(ctx context.Context, driverID int64) (bool, error)
+}
+
 type Dispatcher struct {
 	orders      OrdersRepository
 	dispatch    DispatchRepository
 	offers      OffersRepository
+	drivers     DriversRepository
 	passengers  PassengerRepository
 	locator     driverLocator
 	driverWS    DriverNotifier
@@ -79,8 +84,8 @@ type Dispatcher struct {
 }
 
 // New creates a dispatcher instance.
-func New(orders OrdersRepository, dispatch DispatchRepository, offers OffersRepository, passengers PassengerRepository, locator driverLocator, driverWS DriverNotifier, passengerWS PassengerNotifier, logger Logger, cfg Config) *Dispatcher {
-	return &Dispatcher{orders: orders, dispatch: dispatch, offers: offers, passengers: passengers, locator: locator, driverWS: driverWS, passengerWS: passengerWS, logger: logger, cfg: cfg}
+func New(orders OrdersRepository, dispatch DispatchRepository, offers OffersRepository, drivers DriversRepository, passengers PassengerRepository, locator driverLocator, driverWS DriverNotifier, passengerWS PassengerNotifier, logger Logger, cfg Config) *Dispatcher {
+	return &Dispatcher{orders: orders, dispatch: dispatch, offers: offers, drivers: drivers, passengers: passengers, locator: locator, driverWS: driverWS, passengerWS: passengerWS, logger: logger, cfg: cfg}
 }
 
 // Run starts the dispatcher loop.
@@ -142,7 +147,7 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 
 	cityKey := d.cfg.GetRegionID()
 	if strings.TrimSpace(cityKey) == "" {
-		cityKey = "astana" // fallback на время отладки
+		cityKey = "astana"
 	}
 	drivers, err := d.locator.Nearby(ctx, order.FromLon, order.FromLat, float64(rec.RadiusM), 20, cityKey)
 	if err != nil {
@@ -168,6 +173,23 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 	}
 
 	for _, driver := range drivers {
+		if driver.ID <= 0 {
+			d.logger.Errorf("dispatch: skip invalid driver id=%d (from locator)", driver.ID)
+			continue
+		}
+
+		if d.drivers != nil {
+			ok, err := d.drivers.Exists(ctx, driver.ID)
+			if err != nil {
+				d.logger.Errorf("dispatch: drivers.Exists(driver=%d) failed: %v", driver.ID, err)
+				continue
+			}
+			if !ok {
+				d.logger.Errorf("dispatch: skip ghost driver id=%d (not in DB drivers)", driver.ID)
+				continue
+			}
+		}
+
 		offered, err := d.offers.AlreadyOffered(ctx, order.ID, driver.ID)
 		if err != nil {
 			d.logger.Errorf("dispatch: AlreadyOffered(order=%d,driver=%d) failed: %v", order.ID, driver.ID, err)
