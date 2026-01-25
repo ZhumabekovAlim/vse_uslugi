@@ -83,6 +83,9 @@ func (l *DriverLocator) SafeUpdateDriver(ctx context.Context, driverID int64, lo
 	if status == "" {
 		status = "free"
 	}
+	if driverID <= 0 {
+		return fmt.Errorf("SafeUpdateDriver: invalid driverID=%d", driverID)
+	}
 	if lon < -180 || lon > 180 || lat < -90 || lat > 90 {
 		return fmt.Errorf("SafeUpdateDriver: invalid coords lon=%.8f lat=%.8f", lon, lat)
 	}

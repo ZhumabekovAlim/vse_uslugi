@@ -64,6 +64,7 @@ type PassengerRepository interface {
 
 type driverLocator interface {
 	Nearby(ctx context.Context, lon, lat float64, radiusMeters float64, limit int, city string) ([]geo.NearbyDriver, error)
+	GoOffline(ctx context.Context, driverID int64, city string) error
 }
 
 type DriversRepository interface {
@@ -185,7 +186,10 @@ func (d *Dispatcher) processRecord(ctx context.Context, rec repo.DispatchRecord,
 				continue
 			}
 			if !ok {
-				d.logger.Errorf("dispatch: skip ghost driver id=%d (not in DB drivers)", driver.ID)
+				d.logger.Errorf("dispatch: skip ghost driver id=%d (not in DB drivers) → remove from geo", driver.ID)
+				if d.locator != nil {
+					_ = d.locator.GoOffline(ctx, driver.ID, cityKey)
+				}
 				continue
 			}
 		}
