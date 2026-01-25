@@ -155,3 +155,31 @@ FROM apple_iap_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`,
 	txn.Raw = raw
 	return txn, nil
 }
+
+func (r *IAPRepository) ListByUser(ctx context.Context, userID int) ([]models.AppleIAPHistory, error) {
+	if err := r.ensureSchema(ctx); err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, `
+SELECT transaction_id, original_transaction_id, product_id, environment, bundle_id, created_at
+FROM apple_iap_transactions
+WHERE user_id = ?
+ORDER BY created_at DESC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []models.AppleIAPHistory
+	for rows.Next() {
+		var item models.AppleIAPHistory
+		if err := rows.Scan(&item.TransactionID, &item.OriginalTransactionID, &item.ProductID, &item.Environment, &item.BundleID, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
