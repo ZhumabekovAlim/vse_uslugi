@@ -151,7 +151,7 @@ func (r *GoogleIAPRepository) ListByUser(ctx context.Context, userID int) ([]mod
 		return nil, err
 	}
 	rows, err := r.DB.QueryContext(ctx, `
-SELECT purchase_token, order_id, product_id, package_name, kind, created_at
+SELECT purchase_token, order_id, product_id, package_name, kind, target_json, created_at
 FROM google_iap_transactions
 WHERE user_id = ?
 ORDER BY created_at DESC`, userID)
@@ -163,8 +163,12 @@ ORDER BY created_at DESC`, userID)
 	var out []models.GoogleIAPHistory
 	for rows.Next() {
 		var item models.GoogleIAPHistory
-		if err := rows.Scan(&item.PurchaseToken, &item.OrderID, &item.ProductID, &item.PackageName, &item.Kind, &item.CreatedAt); err != nil {
+		var target sql.NullString
+		if err := rows.Scan(&item.PurchaseToken, &item.OrderID, &item.ProductID, &item.PackageName, &item.Kind, &target, &item.CreatedAt); err != nil {
 			return nil, err
+		}
+		if target.Valid {
+			item.TargetJSON = json.RawMessage(target.String)
 		}
 		out = append(out, item)
 	}

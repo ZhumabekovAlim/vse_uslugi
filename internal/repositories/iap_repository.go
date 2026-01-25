@@ -161,7 +161,7 @@ func (r *IAPRepository) ListByUser(ctx context.Context, userID int) ([]models.Ap
 		return nil, err
 	}
 	rows, err := r.DB.QueryContext(ctx, `
-SELECT transaction_id, original_transaction_id, product_id, environment, bundle_id, created_at
+SELECT transaction_id, original_transaction_id, product_id, environment, bundle_id, target_json, created_at
 FROM apple_iap_transactions
 WHERE user_id = ?
 ORDER BY created_at DESC`, userID)
@@ -173,8 +173,12 @@ ORDER BY created_at DESC`, userID)
 	var out []models.AppleIAPHistory
 	for rows.Next() {
 		var item models.AppleIAPHistory
-		if err := rows.Scan(&item.TransactionID, &item.OriginalTransactionID, &item.ProductID, &item.Environment, &item.BundleID, &item.CreatedAt); err != nil {
+		var target sql.NullString
+		if err := rows.Scan(&item.TransactionID, &item.OriginalTransactionID, &item.ProductID, &item.Environment, &item.BundleID, &target, &item.CreatedAt); err != nil {
 			return nil, err
+		}
+		if target.Valid {
+			item.TargetJSON = json.RawMessage(target.String)
 		}
 		out = append(out, item)
 	}
