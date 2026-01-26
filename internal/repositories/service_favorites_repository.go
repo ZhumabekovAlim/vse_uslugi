@@ -32,9 +32,12 @@ func (r *ServiceFavoriteRepository) IsFavorite(ctx context.Context, userID, serv
 }
 
 func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, userID int) ([]models.ServiceFavorite, error) {
-	query := `SELECT sf.id, sf.user_id, sf.service_id, s.city_id, city.name, s.name, s.address, s.price, s.price_to, s.on_site, s.negotiable, s.hide_phone, s.status, s.created_at, s.images
+	query := `SELECT sf.id, sf.user_id, sf.service_id, s.city_id, city.name, s.name, s.address, s.price, s.price_to, s.on_site, s.negotiable, s.hide_phone,
+                     u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+                     s.status, s.created_at, s.images
              FROM service_favorites sf
              JOIN service s ON sf.service_id = s.id
+             JOIN users u ON s.user_id = u.id
              LEFT JOIN cities city ON s.city_id = city.id
              WHERE sf.user_id = ?`
 	rows, err := r.DB.QueryContext(ctx, query, userID)
@@ -48,7 +51,9 @@ func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, user
 		var fav models.ServiceFavorite
 		var price, priceTo sql.NullFloat64
 		var imagesJSON sql.NullString
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.ServiceID, &fav.CityID, &fav.CityName, &fav.Name, &fav.Address, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.ServiceID, &fav.CityID, &fav.CityName, &fav.Name, &fav.Address, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone,
+			&fav.User.ID, &fav.User.Name, &fav.User.Surname, &fav.User.Phone, &fav.User.ReviewRating, &fav.User.AvatarPath,
+			&fav.Status, &fav.CreatedAt, &imagesJSON)
 		if err != nil {
 			return nil, err
 		}
@@ -57,6 +62,10 @@ func (r *ServiceFavoriteRepository) GetFavoritesByUser(ctx context.Context, user
 		}
 		if priceTo.Valid {
 			fav.PriceTo = &priceTo.Float64
+		}
+
+		if count, err := getUserTotalReviews(ctx, r.DB, fav.User.ID); err == nil {
+			fav.User.ReviewsCount = count
 		}
 
 		imgPath, err := extractFirstImagePath(imagesJSON)
