@@ -198,6 +198,7 @@ func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (model
 	if err == nil {
 		s.User.ReviewsCount = count
 	}
+	fmt.Println(s)
 	return s, nil
 }
 

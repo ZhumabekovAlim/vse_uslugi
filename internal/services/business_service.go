@@ -402,7 +402,6 @@ func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserI
 		details.CreatedAt = rent.CreatedAt
 	case "ad":
 		ad, err := s.AdRepo.GetAdByID(ctx, listing.ListingID, businessUserID)
-		fmt.Println(ad)
 		if err != nil {
 			return details, err
 		}
