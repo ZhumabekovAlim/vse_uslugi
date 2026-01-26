@@ -335,7 +335,7 @@ func (s *BusinessService) ListWorkerListings(ctx context.Context, businessUserID
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println("listings:", listings)
 	result := make(map[int][]models.BusinessWorkerListingDetails, len(listings))
 	for workerID, items := range listings {
 		for _, listing := range items {
