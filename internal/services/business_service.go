@@ -326,30 +326,49 @@ func (s *BusinessService) DetachListing(ctx context.Context, businessUserID, wor
 	return s.BusinessRepo.DeleteWorkerListing(ctx, attachment)
 }
 
+func isNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	// классика из sql
+	if errors.Is(err, sql.ErrNoRows) {
+		return true
+	}
+	// твой кейс: err=not found
+	msg := strings.ToLower(err.Error())
+	return msg == "not found" || strings.Contains(msg, "not found")
+}
+
 // ListWorkerListings returns workers with attached listings map keyed by worker user ID.
 func (s *BusinessService) ListWorkerListings(ctx context.Context, businessUserID int) (map[int][]models.BusinessWorkerListingDetails, error) {
 	if _, err := s.GetOrCreateAccount(ctx, businessUserID); err != nil {
 		return nil, err
 	}
+
 	listings, err := s.BusinessRepo.ListWorkerListings(ctx, businessUserID)
 	if err != nil {
 		return nil, err
 	}
+
 	result := make(map[int][]models.BusinessWorkerListingDetails, len(listings))
+
 	for workerID, items := range listings {
 		for _, listing := range items {
-			fmt.Printf("loop: workerID=%d type=%s id=%d\n", workerID, listing.ListingType, listing.ListingID)
-
 			details, err := s.buildListingDetails(ctx, businessUserID, listing)
 			if err != nil {
-				fmt.Printf("ERR: workerID=%d type=%s id=%d err=%v\n", workerID, listing.ListingType, listing.ListingID, err)
+				// ✅ если удалили/не найдено — не роняем весь ответ
+				if isNotFoundErr(err) {
+					// по желанию: лог для отладки
+					// fmt.Printf("skip not found: workerID=%d type=%s id=%d\n", workerID, listing.ListingType, listing.ListingID)
+					continue
+				}
+				// ❌ любая другая ошибка — это реально проблема
 				return nil, err
 			}
-
 			result[workerID] = append(result[workerID], details)
 		}
 	}
-	fmt.Println("result:", result)
+
 	return result, nil
 }
 
@@ -360,7 +379,6 @@ func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserI
 		ListingType:    listing.ListingType,
 		ListingID:      listing.ListingID,
 	}
-	fmt.Println(listing.ListingType)
 
 	switch listing.ListingType {
 	case "service":
