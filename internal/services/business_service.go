@@ -338,10 +338,14 @@ func (s *BusinessService) ListWorkerListings(ctx context.Context, businessUserID
 	result := make(map[int][]models.BusinessWorkerListingDetails, len(listings))
 	for workerID, items := range listings {
 		for _, listing := range items {
+			fmt.Printf("loop: workerID=%d type=%s id=%d\n", workerID, listing.ListingType, listing.ListingID)
+
 			details, err := s.buildListingDetails(ctx, businessUserID, listing)
 			if err != nil {
+				fmt.Printf("ERR: workerID=%d type=%s id=%d err=%v\n", workerID, listing.ListingType, listing.ListingID, err)
 				return nil, err
 			}
+
 			result[workerID] = append(result[workerID], details)
 		}
 	}
