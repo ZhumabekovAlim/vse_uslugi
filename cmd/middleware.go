@@ -108,7 +108,7 @@ func (app *application) JWTMiddleware(next http.Handler, requiredRoles ...string
 			case "client":
 				return claims.Role == "client" || claims.Role == "admin"
 			case "worker":
-				return claims.Role == "worker" || claims.Role == "admin" || claims.Role == "business_worker"
+				return claims.Role == "worker" || claims.Role == "admin" || claims.Role == "business_worker" || claims.Role == "business"
 			case "business":
 				return claims.Role == "business" || claims.Role == "admin"
 			case "business_worker":
