@@ -117,6 +117,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
 }
 
 func (r *AdRepository) GetAdByID(ctx context.Context, id int, userID int) (models.Ad, error) {
+	fmt.Println("GetAdByID", id, " : ", userID)
 	query := `
  SELECT s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, s.city_id, city.name,
         u.id, u.name, u.surname, u.review_rating, u.avatar_path,
