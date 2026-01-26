@@ -77,6 +77,10 @@ func (app *application) withTaxiRoleHeaders(next http.Handler) http.Handler {
 		case "client":
 			r = r.Clone(r.Context())
 			r.Header.Set("X-Passenger-ID", fmt.Sprintf("%d", id))
+		case "business", "business_worker":
+			r = r.Clone(r.Context())
+			r.Header.Set("X-Driver-ID", fmt.Sprintf("%d", id))
+			r.Header.Set("X-Passenger-ID", fmt.Sprintf("%d", id))
 		case "admin":
 			// admins can observe without impersonation
 		default:
@@ -97,6 +101,10 @@ func (app *application) withCourierRoleHeaders(next http.Handler) http.Handler {
 			r.Header.Set("X-Courier-ID", fmt.Sprintf("%d", id))
 		case "client":
 			r = r.Clone(r.Context())
+			r.Header.Set("X-Sender-ID", fmt.Sprintf("%d", id))
+		case "business", "business_worker":
+			r = r.Clone(r.Context())
+			r.Header.Set("X-Courier-ID", fmt.Sprintf("%d", id))
 			r.Header.Set("X-Sender-ID", fmt.Sprintf("%d", id))
 		case "admin":
 			// admins can read without impersonation
