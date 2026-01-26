@@ -357,6 +357,7 @@ func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserI
 		ListingType:    listing.ListingType,
 		ListingID:      listing.ListingID,
 	}
+	fmt.Println("businessUserID:", businessUserID)
 
 	switch listing.ListingType {
 	case "service":
