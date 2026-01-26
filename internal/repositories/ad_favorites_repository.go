@@ -32,9 +32,12 @@ func (r *AdFavoriteRepository) IsAdFavorite(ctx context.Context, userID, adID in
 }
 
 func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID int) ([]models.AdFavorite, error) {
-	query := `SELECT af.id, af.user_id, af.ad_id, a.city_id, city.name, a.name, a.address, a.price, a.price_to, a.on_site, a.negotiable, a.hide_phone, a.order_date, a.order_time, a.status, a.created_at, a.images
+	query := `SELECT af.id, af.user_id, af.ad_id, a.city_id, city.name, a.name, a.address, a.price, a.price_to, a.on_site, a.negotiable, a.hide_phone,
+                     u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+                     a.order_date, a.order_time, a.status, a.created_at, a.images
                  FROM ad_favorites af
                  JOIN ad a ON af.ad_id = a.id
+                 JOIN users u ON a.user_id = u.id
                  LEFT JOIN cities city ON a.city_id = city.id
                  WHERE af.user_id = ?`
 	rows, err := r.DB.QueryContext(ctx, query, userID)
@@ -49,7 +52,9 @@ func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID 
 		var price, priceTo sql.NullFloat64
 		var orderDate, orderTime sql.NullString
 		var imagesJSON sql.NullString
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.AdID, &fav.CityID, &fav.CityName, &fav.Name, &fav.Address, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone, &orderDate, &orderTime, &fav.Status, &fav.CreatedAt, &imagesJSON)
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.AdID, &fav.CityID, &fav.CityName, &fav.Name, &fav.Address, &price, &priceTo, &fav.OnSite, &fav.Negotiable, &fav.HidePhone,
+			&fav.User.ID, &fav.User.Name, &fav.User.Surname, &fav.User.Phone, &fav.User.ReviewRating, &fav.User.AvatarPath,
+			&orderDate, &orderTime, &fav.Status, &fav.CreatedAt, &imagesJSON)
 		if err != nil {
 			return nil, err
 		}
@@ -64,6 +69,10 @@ func (r *AdFavoriteRepository) GetAdFavoritesByUser(ctx context.Context, userID 
 		}
 		if orderTime.Valid {
 			fav.OrderTime = &orderTime.String
+		}
+
+		if count, err := getUserTotalReviews(ctx, r.DB, fav.User.ID); err == nil {
+			fav.User.ReviewsCount = count
 		}
 
 		imgPath, err := extractFirstImagePath(imagesJSON)

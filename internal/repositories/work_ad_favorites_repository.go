@@ -32,9 +32,12 @@ func (r *WorkAdFavoriteRepository) IsWorkAdFavorite(ctx context.Context, userID,
 }
 
 func (r *WorkAdFavoriteRepository) GetWorkAdFavoritesByUser(ctx context.Context, userID int) ([]models.WorkAdFavorite, error) {
-	query := `SELECT wf.id, wf.user_id, wf.work_ad_id, w.city_id, city.name, w.name, w.address, w.price, w.price_to, w.negotiable, w.hide_phone, w.status, w.created_at, w.images
+	query := `SELECT wf.id, wf.user_id, wf.work_ad_id, w.city_id, city.name, w.name, w.address, w.price, w.price_to, w.negotiable, w.hide_phone,
+                     u.id, u.name, u.surname, u.phone, u.review_rating, u.avatar_path,
+                     w.status, w.created_at, w.images
                  FROM work_ad_favorites wf
                  JOIN work_ad w ON wf.work_ad_id = w.id
+                 JOIN users u ON w.user_id = u.id
                  LEFT JOIN cities city ON w.city_id = city.id
                  WHERE wf.user_id = ?`
 	rows, err := r.DB.QueryContext(ctx, query, userID)
@@ -48,7 +51,9 @@ func (r *WorkAdFavoriteRepository) GetWorkAdFavoritesByUser(ctx context.Context,
 		var fav models.WorkAdFavorite
 		var price, priceTo sql.NullFloat64
 		var imagesJSON sql.NullString
-		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkAdID, &fav.CityID, &fav.CityName, &fav.Name, &fav.Address, &price, &priceTo, &fav.Negotiable, &fav.HidePhone, &fav.Status, &fav.CreatedAt, &imagesJSON)
+		err := rows.Scan(&fav.ID, &fav.UserID, &fav.WorkAdID, &fav.CityID, &fav.CityName, &fav.Name, &fav.Address, &price, &priceTo, &fav.Negotiable, &fav.HidePhone,
+			&fav.User.ID, &fav.User.Name, &fav.User.Surname, &fav.User.Phone, &fav.User.ReviewRating, &fav.User.AvatarPath,
+			&fav.Status, &fav.CreatedAt, &imagesJSON)
 		if err != nil {
 			return nil, err
 		}
@@ -57,6 +62,10 @@ func (r *WorkAdFavoriteRepository) GetWorkAdFavoritesByUser(ctx context.Context,
 		}
 		if priceTo.Valid {
 			fav.PriceTo = &priceTo.Float64
+		}
+
+		if count, err := getUserTotalReviews(ctx, r.DB, fav.User.ID); err == nil {
+			fav.User.ReviewsCount = count
 		}
 
 		imgPath, err := extractFirstImagePath(imagesJSON)
