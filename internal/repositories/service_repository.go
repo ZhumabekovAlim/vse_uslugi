@@ -961,7 +961,7 @@ WHERE 1=1 AND s.status != 'archive'
 func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, serviceID int, userID int) (models.Service, error) {
 	query := `
             SELECT
-                    s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id, s.city_id,
+                    s.id, s.name, s.address, s.on_site, s.price, s.price_to, s.user_id, s.city_id, city.name,
                     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
                        CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
                        s.images, s.videos, s.category_id, c.name,
@@ -972,6 +972,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
                        s.latitude, s.longitude, s.status, s.created_at, s.updated_at
                FROM service s
                JOIN users u ON s.user_id = u.id
+               LEFT JOIN cities city ON s.city_id = city.id
                JOIN categories c ON s.category_id = c.id
                JOIN subcategories sub ON s.subcategory_id = sub.id
                LEFT JOIN service_favorites sf ON sf.service_id = s.id AND sf.user_id = ?
@@ -988,7 +989,7 @@ func (r *ServiceRepository) GetServiceByServiceIDAndUserID(ctx context.Context, 
 	var price, priceTo sql.NullFloat64
 
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, serviceID).Scan(
-		&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID, &s.CityID,
+	&s.ID, &s.Name, &s.Address, &s.OnSite, &price, &priceTo, &s.UserID, &s.CityID, &s.CityName,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz,
