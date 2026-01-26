@@ -346,6 +346,7 @@ func (s *BusinessService) ListWorkerListings(ctx context.Context, businessUserID
 			result[workerID] = append(result[workerID], details)
 		}
 	}
+	fmt.Println("result:", result)
 	return result, nil
 }
 
