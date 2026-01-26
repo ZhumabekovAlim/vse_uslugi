@@ -1062,7 +1062,7 @@ WHERE 1=1 AND s.status != 'archive'
 func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID int, userID int) (models.Rent, error) {
 	query := `
     SELECT
-    s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, s.city_id,
+    s.id, s.name, s.address, s.price, s.price_to, s.negotiable, s.hide_phone, s.user_id, s.city_id, city.name,
     u.id, u.name, u.surname, u.review_rating, u.avatar_path,
       CASE WHEN s.hide_phone = 0 AND sr.id IS NOT NULL THEN u.phone ELSE '' END AS phone,
     s.images, s.videos, s.category_id, c.name,
@@ -1073,6 +1073,7 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
        s.status, s.rent_type, s.deposit, s.latitude, s.longitude, s.created_at, s.updated_at
        FROM rent s
        JOIN users u ON s.user_id = u.id
+       LEFT JOIN cities city ON s.city_id = city.id
        JOIN rent_categories c ON s.category_id = c.id
        JOIN rent_subcategories sub ON s.subcategory_id = sub.id
        LEFT JOIN rent_favorites sf ON sf.rent_id = s.id AND sf.user_id = ?
@@ -1091,7 +1092,7 @@ func (r *RentRepository) GetRentByRentIDAndUserID(ctx context.Context, rentID in
 	var likedStr, respondedStr string
 
 	err := r.DB.QueryRowContext(ctx, query, userID, userID, rentID).Scan(
-		&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.CityID,
+	&s.ID, &s.Name, &s.Address, &price, &priceTo, &s.Negotiable, &s.HidePhone, &s.UserID, &s.CityID, &s.CityName,
 		&s.User.ID, &s.User.Name, &s.User.Surname, &s.User.ReviewRating, &s.User.AvatarPath, &s.User.Phone,
 		&imagesJSON, &videosJSON, &s.CategoryID, &s.CategoryName,
 		&s.SubcategoryID, &s.SubcategoryName, &s.SubcategoryNameKz, &s.WorkTimeFrom, &s.WorkTimeTo,
