@@ -335,7 +335,6 @@ func (s *BusinessService) ListWorkerListings(ctx context.Context, businessUserID
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("listings:", listings)
 	result := make(map[int][]models.BusinessWorkerListingDetails, len(listings))
 	for workerID, items := range listings {
 		for _, listing := range items {
@@ -357,7 +356,6 @@ func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserI
 		ListingType:    listing.ListingType,
 		ListingID:      listing.ListingID,
 	}
-	fmt.Println("businessUserID:", businessUserID)
 
 	switch listing.ListingType {
 	case "service":
@@ -447,6 +445,7 @@ func (s *BusinessService) buildListingDetails(ctx context.Context, businessUserI
 	default:
 		details.CreatedAt = listing.CreatedAt
 	}
+	fmt.Println("details", details)
 	return details, nil
 }
 
