@@ -549,7 +549,7 @@ ORDER BY last_message_at DESC
 			performerID = &pid
 		}
 
-		key := fmt.Sprintf("%s:%d", adType, adID)
+		key := buildChatGroupingKey(adType, adID, user.ChatID)
 		if idx, ok := adIndex[key]; ok {
 			result[idx].Users = append(result[idx].Users, user)
 		} else {
@@ -650,6 +650,14 @@ func floatPtr(v float64) *float64 {
 
 func stringPtr(v string) *string {
 	return &v
+}
+
+func buildChatGroupingKey(adType string, adID, chatID int) string {
+	if adType == "service" || adType == "rent" || adType == "work" {
+		return fmt.Sprintf("%s:%d:%d", adType, adID, chatID)
+	}
+
+	return fmt.Sprintf("%s:%d", adType, adID)
 }
 
 // getUserReviewForAd fetches a review left by a user for a specific advertisement type.
